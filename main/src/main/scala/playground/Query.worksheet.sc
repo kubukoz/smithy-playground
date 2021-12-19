@@ -21,6 +21,6 @@ println(format(q))
 Runner
   .make(DemoServiceGen)
   .use {
-    _.apply(q)
+    _.run(q)
   }
   .unsafeRunSync()

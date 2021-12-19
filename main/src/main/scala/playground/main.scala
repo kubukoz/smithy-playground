@@ -32,11 +32,15 @@ class Compiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
 }
 
+trait Runner[F[_]] {
+  def run(q: Query): F[Any]
+}
+
 object Runner {
 
   def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op]
-  ): Resource[IO, Query => IO[Any]] = EmberClientBuilder
+  ): Resource[IO, Runner[IO]] = EmberClientBuilder
     .default[IO]
     .build
     .evalMap { c =>
