@@ -1,5 +1,6 @@
 package playground
 
+import cats.Id
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits._
@@ -10,9 +11,13 @@ import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
 
-class Compiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
+  def compile(q: Query): F[Op[_, _, _, _, _]]
+}
+
+private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   service: Service[Alg, Op]
-) {
+) extends Compiler[Op, Id] {
 
   private val schem = new QuerySchematic
 
@@ -44,7 +49,7 @@ object Runner {
     .default[IO]
     .build
     .evalMap { c =>
-      val compiler = new Compiler(service)
+      val compiler: Compiler[Op, Id] = new CompilerImpl(service)
 
       SimpleRestJsonBuilder(service).client(c, uri"http://localhost:8082").map { client =>
         val exec = service.asTransformation(client)
