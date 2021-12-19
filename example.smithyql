@@ -1,0 +1,8 @@
+CreateHero {
+  hero = {
+    bad = {
+      powerLevel = 42,
+      evilName = "Evil",
+    }
+  }
+}
