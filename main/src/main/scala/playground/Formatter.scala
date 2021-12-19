@@ -14,19 +14,24 @@ object Formatter {
             fields.toList.map { case (k, v) =>
               Doc.text(k) +
                 Doc.space +
-                Doc.char('=') +
-                Doc.space +
-                writeAst(v) +
+                Doc.char('=') + {
+                  if (v.isInstanceOf[Struct])
+                    Doc.space + writeAst(v)
+                  else
+                    (Doc.lineOrSpace + writeAst(v)).nested(2).grouped
+
+                } +
                 Doc.comma
             },
           )
           .bracketBy(Doc.char('{'), Doc.char('}'))
       case IntLiteral(i)    => Doc.text(i.toString)
-      case StringLiteral(s) => Doc.text(s).tightBracketBy(Doc.char('"'), Doc.char('"'))
+      case StringLiteral(s) => Doc.char('\"') + Doc.text(s) + Doc.char('\"')
     }
 
   def format(
-    q: Query
-  ): String = (Doc.text(q.operationName) + Doc.space + writeAst(q.input)).render(40)
+    q: Query,
+    w: Int,
+  ): String = (Doc.text(q.operationName) + Doc.space + writeAst(q.input)).renderTrim(w)
 
 }
