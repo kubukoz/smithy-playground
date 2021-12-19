@@ -1,0 +1,5 @@
+**/target
+.direnv/
+.idea/
+**/.DS_Store
+.smithy.lsp.log
