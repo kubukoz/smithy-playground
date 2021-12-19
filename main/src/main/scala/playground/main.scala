@@ -32,27 +32,21 @@ class Compiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
 }
 
-class Runner[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
-  service: Service[Alg, Op],
-  client: Alg[smithy4s.GenLift[F]#λ],
-) {
-
-  private val exec = service.asTransformation(client)
-  private val compiler = new Compiler(service)
-
-  def run(q: Query) = exec(compiler.compile(q))
-}
-
 object Runner {
 
   def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op]
-  ): Resource[IO, Runner[Alg, Op, IO]] = EmberClientBuilder
+  ): Resource[IO, Query => IO[Any]] = EmberClientBuilder
     .default[IO]
     .build
-    .flatMap { c =>
-      SimpleRestJsonBuilder(service).clientResource(c, uri"http://localhost:8082")
+    .evalMap { c =>
+      val compiler = new Compiler(service)
+
+      SimpleRestJsonBuilder(service).client(c, uri"http://localhost:8082").map { client =>
+        val exec = service.asTransformation(client)
+
+        q => exec(compiler.compile(q))
+      }
     }
-    .map(new Runner(service, _))
 
 }
