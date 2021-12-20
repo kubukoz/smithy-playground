@@ -1,5 +1,0 @@
-[repositories]
-  local
-  mercury-mvn: https://artifactory.us-east-1.bamgrid.net/mercury-maven/
-  oss-maven: https://artifactory.us-east-1.bamgrid.net/artifactory/oss-maven/
-  maven-central

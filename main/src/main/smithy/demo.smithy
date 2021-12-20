@@ -53,6 +53,7 @@ structure HeroIsBad {
 
 
 @http(method: "PUT", uri: "/subscriptions")
+@idempotent
 operation CreateSubscription {
   input: CreateSubscriptionInput,
   output: CreateSubscriptionOutput,

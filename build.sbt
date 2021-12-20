@@ -7,6 +7,16 @@ val compilerPlugins = List(
 
 ThisBuild / scalaVersion := "2.13.7"
 
+val GraalVM11 = "graalvm-ce-java11@21.2.0"
+ThisBuild / versionScheme := Some("early-semver")
+ThisBuild / scalaVersion := "2.13.7"
+ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM11)
+ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
+ThisBuild / githubWorkflowPublishTargetBranches := Seq(
+  RefPredicate.Equals(Ref.Branch("main")),
+  RefPredicate.StartsWith(Ref.Tag("v")),
+)
+
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 lazy val main = project
@@ -14,7 +24,7 @@ lazy val main = project
     libraryDependencies ++= List(
       "org.typelevel" %% "cats-parse" % "0.3.6",
       "org.typelevel" %% "paiges-cats" % "0.4.2",
-      "com.disneystreaming.oss" %% "smithy4s-http4s" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "org.http4s" %% "http4s-ember-client" % "0.23.7",
       "org.scalameta" %% "munit" % "0.7.29" % Test,
       "com.davegurnell" %% "unindent" % "1.7.0",

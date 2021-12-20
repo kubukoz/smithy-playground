@@ -3,6 +3,6 @@
     "https://artifactory.us-east-1.bamgrid.net/artifactory/oss-maven/"
   ],
   "mavenDependencies": [
-    "com.disneystreaming.oss:smithy4s-protocol_2.13:0.8.1-52-f46ae9c0"
+    "com.disneystreaming.smithy4s:smithy4s-protocol_2.13:0.0.0-388-16474590"
   ]
 }
