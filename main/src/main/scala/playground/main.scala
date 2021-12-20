@@ -6,6 +6,13 @@ import cats.effect.IOApp
 import cats.effect.kernel.Resource
 import cats.effect.std
 import cats.implicits._
+import com.disneystreaming.demo.smithy.CreateHeroOutput
+import com.disneystreaming.demo.smithy.CreateSubscriptionOutput
+import com.disneystreaming.demo.smithy.DemoService
+import com.disneystreaming.demo.smithy.DemoServiceGen
+import com.disneystreaming.demo.smithy.Hero
+import com.disneystreaming.demo.smithy.Subscription
+import org.http4s.HttpApp
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.implicits._
 import playground._
@@ -16,18 +23,6 @@ import smithy4s.http4s.SimpleRestJsonBuilder
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
-import com.disneystreaming.deployship.smithy.DeployshipServiceGen
-import smithy4s.http4s.SimpleProtocolBuilder
-import smithy4s.http.CodecAPI
-import smithy4s.Constraints
-import com.disneystreaming.demo.smithy.DemoServiceGen
-import com.disneystreaming.demo.smithy.DemoService
-import org.http4s.HttpApp
-import org.http4s.implicits._
-import com.disneystreaming.demo.smithy.CreateHeroOutput
-import com.disneystreaming.demo.smithy.Hero
-import com.disneystreaming.demo.smithy.CreateSubscriptionOutput
-import com.disneystreaming.demo.smithy.Subscription
 
 trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
   def compile(q: Query): F[Op[_, _, _, _, _]]
