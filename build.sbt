@@ -10,10 +10,11 @@ ThisBuild / scalaVersion := "2.13.7"
 ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / scalaVersion := "2.13.7"
 ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
-ThisBuild / githubWorkflowPublishTargetBranches := Seq(
-  RefPredicate.Equals(Ref.Branch("main")),
-  RefPredicate.StartsWith(Ref.Tag("v")),
-)
+
+// ThisBuild / githubWorkflowPublishTargetBranches := Seq(
+//   RefPredicate.Equals(Ref.Branch("main")),
+//   RefPredicate.StartsWith(Ref.Tag("v")),
+// )
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
