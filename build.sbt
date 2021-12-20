@@ -7,10 +7,8 @@ val compilerPlugins = List(
 
 ThisBuild / scalaVersion := "2.13.7"
 
-val GraalVM11 = "graalvm-ce-java11@21.2.0"
 ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / scalaVersion := "2.13.7"
-ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM11)
 ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches := Seq(
   RefPredicate.Equals(Ref.Branch("main")),
