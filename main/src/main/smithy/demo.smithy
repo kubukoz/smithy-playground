@@ -5,11 +5,10 @@ use smithy4s.api#simpleRestJson
 @simpleRestJson
 service DemoService {
   version: "0.0.1",
-  operations: [CreateHero],
+  operations: [CreateHero, CreateSubscription],
 }
 
 @http(method: "POST", uri: "/heroes")
-@readonly
 operation CreateHero {
   input: CreateHeroInput,
   output: CreateHeroOutput,
@@ -50,4 +49,30 @@ structure Bad {
 structure HeroIsBad {
   @required
   powerLevel: Integer
+}
+
+
+@http(method: "PUT", uri: "/subscriptions")
+operation CreateSubscription {
+  input: CreateSubscriptionInput,
+  output: CreateSubscriptionOutput,
+}
+
+structure CreateSubscriptionInput {
+  @httpPayload
+  @required
+  subscription: Subscription
+}
+
+structure CreateSubscriptionOutput {
+  @httpPayload
+  @required
+  subscription: Subscription
+}
+
+structure Subscription {
+  @required
+  id: String,
+  name: String,
+  createdAt: Timestamp
 }

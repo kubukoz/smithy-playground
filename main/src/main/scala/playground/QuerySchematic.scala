@@ -9,6 +9,7 @@ import schematic.Field
 import cats.implicits._
 import smithy4s.Timestamp
 import smithy4s.Document
+import smithy.api.TimestampFormat
 
 class QuerySchematic
   extends smithy4s.Schematic[AST => *]
@@ -37,7 +38,7 @@ class QuerySchematic
 
   def bytes: AST => ByteArray = ???
 
-  def unit: AST => Unit = ???
+  def unit: AST => Unit = _ => ()
 
   def list[S](fs: AST => S): AST => List[S] = ???
 
@@ -54,7 +55,10 @@ class QuerySchematic
   ): AST => S = { case Struct(asts) =>
     const {
       fields.map { field =>
-        field.instance(asts(field.label))
+        if (field.isOptional)
+          asts.get(field.label).map(field.instance)
+        else
+          field.instance(asts(field.label))
       }
     }
 
@@ -66,25 +70,37 @@ class QuerySchematic
   )(
     total: S => Alt.WithValue[AST => *, S, _]
   ): AST => S = {
-    case Struct(defs) if defs.size == 1 =>
-      def go[A](alt: Alt[AST => *, S, A]): AST => S = alt.instance.andThen(alt.inject)
+    val opts = NonEmptyList(first, rest.toList)
 
-      val (k, v) = defs.head
-      val opts = NonEmptyList(first, rest.toList)
-      val op = opts
-        .find { e =>
-          e.label == k
-        }
-        .getOrElse(
-          throw new Exception(
-            "wrong shape, this union requires one of: " + opts
-              .map(_.label)
-              .mkString_(", ")
+    {
+      case Struct(defs) if defs.size == 1 =>
+        def go[A](alt: Alt[AST => *, S, A]): AST => S = alt.instance.andThen(alt.inject)
+
+        val (k, v) = defs.head
+        val op = opts
+          .find { e =>
+            e.label == k
+          }
+          .getOrElse(
+            throw new Exception(
+              "wrong shape, this union requires one of: " + opts
+                .map(_.label)
+                .mkString_(", ")
+            )
           )
+
+        go(op)(v)
+
+      case Struct(m) if m.isEmpty =>
+        throw new Exception(
+          "found empty struct, expected one of: " + opts.map(_.label).mkString_(", ")
+        )
+      case Struct(defs) =>
+        throw new Exception(
+          s"struct mismatch (keys: ${defs.keys.toList.mkString(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}"
         )
 
-      go(op)(v)
-
+    }
   }
 
   def enumeration[A](
@@ -97,7 +113,9 @@ class QuerySchematic
 
   def bijection[A, B](f: AST => A, to: A => B, from: B => A): AST => B = f.andThen(to)
 
-  def timestamp: AST => Timestamp = ???
+  def timestamp: AST => Timestamp = { case StringLiteral(s) =>
+    Timestamp.parse(s, TimestampFormat.DATE_TIME).get /*  */
+  }
 
   def withHints[A](fa: AST => A, hints: Hints): AST => A = fa // todo
 

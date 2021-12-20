@@ -1,8 +1,15 @@
+// CreateSubscription {
+//   subscription = {
+//     id = "subscription_id",
+//     name = "name",
+//     createdAt = "2020-04-01T00:00:00Z",
+//   }
+// }
+
 CreateHero {
   hero = {
-    bad = {
-      powerLevel = 42,
-      evilName = "Evil",
+    good = {
+      howGood = 10
     }
   }
 }

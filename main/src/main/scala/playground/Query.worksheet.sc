@@ -12,26 +12,31 @@ val q = parse(
   """
 CreateHero {
   hero = {
-    bad = {
-      evilName = "evil",
-      powerLevel = 9001,
+  // bad = {
+  //   evilName = "evil",
+  //   powerLevel = 9001,
+  // },
+    good = {
+      howGood = 200,
+      anotherKey = 42,
     },
   },
-  bero = "rero",
 }
 """
 )
 
-import DSL._
+{
+  import DSL._
 
-val q2 = "CreateHero".call(
-  "hero" -> struct("good" -> struct("howGood" -> 42))
-)
+  val q2 = "CreateHero".call(
+    "hero" -> struct("good" -> struct("howGood" -> 42))
+  )
 
-format(q, 10)
-format(q, 20)
-format(q, 40)
-format(q, 100)
+  format(q, 10)
+  format(q, 20)
+  format(q, 40)
+  format(q, 100)
+}
 
 Runner
   .make(DemoServiceGen)
