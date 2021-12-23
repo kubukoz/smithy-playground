@@ -13,7 +13,10 @@
         };
       in
       {
-        devShell = pkgs.mkShell { buildInputs = [ pkgs.nodejs-14_x pkgs.sbt ]; };
+        devShell = pkgs.mkShell {
+          buildInputs = [ pkgs.nodejs-14_x pkgs.sbt ];
+          nativeBuildInputs = pkgs.lib.optional pkgs.stdenv.isDarwin [ pkgs.darwin.apple_sdk.frameworks.CoreServices ];
+        };
       }
     );
 }
