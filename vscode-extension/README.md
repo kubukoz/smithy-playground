@@ -1,5 +1,7 @@
 ## packaging
 
-`sbt fullOptJS`
-`npx vsce package`
-`npx vsce publish`
+```shell
+sbt fullOptJS
+yarn vsce package
+yarn vsce publish
+```
