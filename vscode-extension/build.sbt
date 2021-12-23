@@ -15,7 +15,8 @@ lazy val root = project
       "@types/vscode" -> "1.63.1"
     ),
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "0.7.29" % Test
+      "org.typelevel" %%% "cats-effect" % "3.3.1",
+      "org.scalameta" %%% "munit" % "0.7.29" % Test,
     ),
     scalacOptions -= "-Xfatal-warnings",
     Compile / fastOptJS / artifactPath := baseDirectory.value / "out" / "extension.js",

@@ -9,6 +9,7 @@
       "name": "Launch Extension",
       "outFiles": ["${workspaceFolder}/out/**/*.js"],
       "preLaunchTask": "fastOptJS",
+      "internalConsoleOptions": "openOnSessionStart",
       "request": "launch",
       "type": "pwa-extensionHost"
     }
