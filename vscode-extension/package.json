@@ -15,8 +15,29 @@
   "categories": [
     "Other"
   ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "smithyql",
+        "aliases": [
+          "SmithyQL"
+        ],
+        "extensions": [
+          ".smithyql"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "smithyql",
+        "scopeName": "source.smithyql",
+        "path": "./grammar.tmLanguage.json"
+      }
+    ]
+  },
   "activationEvents": [
-    "workspaceContains:*.smithyql"
+    "onLanguage:smithyql"
   ],
   "main": "./out/extension",
   "dependencies": {

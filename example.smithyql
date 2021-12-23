@@ -9,7 +9,7 @@
 CreateHero {
   hero = {
     good = {
-      howGood = 10
+      howGood = 10,
     }
   }
 }

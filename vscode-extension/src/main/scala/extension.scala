@@ -2,9 +2,7 @@ import cats.effect.IO
 
 import cats.effect.unsafe.implicits._
 import typings.vscode.mod.ExtensionContext
-import typings.vscode.mod.NotebookSerializer
 import typings.vscode.mod.window
-import typings.vscode.mod.workspace
 
 import scala.scalajs.js.annotation.JSExportTopLevel
 

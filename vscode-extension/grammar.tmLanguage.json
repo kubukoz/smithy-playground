@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "SmithyQL",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#bools"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.smithyql",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.smithyql",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "comments": {
+      "name": "comment.line.double-slash",
+      "patterns": [
+        {
+          "name": "comment.line.double-slash",
+          "match": "\\/\\/(.+)"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric",
+      "patterns": [
+        {
+          "name": "constant.numeric",
+          "match": "(\\d+)(\\.\\d+)?"
+        }
+      ]
+    },
+    "operators": {
+      "name": "keyword.operator",
+      "patterns": [
+        {
+          "name": "keyword.operator",
+          "match": "(=)"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.smithyql"
+}
