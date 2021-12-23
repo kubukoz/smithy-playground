@@ -34,7 +34,12 @@
         "scopeName": "source.smithyql",
         "path": "./grammar.tmLanguage.json"
       }
-    ]
+    ],
+    "commands": {
+      "command": "smithyql.runQuery",
+      "title": "Run Smithy Query",
+      "enablement": "editorLangId == 'smithyql'"
+    }
   },
   "activationEvents": [
     "onLanguage:smithyql"
