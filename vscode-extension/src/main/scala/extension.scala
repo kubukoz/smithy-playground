@@ -7,12 +7,12 @@ import typings.vscode.mod.window
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 object extension {
-  val chan = window.createOutputChannel("Smithy Playground")
+  // val chan = window.createOutputChannel("Smithy Playground")
 
   @JSExportTopLevel("activate")
   def activate(
     context: ExtensionContext
-  ): Unit = {
+  ): Unit =
     /*
      "contributes": {
     "notebooks": [
@@ -45,9 +45,7 @@ object extension {
     //         },
     //   ),
     // )
-    IO(chan.appendLine("Hello from cats-effect!"))
+    IO(window.showInformationMessage("Hello from cats-effect!"))
       .unsafeRunAndForget()
-    println("Registered serializer")
-  }
 
 }
