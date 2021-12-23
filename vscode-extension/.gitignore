@@ -1,0 +1,12 @@
+node_modules
+/.metals/
+/target/
+/.idea/
+out
+/.bloop/
+/project/.bloop/
+/project/**/target/
+.bsp
+
+.direnv
+*.vsix

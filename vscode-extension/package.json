@@ -1,0 +1,33 @@
+{
+  "name": "smithy-playground",
+  "displayName": "Smithy Playground",
+  "description": "Experimental integration for queries in the Smithy language.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.63.1"
+  },
+  "publisher": "baccata",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kubukoz/smithy-playground"
+  },
+  "homepage": "https://github.com/kubukoz/smithy-playground",
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:scala"
+  ],
+  "main": "./out/extension",
+  "contributes": {
+    "commands": [
+      {
+        "command": "extension.baccata.scaladex",
+        "title": "Scaladex search"
+      }
+    ]
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.1"
+  }
+}
