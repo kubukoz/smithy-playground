@@ -31,5 +31,11 @@
         ]
       }
     ]
+  },
+  "dependencies": {
+    "@types/vscode": "1.63.1"
+  },
+  "devDependencies": {
+    "vsce": "^2.5.3"
   }
 }

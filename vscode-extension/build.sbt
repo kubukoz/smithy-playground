@@ -10,10 +10,10 @@ lazy val root = project
     scalaVersion := "2.13.7",
     moduleName := "smithy-playground-vscode",
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
-    // install with npmInstallDependencies
-    Compile / npmDependencies ++= Seq(
-      "@types/vscode" -> "1.63.1"
-    ),
+    externalNpm := {
+      Process("yarn", baseDirectory.value).!
+      baseDirectory.value
+    },
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect" % "3.3.1",
       "org.scalameta" %%% "munit" % "0.7.29" % Test,
@@ -24,6 +24,5 @@ lazy val root = project
   )
   .enablePlugins(
     ScalaJSPlugin,
-    ScalaJSBundlerPlugin,
-    ScalablyTypedConverterPlugin,
+    ScalablyTypedConverterExternalNpmPlugin,
   )
