@@ -1,5 +1,5 @@
 ## packaging
 
 `sbt fullOptJS`
-`vsce package`
-`vsce publish`
+`npx vsce package`
+`npx vsce publish`
