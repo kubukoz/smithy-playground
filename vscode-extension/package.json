@@ -19,19 +19,6 @@
     "workspaceContains:*.smithyql"
   ],
   "main": "./out/extension",
-  "contributes": {
-    "notebooks": [
-      {
-        "type": "smithyql",
-        "displayName": "SmithyQL",
-        "selector": [
-          {
-            "filenamePattern": "*.smithyql"
-          }
-        ]
-      }
-    ]
-  },
   "dependencies": {
     "@types/vscode": "1.63.1"
   },

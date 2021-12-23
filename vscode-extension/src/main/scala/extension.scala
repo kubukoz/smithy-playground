@@ -15,7 +15,20 @@ object extension {
   def activate(
     context: ExtensionContext
   ): Unit = {
-
+    /*
+     "contributes": {
+    "notebooks": [
+      {
+        "type": "smithyql",
+        "displayName": "SmithyQL",
+        "selector": [
+          {
+            "filenamePattern": "*.smithyql"
+          }
+        ]
+      }
+    ]
+  }, */
     // workspace.registerNotebookSerializer(
     //   "smithyql",
     //   NotebookSerializer(
