@@ -16,7 +16,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:scala"
+    "workspaceContains:*.smithyql"
   ],
   "main": "./out/extension",
   "contributes": {
@@ -25,9 +25,17 @@
         "command": "extension.baccata.scaladex",
         "title": "Scaladex search"
       }
+    ],
+    "notebooks": [
+      {
+        "type": "smithyql",
+        "displayName": "SmithyQL",
+        "selector": [
+          {
+            "filenamePattern": "*.smithyql"
+          }
+        ]
+      }
     ]
-  },
-  "dependencies": {
-    "node-fetch": "^2.6.1"
   }
 }
