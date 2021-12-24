@@ -1,6 +1,16 @@
 import cats.effect.IO
 
+import cats.effect.kernel.Deferred
 import cats.effect.unsafe.implicits._
+import com.disneystreaming.demo.smithy.CreateHeroOutput
+import com.disneystreaming.demo.smithy.CreateSubscriptionOutput
+import com.disneystreaming.demo.smithy.DemoService
+import com.disneystreaming.demo.smithy.DemoServiceGen
+import com.disneystreaming.demo.smithy.Hero
+import com.disneystreaming.demo.smithy.Subscription
+import playground.Runner
+import playground.SmithyQLParser
+import smithy4s.http4s.SimpleRestJsonBuilder
 import typings.vscode.anon.Dispose
 import typings.vscode.mod.Disposable
 import typings.vscode.mod.ExtensionContext
@@ -8,16 +18,28 @@ import typings.vscode.mod.commands
 import typings.vscode.mod.window
 
 import scala.scalajs.js.annotation.JSExportTopLevel
-import org.http4s.ember.client.EmberClientBuilder
-import smithy4s.http4s.SimpleRestJsonBuilder
-import com.disneystreaming.demo.smithy.PlaygroundService
-import com.disneystreaming.demo.smithy.PlaygroundServiceGen
-import scala.scalajs.js.Thenable
-import cats.effect.kernel.Deferred
 
 object extension {
   val chan = window.createOutputChannel("Smithy Playground")
-  val client = Deferred.unsafe[IO, PlaygroundService[IO]]
+  val runner = Deferred.unsafe[IO, Runner[IO]]
+
+  val mkRunner = SimpleRestJsonBuilder
+    .routes(new DemoService[IO] {
+
+      override def createHero(
+        hero: Hero
+      ): IO[CreateHeroOutput] = IO(CreateHeroOutput(hero))
+
+      override def createSubscription(
+        subscription: Subscription
+      ): IO[CreateSubscriptionOutput] = IO(CreateSubscriptionOutput(subscription))
+
+    })
+    .resource
+    .flatMap { routes =>
+      Runner
+        .make(DemoServiceGen, Some(routes.orNotFound))
+    }
 
   implicit def disposableToDispose(d: Disposable): Dispose = Dispose(() => d.dispose())
 
@@ -25,17 +47,8 @@ object extension {
   def activate(
     context: ExtensionContext
   ): Unit = {
-    EmberClientBuilder
-      .default[IO]
-      .build
-      .flatMap { c =>
-        import org.http4s.implicits._
-        SimpleRestJsonBuilder(PlaygroundServiceGen)
-          .clientResource(c, uri"http://localhost:4000")
-          .evalMap { svc =>
-            client.complete(svc)
-          }
-      }
+    mkRunner
+      .evalMap(runner.complete(_))
       .allocated
       .unsafeRunAndForget()
     /*
@@ -79,13 +92,19 @@ object extension {
           .registerTextEditorCommand(
             "smithyql.runQuery",
             (ted, edit, x) =>
-              client
-                .get
-                .flatMap(_.runQuery(ted.document.getText()))
+              IO(SmithyQLParser.parse(ted.document.getText()))
+                .flatMap { q =>
+                  runner
+                    .get
+                    .flatMap(_.run(q))
+                }
                 .flatMap { out =>
                   IO {
-                    chan.appendLine(out.output)
+                    chan.appendLine(out.toString)
                   }
+                }
+                .onError { e =>
+                  IO(window.showErrorMessage(e.getMessage())).void
                 }
                 .unsafeRunAndForget(),
           )
