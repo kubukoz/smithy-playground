@@ -8,15 +8,36 @@ import typings.vscode.mod.commands
 import typings.vscode.mod.window
 
 import scala.scalajs.js.annotation.JSExportTopLevel
+import org.http4s.ember.client.EmberClientBuilder
+import smithy4s.http4s.SimpleRestJsonBuilder
+import com.disneystreaming.demo.smithy.PlaygroundService
+import com.disneystreaming.demo.smithy.PlaygroundServiceGen
+import scala.scalajs.js.Thenable
+import cats.effect.kernel.Deferred
 
 object extension {
-  // val chan = window.createOutputChannel("Smithy Playground")
+  val chan = window.createOutputChannel("Smithy Playground")
+  val client = Deferred.unsafe[IO, PlaygroundService[IO]]
+
   implicit def disposableToDispose(d: Disposable): Dispose = Dispose(() => d.dispose())
 
   @JSExportTopLevel("activate")
   def activate(
     context: ExtensionContext
   ): Unit = {
+    EmberClientBuilder
+      .default[IO]
+      .build
+      .flatMap { c =>
+        import org.http4s.implicits._
+        SimpleRestJsonBuilder(PlaygroundServiceGen)
+          .clientResource(c, uri"http://localhost:4000")
+          .evalMap { svc =>
+            client.complete(svc)
+          }
+      }
+      .allocated
+      .unsafeRunAndForget()
     /*
      "contributes": {
     "notebooks": [
@@ -57,12 +78,16 @@ object extension {
         commands
           .registerTextEditorCommand(
             "smithyql.runQuery",
-            (ted, edit, x) => {
-              window.showErrorMessage("Here goes nothing!")
-              println("Here goes nothing!")
-              println(ted.document.getText())
-              ()
-            },
+            (ted, edit, x) =>
+              client
+                .get
+                .flatMap(_.runQuery(ted.document.getText()))
+                .flatMap { out =>
+                  IO {
+                    chan.appendLine(out.output)
+                  }
+                }
+                .unsafeRunAndForget(),
           )
       )
     println("starting")

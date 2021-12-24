@@ -45,6 +45,8 @@ lazy val vscode = projectMatrix
     moduleName := "smithy-playground-vscode",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect" % "3.3.1",
+      "org.http4s" %%% "http4s-ember-client" % "0.23.7",
+      "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "org.scalameta" %%% "munit" % "0.7.29" % Test,
     ) ++ compilerPlugins,
     scalacOptions -= "-Xfatal-warnings",

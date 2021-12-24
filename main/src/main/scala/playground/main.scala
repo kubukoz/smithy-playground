@@ -92,20 +92,45 @@ object Runner {
 object Server extends IOApp.Simple {
 
   def run: IO[Unit] =
-    SimpleRestJsonBuilder
-      .routes(new PlaygroundService[IO] {
-        def runQuery(input: String): IO[RunQueryOutput] = RunQueryOutput(input).pure[IO]
-      })
-      .resource
-      .flatMap { routes =>
-        EmberServerBuilder
-          .default[IO]
-          .withHttpApp(routes.orNotFound)
-          .withHost(host"localhost")
-          .withPort(port"4000")
-          .build
-      }
-      .useForever
+    mkRunner.flatMap { runner =>
+      SimpleRestJsonBuilder
+        .routes(new PlaygroundService[IO] {
+          def runQuery(input: String): IO[RunQueryOutput] = IO(SmithyQLParser.parse(input))
+            .flatMap(runner.run)
+            .attempt
+            .map(_.toString)
+            .map(RunQueryOutput(_))
+        })
+        .resource
+        .flatMap { routes =>
+          EmberServerBuilder
+            .default[IO]
+            .withHttpApp(routes.orNotFound)
+            .withHost(host"localhost")
+            .withPort(port"4000")
+            .build
+        }
+    }.useForever
+
+  val mkRunner = SimpleRestJsonBuilder
+    .routes(new DemoService[IO] {
+
+      override def createHero(
+        hero: Hero
+      ): IO[CreateHeroOutput] = IO(CreateHeroOutput(hero))
+
+      override def createSubscription(
+        subscription: Subscription
+      ): IO[CreateSubscriptionOutput] = IO(CreateSubscriptionOutput(subscription))
+
+    })
+    .resource
+    .flatMap { routes =>
+      Runner.make(
+        DemoServiceGen,
+        routes.orNotFound.some,
+      )
+    }
 
 }
 
@@ -120,31 +145,7 @@ object Main extends IOApp.Simple {
   def run: IO[Unit] =
     fs2
       .Stream
-      .resource(
-        SimpleRestJsonBuilder
-          .routes(new DemoService[IO] {
-
-            override def createHero(
-              hero: Hero
-            ): IO[CreateHeroOutput] = IO(CreateHeroOutput(hero))
-
-            override def createSubscription(
-              subscription: Subscription
-            ): IO[CreateSubscriptionOutput] = IO(CreateSubscriptionOutput(subscription))
-
-          })
-          .resource
-      )
-      .flatMap { routes =>
-        fs2
-          .Stream
-          .resource(
-            Runner.make(
-              DemoServiceGen,
-              routes.orNotFound.some,
-            )
-          )
-      }
+      .resource(Server.mkRunner)
       .flatMap { runner =>
         fs2
           .Stream
