@@ -19,10 +19,13 @@ import playground._
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
-
+import com.comcast.ip4s._
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
+import com.disneystreaming.demo.smithy.PlaygroundService
+import com.disneystreaming.demo.smithy.RunQueryOutput
+import org.http4s.ember.server.EmberServerBuilder
 
 trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
   def compile(q: Query): F[Op[_, _, _, _, _]]
@@ -38,7 +41,7 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private val endpoints: Map[String, AST => Op[_, _, _, _, _]] = {
     def go[I](
       endpoint: Endpoint[Op, I, _, _, _, _]
-    ) = endpoint.input.compile(schem).andThen(endpoint.wrap)
+    ) = endpoint.input.compile(schem).andThen(endpoint.wrap(_))
 
     service
       .endpoints
@@ -68,21 +71,41 @@ object Runner {
   ): Resource[IO, Runner[IO]] = EmberClientBuilder
     .default[IO]
     .build
-    .evalMap { c =>
+    .flatMap { c =>
       val compiler: Compiler[Op, Id] = new CompilerImpl(service)
 
       val b = SimpleRestJsonBuilder(service)
 
       impl
         .fold(
-          b.client(c, uri"http://localhost:8082")
-        )(b.client(_, uri"http://localhost:8082"))
+          b.clientResource(c, uri"http://localhost:8082")
+        )(b.clientResource(_, uri"http://localhost:8082"))
         .map { client =>
           val exec = service.asTransformation(client)
 
           q => IO.defer(exec(compiler.compile(q)))
         }
     }
+
+}
+
+object Server extends IOApp.Simple {
+
+  def run: IO[Unit] =
+    SimpleRestJsonBuilder
+      .routes(new PlaygroundService[IO] {
+        def runQuery(input: String): IO[RunQueryOutput] = RunQueryOutput(input).pure[IO]
+      })
+      .resource
+      .flatMap { routes =>
+        EmberServerBuilder
+          .default[IO]
+          .withHttpApp(routes.orNotFound)
+          .withHost(host"localhost")
+          .withPort(port"4000")
+          .build
+      }
+      .useForever
 
 }
 
@@ -97,7 +120,7 @@ object Main extends IOApp.Simple {
   def run: IO[Unit] =
     fs2
       .Stream
-      .eval(
+      .resource(
         SimpleRestJsonBuilder
           .routes(new DemoService[IO] {
 
@@ -110,7 +133,7 @@ object Main extends IOApp.Simple {
             ): IO[CreateSubscriptionOutput] = IO(CreateSubscriptionOutput(subscription))
 
           })
-          .make
+          .resource
       )
       .flatMap { routes =>
         fs2
