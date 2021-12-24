@@ -8,13 +8,18 @@ import com.disneystreaming.demo.smithy.DemoService
 import com.disneystreaming.demo.smithy.DemoServiceGen
 import com.disneystreaming.demo.smithy.Hero
 import com.disneystreaming.demo.smithy.Subscription
+import playground.Formatter
 import playground.Runner
 import playground.SmithyQLParser
 import smithy4s.http4s.SimpleRestJsonBuilder
 import typings.vscode.anon.Dispose
+import typings.vscode.mod
 import typings.vscode.mod.Disposable
+import typings.vscode.mod.DocumentFormattingEditProvider
 import typings.vscode.mod.ExtensionContext
+import typings.vscode.mod.TextEdit
 import typings.vscode.mod.commands
+import typings.vscode.mod.languages
 import typings.vscode.mod.window
 
 import scala.scalajs.js.annotation.JSExportTopLevel
@@ -107,7 +112,26 @@ object extension {
                   IO(window.showErrorMessage(e.getMessage())).void
                 }
                 .unsafeRunAndForget(),
-          )
+          ),
+        languages.registerDocumentFormattingEditProvider(
+          "smithyql",
+          DocumentFormattingEditProvider { (doc, options, canc) =>
+            val firstLine = doc.lineAt(0)
+            val lastLine = doc.lineAt(doc.lineCount - 1)
+
+            scalajs
+              .js
+              .Array(
+                TextEdit.replace(
+                  new mod.Range(
+                    firstLine.range.start,
+                    lastLine.range.end,
+                  ),
+                  Formatter.format(SmithyQLParser.parse(doc.getText()), 40),
+                )
+              )
+          },
+        ),
       )
     println("starting")
     // languages.registerDocumentFormattingEditProvider()
