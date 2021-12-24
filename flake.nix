@@ -14,7 +14,7 @@
       in
       {
         devShell = pkgs.mkShell {
-          buildInputs = [ pkgs.yarn pkgs.sbt ];
+          buildInputs = [ pkgs.yarn pkgs.nodejs-14_x pkgs.sbt ];
         };
       }
     );

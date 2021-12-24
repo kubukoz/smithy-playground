@@ -14,6 +14,9 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 val commonScalaVersions = Seq("2.13.7")
 
 val commonSettings = Seq(
+  libraryDependencies ++= Seq(
+    "org.scalameta" %%% "munit" % "0.7.29" % Test
+  ),
   libraryDependencies ++= compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions ++= Seq("source:3.0"),
@@ -23,11 +26,10 @@ val commonSettings = Seq(
 lazy val core = projectMatrix
   .settings(
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "org.http4s" %%% "http4s-ember-client" % "0.23.7",
       "org.typelevel" %%% "cats-parse" % "0.3.6",
       "org.typelevel" %%% "paiges-cats" % "0.4.2",
-      "org.scalameta" %%% "munit" % "0.7.29" % Test,
     ),
     commonSettings,
   )
@@ -56,7 +58,6 @@ lazy val vscode = projectMatrix
       "org.typelevel" %%% "cats-effect" % "3.3.1",
       "org.http4s" %%% "http4s-ember-client" % "0.23.7",
       "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
-      "org.scalameta" %%% "munit" % "0.7.29" % Test,
     ),
     commonSettings,
   )
@@ -65,13 +66,15 @@ lazy val vscode = projectMatrix
   .jsPlatform(
     commonScalaVersions,
     Seq(
-      scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
       externalNpm := {
         Process(
           List("yarn", "--cwd", ((ThisBuild / baseDirectory).value / "vscode-extension").toString)
         ).!
         (ThisBuild / baseDirectory).value / "vscode-extension"
       },
+      scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+      // todo
+      test := {},
       Compile / fastOptJS / artifactPath := (ThisBuild / baseDirectory).value / "vscode-extension" / "out" / "extension.js",
       Compile / fullOptJS / artifactPath := (ThisBuild / baseDirectory).value / "vscode-extension" / "out" / "extension.js",
     ),
