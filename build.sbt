@@ -1,4 +1,6 @@
-def crossPlugin(x: sbt.librarymanagement.ModuleID) = addCompilerPlugin(x.cross(CrossVersion.full))
+import scala.sys.process._
+
+def crossPlugin(x: sbt.librarymanagement.ModuleID) = x.cross(CrossVersion.full)
 
 val compilerPlugins = List(
   crossPlugin("org.polyvariant" % "better-tostring" % "0.3.11"),
@@ -8,7 +10,6 @@ val compilerPlugins = List(
 ThisBuild / scalaVersion := "2.13.7"
 
 ThisBuild / versionScheme := Some("early-semver")
-ThisBuild / scalaVersion := "2.13.7"
 ThisBuild / githubWorkflowTargetTags ++= Seq("v*")
 
 ThisBuild / githubWorkflowPublishTargetBranches := Seq(
@@ -28,15 +29,38 @@ lazy val main = project
       "org.scalameta" %% "munit" % "0.7.29" % Test,
       "com.davegurnell" %% "unindent" % "1.7.0",
       "com.lihaoyi" %% "pprint" % "0.7.1",
-    ),
+    ) ++ compilerPlugins,
     fork := true,
-    compilerPlugins,
     scalacOptions -= "-Xfatal-warnings",
     scalacOptions ++= Seq("source:3.0"),
     Compile / doc / sources := Seq(),
   )
   .enablePlugins(Smithy4sCodegenPlugin)
 
+lazy val vscode = project
+  .in(file("vscode-extension"))
+  .settings(
+    moduleName := "smithy-playground-vscode",
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+    externalNpm := {
+      Process(
+        List("yarn", "--cwd", baseDirectory.value.toString)
+      ).!
+      baseDirectory.value
+    },
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-effect" % "3.3.1",
+      "org.scalameta" %%% "munit" % "0.7.29" % Test,
+    ) ++ compilerPlugins,
+    scalacOptions -= "-Xfatal-warnings",
+    Compile / fastOptJS / artifactPath := baseDirectory.value / "out" / "extension.js",
+    Compile / fullOptJS / artifactPath := baseDirectory.value / "out" / "extension.js",
+  )
+  .enablePlugins(
+    ScalaJSPlugin,
+    ScalablyTypedConverterExternalNpmPlugin,
+  )
+
 lazy val root = project
   .in(file("."))
-  .aggregate(main)
+  .aggregate(main, vscode)

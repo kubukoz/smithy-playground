@@ -1,7 +1,7 @@
 ## packaging
 
 ```shell
-sbt fullOptJS
+(cd ../ && sbt fullOptJS)
 yarn vsce package
 yarn vsce publish
 ```

@@ -65,7 +65,7 @@ object extension {
             },
           )
       )
-
+    println("starting")
     // languages.registerDocumentFormattingEditProvider()
     IO(window.showInformationMessage("Hello from cats-effect!"))
       .unsafeRunAndForget()
