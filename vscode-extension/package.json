@@ -1,0 +1,55 @@
+{
+  "name": "smithy-playground",
+  "displayName": "Smithy Playground",
+  "description": "Experimental integration for queries in the Smithy language.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.63.1"
+  },
+  "publisher": "kubukoz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kubukoz/smithy-playground"
+  },
+  "homepage": "https://github.com/kubukoz/smithy-playground",
+  "categories": [
+    "Other"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "smithyql",
+        "aliases": [
+          "SmithyQL"
+        ],
+        "extensions": [
+          ".smithyql"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "smithyql",
+        "scopeName": "source.smithyql",
+        "path": "./grammar.tmLanguage.json"
+      }
+    ],
+    "commands": {
+      "command": "smithyql.runQuery",
+      "title": "Run Smithy Query",
+      "enablement": "editorLangId == 'smithyql'"
+    }
+  },
+  "activationEvents": [
+    "onLanguage:smithyql"
+  ],
+  "main": "./out/extension",
+  "dependencies": {
+    "@types/vscode": "1.63.1"
+  },
+  "devDependencies": {
+    "vsce": "^2.5.3",
+    "typescript": "4.5.2"
+  }
+}
