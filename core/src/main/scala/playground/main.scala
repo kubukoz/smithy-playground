@@ -1,5 +1,6 @@
 package playground
 
+import cats.FlatMap
 import cats.Id
 import cats.effect.IO
 import cats.effect.kernel.Resource
@@ -49,6 +50,11 @@ trait Runner[F[_]] {
 }
 
 object Runner {
+
+  def unlift[F[_]: FlatMap](runner: F[Runner[F]]): Runner[F] =
+    new Runner[F] {
+      def run(q: Query): F[Any] = runner.flatMap(_.run(q))
+    }
 
   def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
     service: Service[Alg, Op],

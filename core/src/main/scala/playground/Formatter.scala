@@ -32,6 +32,7 @@ object Formatter {
   def format(
     q: Query,
     w: Int,
-  ): String = (Doc.text(q.operationName) + Doc.space + writeAst(q.input)).renderTrim(w)
+  ): String = (Doc.text(q.operationName) + Doc.space + writeAst(q.input) + Doc.hardLine)
+    .renderTrim(w)
 
 }
