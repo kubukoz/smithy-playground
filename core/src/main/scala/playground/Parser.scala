@@ -26,10 +26,36 @@ object SmithyQLParser {
       }
       .merge
 
+  object tokens {
+    import Parser._
+
+    val symbol: Parser[String] = (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit)).map {
+      case (ch, s) => s.prepended(ch)
+    }
+
+    val number = Numbers.digits.map(_.toInt).map(IntLiteral)
+
+    val stringLiteral = anyChar
+      .repUntil0(char('\"'))
+      .map(_.mkString)
+      .with1
+      .surroundedBy(char('"'))
+      .map(StringLiteral)
+
+    val equalsSign = char('=')
+
+    val comma = char(',')
+
+    val openBrace = char('{')
+    val closeBrace = char('}')
+
+    val comment = string("//") *> charsWhile0(_ != '\n') *> char('\n')
+  }
+
   val parser: Parser[Query] = {
     import Parser._
 
-    val singleLineComment = string("//") *> charsWhile0(_ != '\n') *> char('\n')
+    val singleLineComment = tokens.comment
 
     val optionalWhitespace: Parser0[Unit] =
       singleLineComment
@@ -39,30 +65,19 @@ object SmithyQLParser {
 
     def token[A](p: Parser[A]): Parser[A] = p.surroundedBy(optionalWhitespace)
 
-    val symbol: Parser[String] = token {
-      (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit)).map { case (ch, s) =>
-        s.prepended(ch)
-      }
-    }
+    val symbol: Parser[String] = token(tokens.symbol)
 
     lazy val ast: Parser[AST] = Parser.defer(intLiteral | stringLiteral | struct)
 
-    lazy val intLiteral: Parser[IntLiteral] = token(Numbers.digits).map(_.toInt).map(IntLiteral)
+    lazy val intLiteral: Parser[IntLiteral] = token(tokens.number)
 
     // todo: allow quotes inside
-    lazy val stringLiteral: Parser[StringLiteral] = token {
-      anyChar
-        .repUntil0(char('\"'))
-        .map(_.mkString)
-        .with1
-        .surroundedBy(char('"'))
-        .map(StringLiteral)
-    }
+    lazy val stringLiteral: Parser[StringLiteral] = token(tokens.stringLiteral)
 
     lazy val struct: Parser[Struct] = {
       val field: Parser[(String, AST)] =
         symbol ~ (
-          token(char('=')) *>
+          token(tokens.equalsSign) *>
             ast
         )
 
@@ -72,7 +87,7 @@ object SmithyQLParser {
 
         (
           field,
-          (token(char(',')) *> self).orElse(empty),
+          (token(tokens.comma) *> self).orElse(empty),
         )
           .mapN((first, rest) => first :: rest)
           .orElse(empty)
@@ -83,8 +98,8 @@ object SmithyQLParser {
         .map(_.toMap)
         .with1
         .between(
-          token(char('{')),
-          token(char('}')),
+          token(tokens.openBrace),
+          token(tokens.closeBrace),
         )
         .map(Struct(_))
     }

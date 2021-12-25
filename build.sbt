@@ -37,14 +37,6 @@ lazy val core = projectMatrix
   .jsPlatform(commonScalaVersions)
   .enablePlugins(Smithy4sCodegenPlugin)
 
-lazy val main = projectMatrix
-  .settings(
-    fork := true,
-    commonSettings,
-  )
-  .jvmPlatform(commonScalaVersions)
-  .dependsOn(core)
-
 lazy val vscode = projectMatrix
   .in(file("vscode-extension"))
   .settings(
@@ -78,4 +70,4 @@ lazy val vscode = projectMatrix
 
 lazy val root = project
   .in(file("."))
-  .aggregate(List(core, main, vscode).flatMap(_.projectRefs): _*)
+  .aggregate(List(core, vscode).flatMap(_.projectRefs): _*)

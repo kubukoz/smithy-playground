@@ -3,10 +3,11 @@ package playground
 import munit.FunSuite
 import munit.Location
 import cats.implicits._
+import munit.TestOptions
 
 class ParserTests extends FunSuite {
 
-  def parsingTest(name: String, input: String)(expected: Query)(implicit loc: Location): Unit =
+  def parsingTest(name: TestOptions, input: String)(expected: Query)(implicit loc: Location): Unit =
     test(name) {
       val actual = Either.catchNonFatal(SmithyQLParser.parse(input)).leftMap(_.getMessage())
       assertEquals(actual, Right(expected))
