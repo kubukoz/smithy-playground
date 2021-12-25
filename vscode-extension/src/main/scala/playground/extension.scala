@@ -87,6 +87,7 @@ object extension {
           .apply(
             doc => {
 
+              // todo: inefficient - creating a new parser for every document save
               val parsed = SmithyQLParser.parser(Tokens.idTokens).parseAll(doc.getText())
 
               parsed match {
