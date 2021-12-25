@@ -25,22 +25,22 @@ CreateHero {
 """
 )
 
-{
-  import DSL._
+// {
+//   import DSL._
 
-  val q2 = "CreateHero".call(
-    "hero" -> struct("good" -> struct("howGood" -> 42))
-  )
+//   val q2 = "CreateHero".call(
+//     "hero" -> struct("good" -> struct("howGood" -> 42))
+//   )
 
-  format(q, 10)
-  format(q, 20)
-  format(q, 40)
-  format(q, 100)
-}
+//   format(q, 10)
+//   format(q, 20)
+//   format(q, 40)
+//   format(q, 100)
+// }
 
-Runner
-  .make(DemoServiceGen)
-  .use {
-    _.run(q)
-  }
-  .unsafeRunSync()
+// Runner
+//   .make(DemoServiceGen)
+//   .use {
+//     _.run(q)
+//   }
+//   .unsafeRunSync()

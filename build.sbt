@@ -39,10 +39,6 @@ lazy val core = projectMatrix
 
 lazy val main = projectMatrix
   .settings(
-    libraryDependencies ++= List(
-      "org.http4s" %% "http4s-ember-server" % "0.23.7",
-      "com.lihaoyi" %% "pprint" % "0.7.1",
-    ),
     fork := true,
     commonSettings,
   )
