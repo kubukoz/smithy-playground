@@ -39,6 +39,16 @@
       "command": "smithyql.runQuery",
       "title": "Run Smithy Query",
       "enablement": "editorLangId == 'smithyql'"
+    },
+    "configuration": {
+      "title": "Smithy Playground",
+      "properties":{
+        "smithyql.formatter.maxWidth": {
+          "type":"number",
+          "description": "The maximum desired width of formatted queries. Note that this isn't a hard limit, as some lines can't be formatted below a given amount of characters.",
+          "default": 80
+        }
+      }
     }
   },
   "activationEvents": [
