@@ -26,6 +26,7 @@ import typings.vscode.mod.window
 import typings.vscode.mod.workspace
 
 import scala.scalajs.js
+import scala.scalajs.js._
 import scala.scalajs.js.annotation.JSExportTopLevel
 import cats.parse.Parser.Expectation.InRange
 
@@ -65,6 +66,10 @@ object extension {
       .allocated
       .unsafeRunAndForget()
 
+    window.activeTextEditor.foreach { ted =>
+      performHighlight(ted.document)
+    }
+
     val _ = context
       .subscriptions
       .push(
@@ -82,50 +87,60 @@ object extension {
             format.perform(doc)
           },
         ),
+        window.onDidChangeActiveTextEditor(
+          _.map(_.document).foreach(performHighlight),
+          null,
+          null,
+        ),
         workspace
           .onDidSaveTextDocument
           .apply(
-            doc => {
-
-              // todo: inefficient - creating a new parser for every document save
-              val parsed = SmithyQLParser.parser(Tokens.idTokens).parseAll(doc.getText())
-
-              parsed match {
-                case Right(_) => errors.clear()
-
-                case Left(e) =>
-                  val pos = doc.positionAt(e.failedAtOffset.toDouble)
-                  val range = new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end)
-
-                  errors
-                    .set(
-                      doc.uri,
-                      js.Array(
-                        new Diagnostic(
-                          range,
-                          "Parsing failure: expected one of " + e
-                            .expected
-                            .map {
-                              case InRange(_, lower, upper) if lower == upper => lower.toString
-                              case InRange(_, lower, upper)                   => s"$lower-$upper"
-                              case msg                                        => msg.toString()
-                            }
-                            .mkString_(", "),
-                          DiagnosticSeverity.Error,
-                        )
-                      ),
-                    )
-              }
-            },
+            performHighlight,
             (),
             (),
           ),
+        workspace.onDidCloseTextDocument(
+          doc => errors.delete(doc.uri),
+          null,
+          null,
+        ),
       )
 
     val _ = window.showInformationMessage(
       """Smithy Playground is open! Start by opening the Command Pallette and running the "Run SmithyQL Query" command.""".stripMargin
     )
 
+  }
+
+  private def performHighlight(
+    doc: mod.TextDocument
+  ) = errors.set(doc.uri, Array(highlights(doc): _*))
+
+  private def highlights(doc: mod.TextDocument): List[Diagnostic] = {
+    val parsed = SmithyQLParser.idParser.parseAll(doc.getText())
+
+    parsed match {
+      case Right(_) => Nil
+
+      case Left(e) =>
+        val pos = doc.positionAt(e.failedAtOffset.toDouble)
+        val range = new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end)
+
+        List(
+          new Diagnostic(
+            range,
+            "Parsing failure: expected one of " + e
+              .expected
+              .map {
+                case InRange(_, lower, upper) if lower == upper => lower.toString
+                case InRange(_, lower, upper)                   => s"$lower-$upper"
+                case msg                                        => msg.toString()
+              }
+              .mkString_(", "),
+            DiagnosticSeverity.Error,
+          )
+        )
+    }
   }
 
 }
