@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.unsafe.implicits._
 import cats.implicits._
+import cats.parse.Parser.Expectation.InRange
 import com.disneystreaming.demo.smithy.CreateHeroOutput
 import com.disneystreaming.demo.smithy.CreateSubscriptionOutput
 import com.disneystreaming.demo.smithy.DemoService
@@ -25,10 +26,8 @@ import typings.vscode.mod.languages
 import typings.vscode.mod.window
 import typings.vscode.mod.workspace
 
-import scala.scalajs.js
 import scala.scalajs.js._
 import scala.scalajs.js.annotation.JSExportTopLevel
-import cats.parse.Parser.Expectation.InRange
 
 object extension {
   val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -81,6 +80,17 @@ object extension {
                 .perform[IO](ted, runner, chan)
                 .unsafeRunAndForget(),
           ),
+        languages.registerCodeLensProvider(
+          "smithyql",
+          mod.CodeLensProvider((doc, _) =>
+            Array(
+              new mod.CodeLens(
+                doc.lineAt(0).range,
+                mod.Command("smithyql.runQuery", "Run Smithy Query"),
+              )
+            )
+          ),
+        ),
         languages.registerDocumentFormattingEditProvider(
           "smithyql",
           DocumentFormattingEditProvider { (doc, _, _) =>

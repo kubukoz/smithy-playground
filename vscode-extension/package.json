@@ -42,9 +42,9 @@
     },
     "configuration": {
       "title": "Smithy Playground",
-      "properties":{
+      "properties": {
         "smithyql.formatter.maxWidth": {
-          "type":"number",
+          "type": "number",
           "description": "The maximum desired width of formatted queries. Note that this isn't a hard limit, as some lines can't be formatted below a given amount of characters.",
           "default": 80
         }
