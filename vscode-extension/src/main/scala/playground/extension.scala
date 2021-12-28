@@ -115,8 +115,7 @@ object extension {
   private def performHighlight(
     doc: mod.TextDocument
   ) =
-    // todo: better way to skip output panels
-    if (doc.fileName.endsWith(".smithyql"))
+    if (doc.languageId == "smithyql")
       errors.set(doc.uri, Array(highlights(doc): _*))
 
   private def highlights(doc: mod.TextDocument): List[Diagnostic] = {
