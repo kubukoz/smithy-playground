@@ -114,7 +114,10 @@ object extension {
 
   private def performHighlight(
     doc: mod.TextDocument
-  ) = errors.set(doc.uri, Array(highlights(doc): _*))
+  ) =
+    // todo: better way to skip output panels
+    if (doc.fileName.endsWith(".smithyql"))
+      errors.set(doc.uri, Array(highlights(doc): _*))
 
   private def highlights(doc: mod.TextDocument): List[Diagnostic] = {
     val parsed = SmithyQLParser.idParser.parseAll(doc.getText())
