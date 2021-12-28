@@ -82,14 +82,14 @@ object extension {
           ),
         languages.registerCodeLensProvider(
           "smithyql",
-          mod.CodeLensProvider((doc, _) =>
+          mod.CodeLensProvider { (doc, _) =>
             Array(
               new mod.CodeLens(
                 doc.lineAt(0).range,
                 mod.Command("smithyql.runQuery", "Run Smithy Query"),
               )
             )
-          ),
+          },
         ),
         languages.registerDocumentFormattingEditProvider(
           "smithyql",
