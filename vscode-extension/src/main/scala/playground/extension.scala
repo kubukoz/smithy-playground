@@ -110,7 +110,9 @@ object extension {
 
       case Left(e) =>
         val pos = doc.positionAt(e.failedAtOffset.toDouble)
-        val range = new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end)
+        val range = doc
+          .getWordRangeAtPosition(pos)
+          .getOrElse(new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end))
 
         List(
           new Diagnostic(
