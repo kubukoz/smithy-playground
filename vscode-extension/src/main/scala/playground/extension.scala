@@ -28,11 +28,17 @@ import typings.vscode.mod.workspace
 
 import scala.scalajs.js._
 import scala.scalajs.js.annotation.JSExportTopLevel
+import com.disneystreaming.demo.smithy.DemoServiceOperation
+import cats.Id
+import cats.parse.Parser
 
 object extension {
   val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
-  val runnerDeff = Deferred.unsafe[IO, Runner[IO]]
-  val runner: Runner[IO] = Runner.unlift(runnerDeff.get)
+  type Op[I, E, O, S, A] = DemoServiceOperation[I, E, O, S, A]
+
+  val compiler: Compiler[Op, Id] = Compiler.instance(DemoServiceGen)
+  val runnerDeff = Deferred.unsafe[IO, Runner[IO, Op]]
+  val runner: Runner[IO, Op] = Runner.unlift(runnerDeff.get)
 
   val mkRunner = SimpleRestJsonBuilder
     .routes(new DemoService[IO] {
@@ -54,8 +60,6 @@ object extension {
 
   implicit def disposableToDispose(d: Disposable): Dispose = Dispose(() => d.dispose())
 
-  val errors = languages.createDiagnosticCollection()
-
   @JSExportTopLevel("activate")
   def activate(
     context: ExtensionContext
@@ -65,10 +69,6 @@ object extension {
       .allocated
       .unsafeRunAndForget()
 
-    window.activeTextEditor.foreach { ted =>
-      performHighlight(ted.document)
-    }
-
     val _ = context
       .subscriptions
       .push(
@@ -77,18 +77,19 @@ object extension {
             "smithyql.runQuery",
             (ted, _, _) =>
               run
-                .perform[IO](ted, runner, chan)
+                .perform[IO, Op](ted, compiler, runner, chan)
                 .unsafeRunAndForget(),
           ),
         languages.registerCodeLensProvider(
           "smithyql",
           mod.CodeLensProvider { (doc, _) =>
-            Array(
-              new mod.CodeLens(
-                doc.lineAt(0).range,
-                mod.Command("smithyql.runQuery", "Run Smithy Query"),
+            if (validate(doc.getText()).isRight)
+              Array(
+                new mod.CodeLens(
+                  doc.lineAt(0).range,
+                  mod.Command("smithyql.runQuery", "Run query"),
+                )
               )
-            )
           },
         ),
         languages.registerDocumentFormattingEditProvider(
@@ -97,41 +98,14 @@ object extension {
             format.perform(doc)
           },
         ),
-        window.onDidChangeActiveTextEditor(
-          _.map(_.document).foreach(performHighlight),
-          null,
-          null,
-        ),
-        workspace
-          .onDidSaveTextDocument
-          .apply(
-            performHighlight,
-            (),
-            (),
-          ),
-        workspace.onDidCloseTextDocument(
-          doc => errors.delete(doc.uri),
-          null,
-          null,
-        ),
+        vscodeutil.registerDiagnosticProvider("smithyql", highlights),
       )
-
-    val _ = window.showInformationMessage(
-      """Smithy Playground is open! Start by opening the Command Pallette and running the "Run SmithyQL Query" command.""".stripMargin
-    )
-
   }
 
-  private def performHighlight(
-    doc: mod.TextDocument
-  ) =
-    if (doc.languageId == "smithyql")
-      errors.set(doc.uri, Array(highlights(doc): _*))
+  private def validate(q: String): Either[Parser.Error, Query] = SmithyQLParser.idParser.parseAll(q)
 
-  private def highlights(doc: mod.TextDocument): List[Diagnostic] = {
-    val parsed = SmithyQLParser.parser.parseAll(doc.getText())
-
-    parsed match {
+  private def highlights(doc: mod.TextDocument): List[Diagnostic] =
+    validate(doc.getText()) match {
       case Right(_) => Nil
 
       case Left(e) =>
@@ -153,6 +127,5 @@ object extension {
           )
         )
     }
-  }
 
 }

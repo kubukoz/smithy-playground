@@ -13,8 +13,22 @@ import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
 
+trait CompiledInput[Op[_, _, _, _, _]] {
+  type I
+  def input: I
+  def endpoint: Endpoint[Op, I, _, _, _, _]
+}
+
 trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
-  def compile(q: Query): F[Op[_, _, _, _, _]]
+  def compile(q: Query): F[CompiledInput[Op]]
+}
+
+object Compiler {
+
+  def instance[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+    service: Service[Alg, Op]
+  ): Compiler[Op, Id] = new CompilerImpl(service)
+
 }
 
 private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
@@ -24,10 +38,19 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private val schem = new QuerySchematic
 
   // for quick lookup and decoding from AST
-  private val endpoints: Map[String, AST => Op[_, _, _, _, _]] = {
-    def go[I](
-      endpoint: Endpoint[Op, I, _, _, _, _]
-    ) = endpoint.input.compile(schem).andThen(endpoint.wrap(_))
+  private val endpoints: Map[String, AST => CompiledInput[Op]] = {
+    def go[In](
+      e: Endpoint[Op, In, _, _, _, _]
+    ): AST => CompiledInput[Op] = {
+      val schematic = e.input.compile(schem)
+
+      ast =>
+        new CompiledInput[Op] {
+          type I = In
+          val input: I = schematic(ast)
+          val endpoint: Endpoint[Op, I, _, _, _, _] = e
+        }
+    }
 
     service
       .endpoints
@@ -35,7 +58,7 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       .map(_.map(_.head).map(go(_)))
   }
 
-  def compile(q: Query): Op[_, _, _, _, _] =
+  def compile(q: Query): CompiledInput[Op] =
     endpoints.getOrElse(
       q.operationName,
       throw new Exception(
@@ -45,26 +68,24 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
 }
 
-trait Runner[F[_]] {
-  def run(q: Query): F[Any]
+trait Runner[F[_], Op[_, _, _, _, _]] {
+  def run(q: CompiledInput[Op]): F[Any]
 }
 
 object Runner {
 
-  def unlift[F[_]: FlatMap](runner: F[Runner[F]]): Runner[F] =
-    new Runner[F] {
-      def run(q: Query): F[Any] = runner.flatMap(_.run(q))
+  def unlift[F[_]: FlatMap, Op[_, _, _, _, _]](runner: F[Runner[F, Op]]): Runner[F, Op] =
+    new Runner[F, Op] {
+      def run(q: CompiledInput[Op]): F[Any] = runner.flatMap(_.run(q))
     }
 
   def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
     service: Service[Alg, Op],
     impl: Option[HttpApp[IO]] = None,
-  ): Resource[IO, Runner[IO]] = EmberClientBuilder
+  ): Resource[IO, Runner[IO, Op]] = EmberClientBuilder
     .default[IO]
     .build
     .flatMap { c =>
-      val compiler: Compiler[Op, Id] = new CompilerImpl(service)
-
       val b = SimpleRestJsonBuilder(service)
 
       impl
@@ -74,7 +95,7 @@ object Runner {
         .map { client =>
           val exec = service.asTransformation(client)
 
-          q => IO.defer(exec(compiler.compile(q)))
+          q => IO.defer(exec(q.endpoint.wrap(q.input)))
         }
     }
 
