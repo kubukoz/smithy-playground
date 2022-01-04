@@ -14,13 +14,11 @@ object poc {
   sealed trait AST[F[_]] extends Product with Serializable
 
   case class Struct[F[_]](
-    fields: F[Map[String, F[AST[F]]]]
+    fields: F[Map[F[String], F[AST[F]]]]
   ) extends AST[F]
 
   case class IntLiteral[F[_]](value: F[Int]) extends AST[F]
   case class StringLiteral[F[_]](value: F[String]) extends AST[F]
-
-  case class Tokens[A](before: List[A], own: List[A], after: List[A])
 
   case class WithSource[A](
     value: A,
@@ -34,11 +32,11 @@ object poc {
         Struct[WithSource](
           fields = WithSource(
             Map(
-              "name" -> WithSource(
+              WithSource("name", List("//foo", "name")) -> WithSource(
                 StringLiteral[WithSource](value = WithSource("John", List("\"John\""))),
                 List("\"John\""),
               ),
-              "age" -> WithSource(
+              WithSource("age", List("age")) -> WithSource(
                 IntLiteral[WithSource](value = WithSource(10, List("10"))),
                 List("10"),
               ),
