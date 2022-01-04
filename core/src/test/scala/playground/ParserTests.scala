@@ -3,6 +3,7 @@ package playground
 import munit.FunSuite
 import munit.Location
 import munit.TestOptions
+import playground.AST._
 
 class ParserTests extends FunSuite {
 

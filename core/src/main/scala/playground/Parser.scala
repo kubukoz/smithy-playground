@@ -8,6 +8,8 @@ import cats.parse.Parser
 import cats.parse.Parser0
 import cats.parse.Rfc5234
 import playground._
+import playground.AST._
+import cats.Id
 
 object SmithyQLParser {
 
@@ -62,7 +64,7 @@ object SmithyQLParser {
         }
       }
 
-      val number = T.liftParser(Numbers.digits).map(_.map(_.toInt).map(IntLiteral))
+      val number = T.liftParser(Numbers.digits).map(_.map(_.toInt).map(IntLiteral[Id](_)))
 
       val stringLiteral = anyChar
         .repUntil0(char('\"'))
@@ -70,7 +72,7 @@ object SmithyQLParser {
         .with1
         .surroundedBy(char('"'))
         .map { s =>
-          T.liftToken(s"\"$s\"", StringLiteral(s))
+          T.liftToken(s"\"$s\"", StringLiteral[Id](s))
         }
 
       def charToken(c: Char): Parser[F[Unit]] = token(char(c).as(T.liftToken(c.toString, ())))
@@ -144,11 +146,11 @@ object SmithyQLParser {
             case None    => open *> close.as(Map.empty[String, AST])
           }
 
-        fieldsResult.map(Struct(_))
+        fieldsResult.map(Struct[Id](_))
       }.map(T.block(_))
     }
 
-    (symbol, struct).mapN((_, _).mapN(Query.apply))
+    (symbol, struct).mapN((_, _).mapN(Query.apply[Id]))
   }
 
 }

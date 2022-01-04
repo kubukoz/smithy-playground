@@ -2,10 +2,12 @@ package playground
 
 import org.typelevel.paiges.Doc
 import playground._
+import cats.Id
 
 object Formatter {
+  import AST.high._
 
-  def writeAst(a: AST): Doc =
+  def writeAst(a: AST[Id]): Doc =
     a match {
       case Struct(fields) =>
         Doc
@@ -15,7 +17,7 @@ object Formatter {
               Doc.text(k) +
                 Doc.space +
                 Doc.char('=') + {
-                  if (v.isInstanceOf[Struct])
+                  if (v.isInstanceOf[Struct[Id]])
                     Doc.space + writeAst(v)
                   else
                     (Doc.lineOrSpace + writeAst(v)).nested(2).grouped
@@ -30,7 +32,7 @@ object Formatter {
     }
 
   def format(
-    q: Query,
+    q: Query[Id],
     w: Int,
   ): String = (Doc.text(q.operationName) + Doc.space + writeAst(q.input) + Doc.hardLine)
     .renderTrim(w)
