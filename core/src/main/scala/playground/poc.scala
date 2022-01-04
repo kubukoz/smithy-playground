@@ -24,7 +24,7 @@ object poc {
 
   case class WithSource[A](
     value: A,
-    tokens: Tokens[String],
+    tokens: List[String],
   )
 
   val parsedQuery = WithSource(

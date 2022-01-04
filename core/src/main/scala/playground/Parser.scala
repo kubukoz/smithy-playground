@@ -33,32 +33,6 @@ object SmithyQLParser {
 
   }
 
-  object tokens {
-    import Parser._
-
-    val symbol: Parser[String] = (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit)).map {
-      case (ch, s) => s.prepended(ch)
-    }
-
-    val number = Numbers.digits.map(_.toInt).map(IntLiteral)
-
-    val stringLiteral = anyChar
-      .repUntil0(char('\"'))
-      .map(_.mkString)
-      .with1
-      .surroundedBy(char('"'))
-      .map(StringLiteral)
-
-    val equalsSign = char('=')
-
-    val comma = char(',')
-
-    val openBrace = char('{')
-    val closeBrace = char('}')
-
-    val comment = string("//") *> charsWhile0(_ != '\n') *> char('\n')
-  }
-
   val idParser = parser(Tokens.idTokens)
 
   def parser[F[_]: Apply](T: Tokens[F]): Parser[F[Query]] = {
