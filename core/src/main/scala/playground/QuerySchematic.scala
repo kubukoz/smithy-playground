@@ -1,15 +1,16 @@
 package playground
 
 import cats.data.NonEmptyList
-import java.util.UUID
+import cats.implicits._
 import schematic.Alt
 import schematic.ByteArray
-import smithy4s.Hints
 import schematic.Field
-import cats.implicits._
-import smithy4s.Timestamp
-import smithy4s.Document
 import smithy.api.TimestampFormat
+import smithy4s.Document
+import smithy4s.Hints
+import smithy4s.Timestamp
+
+import java.util.UUID
 
 class QuerySchematic
   extends smithy4s.Schematic[AST => *]
