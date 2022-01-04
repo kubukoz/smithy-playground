@@ -3,22 +3,16 @@
   "name": "SmithyQL",
   "patterns": [
     {
-      "include": "#keywords"
-    },
-    {
       "include": "#strings"
     },
     {
       "include": "#comments"
     },
     {
-      "include": "#operators"
-    },
-    {
       "include": "#numbers"
     },
     {
-      "include": "#bools"
+      "include": "#operators"
     }
   ],
   "repository": {
@@ -38,7 +32,7 @@
       "patterns": [
         {
           "name": "comment.line.double-slash",
-          "match": "\\/\\/(.+)"
+          "match": "\\/\\/.*"
         }
       ]
     },
@@ -47,7 +41,7 @@
       "patterns": [
         {
           "name": "constant.numeric",
-          "match": "(\\d+)(\\.\\d+)?"
+          "match": "\\d+(\\.\\d+)?"
         }
       ]
     },
@@ -56,7 +50,7 @@
       "patterns": [
         {
           "name": "keyword.operator",
-          "match": "(=)"
+          "match": "="
         }
       ]
     }
