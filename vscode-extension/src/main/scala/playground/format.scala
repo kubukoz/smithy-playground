@@ -1,13 +1,12 @@
 package playground
 
 import playground.Formatter
-
 import playground.SmithyQLParser
 import typings.vscode.mod
 import typings.vscode.mod.TextDocument
 import typings.vscode.mod.TextEdit
+
 import scala.scalajs.js
-import cats.implicits._
 
 object format {
 
@@ -21,8 +20,8 @@ object format {
     val firstLine = doc.lineAt(0)
     val lastLine = doc.lineAt(doc.lineCount - 1)
 
-    Either
-      .catchNonFatal(SmithyQLParser.parse(doc.getText()))
+    SmithyQLParser
+      .parse(doc.getText())
       .map { parsed =>
         scalajs
           .js

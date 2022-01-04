@@ -1,11 +1,11 @@
 package playground
 
-import typings.vscode.mod.TextEditor
+import cats.Id
 import cats.effect.kernel.Sync
 import cats.implicits._
 import typings.vscode.mod.OutputChannel
+import typings.vscode.mod.TextEditor
 import typings.vscode.mod.window
-import cats.Id
 
 object run {
 
@@ -14,8 +14,9 @@ object run {
     compiler: Compiler[Op, Id],
     runner: Runner[F, Op],
     channel: OutputChannel,
-  ): F[Unit] = Sync[F]
-    .delay(SmithyQLParser.parse(ted.document.getText()))
+  ): F[Unit] = SmithyQLParser
+    .parse(ted.document.getText())
+    .liftTo[F]
     .map(compiler.compile)
     .flatMap { q =>
       Sync[F].delay {

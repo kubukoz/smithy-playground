@@ -8,23 +8,23 @@ import cats.parse.Parser0
 import cats.parse.Rfc5234
 import playground._
 
-import scala.util.control.NoStackTrace
-
 object SmithyQLParser {
 
-  def parse(s: String) =
-    parser
-      .parseAll(s)
-      .leftMap { e =>
-        val (valid, failed) = s.splitAt(
-          e.failedAtOffset
-        )
+  def parse(s: String) = parser
+    .parseAll(s)
+    .leftMap(ParsingFailure(_, s))
 
-        throw new Exception(
-          s"$valid${Console.RED}$failed${Console.RESET} - expected ${e.expected.map(_.toString()).mkString_(", ")}"
-        ) with NoStackTrace
-      }
-      .merge
+  case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {
+
+    def msg: String = {
+      val (valid, failed) = text.splitAt(
+        underlying.failedAtOffset
+      )
+
+      s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying.expected.map(_.toString()).mkString_(", ")}"
+    }
+
+  }
 
   object tokens {
     import Parser._

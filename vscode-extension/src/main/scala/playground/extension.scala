@@ -1,5 +1,6 @@
 package playground
 
+import cats.Id
 import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.unsafe.implicits._
@@ -9,6 +10,7 @@ import com.disneystreaming.demo.smithy.CreateHeroOutput
 import com.disneystreaming.demo.smithy.CreateSubscriptionOutput
 import com.disneystreaming.demo.smithy.DemoService
 import com.disneystreaming.demo.smithy.DemoServiceGen
+import com.disneystreaming.demo.smithy.DemoServiceOperation
 import com.disneystreaming.demo.smithy.Hero
 import com.disneystreaming.demo.smithy.Subscription
 import playground.Runner
@@ -24,13 +26,9 @@ import typings.vscode.mod.OutputChannel
 import typings.vscode.mod.commands
 import typings.vscode.mod.languages
 import typings.vscode.mod.window
-import typings.vscode.mod.workspace
 
 import scala.scalajs.js._
 import scala.scalajs.js.annotation.JSExportTopLevel
-import com.disneystreaming.demo.smithy.DemoServiceOperation
-import cats.Id
-import cats.parse.Parser
 
 object extension {
   val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -102,21 +100,22 @@ object extension {
       )
   }
 
-  private def validate(q: String): Either[Parser.Error, Query] = SmithyQLParser.idParser.parseAll(q)
+  private def validate(q: String): Either[Throwable, CompiledInput[Op]] = SmithyQLParser
+    .parse(q)
+    .flatMap(c => Either.catchNonFatal(compiler.compile(c)))
 
   private def highlights(doc: mod.TextDocument): List[Diagnostic] =
     validate(doc.getText()) match {
       case Right(_) => Nil
 
-      case Left(e) =>
+      case Left(SmithyQLParser.ParsingFailure(e, _)) =>
         val pos = doc.positionAt(e.failedAtOffset.toDouble)
         val range = doc
           .getWordRangeAtPosition(pos)
           .getOrElse(new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end))
 
         List(
-          new Diagnostic(
-            range,
+          error(
             "Parsing failure: expected one of " + e
               .expected
               .map {
@@ -125,9 +124,23 @@ object extension {
                 case msg                                        => msg.toString()
               }
               .mkString_(", "),
-            DiagnosticSeverity.Error,
+            range,
+          )
+        )
+
+      case Left(e) =>
+        val range =
+          new mod.Range(doc.lineAt(0).range.start, doc.lineAt(doc.lineCount - 1).range.end)
+
+        List(
+          error(
+            "Compilation failure: " + Option(e.getMessage).getOrElse("null"),
+            range,
           )
         )
     }
+
+  private def error(msg: String, range: mod.Range) =
+    new Diagnostic(range, msg, DiagnosticSeverity.Error)
 
 }
