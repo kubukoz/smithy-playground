@@ -58,7 +58,7 @@ object SmithyQLParser {
         case ((None, b), None)       => b
       }
 
-      val symbol: Parser[F[String]] = T.liftParser {
+      val identifier: Parser[F[String]] = T.liftParser {
         (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit)).map { case (ch, s) =>
           s.prepended(ch)
         }
@@ -90,7 +90,7 @@ object SmithyQLParser {
 
     import tokens.token
 
-    val symbol: Parser[F[String]] = token(tokens.symbol)
+    val ident: Parser[F[String]] = token(tokens.identifier)
 
     lazy val ast: Parser[F[AST]] = Parser.defer(
       intLiteral.map(_.widen[AST]).widen |
@@ -104,7 +104,7 @@ object SmithyQLParser {
     lazy val stringLiteral: Parser[F[StringLiteral]] = token(tokens.stringLiteral)
 
     lazy val struct: Parser[F[Struct]] = {
-      val field: Parser[F[(String, AST)]] = (symbol, token(tokens.equalsSign), ast).mapN {
+      val field: Parser[F[(String, AST)]] = (ident, token(tokens.equalsSign), ast).mapN {
         (k, eqq, v) => (k <* eqq, v).tupled
       }
 
@@ -150,7 +150,7 @@ object SmithyQLParser {
       }.map(T.block(_))
     }
 
-    (symbol, struct).mapN((_, _).mapN(Query.apply[Id]))
+    (ident, struct).mapN((_, _).mapN(Query.apply[Id]))
   }
 
 }
