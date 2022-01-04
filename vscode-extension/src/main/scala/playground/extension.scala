@@ -120,7 +120,7 @@ object extension {
       errors.set(doc.uri, Array(highlights(doc): _*))
 
   private def highlights(doc: mod.TextDocument): List[Diagnostic] = {
-    val parsed = SmithyQLParser.idParser.parseAll(doc.getText())
+    val parsed = SmithyQLParser.parser.parseAll(doc.getText())
 
     parsed match {
       case Right(_) => Nil
