@@ -29,6 +29,18 @@ object AST {
     }
 
     sealed trait InputNode[F[_]] extends AST[F] {
+
+      def fold[A](
+        struct: Struct[F] => A,
+        string: StringLiteral[F] => A,
+        int: IntLiteral[F] => A,
+      ): A =
+        this match {
+          case s @ Struct(_)        => struct(s)
+          case i @ IntLiteral(_)    => int(i)
+          case s @ StringLiteral(_) => string(s)
+        }
+
       def mapK[G[_]: Functor](fk: F ~> G): InputNode[G]
     }
 
@@ -68,10 +80,13 @@ object AST {
   final case class Comment(text: String)
 
   final case class WithSource[+A](
+    // todo: these are always comments
     tokensLeft: List[Comment],
     value: A,
     tokensRight: List[Comment],
   ) {
+    def allComments(aTokens: A => List[Comment]): List[Comment] =
+      tokensLeft ++ aTokens(value) ++ tokensRight
 
     def tokensEach: List[Comment] = tokensLeft ++ tokensRight
 
@@ -84,6 +99,27 @@ object AST {
 
   object WithSource {
     def empty[A](value: A) = WithSource(Nil, value, Nil)
+
+    def allQueryComments(input: WithSource[high.Query[WithSource]]): List[Comment] = {
+
+      def comments(node: high.InputNode[AST.WithSource]): List[AST.Comment] = node.fold(
+        struct = _.fields.allComments(_.flatMap { case (k, v) =>
+          k.allComments(_ => Nil) ++ v.fold(comments, comments, comments)
+        }.toList),
+        string = _.value.allComments(_ => Nil),
+        int = _.value.allComments(_ => Nil),
+      )
+
+      input.allComments { q =>
+        q.operationName.allComments(_ => Nil) ++
+          q.input
+            .fold(
+              comments,
+              comments,
+              comments,
+            )
+      }
+    }
 
     implicit val instances: NonEmptyTraverse[WithSource] =
       new NonEmptyTraverse[WithSource] {
