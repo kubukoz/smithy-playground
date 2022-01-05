@@ -1,22 +1,29 @@
-package playground
+package playground.smithyql
 
 import munit.FunSuite
 import munit.Location
 import munit.TestOptions
+import playground.smithyql.AST._
 
 class ParserTests extends FunSuite {
 
   def parsingTest(name: TestOptions, input: String)(expected: Query)(implicit loc: Location): Unit =
     test(name) {
-      val actual = SmithyQLParser.parse(input)
-      assertEquals(actual, Right(expected))
+      SmithyQLParser.parse(input) match {
+        case Left(e)  => fail(s"Parsing failed: ${e.msg}")
+        case Right(v) => assertEquals(v, expected)
+      }
     }
 
   import DSL._
 
-  parsingTest("simple call", "hello { } ")("hello".call())
+  parsingTest("simple call, dense", "hello{}")("hello".call())
+  parsingTest("simple call, space in object", "hello{ }")("hello".call())
+  parsingTest("simple call, trailing/leading space", " hello{} ")("hello".call())
+  parsingTest("simple call, sparse", " hello { } ")("hello".call())
 
   val simpleResult = "hello".call("world" -> "bar")
+
   parsingTest("one parameter single-line", """hello { world = "bar" }""")(
     simpleResult
   )
@@ -42,6 +49,37 @@ class ParserTests extends FunSuite {
   }
   """,
   )(simpleResult)
+
+  parsingTest(
+    "struct with comment and trailing comma",
+    """
+  hello {
+    world = "bar",
+    //
+  }
+  """,
+  )(
+    "hello".call(
+      "world" -> "bar"
+    )
+  )
+
+  parsingTest(
+    "empty struct",
+    """hello {
+    //hello
+  }""",
+  )("hello".call())
+
+  parsingTest(
+    "one parameter multiline split",
+    """ hello {
+    world
+    =
+    "bar"
+    }
+  }""",
+  )
 
   parsingTest(
     "empty comment",
@@ -137,7 +175,7 @@ class ParserTests extends FunSuite {
   )(simpleResult)
 
   parsingTest(
-    """More complicated case with indentation and comments""",
+    "More complicated case with indentation and comments",
     """
 CreateHero { //bar
 hero = { //foo
@@ -158,6 +196,16 @@ hero = { //foo
   )(
     "CreateHero".call(
       "hero" -> struct("good" -> struct("howGood" -> 200, "anotherKey" -> 42))
+    )
+  )
+
+  parsingTest(
+    "Comments literally everywhere",
+    Examples.fullOfComments,
+  )(
+    "op".call(
+      "firstKey" -> "firstValue",
+      "secondKey" -> "secondValue",
     )
   )
 }

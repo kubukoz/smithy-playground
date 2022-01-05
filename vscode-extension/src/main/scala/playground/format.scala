@@ -1,7 +1,7 @@
 package playground
 
-import playground.Formatter
-import playground.SmithyQLParser
+import playground.smithyql.Formatter
+import playground.smithyql.SmithyQLParser
 import typings.vscode.mod
 import typings.vscode.mod.TextDocument
 import typings.vscode.mod.TextEdit

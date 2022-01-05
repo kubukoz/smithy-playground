@@ -29,6 +29,7 @@ import typings.vscode.mod.window
 
 import scala.scalajs.js._
 import scala.scalajs.js.annotation.JSExportTopLevel
+import playground.smithyql.SmithyQLParser
 
 object extension {
   val chan: OutputChannel = window.createOutputChannel("Smithy Playground")

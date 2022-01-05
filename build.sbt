@@ -19,7 +19,8 @@ val commonSettings = Seq(
   ),
   libraryDependencies ++= compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
-  scalacOptions ++= Seq("source:3.0"),
+  scalacOptions -= "-Vtype-diffs",
+  scalacOptions ++= Seq("-Xsource:3.0"),
   Compile / doc / sources := Seq(),
 )
 

@@ -12,6 +12,7 @@ import playground._
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
+import playground.smithyql.AST._
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I

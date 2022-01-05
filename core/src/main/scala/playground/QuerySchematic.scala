@@ -11,6 +11,7 @@ import smithy4s.Hints
 import smithy4s.Timestamp
 
 import java.util.UUID
+import playground.smithyql.AST._
 
 class QuerySchematic
   extends smithy4s.Schematic[AST => *]
