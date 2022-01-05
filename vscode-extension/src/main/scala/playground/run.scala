@@ -3,6 +3,7 @@ package playground
 import cats.Id
 import cats.effect.kernel.Sync
 import cats.implicits._
+import playground.smithyql.SmithyQLParser
 import typings.vscode.mod.OutputChannel
 import typings.vscode.mod.TextEditor
 import typings.vscode.mod.window

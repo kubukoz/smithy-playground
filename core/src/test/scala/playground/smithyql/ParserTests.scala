@@ -1,9 +1,9 @@
-package playground
+package playground.smithyql
 
 import munit.FunSuite
 import munit.Location
 import munit.TestOptions
-import playground.AST._
+import playground.smithyql.AST._
 
 class ParserTests extends FunSuite {
 

@@ -1,4 +1,4 @@
-package playground
+package playground.smithyql
 
 import cats.Id
 import cats.implicits._
@@ -7,10 +7,7 @@ import cats.parse.Parser
 import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import cats.parse.Rfc5234
-import playground.AST.Comment
-import playground.AST.WithSource
-import playground.AST.high._
-import playground._
+import AST.high._
 
 object SmithyQLParser {
 
@@ -56,7 +53,7 @@ object SmithyQLParser {
     def withComments[A](
       p: Parser[A]
     ): Parser[T[A]] = (comments.with1 ~ p ~ comments).map { case ((b, v), a) =>
-      WithSource(b, v, a)
+      WithSource(commentsLeft = b, commentsRight = a, value = v)
     }
 
     private[SmithyQLParser] val rawIdentifier =
@@ -105,7 +102,7 @@ object SmithyQLParser {
           soi
             .value
             .fold(
-              s => Struct(s.fields.between(soi.tokensLeft, soi.tokensRight)),
+              s => Struct(s.fields.between(soi.commentsLeft, soi.commentsRight)),
               _.fold(
                 s => StringLiteral(soi.copy(value = s)),
                 i => IntLiteral(soi.copy(value = i)),
@@ -147,13 +144,25 @@ object SmithyQLParser {
               case fields => fields.toMap
             }
 
-          Struct[T](WithSource(Nil, fieldsResult, commentsBeforeEnd))
+          Struct[T](
+            WithSource(
+              commentsLeft = Nil,
+              value = fieldsResult,
+              commentsRight = commentsBeforeEnd,
+            )
+          )
         }
     }
 
     {
       (ident, struct).mapN(Query.apply[T]) ~ tokens.comments
-    }.map { case (query, after) => WithSource(Nil, query, after) }
+    }.map { case (query, after) =>
+      WithSource(
+        commentsLeft = Nil,
+        value = query,
+        commentsRight = after,
+      )
+    }
   }
 
 }

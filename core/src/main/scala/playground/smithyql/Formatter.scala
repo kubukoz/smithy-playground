@@ -1,7 +1,6 @@
-package playground
+package playground.smithyql
 
 import org.typelevel.paiges.Doc
-import playground._
 import cats.Id
 
 object Formatter {
