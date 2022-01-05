@@ -1,5 +1,3 @@
-import playground.Tokens
-
 import playground.SmithyQLParser
 val input = """
 CreateHero { //bar
@@ -19,7 +17,4 @@ hero = { //foo
 }
 """
 
-SmithyQLParser.parser(Tokens.idTokens).parseAll(input).toOption.get
-SmithyQLParser.parser(Tokens.lexerTokens).parseAll(input).toOption.get.getConst
-
-SmithyQLParser.parser(Tokens.withSourceTokens).parseAll(input).toOption.get
+SmithyQLParser.parser.parseAll(input).toOption.get
