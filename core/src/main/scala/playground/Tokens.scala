@@ -6,12 +6,20 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import cats.kernel.Semigroup
 import cats.parse.Parser
+import playground.AST.Token
+import playground.AST.WithSource
 
 trait Tokens[F[_]] {
   def comment(text: String): F[Unit]
 
-  def liftToken[A](text: String, value: A): F[A]
-  def liftParser(parser: Parser[String]): Parser[F[String]] = parser.map(s => liftToken(s, s))
+  def liftToken[A](token: => Token, value: A): F[A]
+
+  def liftParser(
+    parser: Parser[String]
+  )(
+    wrap: String => Token
+  ): Parser[F[String]] = parser.map(s => liftToken(wrap(s), s))
+
   def block[A](fa: F[A]): F[A]
 }
 
@@ -22,7 +30,7 @@ object Tokens {
   val idTokens: Tokens[Id] =
     new Tokens[Id] {
       def comment(text: String): Unit = ()
-      def liftToken[A](text: String, value: A): A = value
+      def liftToken[A](token: => Token, value: A): A = value
       def block[A](fa: A): A = fa
     }
 
@@ -30,11 +38,11 @@ object Tokens {
     new Tokens[Lexer] {
 
       def comment(text: String): Lexer[Unit] = Const(
-        TokenTree.Single(Token.Simple("//" + text))
+        TokenTree.Single(Token.Comment(text))
       )
 
-      def liftToken[A](text: String, value: A): Lexer[A] = Const(
-        TokenTree.Single(Token.Simple(text))
+      def liftToken[A](token: => Token, value: A): Lexer[A] = Const(
+        TokenTree.Single(token)
       )
 
       def block[A](fa: Lexer[A]): Lexer[A] = Const {
@@ -43,12 +51,15 @@ object Tokens {
 
     }
 
-}
+  val withSourceTokens: Tokens[WithSource] =
+    new Tokens[WithSource] {
+      def comment(text: String): WithSource[Unit] = WithSource((), List(Token.Comment(text)))
 
-case class Token(value: String)
+      def liftToken[A](token: => Token, value: A): WithSource[A] = WithSource(value, List(token))
 
-object Token {
-  def Simple(s: String): Token = Token(s)
+      def block[A](fa: WithSource[A]): WithSource[A] = fa
+    }
+
 }
 
 sealed trait TokenTree {
