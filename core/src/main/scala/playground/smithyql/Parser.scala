@@ -11,10 +11,12 @@ import AST.high._
 
 object SmithyQLParser {
 
-  def parse(s: String): Either[ParsingFailure, Query[Id]] = parser
+  def parse(s: String): Either[ParsingFailure, Query[Id]] = parseFull(s)
+    .map(_.map(_.mapK(WithSource.unwrap)).value)
+
+  def parseFull(s: String): Either[ParsingFailure, WithSource[Query[WithSource]]] = parser
     .parseAll(s)
     .leftMap(ParsingFailure(_, s))
-    .map(_.map(_.mapK(WithSource.unwrap)).value)
 
   case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {
 

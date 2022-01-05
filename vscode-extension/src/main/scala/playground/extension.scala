@@ -85,6 +85,7 @@ object extension {
             if (validate(doc.getText()).isRight)
               Array(
                 new mod.CodeLens(
+                  // todo try to move this to init of line
                   doc.lineAt(0).range,
                   mod.Command("smithyql.runQuery", "Run query"),
                 )

@@ -21,7 +21,7 @@ object format {
     val lastLine = doc.lineAt(doc.lineCount - 1)
 
     SmithyQLParser
-      .parse(doc.getText())
+      .parseFull(doc.getText())
       .map { parsed =>
         scalajs
           .js
