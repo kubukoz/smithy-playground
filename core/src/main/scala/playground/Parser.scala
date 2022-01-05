@@ -4,10 +4,10 @@ import cats.Id
 import cats.implicits._
 import cats.parse.Numbers
 import cats.parse.Parser
+import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import cats.parse.Rfc5234
-import playground.AST.ALiteral
-import playground.AST.Token
+import playground.AST.Comment
 import playground.AST.WithSource
 import playground.AST.high._
 import playground._
@@ -17,7 +17,7 @@ object SmithyQLParser {
   def parse(s: String): Either[ParsingFailure, Query[Id]] = parser
     .parseAll(s)
     .leftMap(ParsingFailure(_, s))
-    .map(_.mapK(WithSource.unwrap))
+    .map(_.map(_.mapK(WithSource.unwrap)).value)
 
   case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {
 
@@ -26,7 +26,16 @@ object SmithyQLParser {
         underlying.failedAtOffset
       )
 
-      s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying.expected.map(_.toString()).mkString_(", ")}"
+      s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
+        .expected
+        .map {
+          case InRange(_, '0', '9')               => "digit"
+          case InRange(_, from, to) if from == to => s"'$from'"
+          case InRange(_, from, to)               => s"'$from' - '$to'"
+          case e                                  => e.toString
+        }
+        .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
+        .take(10)}\"${Console.RESET} instead"
     }
 
   }
@@ -35,85 +44,85 @@ object SmithyQLParser {
 
   object tokens {
     import Parser._
-    val comment: Parser[Token.Comment] =
-      string("//") *> charsWhile0(_ != '\n').map(Token.Comment(_)) <* char('\n')
+    val comment: Parser[Comment] =
+      string("//") *> charsWhile0(_ != '\n').map(Comment(_)) <* char('\n')
 
-    val whitespace: Parser0[List[Token.Comment]] = comment
-      .repSep0(charsWhile0(_.isWhitespace))
-      .surroundedBy(charsWhile0(_.isWhitespace))
+    val whitespace: Parser0[Unit] = charsWhile0(_.isWhitespace).void
 
-    def token[A](
-      p: Parser[T[A]]
-    ): Parser[T[A]] = (whitespace.with1 ~ p ~ whitespace).map { case ((before, v), after) =>
-      WithSource(v.value, before ++ v.tokens ++ after)
+    val comments: Parser0[List[Comment]] = comment
+      .repSep0(whitespace)
+      .surroundedBy(whitespace)
+
+    def withComments[A](
+      p: Parser[A]
+    ): Parser[T[A]] = (comments.with1 ~ p ~ comments).map { case ((b, v), a) =>
+      WithSource(b, v, a)
     }
 
-    val identifier: Parser[WithSource[String]] =
+    private[SmithyQLParser] val rawIdentifier =
       (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
-        .map { case (ch, s) =>
-          val wholeString = s.prepended(ch)
-          WithSource(wholeString, Token.Identifier(wholeString) :: Nil)
-        }
+        .map { case (ch, s) => s.prepended(ch) }
 
-    val number = Numbers
+    val identifier: Parser[T[String]] = withComments {
+      (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
+        .map { case (ch, s) => s.prepended(ch) }
+    }
+
+    val number: Parser[Int] = Numbers
       .digits
-      .map { digits =>
-        WithSource(
-          IntLiteral(WithSource(digits.toInt, Token.Literal(ALiteral.IntLiteral(digits)) :: Nil)),
-          Nil,
-        )
-      }
+      .map(_.toInt)
 
-    val stringLiteral = anyChar
+    // todo: allow quotes inside
+    val stringLiteral: Parser[String] = anyChar
       .repUntil0(char('\"'))
       .map(_.mkString)
       .with1
       .surroundedBy(char('"'))
-      .map { s =>
-        WithSource(
-          StringLiteral(WithSource(s, Token.Literal(ALiteral.StringLiteral(s)) :: Nil)),
-          Nil,
-        )
-      }
 
-    def charToken(c: Char)(tok: Token): Parser[T[Unit]] = token(
-      char(c).as(WithSource((), tok :: Nil))
-    )
+    def punctuation(c: Char): Parser[Unit] = char(c)
 
-    val equalsSign = charToken('=')(Token.EqualsSign)
-
-    val comma = charToken(',')(Token.Comma)
-
-    val openBrace = charToken('{')(Token.LeftBrace)
-    val closeBrace = charToken('}')(Token.RightBrace)
+    val equalsSign = punctuation('=')
+    val comma = punctuation(',')
+    val openBrace = punctuation('{')
+    val closeBrace = punctuation('}')
 
   }
 
-  val parser: Parser[Query[WithSource]] = {
+  val parser: Parser[WithSource[Query[WithSource]]] = {
 
     import Parser._
 
-    import tokens.token
+    val ident: Parser[T[String]] = tokens.identifier
 
-    val ident: Parser[T[String]] = token(tokens.identifier)
+    lazy val node: Parser[InputNode[T]] = Parser.defer {
 
-    lazy val node: Parser[T[InputNode[T]]] = Parser.defer(
-      intLiteral.widen |
-        stringLiteral.widen |
-        struct.widen
-    )
+      // Consuming comments/whitespace for nodes together to avoid double backtracking.
+      tokens
+        .withComments {
+          tokens.number.backtrack.eitherOr(tokens.stringLiteral).eitherOr(struct)
+        }
+        .map { soi => // boi
+          soi
+            .value
+            .fold(
+              s => Struct(s.fields.between(soi.tokensLeft, soi.tokensRight)),
+              _.fold(
+                s => StringLiteral(soi.copy(value = s)),
+                i => IntLiteral(soi.copy(value = i)),
+              ),
+            )
+        }
+    }
 
-    lazy val intLiteral: Parser[T[IntLiteral[T]]] = token(tokens.number)
+    lazy val struct: Parser[Struct[T]] = {
+      type TField = (T[String], AST.high.InputNode[T])
 
-    // todo: allow quotes inside
-    lazy val stringLiteral: Parser[T[StringLiteral[T]]] = token(tokens.stringLiteral)
-
-    lazy val struct: Parser[T[Struct[T]]] = {
-      type TField = (T[String], T[AST.high.InputNode[T]])
-
-      val field: Parser[TField] = (ident, token(tokens.equalsSign), node).mapN { (k, eqq, v) =>
-        (k <* eqq, v)
-      }
+      val field: Parser[TField] =
+        (
+          // sussy backtrack, but it works
+          ident.backtrack <* tokens.equalsSign,
+          node,
+        ).tupled
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
       lazy val fields: Parser0[List[TField]] = Parser.defer0 {
@@ -124,23 +133,27 @@ object SmithyQLParser {
           .orElse(Parser.pure(Nil))
       }
 
-      (
-        tokens.openBrace ~
+      // No comments around opening brace
+      tokens.openBrace *>
+        (
+          // fields always start with whitespace/comments, so we don't catch that here
           fields ~
-          tokens.closeBrace
-      ).map { case ((open, fieldsR), close) =>
-        val fieldsResult =
-          fieldsR match {
-            case Nil    => Map.empty[T[String], T[InputNode[T]]]
-            case fields => fields.toMap
-          }
+            tokens.comments <*
+            tokens.closeBrace
+        ).map { case (fieldsR, commentsBeforeEnd) =>
+          val fieldsResult =
+            fieldsR match {
+              case Nil    => Map.empty[T[String], InputNode[T]]
+              case fields => fields.toMap
+            }
 
-        open *>
-          WithSource(Struct[T](WithSource(fieldsResult, Nil)), Nil) <* close
-      }
+          Struct[T](WithSource(Nil, fieldsResult, commentsBeforeEnd))
+        }
     }
 
-    (ident, struct).mapN(Query.apply[T])
+    {
+      (ident, struct).mapN(Query.apply[T]) ~ tokens.comments
+    }.map { case (query, after) => WithSource(Nil, query, after) }
   }
 
 }

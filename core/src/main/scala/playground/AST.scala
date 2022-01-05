@@ -5,7 +5,6 @@ import cats.Eval
 import cats.Functor
 import cats.Id
 import cats.NonEmptyTraverse
-import cats.data.Writer
 import cats.implicits._
 import cats.~>
 
@@ -35,22 +34,22 @@ object AST {
 
     final case class Query[F[_]](
       operationName: F[String],
-      input: F[Struct[F]],
+      input: Struct[F],
     ) {
 
       def mapK[G[_]: Functor](fk: F ~> G): Query[G] = Query(
         fk(operationName),
-        fk(input).map(_.mapK(fk)),
+        input.mapK(fk),
       )
 
     }
 
     final case class Struct[F[_]](
-      fields: F[Map[F[String], F[InputNode[F]]]]
+      fields: F[Map[F[String], InputNode[F]]]
     ) extends InputNode[F] {
 
       def mapK[G[_]: Functor](fk: F ~> G): Struct[G] = Struct(
-        fk(fields).map(_.map { case (k, v) => fk(k) -> fk(v).map(_.mapK(fk)) })
+        fk(fields).map(_.map { case (k, v) => fk(k) -> v.mapK(fk) })
       )
 
     }
@@ -65,42 +64,29 @@ object AST {
 
   }
 
-  sealed trait Token extends Product with Serializable
+  // todo: multiline
+  final case class Comment(text: String)
 
-  object Token {
-    case object LeftBrace extends Token
-    case object RightBrace extends Token
-    case object EqualsSign extends Token
-    case object Comma extends Token
-    // todo: multiline
-    final case class Comment(text: String) extends Token
-    final case class Identifier(value: String) extends Token
-    final case class Literal(value: ALiteral) extends Token
-  }
-
-  sealed trait ALiteral extends Product with Serializable
-
-  object ALiteral {
-    final case class StringLiteral(value: String) extends ALiteral
-    final case class IntLiteral(value: String) extends ALiteral
-  }
-
-  // this is basically Writer
   final case class WithSource[+A](
+    tokensLeft: List[Comment],
     value: A,
-    tokens: List[Token],
-  )
+    tokensRight: List[Comment],
+  ) {
+
+    def tokensEach: List[Comment] = tokensLeft ++ tokensRight
+
+    def between(
+      lhs: List[Comment],
+      rhs: List[Comment],
+    ) = WithSource(lhs ++ tokensLeft, value, tokensRight ++ rhs)
+
+  }
 
   object WithSource {
-    Writer
+    def empty[A](value: A) = WithSource(Nil, value, Nil)
 
-    implicit val instances: NonEmptyTraverse[WithSource] with Apply[WithSource] =
-      new NonEmptyTraverse[WithSource] with Apply[WithSource] {
-
-        def ap[A, B](ff: WithSource[A => B])(fa: WithSource[A]): WithSource[B] = WithSource(
-          ff.value(fa.value),
-          ff.tokens ++ fa.tokens,
-        )
+    implicit val instances: NonEmptyTraverse[WithSource] =
+      new NonEmptyTraverse[WithSource] {
 
         def foldLeft[A, B](fa: WithSource[A], b: B)(f: (B, A) => B): B = f(b, fa.value)
 
@@ -113,7 +99,7 @@ object AST {
           Eval.later(f(fa.value))
 
         def nonEmptyTraverse[G[_]: Apply, A, B](fa: WithSource[A])(f: A => G[B]): G[WithSource[B]] =
-          f(fa.value).map(WithSource(_, fa.tokens))
+          f(fa.value).map(v => fa.copy(value = v))
 
       }
 
