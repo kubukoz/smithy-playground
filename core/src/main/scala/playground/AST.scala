@@ -12,16 +12,26 @@ import cats.~>
 object AST {
 
   type AST = AST.high.AST[Id]
+
   type Query = AST.high.Query[Id]
   val Query = AST.high.Query
+
   type Struct = AST.high.Struct[Id]
   val Struct = AST.high.Struct
-  type IntLiteral = AST.high.IntLiteral[Id]
+
   val IntLiteral = AST.high.IntLiteral
-  type StringLiteral = AST.high.StringLiteral[Id]
+
   val StringLiteral = AST.high.StringLiteral
 
   object high {
+
+    sealed trait AST[F[_]] extends Product with Serializable {
+      def mapK[G[_]: Functor](fk: F ~> G): AST[G]
+    }
+
+    sealed trait InputNode[F[_]] extends AST[F] {
+      def mapK[G[_]: Functor](fk: F ~> G): InputNode[G]
+    }
 
     final case class Query[F[_]](
       operationName: F[String],
@@ -35,14 +45,9 @@ object AST {
 
     }
 
-// todo bad name, Query isn't an AST but is part of the AST
-    sealed trait AST[F[_]] extends Product with Serializable {
-      def mapK[G[_]: Functor](fk: F ~> G): AST[G]
-    }
-
     final case class Struct[F[_]](
-      fields: F[Map[F[String], F[AST[F]]]]
-    ) extends AST[F] {
+      fields: F[Map[F[String], F[InputNode[F]]]]
+    ) extends InputNode[F] {
 
       def mapK[G[_]: Functor](fk: F ~> G): Struct[G] = Struct(
         fk(fields).map(_.map { case (k, v) => fk(k) -> fk(v).map(_.mapK(fk)) })
@@ -50,12 +55,12 @@ object AST {
 
     }
 
-    final case class IntLiteral[F[_]](value: F[Int]) extends AST[F] {
-      def mapK[G[_]: Functor](fk: F ~> G): AST[G] = IntLiteral(fk(value))
+    final case class IntLiteral[F[_]](value: F[Int]) extends InputNode[F] {
+      def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = IntLiteral(fk(value))
     }
 
-    final case class StringLiteral[F[_]](value: F[String]) extends AST[F] {
-      def mapK[G[_]: Functor](fk: F ~> G): AST[G] = StringLiteral(fk(value))
+    final case class StringLiteral[F[_]](value: F[String]) extends InputNode[F] {
+      def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = StringLiteral(fk(value))
     }
 
   }

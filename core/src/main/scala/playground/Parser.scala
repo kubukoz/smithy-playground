@@ -1,6 +1,5 @@
 package playground
 
-import cats.Defer
 import cats.Id
 import cats.implicits._
 import cats.parse.Numbers
@@ -98,7 +97,7 @@ object SmithyQLParser {
 
     val ident: Parser[T[String]] = token(tokens.identifier)
 
-    lazy val ast: Parser[T[AST[T]]] = Parser.defer(
+    lazy val node: Parser[T[InputNode[T]]] = Parser.defer(
       intLiteral.widen |
         stringLiteral.widen |
         struct.widen
@@ -110,9 +109,9 @@ object SmithyQLParser {
     lazy val stringLiteral: Parser[T[StringLiteral[T]]] = token(tokens.stringLiteral)
 
     lazy val struct: Parser[T[Struct[T]]] = {
-      type TField = (T[String], T[AST.high.AST[T]])
+      type TField = (T[String], T[AST.high.InputNode[T]])
 
-      val field: Parser[TField] = (ident, token(tokens.equalsSign), ast).mapN { (k, eqq, v) =>
+      val field: Parser[TField] = (ident, token(tokens.equalsSign), node).mapN { (k, eqq, v) =>
         (k <* eqq, v)
       }
 
@@ -132,7 +131,7 @@ object SmithyQLParser {
       ).map { case ((open, fieldsR), close) =>
         val fieldsResult =
           fieldsR match {
-            case Nil    => Map.empty[T[String], T[AST[T]]]
+            case Nil    => Map.empty[T[String], T[InputNode[T]]]
             case fields => fields.toMap
           }
 

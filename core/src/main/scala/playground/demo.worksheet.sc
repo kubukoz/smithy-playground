@@ -1,20 +1,40 @@
+import scala.util.control.NoStackTrace
+
+import playground.AST
+
+import playground.AST.Token._
+
 import playground.SmithyQLParser
+import cats.implicits._
 val input = """
-CreateHero { //bar
-hero = { //foo
-//    bad = {
-//      evilName = "evil",
-//      powerLevel = 9001,
-//    },
-    good = {
-      howGood = //100
-      //  200,
-      200,
-      anotherKey//foo = "a"
-        = 42,
-    },
-  },
-}
+// before op
+op
+// after op
+ {
+  //inside struct
+  firstKey = "firstValue"
+
+ }
 """
 
-SmithyQLParser.parser.parseAll(input).toOption.get
+val q =
+  SmithyQLParser
+    .parser
+    .parseAll(input)
+    .leftMap(e =>
+      throw new Throwable(e.toString) with NoStackTrace {
+        override def getMessage(): String = e.toString()
+      }
+    )
+    .merge
+
+q.operationName == AST.WithSource(
+  value = "op",
+  tokens = List(
+    AST.Token.Comment(text = " before op"),
+    Identifier(value = "op"),
+    Comment(text = " after op"),
+  ),
+)
+
+q.input
