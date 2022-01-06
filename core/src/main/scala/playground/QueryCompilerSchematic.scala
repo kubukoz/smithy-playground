@@ -13,13 +13,13 @@ import smithy4s.Timestamp
 import java.util.UUID
 import playground.smithyql._
 
-object QuerySchematic {
+object QueryCompilerSchematic {
   type WAST = AST[WithSource]
 }
 
-import QuerySchematic._
+import QueryCompilerSchematic._
 
-class QuerySchematic
+class QueryCompilerSchematic
   extends smithy4s.Schematic[WAST => *]
   with schematic.struct.GenericAritySchematic[WAST => *] {
   def short: WAST => Short = ???

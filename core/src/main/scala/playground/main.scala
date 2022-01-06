@@ -38,7 +38,7 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   service: Service[Alg, Op]
 ) extends Compiler[Op, Id] {
 
-  private val schem = new QuerySchematic
+  private val schem = new QueryCompilerSchematic
 
   // for quick lookup and decoding from AST
   private val endpoints: Map[String, AST[WithSource] => CompiledInput[Op]] = {
