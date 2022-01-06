@@ -6,9 +6,14 @@ import cats.Id
 import cats.NonEmptyTraverse
 import cats.implicits._
 import cats.~>
+import cats.kernel.Eq
 
 // todo: multiline
 final case class Comment(text: String)
+
+object Comment {
+  implicit val eq: Eq[Comment] = Eq.by(_.text)
+}
 
 final case class WithSource[+A](
   commentsLeft: List[Comment],

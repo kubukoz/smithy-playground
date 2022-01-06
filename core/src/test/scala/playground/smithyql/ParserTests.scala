@@ -1,25 +1,23 @@
 package playground.smithyql
 
-import munit.FunSuite
-import munit.Location
-import munit.TestOptions
-import playground.smithyql.Query
 import cats.Id
+import playground.smithyql.Query
+import weaver._
 
-class ParserTests extends FunSuite {
+object ParserTests extends FunSuite {
 
   def parsingTest(
-    name: TestOptions,
+    name: TestName,
     input: String,
   )(
     expected: Query[Id]
   )(
-    implicit loc: Location
+    implicit loc: SourceLocation
   ): Unit =
     test(name) {
       SmithyQLParser.parse(input) match {
-        case Left(e)  => fail(s"Parsing failed: ${e.msg}")
-        case Right(v) => assertEquals(v, expected)
+        case Left(e)  => failure(s"Parsing failed: ${e.msg}")
+        case Right(v) => assert(v == expected)
       }
     }
 

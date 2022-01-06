@@ -7,6 +7,7 @@ import cats.parse.Parser
 import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import cats.parse.Rfc5234
+import cats.kernel.Eq
 
 object SmithyQLParser {
 
@@ -36,6 +37,10 @@ object SmithyQLParser {
         .take(10)}\"${Console.RESET} instead"
     }
 
+  }
+
+  object ParsingFailure {
+    implicit val eq: Eq[ParsingFailure] = Eq.fromUniversalEquals
   }
 
   private type T[+A] = WithSource[A]

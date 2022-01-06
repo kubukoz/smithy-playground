@@ -1,11 +1,11 @@
 package playground.smithyql
 
-import munit.FunSuite
+import weaver._
 
-class CommentParsingTests extends FunSuite {
+object CommentParsingTests extends FunSuite {
   test("Comments from entire query are retained while parsing") {
-    assertEquals(
-      SmithyQLParser.parser.parseAll(Examples.fullOfComments).map(WithSource.allQueryComments),
+    assert.eql(
+      SmithyQLParser.parseFull(Examples.fullOfComments).map(WithSource.allQueryComments),
       Right(
         List(
           Comment(" before op"),

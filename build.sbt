@@ -15,8 +15,9 @@ val commonScalaVersions = Seq("2.13.7")
 
 val commonSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.scalameta" %%% "munit" % "0.7.29" % Test
+    "com.disneystreaming" %%% "weaver-cats" % "0.7.9" % Test
   ),
+  testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   libraryDependencies ++= compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
