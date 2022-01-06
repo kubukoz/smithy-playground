@@ -15,7 +15,9 @@ val commonScalaVersions = Seq("2.13.7")
 
 val commonSettings = Seq(
   libraryDependencies ++= Seq(
-    "com.disneystreaming" %%% "weaver-cats" % "0.7.9" % Test
+    "com.disneystreaming" %%% "weaver-cats" % "0.7.9" % Test,
+    "com.disneystreaming" %% "weaver-discipline" % "0.7.9" % Test,
+    "com.disneystreaming" %% "weaver-scalacheck" % "0.7.9" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   libraryDependencies ++= compilerPlugins,

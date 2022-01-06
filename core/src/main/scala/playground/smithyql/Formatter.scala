@@ -20,7 +20,7 @@ object Formatter {
                     .toList
                     .map { case (k, v) =>
                       comments(k.commentsLeft) +
-                        Doc.text(k.value) +
+                        Doc.text(k.value.text) +
                         Doc.space +
                         comments(k.commentsRight) +
                         Doc.char('=') + {
@@ -98,7 +98,7 @@ object Formatter {
   ): String =
     (
       comments(q.operationName.commentsLeft) +
-        Doc.text(q.operationName.value) +
+        Doc.text(q.operationName.value.text) +
         Doc.space +
         comments(q.operationName.commentsRight) +
         writeAst(q.input) +

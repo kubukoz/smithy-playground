@@ -72,7 +72,7 @@ object SmithyQLParser {
     }
 
     val number: Parser[Int] = Numbers
-      .digits
+      .signedIntString
       .map(_.toInt)
 
     // todo: allow quotes inside
@@ -117,13 +117,13 @@ object SmithyQLParser {
         }
     }
 
-    lazy val struct: Parser[T[Map[T[String], InputNode[T]]]] = {
-      type TField = (T[String], InputNode[T])
+    lazy val struct: Parser[T[Map[T[Struct.Key], InputNode[T]]]] = {
+      type TField = (T[Struct.Key], InputNode[T])
 
       val field: Parser[TField] =
         (
           // sussy backtrack, but it works
-          ident.backtrack <* tokens.equalsSign,
+          ident.map(_.map(Struct.Key.apply)).backtrack <* tokens.equalsSign,
           node,
         ).tupled
 
@@ -146,7 +146,7 @@ object SmithyQLParser {
         ).map { case (fieldsR, commentsBeforeEnd) =>
           val fieldsResult =
             fieldsR match {
-              case Nil    => Map.empty[T[String], InputNode[T]]
+              case Nil    => Map.empty[T[Struct.Key], InputNode[T]]
               case fields => fields.toMap
             }
 
@@ -158,8 +158,9 @@ object SmithyQLParser {
         }
     }
 
-    (ident ~ struct ~ tokens.comments).map { case ((opName, input), commentsAfter) =>
-      Query(opName, Struct(WithSource(Nil, commentsAfter, input)))
+    (ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
+      case ((opName, input), commentsAfter) =>
+        Query(opName, Struct(WithSource(Nil, commentsAfter, input)))
     }
   }
 

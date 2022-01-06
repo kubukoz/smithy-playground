@@ -104,7 +104,7 @@ class QuerySchematic
         )
       case Struct(defs) =>
         throw new Exception(
-          s"struct mismatch (keys: ${defs.value.value.keys.map(_.value).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}"
+          s"struct mismatch (keys: ${defs.value.value.keys.map(_.value.text).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}"
         )
 
     }

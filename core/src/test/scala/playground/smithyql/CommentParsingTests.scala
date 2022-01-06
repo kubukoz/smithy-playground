@@ -1,9 +1,13 @@
 package playground.smithyql
 
+import cats.Show
 import weaver._
+import weaver.scalacheck.Checkers
 
-object CommentParsingTests extends FunSuite {
-  test("Comments from entire query are retained while parsing") {
+import Arbitraries._
+
+object CommentParsingTests extends SimpleIOSuite with Checkers {
+  pureTest("Comments from entire query are retained while parsing") {
     assert.eql(
       SmithyQLParser.parseFull(Examples.fullOfComments).map(WithSource.allQueryComments),
       Right(
@@ -23,5 +27,19 @@ object CommentParsingTests extends FunSuite {
         )
       ),
     )
+  }
+
+  implicit val showQuery: Show[Query[WithSource]] = Show.fromToString
+  implicit val showStruct: Show[Struct[WithSource]] = Show.fromToString
+
+  test("Any query can be parsed back") {
+    forall { (q: Query[WithSource]) =>
+      val formatted = playground.smithyql.Formatter.format(q, 80)
+
+      SmithyQLParser.parseFull(formatted) match {
+        case Left(e) => failure(e.msg)
+        case _       => success
+      }
+    }
   }
 }

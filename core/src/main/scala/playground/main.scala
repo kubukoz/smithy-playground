@@ -63,9 +63,9 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
   def compile(q: Query[WithSource]): CompiledInput[Op] =
     endpoints.getOrElse(
-      q.operationName.value,
+      q.operationName.value.text,
       throw new Exception(
-        show"Operation not found: ${q.operationName.value}. Available operations: ${endpoints.keys.toList.mkString_(", ")}"
+        show"Operation not found: ${q.operationName.value.text}. Available operations: ${endpoints.keys.toList.mkString_(", ")}"
       ),
     )(q.input)
 
