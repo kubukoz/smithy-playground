@@ -11,14 +11,39 @@ import smithy4s.Hints
 import smithy4s.Timestamp
 
 import java.util.UUID
-import playground.smithyql.AST._
+import cats.Functor
+
+//todo remove this and use something meaningful in the schematic
+case class Identity[A](a: A)
+
+object Identity {
+
+  implicit val functor: Functor[Identity] =
+    new Functor[Identity] {
+      def map[A, B](fa: Identity[A])(f: A => B): Identity[B] = Identity(f(fa.a))
+    }
+
+}
+
+object QuerySchematic {
+  // hacks
+  type AST = playground.smithyql.AST.high.AST[Identity]
+  type IntLiteral = playground.smithyql.AST.high.IntLiteral[Identity]
+  val IntLiteral = playground.smithyql.AST.high.IntLiteral
+  type Struct = playground.smithyql.AST.high.Struct[Identity]
+  val Struct = playground.smithyql.AST.high.Struct
+  type StringLiteral = playground.smithyql.AST.high.StringLiteral[Identity]
+  val StringLiteral = playground.smithyql.AST.high.StringLiteral
+}
+
+import QuerySchematic._
 
 class QuerySchematic
   extends smithy4s.Schematic[AST => *]
   with schematic.struct.GenericAritySchematic[AST => *] {
   def short: AST => Short = ???
 
-  def int: AST => Int = { case IntLiteral(i) => i }
+  def int: AST => Int = { case IntLiteral(i) => i.a }
 
   def long: AST => Long = ???
 
@@ -30,7 +55,7 @@ class QuerySchematic
 
   def bigdecimal: AST => BigDecimal = ???
 
-  def string: AST => String = { case StringLiteral(s) => s }
+  def string: AST => String = { case StringLiteral(s) => s.a }
 
   def boolean: AST => Boolean = ???
 
@@ -58,9 +83,9 @@ class QuerySchematic
     const {
       fields.map { field =>
         if (field.isOptional)
-          asts.get(field.label).map(field.instance)
+          asts.a.a.get(Identity(field.label)).map(field.instance)
         else
-          field.instance(asts(field.label))
+          field.instance(asts.a.a(Identity(field.label)))
       }
     }
 
@@ -75,10 +100,10 @@ class QuerySchematic
     val opts = NonEmptyList(first, rest.toList)
 
     {
-      case Struct(defs) if defs.size == 1 =>
+      case Struct(defs) if defs.a.a.size == 1 =>
         def go[A](alt: Alt[AST => *, S, A]): AST => S = alt.instance.andThen(alt.inject)
 
-        val (k, v) = defs.head
+        val (k, v) = defs.a.a.head
         val op = opts
           .find { e =>
             e.label == k
@@ -93,13 +118,13 @@ class QuerySchematic
 
         go(op)(v)
 
-      case Struct(m) if m.isEmpty =>
+      case Struct(m) if m.a.a.isEmpty =>
         throw new Exception(
           "found empty struct, expected one of: " + opts.map(_.label).mkString_(", ")
         )
       case Struct(defs) =>
         throw new Exception(
-          s"struct mismatch (keys: ${defs.keys.toList.mkString(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}"
+          s"struct mismatch (keys: ${defs.a.a.keys.toList.mkString(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}"
         )
 
     }
@@ -116,7 +141,7 @@ class QuerySchematic
   def bijection[A, B](f: AST => A, to: A => B, from: B => A): AST => B = f.andThen(to)
 
   def timestamp: AST => Timestamp = { case StringLiteral(s) =>
-    Timestamp.parse(s, TimestampFormat.DATE_TIME).get /*  */
+    Timestamp.parse(s.a, TimestampFormat.DATE_TIME).get /*  */
   }
 
   def withHints[A](fa: AST => A, hints: Hints): AST => A = fa // todo

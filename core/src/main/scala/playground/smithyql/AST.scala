@@ -53,12 +53,14 @@ object AST {
 
     }
 
+    // todo: experiment with "external" tokens outside of these nodes (extra F around InputNode in Struct, etc.)
     final case class Struct[F[_]](
-      fields: F[Map[F[String], InputNode[F]]]
+      // todo: keep ordering of fields? Map might not be the thing to use
+      fields: F[F[Map[F[String], InputNode[F]]]]
     ) extends InputNode[F] {
 
       def mapK[G[_]: Functor](fk: F ~> G): Struct[G] = Struct(
-        fk(fields).map(_.map { case (k, v) => fk(k) -> v.mapK(fk) })
+        fk(fields).map(fk(_)).map(_.map(_.map { case (k, v) => fk(k) -> v.mapK(fk) }))
       )
 
     }

@@ -85,6 +85,7 @@ object extension {
             if (validate(doc.getText()).isRight)
               Array(
                 new mod.CodeLens(
+                  // todo try to move this to init of line
                   doc.lineAt(0).range,
                   mod.Command("smithyql.runQuery", "Run query"),
                 )
@@ -101,9 +102,10 @@ object extension {
       )
   }
 
-  private def validate(q: String): Either[Throwable, CompiledInput[Op]] = SmithyQLParser
+  private def validate(q: String): Either[Throwable, scala.Any] = SmithyQLParser
     .parse(q)
-    .flatMap(c => Either.catchNonFatal(compiler.compile(c)))
+  // todo reenable
+  // .flatMap(c => Either.catchNonFatal(compiler.compile(c)))
 
   private def highlights(doc: mod.TextDocument): List[Diagnostic] =
     validate(doc.getText()) match {

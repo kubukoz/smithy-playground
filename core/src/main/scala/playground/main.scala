@@ -13,6 +13,7 @@ import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
 import playground.smithyql.AST._
+import cats.~>
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -48,7 +49,9 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       ast =>
         new CompiledInput[Op] {
           type I = In
-          val input: I = schematic(ast)
+          val input: I = schematic(ast.mapK(new (cats.Id ~> Identity) {
+            def apply[A](a: A): Identity[A] = Identity(a)
+          }))
           val endpoint: Endpoint[Op, I, _, _, _, _] = e
         }
     }

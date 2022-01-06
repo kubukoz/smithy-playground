@@ -11,10 +11,12 @@ import AST.high._
 
 object SmithyQLParser {
 
-  def parse(s: String): Either[ParsingFailure, Query[Id]] = parser
+  def parse(s: String): Either[ParsingFailure, Query[Id]] = parseFull(s)
+    .map(_.mapK(WithSource.unwrap))
+
+  def parseFull(s: String): Either[ParsingFailure, Query[WithSource]] = parser
     .parseAll(s)
     .leftMap(ParsingFailure(_, s))
-    .map(_.map(_.mapK(WithSource.unwrap)).value)
 
   case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {
 
@@ -85,7 +87,7 @@ object SmithyQLParser {
 
   }
 
-  val parser: Parser[WithSource[Query[WithSource]]] = {
+  val parser: Parser[Query[WithSource]] = {
 
     import Parser._
 
@@ -96,13 +98,13 @@ object SmithyQLParser {
       // Consuming comments/whitespace for nodes together to avoid double backtracking.
       tokens
         .withComments {
-          tokens.number.backtrack.eitherOr(tokens.stringLiteral).eitherOr(struct)
+          tokens.number.eitherOr(tokens.stringLiteral).eitherOr(struct)
         }
         .map { soi => // boi
           soi
             .value
             .fold(
-              s => Struct(s.fields.between(soi.commentsLeft, soi.commentsRight)),
+              s => Struct(soi.copy(value = s)),
               _.fold(
                 s => StringLiteral(soi.copy(value = s)),
                 i => IntLiteral(soi.copy(value = i)),
@@ -111,7 +113,7 @@ object SmithyQLParser {
         }
     }
 
-    lazy val struct: Parser[Struct[T]] = {
+    lazy val struct: Parser[T[Map[T[String], AST.high.InputNode[T]]]] = {
       type TField = (T[String], AST.high.InputNode[T])
 
       val field: Parser[TField] =
@@ -144,24 +146,16 @@ object SmithyQLParser {
               case fields => fields.toMap
             }
 
-          Struct[T](
-            WithSource(
-              commentsLeft = Nil,
-              value = fieldsResult,
-              commentsRight = commentsBeforeEnd,
-            )
+          WithSource(
+            commentsLeft = Nil,
+            value = fieldsResult,
+            commentsRight = commentsBeforeEnd,
           )
         }
     }
 
-    {
-      (ident, struct).mapN(Query.apply[T]) ~ tokens.comments
-    }.map { case (query, after) =>
-      WithSource(
-        commentsLeft = Nil,
-        value = query,
-        commentsRight = after,
-      )
+    (ident ~ struct ~ tokens.comments).map { case ((opName, input), commentsAfter) =>
+      Query(opName, Struct(WithSource(Nil, commentsAfter, input)))
     }
   }
 

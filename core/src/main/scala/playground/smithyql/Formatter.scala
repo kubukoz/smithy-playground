@@ -1,39 +1,102 @@
 package playground.smithyql
 
 import org.typelevel.paiges.Doc
-import cats.Id
 
 object Formatter {
+
   import AST.high._
 
-  def writeAst(a: AST[Id]): Doc =
-    a match {
+  def writeAst(ast: InputNode[WithSource]): Doc =
+    ast match {
       case Struct(fields) =>
-        Doc
-          .intercalate(
-            Doc.line,
-            fields.toList.map { case (k, v) =>
-              Doc.text(k) +
-                Doc.space +
-                Doc.char('=') + {
-                  if (v.isInstanceOf[Struct[Id]])
-                    Doc.space + writeAst(v)
-                  else
-                    (Doc.lineOrSpace + writeAst(v)).nested(2).grouped
+        comments(fields.commentsLeft) +
+          Doc.char('{') + Doc.hardLine + {
+            comments(fields.value.commentsLeft) +
+              Doc
+                .intercalate(
+                  // Force newlines between fields
+                  Doc.hardLine,
+                  fields
+                    .value
+                    .value
+                    .toList
+                    .map { case (k, v) =>
+                      comments(k.commentsLeft) +
+                        Doc.text(k.value) +
+                        Doc.space +
+                        comments(k.commentsRight) +
+                        Doc.char('=') + {
+                          v match {
+                            case Struct(_) => Doc.space + writeAst(v)
+                            case _         => (Doc.lineOrSpace + writeAst(v)).nested(2).grouped
+                          }
+                        } +
+                        Doc.comma
+                    },
+                )
+                .aligned + {
+                if (fields.value.value.isEmpty)
+                  Doc.empty
+                else
+                  Doc.space
+              } + comments(fields.value.commentsRight)
+          }.indent(2) + Doc.hardLine + Doc.char('}') + {
 
-                } +
-                Doc.comma
-            },
-          )
-          .bracketBy(Doc.char('{'), Doc.char('}'))
-      case IntLiteral(i)    => Doc.text(i.toString)
-      case StringLiteral(s) => Doc.char('\"') + Doc.text(s) + Doc.char('\"')
+            val comms = comments(fields.commentsRight)
+            if (comms.isEmpty)
+              comms
+            else
+              Doc.hardLine + comms
+          }
+
+      case IntLiteral(i) => Doc.text(i.value.toString())
+      case StringLiteral(s) =>
+        comments(s.commentsLeft) +
+          // todo: this can split multiline strings. wat do?
+          Doc.char('\"') + Doc.text(s.value) + Doc.char('\"') + {
+            if (s.commentsRight.isEmpty)
+              Doc.empty
+            else
+              Doc.space +
+                comments(s.commentsRight)
+          }
     }
 
+  def comments(lines: List[Comment]): Doc = {
+    def ensureLeadingSpace(s: String): String =
+      if (s.startsWith(" "))
+        s
+      else
+        " " + s
+
+    def lineComment(s: Comment) = Doc.text("//" + ensureLeadingSpace(s.text))
+
+    lines match {
+      case Nil => Doc.empty
+      case one :: Nil =>
+        Doc.lineOrEmpty +
+          lineComment(one) +
+          Doc.hardLine
+      case _ =>
+        Doc.hardLine +
+          Doc.cat(
+            lines.map(lineComment(_) + Doc.hardLine).toList
+          )
+    }
+  }
+
   def format(
-    q: Query[Id],
+    q: Query[WithSource],
     w: Int,
-  ): String = (Doc.text(q.operationName) + Doc.space + writeAst(q.input) + Doc.hardLine)
-    .renderTrim(w)
+  ): String =
+    (
+      comments(q.operationName.commentsLeft) +
+        Doc.text(q.operationName.value) +
+        Doc.space +
+        comments(q.operationName.commentsRight) +
+        writeAst(q.input) +
+        Doc.hardLine
+    )
+      .renderTrim(w)
 
 }

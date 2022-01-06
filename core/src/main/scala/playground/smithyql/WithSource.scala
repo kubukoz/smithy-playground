@@ -34,25 +34,23 @@ final case class WithSource[+A](
 
 object WithSource {
 
-  def allQueryComments(input: WithSource[Query[WithSource]]): List[Comment] = {
+  def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
     def comments(node: InputNode[WithSource]): List[Comment] = node.fold(
-      struct = _.fields.allComments(_.flatMap { case (k, v) =>
+      struct = _.fields.allComments(_.allComments(_.flatMap { case (k, v) =>
         k.allComments(_ => Nil) ++ v.fold(comments, comments, comments)
-      }.toList),
+      }.toList)),
       string = _.value.allComments(_ => Nil),
       int = _.value.allComments(_ => Nil),
     )
 
-    input.allComments { q =>
-      q.operationName.allComments(_ => Nil) ++
-        q.input
-          .fold(
-            comments,
-            comments,
-            comments,
-          )
-    }
+    q.operationName.allComments(_ => Nil) ++
+      q.input
+        .fold(
+          comments,
+          comments,
+          comments,
+        )
   }
 
   implicit val instances: NonEmptyTraverse[WithSource] =
