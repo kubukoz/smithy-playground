@@ -3,56 +3,93 @@ package playground.smithyql
 import org.typelevel.paiges.Doc
 
 object Formatter {
+
   import AST.high._
 
   def writeAst(ast: InputNode[WithSource]): Doc =
     ast match {
       case Struct(fields) =>
-        Doc
-          .intercalate(
-            Doc.line,
-            fields
-              .value
-              .toList
-              .map { case (k, v) =>
-                comments(k.commentsLeft) +
-                  Doc.text(k.value) +
-                  comments(k.commentsRight) +
-                  Doc.space +
-                  Doc.char('=') + {
-                    v match {
-                      case Struct(_) => Doc.space + writeAst(v)
-                      case _         => (Doc.lineOrSpace + writeAst(v)).nested(2).grouped
-                    }
-                  } +
-                  Doc.comma
-              },
-          )
-          .bracketBy(comments(fields.commentsLeft), comments(fields.commentsRight))
-          .bracketBy(Doc.char('{'), Doc.char('}'))
+        comments(fields.commentsLeft) +
+          Doc.char('{') + Doc.hardLine + {
+            comments(fields.value.commentsLeft) +
+              Doc
+                .intercalate(
+                  // Force newlines between fields
+                  Doc.hardLine,
+                  fields
+                    .value
+                    .value
+                    .toList
+                    .map { case (k, v) =>
+                      comments(k.commentsLeft) +
+                        Doc.text(k.value) +
+                        Doc.space +
+                        comments(k.commentsRight) +
+                        Doc.char('=') + {
+                          v match {
+                            case Struct(_) => Doc.space + writeAst(v)
+                            case _         => (Doc.lineOrSpace + writeAst(v)).nested(2).grouped
+                          }
+                        } +
+                        Doc.comma
+                    },
+                )
+                .aligned + {
+                if (fields.value.value.isEmpty)
+                  Doc.empty
+                else
+                  Doc.space
+              } + comments(fields.value.commentsRight)
+          }.indent(2) + Doc.hardLine + Doc.char('}') + {
+
+            val comms = comments(fields.commentsRight)
+            if (comms.isEmpty)
+              comms
+            else
+              Doc.hardLine + comms
+          }
 
       case IntLiteral(i) => Doc.text(i.value.toString())
       case StringLiteral(s) =>
         comments(s.commentsLeft) +
-          Doc.char('\"') + Doc.text(s.value) + Doc.char('\"') +
+          // todo: this can split multiline strings. wat do?
+          Doc.char('\"') + Doc.text(s.value) + Doc.char('\"') + Doc.space +
           comments(s.commentsRight)
     }
 
-  def comment(text: String): Doc = Doc.text("//" + text) + Doc.hardLine
-  def comments(commies: List[Comment]): Doc = Doc.cat(commies.map(comment.compose(_.text)))
+  def comments(lines: List[Comment]): Doc = {
+    def ensureLeadingSpace(s: String): String =
+      if (s.startsWith(" "))
+        s
+      else
+        " " + s
+
+    def lineComment(s: Comment) = Doc.text("//" + ensureLeadingSpace(s.text))
+
+    lines match {
+      case Nil => Doc.empty
+      case one :: Nil =>
+        Doc.lineOrEmpty +
+          lineComment(one) +
+          Doc.hardLine
+      case _ =>
+        Doc.hardLine +
+          Doc.cat(
+            lines.map(lineComment(_) + Doc.hardLine).toList
+          )
+    }
+  }
 
   def format(
-    q: WithSource[Query[WithSource]],
+    q: Query[WithSource],
     w: Int,
   ): String =
     (
-      comments(q.commentsLeft) +
-        comments(q.value.operationName.commentsLeft) +
-        Doc.text(q.value.operationName.value) +
+      comments(q.operationName.commentsLeft) +
+        Doc.text(q.operationName.value) +
         Doc.space +
-        comments(q.value.operationName.commentsRight) +
-        writeAst(q.value.input) +
-        comments(q.commentsRight) +
+        comments(q.operationName.commentsRight) +
+        writeAst(q.input) +
         Doc.hardLine
     )
       .renderTrim(w)
