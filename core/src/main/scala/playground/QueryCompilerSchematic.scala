@@ -1,7 +1,9 @@
 package playground
 
+import cats.Functor
 import cats.data.NonEmptyList
 import cats.implicits._
+import playground.smithyql._
 import schematic.Alt
 import schematic.ByteArray
 import schematic.Field
@@ -11,77 +13,96 @@ import smithy4s.Hints
 import smithy4s.Timestamp
 
 import java.util.UUID
-import playground.smithyql._
+
+import util.chaining._
 
 object QueryCompilerSchematic {
   type WAST = AST[WithSource]
 }
 
-import QueryCompilerSchematic._
+trait PartialCompiler[A] {
+  def compile(ast: AST[WithSource]): A
+  // def compile(ast: AST[WithSource]): IorNec[CompilationError, A]
+}
+
+object PartialCompiler {
+
+  implicit val functor: Functor[PartialCompiler] =
+    new Functor[PartialCompiler] {
+      def map[A, B](fa: PartialCompiler[A])(f: A => B): PartialCompiler[B] =
+        ast => f(fa.compile(ast))
+    }
+
+}
+
+//todo adt
+final case class CompilationError(message: String)
 
 class QueryCompilerSchematic
-  extends smithy4s.Schematic[WAST => *]
-  with schematic.struct.GenericAritySchematic[WAST => *] {
-  def short: WAST => Short = ???
+  extends smithy4s.Schematic[PartialCompiler]
+  with schematic.struct.GenericAritySchematic[PartialCompiler] {
+  def short: PartialCompiler[Short] = ???
 
-  def int: WAST => Int = { case IntLiteral(i) => i.value }
+  def int: PartialCompiler[Int] = { case IntLiteral(i) => i.value }
 
-  def long: WAST => Long = ???
+  def long: PartialCompiler[Long] = ???
 
-  def double: WAST => Double = ???
+  def double: PartialCompiler[Double] = ???
 
-  def float: WAST => Float = ???
+  def float: PartialCompiler[Float] = ???
 
-  def bigint: WAST => BigInt = ???
+  def bigint: PartialCompiler[BigInt] = ???
 
-  def bigdecimal: WAST => BigDecimal = ???
+  def bigdecimal: PartialCompiler[BigDecimal] = ???
 
-  def string: WAST => String = { case StringLiteral(s) => s.value }
+  def string: PartialCompiler[String] = { case StringLiteral(s) => s.value }
 
-  def boolean: WAST => Boolean = ???
+  def boolean: PartialCompiler[Boolean] = ???
 
-  def uuid: WAST => UUID = ???
+  def uuid: PartialCompiler[UUID] = ???
 
-  def byte: WAST => Byte = ???
+  def byte: PartialCompiler[Byte] = ???
 
-  def bytes: WAST => ByteArray = ???
+  def bytes: PartialCompiler[ByteArray] = ???
 
-  def unit: WAST => Unit = _ => ()
+  def unit: PartialCompiler[Unit] = _ => ()
 
-  def list[S](fs: WAST => S): WAST => List[S] = ???
+  def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = ???
 
-  def set[S](fs: WAST => S): WAST => Set[S] = ???
+  def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = ???
 
-  def vector[S](fs: WAST => S): WAST => Vector[S] = ???
+  def vector[S](fs: PartialCompiler[S]): PartialCompiler[Vector[S]] = ???
 
-  def map[K, V](fk: WAST => K, fv: WAST => V): WAST => Map[K, V] = ???
+  def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] = ???
 
   def genericStruct[S](
-    fields: Vector[Field[WAST => *, S, _]]
+    fields: Vector[Field[PartialCompiler, S, _]]
   )(
     const: Vector[Any] => S
-  ): WAST => S = { case Struct(asts) =>
+  ): PartialCompiler[S] = { case Struct(asts) =>
     const {
       fields.map { field =>
         if (field.isOptional)
-          asts.value.value.find(_._1.value == field.label).map(_._2).map(field.instance)
+          asts.value.value.find(_._1.value == field.label).map(_._2).map(field.instance.compile)
         else
-          field.instance(asts.value.value.find(_._1.value == field.label).get._2)
+          field.instance.compile(asts.value.value.find(_._1.value == field.label).get._2)
       }
     }
   }
 
   def union[S](
-    first: Alt[WAST => *, S, _],
-    rest: Vector[Alt[WAST => *, S, _]],
+    first: Alt[PartialCompiler, S, _],
+    rest: Vector[Alt[PartialCompiler, S, _]],
   )(
-    total: S => Alt.WithValue[WAST => *, S, _]
-  ): WAST => S = {
+    total: S => Alt.WithValue[PartialCompiler, S, _]
+  ): PartialCompiler[S] = {
     val opts = NonEmptyList(first, rest.toList)
 
     {
       case Struct(defs) if defs.value.value.size == 1 =>
-        def go[A](alt: Alt[WAST => *, S, A]): WAST => S = alt.instance.andThen(alt.inject)
+        def go[A](
+          alt: Alt[PartialCompiler, S, A]
+        ): PartialCompiler[S] = q => alt.instance.compile(q).pipe(alt.inject)
 
         val (k, v) = defs.value.value.head
         val op = opts
@@ -96,7 +117,7 @@ class QueryCompilerSchematic
             )
           )
 
-        go(op)(v)
+        go(op).compile(v)
 
       case Struct(m) if m.value.value.isEmpty =>
         throw new Exception(
@@ -114,18 +135,22 @@ class QueryCompilerSchematic
     to: A => (String, Int),
     fromName: Map[String, A],
     fromOrdinal: Map[Int, A],
-  ): WAST => A = ???
+  ): PartialCompiler[A] = ???
 
-  def suspend[A](f: => WAST => A): WAST => A = ???
+  def suspend[A](f: => PartialCompiler[A]): PartialCompiler[A] = ???
 
-  def bijection[A, B](f: WAST => A, to: A => B, from: B => A): WAST => B = f.andThen(to)
+  def bijection[A, B](
+    f: PartialCompiler[A],
+    to: A => B,
+    from: B => A,
+  ): PartialCompiler[B] = f.map(to)
 
-  def timestamp: WAST => Timestamp = { case StringLiteral(s) =>
+  def timestamp: PartialCompiler[Timestamp] = { case StringLiteral(s) =>
     Timestamp.parse(s.value, TimestampFormat.DATE_TIME).get /*  */
   }
 
-  def withHints[A](fa: WAST => A, hints: Hints): WAST => A = fa // todo
+  def withHints[A](fa: PartialCompiler[A], hints: Hints): PartialCompiler[A] = fa // todo
 
-  def document: WAST => Document = ???
+  def document: PartialCompiler[Document] = ???
 
 }

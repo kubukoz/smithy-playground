@@ -50,7 +50,7 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       ast =>
         new CompiledInput[Op] {
           type I = In
-          val input: I = schematic(ast)
+          val input: I = schematic.compile(ast)
           val endpoint: Endpoint[Op, I, _, _, _, _] = e
         }
     }
