@@ -79,6 +79,17 @@ object WithSource {
 
     }
 
+  val dropComments: WithSource ~> WithSource =
+    new (WithSource ~> WithSource) {
+
+      def apply[A](fa: WithSource[A]): WithSource[A] = WithSource(
+        commentsLeft = Nil,
+        commentsRight = Nil,
+        value = fa.value,
+      )
+
+    }
+
   val unwrap: WithSource ~> Id =
     new (WithSource ~> Id) {
       def apply[A](wa: WithSource[A]): A = wa.value

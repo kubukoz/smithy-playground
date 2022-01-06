@@ -1,5 +1,6 @@
 package playground.smithyql
 
+import cats.implicits._
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 
@@ -10,7 +11,6 @@ object Arbitraries {
       .stringOf(
         Gen.asciiPrintableChar.filterNot(_ == '\n')
       )
-      .map(s => " " + s.trim)
       .map(Comment(_))
   }
 
@@ -61,7 +61,15 @@ object Arbitraries {
   def genStruct(depth: Int): Gen[Struct[WithSource]] = {
     implicit val arbNodes: Arbitrary[InputNode[WithSource]] = Arbitrary(genInputNode(depth - 1))
 
-    Gen.resultOf(Struct.apply[WithSource])
+    Gen
+      .resultOf(Struct.apply[WithSource])
+      .map { struct =>
+        Struct(
+          // Workaround for no-mapiness of comments (two identical keys can have different sets of comments, and that makes the map non-unique)
+          // TODO: Make this a parsing failure
+          struct.fields.map(_.map(_.toList.distinctBy(_._1.value).toMap))
+        )
+      }
   }
 
   implicit val arbStruct: Arbitrary[Struct[WithSource]] = Arbitrary(genStruct(2))

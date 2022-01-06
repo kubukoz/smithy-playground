@@ -60,7 +60,7 @@ object Formatter {
       case StringLiteral(s) =>
         comments(s.commentsLeft) +
           // todo: this can split multiline strings. wat do?
-          Doc.char('\"') + Doc.text(s.value) + Doc.char('\"') + {
+          Doc.text(renderStringLiteral(s.value)) + {
             if (s.commentsRight.isEmpty)
               Doc.empty
             else
@@ -68,6 +68,8 @@ object Formatter {
                 comments(s.commentsRight)
           }
     }
+
+  def renderStringLiteral(s: String) = "\"" + s + "\""
 
   def comments(lines: List[Comment]): Doc = {
     def ensureLeadingSpace(s: String): String =
