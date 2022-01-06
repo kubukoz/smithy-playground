@@ -49,7 +49,16 @@ object Formatter {
               Doc.hardLine + comms
           }
 
-      case IntLiteral(i) => Doc.text(i.value.toString())
+      case IntLiteral(i) =>
+        comments(i.commentsLeft) +
+          Doc.text(i.value.toString()) + {
+            if (i.commentsRight.isEmpty)
+              Doc.empty
+            else
+              Doc.space +
+                comments(i.commentsRight)
+          }
+
       case StringLiteral(s) =>
         comments(s.commentsLeft) +
           // todo: this can split multiline strings. wat do?
