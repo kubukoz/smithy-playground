@@ -106,7 +106,7 @@ class QuerySchematic
         val (k, v) = defs.a.a.head
         val op = opts
           .find { e =>
-            e.label == k
+            e.label == k.a
           }
           .getOrElse(
             throw new Exception(

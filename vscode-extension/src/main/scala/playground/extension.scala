@@ -104,8 +104,7 @@ object extension {
 
   private def validate(q: String): Either[Throwable, scala.Any] = SmithyQLParser
     .parse(q)
-  // todo reenable
-  // .flatMap(c => Either.catchNonFatal(compiler.compile(c)))
+    .flatMap(c => Either.catchNonFatal(compiler.compile(c)))
 
   private def highlights(doc: mod.TextDocument): List[Diagnostic] =
     validate(doc.getText()) match {
