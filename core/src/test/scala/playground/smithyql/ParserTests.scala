@@ -3,11 +3,19 @@ package playground.smithyql
 import munit.FunSuite
 import munit.Location
 import munit.TestOptions
-import playground.smithyql.AST._
+import playground.smithyql.Query
+import cats.Id
 
 class ParserTests extends FunSuite {
 
-  def parsingTest(name: TestOptions, input: String)(expected: Query)(implicit loc: Location): Unit =
+  def parsingTest(
+    name: TestOptions,
+    input: String,
+  )(
+    expected: Query[Id]
+  )(
+    implicit loc: Location
+  ): Unit =
     test(name) {
       SmithyQLParser.parse(input) match {
         case Left(e)  => fail(s"Parsing failed: ${e.msg}")

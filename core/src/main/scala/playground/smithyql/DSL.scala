@@ -1,6 +1,5 @@
 package playground.smithyql
 
-import playground.smithyql.AST.high._
 import cats.Id
 
 object DSL {

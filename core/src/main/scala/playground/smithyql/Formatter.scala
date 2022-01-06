@@ -4,8 +4,6 @@ import org.typelevel.paiges.Doc
 
 object Formatter {
 
-  import AST.high._
-
   def writeAst(ast: InputNode[WithSource]): Doc =
     ast match {
       case Struct(fields) =>

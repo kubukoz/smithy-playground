@@ -103,7 +103,7 @@ object extension {
   }
 
   private def validate(q: String): Either[Throwable, scala.Any] = SmithyQLParser
-    .parse(q)
+    .parseFull(q)
     .flatMap(c => Either.catchNonFatal(compiler.compile(c)))
 
   private def highlights(doc: mod.TextDocument): List[Diagnostic] =

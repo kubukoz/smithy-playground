@@ -7,7 +7,6 @@ import cats.parse.Parser
 import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import cats.parse.Rfc5234
-import AST.high._
 
 object SmithyQLParser {
 
@@ -113,8 +112,8 @@ object SmithyQLParser {
         }
     }
 
-    lazy val struct: Parser[T[Map[T[String], AST.high.InputNode[T]]]] = {
-      type TField = (T[String], AST.high.InputNode[T])
+    lazy val struct: Parser[T[Map[T[String], InputNode[T]]]] = {
+      type TField = (T[String], InputNode[T])
 
       val field: Parser[TField] =
         (

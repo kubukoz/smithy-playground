@@ -16,7 +16,7 @@ object run {
     runner: Runner[F, Op],
     channel: OutputChannel,
   ): F[Unit] = SmithyQLParser
-    .parse(ted.document.getText())
+    .parseFull(ted.document.getText())
     .liftTo[F]
     .map(compiler.compile)
     .flatMap { q =>

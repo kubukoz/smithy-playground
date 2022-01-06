@@ -9,11 +9,12 @@ import org.http4s.HttpApp
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.implicits._
 import playground._
+import playground.smithyql.WithSource
+import playground.smithyql.Query
+import playground.smithyql.AST
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
-import playground.smithyql.AST._
-import cats.~>
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -22,7 +23,7 @@ trait CompiledInput[Op[_, _, _, _, _]] {
 }
 
 trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
-  def compile(q: Query): F[CompiledInput[Op]]
+  def compile(q: Query[WithSource]): F[CompiledInput[Op]]
 }
 
 object Compiler {
@@ -40,18 +41,16 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private val schem = new QuerySchematic
 
   // for quick lookup and decoding from AST
-  private val endpoints: Map[String, AST => CompiledInput[Op]] = {
+  private val endpoints: Map[String, AST[WithSource] => CompiledInput[Op]] = {
     def go[In](
       e: Endpoint[Op, In, _, _, _, _]
-    ): AST => CompiledInput[Op] = {
+    ): AST[WithSource] => CompiledInput[Op] = {
       val schematic = e.input.compile(schem)
 
       ast =>
         new CompiledInput[Op] {
           type I = In
-          val input: I = schematic(ast.mapK(new (cats.Id ~> Identity) {
-            def apply[A](a: A): Identity[A] = Identity(a)
-          }))
+          val input: I = schematic(ast)
           val endpoint: Endpoint[Op, I, _, _, _, _] = e
         }
     }
@@ -62,11 +61,11 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       .map(_.map(_.head).map(go(_)))
   }
 
-  def compile(q: Query): CompiledInput[Op] =
+  def compile(q: Query[WithSource]): CompiledInput[Op] =
     endpoints.getOrElse(
-      q.operationName,
+      q.operationName.value,
       throw new Exception(
-        s"Operation not found: ${q.operationName}. Available operations: ${endpoints.keys.mkString(", ")}"
+        show"Operation not found: ${q.operationName.value}. Available operations: ${endpoints.keys.toList.mkString_(", ")}"
       ),
     )(q.input)
 
