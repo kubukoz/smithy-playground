@@ -104,34 +104,26 @@ object SmithyQLParser {
 
     val ident: Parser[T[String]] = tokens.identifier
 
-    lazy val node: Parser[InputNode[T]] = Parser.defer {
+    val intLiteral = tokens
+      .number
+      .map(IntLiteral[T](_))
 
-      // Consuming comments/whitespace for nodes together to avoid double backtracking.
-      tokens
-        .withComments {
-          tokens.number.eitherOr(tokens.stringLiteral).eitherOr(struct)
-        }
-        .map { soi => // boi
-          soi
-            .value
-            .fold(
-              s => Struct(soi.copy(value = s)),
-              _.fold(
-                s => StringLiteral(soi.copy(value = s)),
-                i => IntLiteral(soi.copy(value = i)),
-              ),
-            )
-        }
+    val stringLiteral = tokens.stringLiteral.map(StringLiteral[T](_))
+
+    lazy val node: Parser[InputNode[T]] = Parser.defer {
+      intLiteral |
+        stringLiteral |
+        struct
     }
 
-    lazy val struct: Parser[T[Map[T[Struct.Key], InputNode[T]]]] = {
-      type TField = (T[Struct.Key], InputNode[T])
+    lazy val struct: Parser[Struct[T]] = {
+      type TField = (T[Struct.Key], T[InputNode[T]])
 
       val field: Parser[TField] =
         (
           // sussy backtrack, but it works
           ident.map(_.map(Struct.Key.apply)).backtrack <* tokens.equalsSign,
-          node,
+          tokens.withComments(node),
         ).tupled
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
@@ -143,7 +135,6 @@ object SmithyQLParser {
           .orElse(Parser.pure(Nil))
       }
 
-      // No comments around opening brace
       tokens.openBrace *>
         (
           Parser.index ~
@@ -155,18 +146,20 @@ object SmithyQLParser {
         ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
           val fieldsResult =
             fieldsR match {
-              case Nil    => Map.empty[T[Struct.Key], InputNode[T]]
+              case Nil    => Map.empty[T[Struct.Key], T[InputNode[T]]]
               case fields => fields.toMap
             }
 
           val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
 
-          WithSource(
-            commentsLeft = Nil,
-            commentsRight = commentsBeforeEnd,
-            range = range,
-            value = fieldsResult,
-          )
+          Struct {
+            WithSource(
+              commentsLeft = Nil,
+              commentsRight = commentsBeforeEnd,
+              range = range,
+              value = fieldsResult,
+            )
+          }
         }
     }
 
@@ -174,13 +167,11 @@ object SmithyQLParser {
       case ((opName, input), commentsAfter) =>
         Query(
           opName,
-          Struct(
-            WithSource(
-              commentsLeft = Nil,
-              commentsRight = commentsAfter,
-              range = input.range,
-              value = input,
-            )
+          WithSource(
+            commentsLeft = Nil,
+            commentsRight = commentsAfter,
+            range = input.fields.range,
+            value = input,
           ),
         )
     }

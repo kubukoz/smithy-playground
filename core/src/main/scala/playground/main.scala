@@ -56,10 +56,10 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
   private val schem = new QueryCompilerSchematic
 
   // for quick lookup and prepared compilers
-  private val endpoints: Map[String, InputNode[WithSource] => F[CompiledInput[Op]]] = {
+  private val endpoints: Map[String, WithSource[InputNode[WithSource]] => F[CompiledInput[Op]]] = {
     def go[In](
       e: Endpoint[Op, In, _, _, _, _]
-    ): InputNode[WithSource] => F[CompiledInput[Op]] = {
+    ): WithSource[InputNode[WithSource]] => F[CompiledInput[Op]] = {
       val schematic = e.input.compile(schem)
 
       ast =>

@@ -29,28 +29,27 @@ final case class OperationName(text: String) extends AnyVal
 
 final case class Query[F[_]](
   operationName: F[OperationName],
-  input: Struct[F],
+  input: F[Struct[F]],
 ) extends AST[F] {
 
   def kind: NodeKind = NodeKind.Query
 
   def mapK[G[_]: Functor](fk: F ~> G): Query[G] = Query(
     fk(operationName),
-    input.mapK(fk),
+    fk(input).map(_.mapK(fk)),
   )
 
 }
 
-// todo: experiment with "external" tokens outside of these nodes (extra F around InputNode in Struct, etc.)
 final case class Struct[F[_]](
   // todo: keep ordering of fields? Map might not be the thing to use
-  fields: F[F[Map[F[Struct.Key], InputNode[F]]]]
+  fields: F[Map[F[Struct.Key], F[InputNode[F]]]]
 ) extends InputNode[F] {
 
   def kind: NodeKind = NodeKind.Struct
 
   def mapK[G[_]: Functor](fk: F ~> G): Struct[G] = Struct(
-    fk(fields).map(fk(_)).map(_.map(_.map { case (k, v) => fk(k) -> v.mapK(fk) }))
+    fk(fields).map(_.map { case (k, v) => fk(k) -> fk(v).map(_.mapK(fk)) })
   )
 
 }
@@ -59,14 +58,14 @@ object Struct {
   final case class Key(text: String) extends AnyVal
 }
 
-final case class IntLiteral[F[_]](value: F[Int]) extends InputNode[F] {
+final case class IntLiteral[F[_]](value: Int) extends InputNode[F] {
   def kind: NodeKind = NodeKind.IntLiteral
-  def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = IntLiteral(fk(value))
+  def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = copy()
 }
 
-final case class StringLiteral[F[_]](value: F[String]) extends InputNode[F] {
+final case class StringLiteral[F[_]](value: String) extends InputNode[F] {
   def kind: NodeKind = NodeKind.StringLiteral
-  def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = StringLiteral(fk(value))
+  def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = copy()
 }
 
 sealed trait NodeKind extends Product with Serializable

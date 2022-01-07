@@ -68,7 +68,7 @@ object Arbitraries {
         Struct(
           // Workaround for no-mapiness of comments (two identical keys can have different sets of comments, and that makes the map non-unique)
           // TODO: Make this a parsing failure
-          struct.fields.map(_.map(_.toList.distinctBy(_._1.value).toMap))
+          struct.fields.map(_.toList.distinctBy(_._1.value).toMap)
         )
       }
   }

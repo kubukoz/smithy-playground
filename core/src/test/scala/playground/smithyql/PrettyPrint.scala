@@ -29,26 +29,24 @@ object PrettyPrint {
   def prettyPrint(q: Query[WithSource]): String = {
     def prettyPrintNode(node: InputNode[WithSource]): String =
       node match {
-        case StringLiteral(ss) => s"StringLiteral(${prettyPrintWithComments(ss)(escapeString)})"
-        case IntLiteral(ss)    => s"IntLiteral(${prettyPrintWithComments(ss)(_.toString)})"
+        case StringLiteral(ss) => s"StringLiteral(${escapeString(ss)})"
+        case IntLiteral(ii)    => s"IntLiteral(${ii.toString})"
         case s @ Struct(_)     => prettyPrintStruct(s)
       }
 
     def prettyPrintStruct(s: Struct[WithSource]): String =
       s"""Struct[WithSource](
         ${prettyPrintWithComments(s.fields)(
-        prettyPrintWithComments(_)(
-          _.map { case (k, v) =>
-            s"${prettyPrintWithComments(k)(kk => s"Key(${escapeString(kk.text)})")} -> ${prettyPrintNode(v)},\n"
-          }
-            .mkString("Map(", "\n", ")")
-        )
+        _.map { case (k, v) =>
+          s"${prettyPrintWithComments(k)(kk => s"Key(${escapeString(kk.text)})")} -> ${prettyPrintWithComments(v)(prettyPrintNode)},\n"
+        }
+          .mkString("Map(", "\n", ")")
       )}
       )"""
 
     s"""Query[WithSource](operationName = ${prettyPrintWithComments(q.operationName)(n =>
       s"OperationName(${escapeString(n.text)})"
-    )}, input = ${prettyPrintStruct(q.input)})"""
+    )}, input = ${prettyPrintWithComments(q.input)(prettyPrintStruct)})"""
   }
 
   case class Structure(keys: Map[String, Structure]) {
