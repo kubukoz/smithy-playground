@@ -9,6 +9,9 @@ service DemoService {
 }
 
 @http(method: "POST", uri: "/heroes")
+@documentation("""
+Create a hero.
+""")
 operation CreateHero {
   input: CreateHeroInput,
   output: CreateHeroOutput,
@@ -54,6 +57,9 @@ structure HeroIsBad {
 
 @http(method: "PUT", uri: "/subscriptions")
 @idempotent
+@documentation("""
+Create a subscription.
+""")
 operation CreateSubscription {
   input: CreateSubscriptionInput,
   output: CreateSubscriptionOutput,

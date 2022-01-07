@@ -2,6 +2,7 @@ package playground
 
 import playground.smithyql.SourceRange
 import typings.vscode.mod
+import playground.smithyql.Position
 
 object adapters {
 
@@ -10,5 +11,8 @@ object adapters {
     val end = doc.positionAt(range.end.index.toDouble)
     new mod.Range(pos, end)
   }
+
+  def fromVscodePosition(doc: mod.TextDocument)(pos: mod.Position): Position =
+    Position(doc.offsetAt(pos).toInt)
 
 }

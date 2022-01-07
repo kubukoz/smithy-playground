@@ -44,6 +44,8 @@ object extension {
 
     import vscodeutil.disposableToDispose
 
+    val completionProvider = completions.complete(DemoServiceGen)
+
     val _ = context
       .subscriptions
       .push(
@@ -59,7 +61,7 @@ object extension {
           "smithyql",
           mod
             .CompletionItemProvider[mod.CompletionItem] { (doc, pos, _, _) =>
-              completions.complete(doc, pos).toJSArray
+              completionProvider(doc, pos).toJSArray
             },
           // todo this might not be working properly
           "\t",

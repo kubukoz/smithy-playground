@@ -16,7 +16,10 @@ object Comment {
 }
 
 final case class Position(index: Int)
-final case class SourceRange(start: Position, end: Position)
+
+final case class SourceRange(start: Position, end: Position) {
+  def contains(pos: Position): Boolean = pos.index >= start.index && pos.index <= end.index
+}
 
 final case class WithSource[+A](
   commentsLeft: List[Comment],
@@ -41,6 +44,29 @@ object WithSource {
       )
 
     }
+
+  sealed trait Thing
+  case class OperationThing(opName: WithSource[OperationName]) extends Thing
+
+  case class StructThing(
+    content: WithSource[Map[WithSource[Struct.Key], InputNode[WithSource]]]
+  ) extends Thing
+
+  def atPosition(q: Query[WithSource])(pos: Position): Option[Thing] = {
+    val op =
+      if (q.operationName.range.contains(pos))
+        OperationThing(q.operationName).some
+      else
+        None
+
+    val input =
+      if (q.input.fields.value.range.contains(pos))
+        StructThing(q.input.fields.value).some
+      else
+        None
+
+    op.orElse(input)
+  }
 
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
