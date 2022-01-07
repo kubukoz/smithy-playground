@@ -179,9 +179,6 @@ object extension {
   def toVscodeRange(doc: mod.TextDocument)(range: SourceRange): mod.Range = {
     val pos = doc.positionAt(range.start.index.toDouble)
     val end = doc.positionAt(range.end.index.toDouble)
-    println(
-      s"converting $range to vscode range: [${pos.line}, ${pos.character}] -> [${end.line}, ${end.character}]"
-    )
     new mod.Range(pos, end)
   }
 

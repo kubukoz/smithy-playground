@@ -60,7 +60,7 @@ class QueryCompilerSchematic
   with schematic.struct.GenericAritySchematic[PartialCompiler] {
   def short: PartialCompiler[Short] = ???
 
-  def int: PartialCompiler[Int] =
+  val int: PartialCompiler[Int] =
     PartialCompiler.fromPF { case IntLiteral(i) => i.value }(ast =>
       s"Type mismatch: expected ${NodeKind.IntLiteral}, this is a ${ast.kind}"
     )
@@ -75,10 +75,12 @@ class QueryCompilerSchematic
 
   def bigdecimal: PartialCompiler[BigDecimal] = ???
 
-  def string: PartialCompiler[String] =
-    PartialCompiler.fromPF { case StringLiteral(s) => s.value }(ast =>
+  val stringLiteral =
+    PartialCompiler.fromPF { case StringLiteral(s) => s }(ast =>
       s"Expected ${NodeKind.StringLiteral}, got ${ast.kind} instead"
     )
+
+  val string: PartialCompiler[String] = stringLiteral.map(_.value)
 
   def boolean: PartialCompiler[Boolean] = ???
 
@@ -88,7 +90,7 @@ class QueryCompilerSchematic
 
   def bytes: PartialCompiler[ByteArray] = ???
 
-  def unit: PartialCompiler[Unit] = PartialCompiler.unit
+  val unit: PartialCompiler[Unit] = PartialCompiler.unit
 
   def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = ???
 
@@ -223,11 +225,12 @@ class QueryCompilerSchematic
     from: B => A,
   ): PartialCompiler[B] = f.map(to)
 
-  def timestamp: PartialCompiler[Timestamp] = string.emap { s =>
+  val timestamp: PartialCompiler[Timestamp] = stringLiteral.emap { s =>
     Timestamp
-      /*  todo unhardcode format */
-      .parse(s, TimestampFormat.DATE_TIME)
-      .toRightIor(CompilationError("Invalid timestamp format"))
+      // todo unhardcode format
+      // todo: also, this keeps throwing in an uncatchable way
+      .parse(s.value, TimestampFormat.DATE_TIME)
+      .toRightIor(CompilationError("Invalid timestamp format", Some(s.range)))
       .toIorNec
   }
 
