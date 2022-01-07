@@ -33,6 +33,7 @@ import typings.vscode.mod.window
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 import playground.smithyql.SourceRange
+import scala.scalajs.js
 
 object extension {
   type EitherThrow[+A] = Either[Throwable, A]
@@ -89,6 +90,14 @@ object extension {
                 .perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
                 .unsafeRunAndForget(),
           ),
+        languages.registerCompletionItemProvider(
+          "smithyql",
+          mod
+            .CompletionItemProvider[mod.CompletionItem]((_, _, _, _) =>
+              List.empty[mod.CompletionItem].toJSArray
+            ),
+          "\t",
+        ),
         languages.registerCodeLensProvider(
           "smithyql",
           mod.CodeLensProvider { (doc, _) =>
