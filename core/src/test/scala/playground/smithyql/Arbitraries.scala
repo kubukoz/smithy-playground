@@ -25,7 +25,8 @@ object Arbitraries {
       left <- comments
       right <- comments
       v <- Arbitrary.arbitrary[A]
-    } yield WithSource[A](left, right, v)
+      // todo: positions not checked in these tests
+    } yield WithSource[A](left, right, position = Range(Position(0), Position(0)), v)
   }
 
   implicit val arbIntLiteral: Arbitrary[IntLiteral[WithSource]] = Arbitrary {

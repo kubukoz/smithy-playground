@@ -101,13 +101,13 @@ class QueryCompilerSchematic
     )
     .emap { struct =>
       fields
-        .traverse { field =>
+        .parTraverse { field =>
           val fieldOpt = struct
             .value
             .value
             .find(_._1.value.text == field.label)
             .map(_._2)
-            .traverse(field.instance.compile)
+            .parTraverse(field.instance.compile)
 
           if (field.isOptional)
             fieldOpt

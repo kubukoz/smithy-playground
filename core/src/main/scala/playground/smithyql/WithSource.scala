@@ -9,15 +9,19 @@ import cats.~>
 import cats.kernel.Eq
 
 // todo: multiline
-final case class Comment(text: String)
+final case class Comment(text: String) extends AnyVal
 
 object Comment {
   implicit val eq: Eq[Comment] = Eq.by(_.text)
 }
 
+final case class Position(index: Int) extends AnyVal
+final case class Range(start: Position, end: Position)
+
 final case class WithSource[+A](
   commentsLeft: List[Comment],
   commentsRight: List[Comment],
+  position: Range,
   value: A,
 ) {
   def allComments(valueComments: A => List[Comment]): List[Comment] =
@@ -70,10 +74,9 @@ object WithSource {
   val dropComments: WithSource ~> WithSource =
     new (WithSource ~> WithSource) {
 
-      def apply[A](fa: WithSource[A]): WithSource[A] = WithSource(
+      def apply[A](fa: WithSource[A]): WithSource[A] = fa.copy(
         commentsLeft = Nil,
         commentsRight = Nil,
-        value = fa.value,
       )
 
     }

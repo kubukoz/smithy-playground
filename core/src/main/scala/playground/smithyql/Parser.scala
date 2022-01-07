@@ -58,8 +58,15 @@ object SmithyQLParser {
 
     def withComments[A](
       p: Parser[A]
-    ): Parser[T[A]] = (comments.with1 ~ p ~ comments).map { case ((b, v), a) =>
-      WithSource(commentsLeft = b, commentsRight = a, value = v)
+    ): Parser[T[A]] = ((comments ~ Parser.index).with1 ~ p ~ (Parser.index ~ comments)).map {
+      case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
+        val range = Range(Position(indexBefore), Position(indexAfter))
+        WithSource(
+          commentsLeft = commentsBefore,
+          commentsRight = commentsAfter,
+          position = range,
+          value = v,
+        )
     }
 
     private[SmithyQLParser] val rawIdentifier =
@@ -139,28 +146,43 @@ object SmithyQLParser {
       // No comments around opening brace
       tokens.openBrace *>
         (
-          // fields always start with whitespace/comments, so we don't catch that here
-          fields ~
-            tokens.comments <*
-            tokens.closeBrace
-        ).map { case (fieldsR, commentsBeforeEnd) =>
+          Parser.index ~
+            // fields always start with whitespace/comments, so we don't catch that here
+            fields ~
+            (tokens.comments <*
+              tokens.closeBrace) ~
+            Parser.index
+        ).map { case (((indexBefore, fieldsR), commentsBeforeEnd), indexAfter) =>
           val fieldsResult =
             fieldsR match {
               case Nil    => Map.empty[T[Struct.Key], InputNode[T]]
               case fields => fields.toMap
             }
 
+          val range = Range(Position(indexBefore), Position(indexAfter))
+
           WithSource(
             commentsLeft = Nil,
-            value = fieldsResult,
             commentsRight = commentsBeforeEnd,
+            position = range,
+            value = fieldsResult,
           )
         }
     }
 
     (ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
       case ((opName, input), commentsAfter) =>
-        Query(opName, Struct(WithSource(Nil, commentsAfter, input)))
+        Query(
+          opName,
+          Struct(
+            WithSource(
+              commentsLeft = Nil,
+              commentsRight = commentsAfter,
+              position = input.position,
+              value = input,
+            )
+          ),
+        )
     }
   }
 
