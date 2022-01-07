@@ -16,23 +16,21 @@ import smithy4s.Hints
 import smithy4s.Timestamp
 
 import java.util.UUID
-
-object QueryCompilerSchematic {
-  type WAST = AST[WithSource]
-}
+import PartialCompiler.WAST
 
 trait PartialCompiler[A] {
   def emap[B](f: A => IorNec[CompilationError, B]): PartialCompiler[B] =
     ast => compile(ast).flatMap(f)
 
-  def compile(ast: AST[WithSource]): IorNec[CompilationError, A]
+  // TODO: Actually use the powers of Ior. Maybe a custom monad for errors / warnings? Diagnosed[A]? Either+Writer composition?
+  def compile(ast: WAST): IorNec[CompilationError, A]
 }
 
 object PartialCompiler {
 
   implicit val functor: Functor[PartialCompiler] = Derive.functor
 
-  type WAST = AST[WithSource]
+  type WAST = InputNode[WithSource]
 
   val unit: PartialCompiler[Unit] = _ => ().rightIor
 
@@ -41,7 +39,16 @@ object PartialCompiler {
   )(
     orElseMessage: WAST => String
   ): PartialCompiler[A] =
-    ast => f.lift(ast).toRightIor(NonEmptyChain(CompilationError(orElseMessage(ast))))
+    ast =>
+      f.lift(ast)
+        .toRightIor(
+          NonEmptyChain(
+            CompilationError(
+              orElseMessage(ast),
+              Some(ast.fold(_.fields.range, _.value.range, _.value.range)),
+            )
+          )
+        )
 
 }
 
@@ -55,7 +62,7 @@ class QueryCompilerSchematic
 
   def int: PartialCompiler[Int] =
     PartialCompiler.fromPF { case IntLiteral(i) => i.value }(ast =>
-      s"Expected ${NodeKind.IntLiteral}, got ${ast.kind} instead"
+      s"Type mismatch: expected ${NodeKind.IntLiteral}, this is a ${ast.kind}"
     )
 
   def long: PartialCompiler[Long] = ???
@@ -95,32 +102,64 @@ class QueryCompilerSchematic
     fields: Vector[Field[PartialCompiler, S, _]]
   )(
     const: Vector[Any] => S
-  ): PartialCompiler[S] = PartialCompiler
-    .fromPF { case s @ Struct(_) => s }(ast =>
-      s"Expected ${NodeKind.Struct}, got ${ast.kind} instead"
-    )
-    .emap { struct =>
-      fields
-        .parTraverse { field =>
-          val fieldOpt = struct
-            .fields
-            .value
-            .value
-            .find(_._1.value.text == field.label)
-            .map(_._2)
-            .parTraverse(field.instance.compile)
+  ): PartialCompiler[S] = {
+    val validFields = fields.map(_.label).toSet
 
-          if (field.isOptional)
-            fieldOpt
+    PartialCompiler
+      .fromPF { case s @ Struct(_) => s }(ast =>
+        s"Expected ${NodeKind.Struct}, got ${ast.kind} instead"
+      )
+      .emap { struct =>
+        val remainingValidFields = validFields -- struct.fields.value.value.keys.map(_.value.text)
+        val expectedRemainingString =
+          if (remainingValidFields.isEmpty)
+            ""
+          else if (remainingValidFields.size == 1)
+            s". Expected: ${remainingValidFields.head}"
           else
-            fieldOpt.flatMap {
-              _.toRightIor(
-                CompilationError(s"Missing field ${field.label}", struct.fields.range.some)
-              ).toIorNec
-            }
-        }
-    }
-    .map(const)
+            s". Expected: one of ${remainingValidFields.mkString(", ")}"
+
+        val extraFieldErrors = struct
+          .fields
+          .value
+          .value
+          .keys
+          .filterNot(validFields.compose(_.value.text))
+          .map { unexpectedKey =>
+            CompilationError(
+              "Unexpected field" + expectedRemainingString,
+              Some(unexpectedKey.range),
+            )
+          }
+          .toList
+          .toNel
+          .map(NonEmptyChain.fromNonEmptyList)
+          .toLeftIor(())
+
+        val buildStruct = fields
+          .parTraverse { field =>
+            val fieldOpt = struct
+              .fields
+              .value
+              .value
+              .find(_._1.value.text == field.label)
+              .map(_._2)
+              .parTraverse(field.instance.compile)
+
+            if (field.isOptional)
+              fieldOpt
+            else
+              fieldOpt.flatMap {
+                _.toRightIor(
+                  CompilationError(s"Missing field ${field.label}", struct.fields.range.some)
+                ).toIorNec
+              }
+          }
+
+        buildStruct.map(const) <& extraFieldErrors
+      }
+
+  }
 
   def union[S](
     first: Alt[PartialCompiler, S, _],

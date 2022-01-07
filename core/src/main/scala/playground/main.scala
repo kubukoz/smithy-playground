@@ -11,13 +11,13 @@ import org.http4s.HttpApp
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.implicits._
 import playground._
-import playground.smithyql.AST
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
 import playground.smithyql.OperationName
+import playground.smithyql.InputNode
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -57,10 +57,10 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
   private val schem = new QueryCompilerSchematic
 
   // for quick lookup and prepared compilers
-  private val endpoints: Map[String, AST[WithSource] => F[CompiledInput[Op]]] = {
+  private val endpoints: Map[String, InputNode[WithSource] => F[CompiledInput[Op]]] = {
     def go[In](
       e: Endpoint[Op, In, _, _, _, _]
-    ): AST[WithSource] => F[CompiledInput[Op]] = {
+    ): InputNode[WithSource] => F[CompiledInput[Op]] = {
       val schematic = e.input.compile(schem)
 
       ast =>
