@@ -14,7 +14,6 @@ import com.disneystreaming.demo.smithy.DemoServiceOperation
 import com.disneystreaming.demo.smithy.Hero
 import com.disneystreaming.demo.smithy.Subscription
 import playground.Runner
-import playground.smithyql.OperationName
 import playground.smithyql.Query
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
@@ -33,6 +32,7 @@ import typings.vscode.mod.window
 
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
+import playground.smithyql.SourceRange
 
 object extension {
   type EitherThrow[+A] = Either[Throwable, A]
@@ -69,16 +69,6 @@ object extension {
 
   implicit def disposableToDispose(d: Disposable): Dispose = Dispose(() => d.dispose())
 
-  def unsafeGetOperationNameRange(name: OperationName, doc: mod.TextDocument) = {
-    // poor man's position finder
-    // todo do it right
-
-    val offset = doc.getText().indexOf(name.text)
-
-    val pos = doc.positionAt(offset.toDouble)
-    new mod.Range(pos, pos.translate(0, name.text.length().toDouble))
-  }
-
   @JSExportTopLevel("activate")
   def activate(
     context: ExtensionContext
@@ -105,7 +95,7 @@ object extension {
             validate(doc.getText())
               .map { case (parsed, _) =>
                 new mod.CodeLens(
-                  unsafeGetOperationNameRange(parsed.operationName.value, doc),
+                  toVscodeRange(doc)(parsed.operationName.range),
                   mod.Command("smithyql.runQuery", "Run query"),
                 )
               }
@@ -139,7 +129,7 @@ object extension {
         List(
           error(
             s"Operation not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}",
-            unsafeGetOperationNameRange(name, doc),
+            toVscodeRange(doc)(name.range),
           )
         )
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>
@@ -163,22 +153,37 @@ object extension {
         )
 
       case Left(e) =>
-        val range =
+        val defaultRange =
           new mod.Range(doc.lineAt(0).range.start, doc.lineAt(doc.lineCount - 1).range.end)
 
-        val msg =
-          e match {
-            case CompilationFailed(errors) => errors.map(_.message).mkString_("\n", "\n", "")
-            case _                         => Option(e.getMessage()).getOrElse("null")
-          }
+        e match {
+          case CompilationFailed(errors) =>
+            errors.map { ee => // dźwig
+              error(
+                ee.message,
+                ee.range.fold(defaultRange)(toVscodeRange(doc)),
+              )
+            }.toList
 
-        List(
-          error(
-            "Compilation failure: " + msg,
-            range,
-          )
-        )
+          case _ =>
+            List(
+              error(
+                "Compilation failure: " + Option(e.getMessage()).getOrElse("null"),
+                defaultRange,
+              )
+            )
+        }
+
     }
+
+  def toVscodeRange(doc: mod.TextDocument)(range: SourceRange): mod.Range = {
+    val pos = doc.positionAt(range.start.index.toDouble)
+    val end = doc.positionAt(range.end.index.toDouble)
+    println(
+      s"converting $range to vscode range: [${pos.line}, ${pos.character}] -> [${end.line}, ${end.character}]"
+    )
+    new mod.Range(pos, end)
+  }
 
   private def error(msg: String, range: mod.Range) =
     new Diagnostic(range, msg, DiagnosticSeverity.Error)

@@ -46,7 +46,7 @@ object PartialCompiler {
 }
 
 //todo adt
-final case class CompilationError(message: String)
+final case class CompilationError(message: String, range: Option[SourceRange] = None)
 
 class QueryCompilerSchematic
   extends smithy4s.Schematic[PartialCompiler]
@@ -96,13 +96,14 @@ class QueryCompilerSchematic
   )(
     const: Vector[Any] => S
   ): PartialCompiler[S] = PartialCompiler
-    .fromPF { case Struct(asts) => asts }(ast =>
+    .fromPF { case s @ Struct(_) => s }(ast =>
       s"Expected ${NodeKind.Struct}, got ${ast.kind} instead"
     )
     .emap { struct =>
       fields
         .parTraverse { field =>
           val fieldOpt = struct
+            .fields
             .value
             .value
             .find(_._1.value.text == field.label)
@@ -113,7 +114,9 @@ class QueryCompilerSchematic
             fieldOpt
           else
             fieldOpt.flatMap {
-              _.toRightIor(CompilationError(s"Missing field ${field.label}")).toIorNec
+              _.toRightIor(
+                CompilationError(s"Missing field ${field.label}", struct.fields.range.some)
+              ).toIorNec
             }
         }
     }

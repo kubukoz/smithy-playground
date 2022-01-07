@@ -60,11 +60,11 @@ object SmithyQLParser {
       p: Parser[A]
     ): Parser[T[A]] = ((comments ~ Parser.index).with1 ~ p ~ (Parser.index ~ comments)).map {
       case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
-        val range = Range(Position(indexBefore), Position(indexAfter))
+        val range = SourceRange(Position(indexBefore), Position(indexAfter))
         WithSource(
           commentsLeft = commentsBefore,
           commentsRight = commentsAfter,
-          position = range,
+          range = range,
           value = v,
         )
     }
@@ -149,22 +149,22 @@ object SmithyQLParser {
           Parser.index ~
             // fields always start with whitespace/comments, so we don't catch that here
             fields ~
-            (tokens.comments <*
-              tokens.closeBrace) ~
-            Parser.index
-        ).map { case (((indexBefore, fieldsR), commentsBeforeEnd), indexAfter) =>
+            tokens.comments ~
+            (Parser.index <*
+              tokens.closeBrace)
+        ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
           val fieldsResult =
             fieldsR match {
               case Nil    => Map.empty[T[Struct.Key], InputNode[T]]
               case fields => fields.toMap
             }
 
-          val range = Range(Position(indexBefore), Position(indexAfter))
+          val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
 
           WithSource(
             commentsLeft = Nil,
             commentsRight = commentsBeforeEnd,
-            position = range,
+            range = range,
             value = fieldsResult,
           )
         }
@@ -178,7 +178,7 @@ object SmithyQLParser {
             WithSource(
               commentsLeft = Nil,
               commentsRight = commentsAfter,
-              position = input.position,
+              range = input.range,
               value = input,
             )
           ),

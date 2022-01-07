@@ -1,3 +1,5 @@
+import playground.smithyql.SourceRange
+
 import playground.smithyql.WithSource
 
 import playground.smithyql.Struct
@@ -5,12 +7,15 @@ import playground.smithyql.Struct
 import playground.smithyql.SmithyQLParser
 
 val raw = """
-Hello {
-  my = "dear world",
-  also = {
-    this = "is awesome",
-    andThisIs = 42
-  }
+CreateHero {
+  hero = {
+    bad = {
+
+      // evilName = "Devil",
+      // powerLevel = 420,
+
+    },
+  },
 }
 """
 
@@ -26,12 +31,17 @@ val also = q
   .value
   .value
   .toList
-  .collectFirst { case (k, v) if k.value.text == "also" => v }
+  .collectFirst { case (k, v) if k.value.text == "hero" => v }
+  .get
+  .asInstanceOf[Struct[WithSource]]
+  .fields
+  .value
+  .value
+  .toList
+  .collectFirst { case (k, v) if k.value.text == "bad" => v }
   .get
   .asInstanceOf[Struct[WithSource]]
 
-raw.drop(also.fields.position.start.index)
+def show(range: SourceRange) = raw.substring(range.start.index, range.end.index)
 
-raw.substring(also.fields.position.start.index, also.fields.position.end.index)
-
-q.input.fields.position
+show(also.fields.value.range)

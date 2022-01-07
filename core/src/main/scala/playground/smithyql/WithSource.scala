@@ -15,13 +15,13 @@ object Comment {
   implicit val eq: Eq[Comment] = Eq.by(_.text)
 }
 
-final case class Position(index: Int) extends AnyVal
-final case class Range(start: Position, end: Position)
+final case class Position(index: Int)
+final case class SourceRange(start: Position, end: Position)
 
 final case class WithSource[+A](
   commentsLeft: List[Comment],
   commentsRight: List[Comment],
-  position: Range,
+  range: SourceRange,
   value: A,
 ) {
   def allComments(valueComments: A => List[Comment]): List[Comment] =

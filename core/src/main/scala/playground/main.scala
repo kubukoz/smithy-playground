@@ -46,7 +46,7 @@ object Compiler {
 final case class CompilationFailed(errors: NonEmptyList[CompilationError]) extends Throwable
 
 final case class OperationNotFound(
-  name: OperationName,
+  name: WithSource[OperationName],
   validOperations: List[OperationName],
 ) extends Throwable
 
@@ -88,7 +88,7 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
   def compile(q: Query[WithSource]): F[CompiledInput[Op]] = endpoints
     .get(q.operationName.value.text)
     .liftTo[F](
-      OperationNotFound(q.operationName.value, endpoints.keys.map(OperationName(_)).toList)
+      OperationNotFound(q.operationName, endpoints.keys.map(OperationName(_)).toList)
     )
     .flatMap(_.apply(q.input))
 
