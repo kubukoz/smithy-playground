@@ -7,7 +7,6 @@ import cats.NonEmptyTraverse
 import cats.implicits._
 import cats.~>
 import cats.kernel.Eq
-import cats.tagless.Derive
 
 // todo: multiline
 final case class Comment(text: String)

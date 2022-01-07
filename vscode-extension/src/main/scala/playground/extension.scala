@@ -14,7 +14,10 @@ import com.disneystreaming.demo.smithy.DemoServiceOperation
 import com.disneystreaming.demo.smithy.Hero
 import com.disneystreaming.demo.smithy.Subscription
 import playground.Runner
+import playground.smithyql.OperationName
+import playground.smithyql.Query
 import playground.smithyql.SmithyQLParser
+import playground.smithyql.WithSource
 import smithy4s.http4s.SimpleRestJsonBuilder
 import typings.vscode.anon.Dispose
 import typings.vscode.mod
@@ -28,7 +31,7 @@ import typings.vscode.mod.commands
 import typings.vscode.mod.languages
 import typings.vscode.mod.window
 
-import scala.scalajs.js._
+import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 object extension {
@@ -66,6 +69,16 @@ object extension {
 
   implicit def disposableToDispose(d: Disposable): Dispose = Dispose(() => d.dispose())
 
+  def unsafeGetOperationNameRange(name: OperationName, doc: mod.TextDocument) = {
+    // poor man's position finder
+    // todo do it right
+
+    val offset = doc.getText().indexOf(name.text)
+
+    val pos = doc.positionAt(offset.toDouble)
+    new mod.Range(pos, pos.translate(0, name.text.length().toDouble))
+  }
+
   @JSExportTopLevel("activate")
   def activate(
     context: ExtensionContext
@@ -89,14 +102,15 @@ object extension {
         languages.registerCodeLensProvider(
           "smithyql",
           mod.CodeLensProvider { (doc, _) =>
-            if (validate(doc.getText()).isRight)
-              Array(
+            validate(doc.getText())
+              .map { case (parsed, _) =>
                 new mod.CodeLens(
-                  // todo try to move this to init of line
-                  doc.lineAt(0).range,
+                  unsafeGetOperationNameRange(parsed.operationName.value, doc),
                   mod.Command("smithyql.runQuery", "Run query"),
                 )
-              )
+              }
+              .toList
+              .toJSArray
           },
         ),
         languages.registerDocumentFormattingEditProvider(
@@ -109,9 +123,11 @@ object extension {
       )
   }
 
-  private def validate(q: String): EitherThrow[CompiledInput[Op]] = SmithyQLParser
-    .parseFull(q)
-    .flatMap(compiler.compile)
+  private def validate(q: String): EitherThrow[(Query[WithSource], CompiledInput[Op])] =
+    SmithyQLParser
+      .parseFull(q)
+      .leftWiden[Throwable]
+      .mproduct(compiler.compile(_))
 
   private def getHighlights(
     doc: mod.TextDocument
@@ -119,6 +135,13 @@ object extension {
     validate(doc.getText()) match {
       case Right(_) => Nil
 
+      case Left(OperationNotFound(name, validOperations)) =>
+        List(
+          error(
+            s"Operation not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}",
+            unsafeGetOperationNameRange(name, doc),
+          )
+        )
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>
         val pos = doc.positionAt(e.failedAtOffset.toDouble)
         val range = doc
