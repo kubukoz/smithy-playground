@@ -7,17 +7,16 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits._
 import cats.~>
-import org.http4s.HttpApp
-import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.client.Client
 import org.http4s.implicits._
 import playground._
+import playground.smithyql.InputNode
+import playground.smithyql.OperationName
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
-import playground.smithyql.OperationName
-import playground.smithyql.InputNode
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -105,24 +104,18 @@ object Runner {
       def run(q: CompiledInput[Op]): F[Any] = runner.flatMap(_.run(q))
     }
 
-  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
+  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op],
-    impl: Option[HttpApp[IO]] = None,
-  ): Resource[IO, Runner[IO, Op]] = EmberClientBuilder
-    .default[IO]
-    .build
-    .flatMap { c =>
-      val b = SimpleRestJsonBuilder(service)
+    client: Client[IO],
+  ): Resource[IO, Runner[IO, Op]] = {
+    val b = SimpleRestJsonBuilder(service)
 
-      impl
-        .fold(
-          b.clientResource(c, uri"http://localhost:8082")
-        )(b.clientResource(_, uri"http://localhost:8082"))
-        .map { client =>
-          val exec = service.asTransformation(client)
+    b.clientResource(client, uri"http://localhost:8082")
+      .map { c =>
+        val exec = service.asTransformation(c)
 
-          q => IO.defer(exec(q.endpoint.wrap(q.input)))
-        }
-    }
+        q => IO.defer(exec(q.endpoint.wrap(q.input)))
+      }
+  }
 
 }

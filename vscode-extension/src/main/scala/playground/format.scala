@@ -6,11 +6,9 @@ import typings.vscode.mod
 import typings.vscode.mod.TextDocument
 import typings.vscode.mod.TextEdit
 
-import scala.scalajs.js
-
 object format {
 
-  def perform(doc: TextDocument): js.Array[TextEdit] = {
+  def perform(doc: TextDocument): List[TextEdit] = {
     val maxWidth = mod
       .workspace
       .getConfiguration()
@@ -23,19 +21,17 @@ object format {
     SmithyQLParser
       .parseFull(doc.getText())
       .map { parsed =>
-        scalajs
-          .js
-          .Array(
-            TextEdit.replace(
-              new mod.Range(
-                firstLine.range.start,
-                lastLine.range.end,
-              ),
-              Formatter.format(parsed, maxWidth),
-            )
+        List(
+          TextEdit.replace(
+            new mod.Range(
+              firstLine.range.start,
+              lastLine.range.end,
+            ),
+            Formatter.format(parsed, maxWidth),
           )
+        )
       }
-      .getOrElse(js.Array())
+      .getOrElse(Nil)
   }
 
 }

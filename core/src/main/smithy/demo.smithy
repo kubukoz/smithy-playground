@@ -1,4 +1,4 @@
-namespace com.disneystreaming.demo.smithy
+namespace demo.smithy
 
 use smithy4s.api#simpleRestJson
 

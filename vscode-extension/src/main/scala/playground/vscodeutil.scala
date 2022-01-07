@@ -8,8 +8,10 @@ import typings.vscode.mod.window
 import typings.vscode.mod.workspace
 
 import scala.scalajs.js
+import typings.vscode.anon.Dispose
 
 object vscodeutil {
+  implicit def disposableToDispose(d: Disposable): Dispose = Dispose(() => d.dispose())
 
   def registerDiagnosticProvider(
     language: String,

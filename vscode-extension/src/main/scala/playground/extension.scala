@@ -4,25 +4,9 @@ import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.unsafe.implicits._
 import cats.implicits._
-import cats.parse.Parser.Expectation.InRange
-import cats.~>
-import com.disneystreaming.demo.smithy.CreateHeroOutput
-import com.disneystreaming.demo.smithy.CreateSubscriptionOutput
-import com.disneystreaming.demo.smithy.DemoService
-import com.disneystreaming.demo.smithy.DemoServiceGen
-import com.disneystreaming.demo.smithy.DemoServiceOperation
-import com.disneystreaming.demo.smithy.Hero
-import com.disneystreaming.demo.smithy.Subscription
+import demo.smithy.DemoServiceGen
 import playground.Runner
-import playground.smithyql.Query
-import playground.smithyql.SmithyQLParser
-import playground.smithyql.WithSource
-import smithy4s.http4s.SimpleRestJsonBuilder
-import typings.vscode.anon.Dispose
 import typings.vscode.mod
-import typings.vscode.mod.Diagnostic
-import typings.vscode.mod.DiagnosticSeverity
-import typings.vscode.mod.Disposable
 import typings.vscode.mod.DocumentFormattingEditProvider
 import typings.vscode.mod.ExtensionContext
 import typings.vscode.mod.OutputChannel
@@ -32,52 +16,33 @@ import typings.vscode.mod.window
 
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
-import playground.smithyql.SourceRange
-import scala.scalajs.js
+
+import types._
 
 object extension {
-  type EitherThrow[+A] = Either[Throwable, A]
+  private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
 
-  val eitherToIO: EitherThrow ~> IO =
-    new (EitherThrow ~> IO) {
-      override def apply[A](fa: EitherThrow[A]): IO[A] = fa.liftTo[IO]
-    }
+  implicit val compiler: Compiler[Op, EitherThrow] = Compiler.instance(DemoServiceGen)
 
-  val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
-  type Op[I, E, O, S, A] = DemoServiceOperation[I, E, O, S, A]
+  implicit val runner: Runner[IO, Op] = {
+    val runnerDeff = Deferred.unsafe[IO, Runner[IO, Op]]
 
-  val compiler: Compiler[Op, EitherThrow] = Compiler.instance(DemoServiceGen)
-  val runnerDeff = Deferred.unsafe[IO, Runner[IO, Op]]
-  val runner: Runner[IO, Op] = Runner.unlift(runnerDeff.get)
+    client
+      .make[IO](useNetwork = false)
+      .flatMap(Runner.make(DemoServiceGen, _))
+      .evalMap(runnerDeff.complete(_))
+      .allocated
+      .unsafeRunAndForget()
 
-  val mkRunner = SimpleRestJsonBuilder
-    .routes(new DemoService[IO] {
-
-      override def createHero(
-        hero: Hero
-      ): IO[CreateHeroOutput] = IO(CreateHeroOutput(hero))
-
-      override def createSubscription(
-        subscription: Subscription
-      ): IO[CreateSubscriptionOutput] = IO(CreateSubscriptionOutput(subscription))
-
-    })
-    .resource
-    .flatMap { routes =>
-      Runner
-        .make(DemoServiceGen, Some(routes.orNotFound))
-    }
-
-  implicit def disposableToDispose(d: Disposable): Dispose = Dispose(() => d.dispose())
+    Runner.unlift(runnerDeff.get)
+  }
 
   @JSExportTopLevel("activate")
   def activate(
     context: ExtensionContext
   ): Unit = {
-    mkRunner
-      .evalMap(runnerDeff.complete(_))
-      .allocated
-      .unsafeRunAndForget()
+
+    import vscodeutil.disposableToDispose
 
     val _ = context
       .subscriptions
@@ -93,18 +58,20 @@ object extension {
         languages.registerCompletionItemProvider(
           "smithyql",
           mod
-            .CompletionItemProvider[mod.CompletionItem]((_, _, _, _) =>
-              List.empty[mod.CompletionItem].toJSArray
-            ),
+            .CompletionItemProvider[mod.CompletionItem] { (doc, pos, _, _) =>
+              completions.complete(doc, pos).toJSArray
+            },
+          // todo this might not be working properly
           "\t",
         ),
         languages.registerCodeLensProvider(
           "smithyql",
           mod.CodeLensProvider { (doc, _) =>
-            validate(doc.getText())
+            validate
+              .full[EitherThrow](doc.getText())
               .map { case (parsed, _) =>
                 new mod.CodeLens(
-                  toVscodeRange(doc)(parsed.operationName.range),
+                  adapters.toVscodeRange(doc)(parsed.operationName.range),
                   mod.Command("smithyql.runQuery", "Run query"),
                 )
               }
@@ -115,83 +82,11 @@ object extension {
         languages.registerDocumentFormattingEditProvider(
           "smithyql",
           DocumentFormattingEditProvider { (doc, _, _) =>
-            format.perform(doc)
+            format.perform(doc).toJSArray
           },
         ),
-        vscodeutil.registerDiagnosticProvider("smithyql", getHighlights),
+        vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights),
       )
   }
-
-  private def validate(q: String): EitherThrow[(Query[WithSource], CompiledInput[Op])] =
-    SmithyQLParser
-      .parseFull(q)
-      .leftWiden[Throwable]
-      .mproduct(compiler.compile(_))
-
-  private def getHighlights(
-    doc: mod.TextDocument
-  ): List[Diagnostic] =
-    validate(doc.getText()) match {
-      case Right(_) => Nil
-
-      case Left(OperationNotFound(name, validOperations)) =>
-        List(
-          error(
-            s"Operation not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}",
-            toVscodeRange(doc)(name.range),
-          )
-        )
-      case Left(SmithyQLParser.ParsingFailure(e, _)) =>
-        val pos = doc.positionAt(e.failedAtOffset.toDouble)
-        val range = doc
-          .getWordRangeAtPosition(pos)
-          .getOrElse(new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end))
-
-        List(
-          error(
-            "Parsing failure: expected one of " + e
-              .expected
-              .map {
-                case InRange(_, lower, upper) if lower == upper => lower.toString
-                case InRange(_, lower, upper)                   => s"$lower-$upper"
-                case msg                                        => msg.toString()
-              }
-              .mkString_(", "),
-            range,
-          )
-        )
-
-      case Left(e) =>
-        val defaultRange =
-          new mod.Range(doc.lineAt(0).range.start, doc.lineAt(doc.lineCount - 1).range.end)
-
-        e match {
-          case CompilationFailed(errors) =>
-            errors.map { ee => // dźwig
-              error(
-                ee.message,
-                ee.range.fold(defaultRange)(toVscodeRange(doc)),
-              )
-            }.toList
-
-          case _ =>
-            List(
-              error(
-                "Compilation failure: " + Option(e.getMessage()).getOrElse("null"),
-                defaultRange,
-              )
-            )
-        }
-
-    }
-
-  def toVscodeRange(doc: mod.TextDocument)(range: SourceRange): mod.Range = {
-    val pos = doc.positionAt(range.start.index.toDouble)
-    val end = doc.positionAt(range.end.index.toDouble)
-    new mod.Range(pos, end)
-  }
-
-  private def error(msg: String, range: mod.Range) =
-    new Diagnostic(range, msg, DiagnosticSeverity.Error)
 
 }
