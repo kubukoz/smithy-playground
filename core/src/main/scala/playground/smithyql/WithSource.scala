@@ -49,7 +49,7 @@ object WithSource {
   case class OperationThing(opName: WithSource[OperationName]) extends Thing
 
   case class StructThing(
-    content: WithSource[Map[WithSource[Struct.Key], InputNode[WithSource]]]
+    content: WithSource[Map[WithSource[Struct.Key], WithSource[InputNode[WithSource]]]]
   ) extends Thing
 
   def atPosition(q: Query[WithSource])(pos: Position): Option[Thing] = {
@@ -60,8 +60,8 @@ object WithSource {
         None
 
     val input =
-      if (q.input.fields.value.range.contains(pos))
-        StructThing(q.input.fields.value).some
+      if (q.input.range.contains(pos))
+        StructThing(q.input.value.fields).some
       else
         None
 
