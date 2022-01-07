@@ -2,12 +2,12 @@ package playground.smithyql
 
 import cats.Id
 import cats.implicits._
+import cats.kernel.Eq
 import cats.parse.Numbers
 import cats.parse.Parser
 import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import cats.parse.Rfc5234
-import cats.kernel.Eq
 
 object SmithyQLParser {
 
