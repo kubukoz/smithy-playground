@@ -20,20 +20,8 @@ final case class WithSource[+A](
   commentsRight: List[Comment],
   value: A,
 ) {
-  def allComments(aTokens: A => List[Comment]): List[Comment] =
-    commentsLeft ++ aTokens(value) ++ commentsRight
-
-  def tokensEach: List[Comment] = commentsLeft ++ commentsRight
-
-  def between(
-    lhs: List[Comment],
-    rhs: List[Comment],
-  ) = WithSource(
-    commentsLeft = lhs ++ commentsLeft,
-    value = value,
-    commentsRight = commentsRight ++ rhs,
-  )
-
+  def allComments(valueComments: A => List[Comment]): List[Comment] =
+    commentsLeft ++ valueComments(value) ++ commentsRight
 }
 
 object WithSource {
