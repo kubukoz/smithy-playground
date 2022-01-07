@@ -6,6 +6,8 @@ import typings.vscode.mod
 import typings.vscode.mod.TextDocument
 import typings.vscode.mod.TextEdit
 
+import debug.timed
+
 object format {
 
   def perform(doc: TextDocument): List[TextEdit] = {
@@ -17,9 +19,10 @@ object format {
 
     val firstLine = doc.lineAt(0)
     val lastLine = doc.lineAt(doc.lineCount - 1)
-
-    SmithyQLParser
-      .parseFull(doc.getText())
+    timed("parsing") {
+      SmithyQLParser
+        .parseFull(doc.getText())
+    }
       .map { parsed =>
         List(
           TextEdit.replace(
@@ -27,7 +30,7 @@ object format {
               firstLine.range.start,
               lastLine.range.end,
             ),
-            Formatter.format(parsed, maxWidth),
+            timed("formatting")(Formatter.format(parsed, maxWidth)),
           )
         )
       }
