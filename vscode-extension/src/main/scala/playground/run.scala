@@ -1,6 +1,5 @@
 package playground
 
-import cats.Id
 import cats.effect.kernel.Sync
 import cats.implicits._
 import playground.smithyql.SmithyQLParser
@@ -12,13 +11,13 @@ object run {
 
   def perform[F[_]: Sync, Op[_, _, _, _, _]](
     ted: TextEditor,
-    compiler: Compiler[Op, Id],
+    compiler: Compiler[Op, F],
     runner: Runner[F, Op],
     channel: OutputChannel,
   ): F[Unit] = SmithyQLParser
     .parseFull(ted.document.getText())
     .liftTo[F]
-    .map(compiler.compile)
+    .flatMap(compiler.compile)
     .flatMap { q =>
       Sync[F].delay {
         channel.show()

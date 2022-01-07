@@ -15,6 +15,7 @@ val commonScalaVersions = Seq("2.13.7")
 
 val commonSettings = Seq(
   libraryDependencies ++= Seq(
+    "org.typelevel" %%% "cats-tagless-macros" % "0.14.0",
     "com.disneystreaming" %%% "weaver-cats" % "0.7.9" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.7.9" % Test,
     "com.disneystreaming" %% "weaver-scalacheck" % "0.7.9" % Test,

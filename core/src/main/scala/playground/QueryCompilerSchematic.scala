@@ -1,8 +1,11 @@
 package playground
 
 import cats.Functor
+import cats.data.IorNec
+import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
 import cats.implicits._
+import cats.tagless.Derive
 import playground.smithyql._
 import schematic.Alt
 import schematic.ByteArray
@@ -14,24 +17,31 @@ import smithy4s.Timestamp
 
 import java.util.UUID
 
-import util.chaining._
-
 object QueryCompilerSchematic {
   type WAST = AST[WithSource]
 }
 
 trait PartialCompiler[A] {
-  def compile(ast: AST[WithSource]): A
-  // def compile(ast: AST[WithSource]): IorNec[CompilationError, A]
+  def emap[B](f: A => IorNec[CompilationError, B]): PartialCompiler[B] =
+    ast => compile(ast).flatMap(f)
+
+  def compile(ast: AST[WithSource]): IorNec[CompilationError, A]
 }
 
 object PartialCompiler {
 
-  implicit val functor: Functor[PartialCompiler] =
-    new Functor[PartialCompiler] {
-      def map[A, B](fa: PartialCompiler[A])(f: A => B): PartialCompiler[B] =
-        ast => f(fa.compile(ast))
-    }
+  implicit val functor: Functor[PartialCompiler] = Derive.functor
+
+  type WAST = AST[WithSource]
+
+  val unit: PartialCompiler[Unit] = _ => ().rightIor
+
+  def fromPF[A](
+    f: PartialFunction[WAST, A]
+  )(
+    orElseMessage: WAST => String
+  ): PartialCompiler[A] =
+    ast => f.lift(ast).toRightIor(NonEmptyChain(CompilationError(orElseMessage(ast))))
 
 }
 
@@ -43,7 +53,10 @@ class QueryCompilerSchematic
   with schematic.struct.GenericAritySchematic[PartialCompiler] {
   def short: PartialCompiler[Short] = ???
 
-  def int: PartialCompiler[Int] = { case IntLiteral(i) => i.value }
+  def int: PartialCompiler[Int] =
+    PartialCompiler.fromPF { case IntLiteral(i) => i.value }(ast =>
+      s"Expected ${NodeKind.IntLiteral}, got ${ast.kind} instead"
+    )
 
   def long: PartialCompiler[Long] = ???
 
@@ -55,7 +68,10 @@ class QueryCompilerSchematic
 
   def bigdecimal: PartialCompiler[BigDecimal] = ???
 
-  def string: PartialCompiler[String] = { case StringLiteral(s) => s.value }
+  def string: PartialCompiler[String] =
+    PartialCompiler.fromPF { case StringLiteral(s) => s.value }(ast =>
+      s"Expected ${NodeKind.StringLiteral}, got ${ast.kind} instead"
+    )
 
   def boolean: PartialCompiler[Boolean] = ???
 
@@ -65,7 +81,7 @@ class QueryCompilerSchematic
 
   def bytes: PartialCompiler[ByteArray] = ???
 
-  def unit: PartialCompiler[Unit] = _ => ()
+  def unit: PartialCompiler[Unit] = PartialCompiler.unit
 
   def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = ???
 
@@ -79,16 +95,29 @@ class QueryCompilerSchematic
     fields: Vector[Field[PartialCompiler, S, _]]
   )(
     const: Vector[Any] => S
-  ): PartialCompiler[S] = { case Struct(asts) =>
-    const {
-      fields.map { field =>
-        if (field.isOptional)
-          asts.value.value.find(_._1.value == field.label).map(_._2).map(field.instance.compile)
-        else
-          field.instance.compile(asts.value.value.find(_._1.value == field.label).get._2)
-      }
+  ): PartialCompiler[S] = PartialCompiler
+    .fromPF { case Struct(asts) => asts }(ast =>
+      s"Expected ${NodeKind.Struct}, got ${ast.kind} instead"
+    )
+    .emap { struct =>
+      fields
+        .traverse { field =>
+          val fieldOpt = struct
+            .value
+            .value
+            .find(_._1.value.text == field.label)
+            .map(_._2)
+            .traverse(field.instance.compile)
+
+          if (field.isOptional)
+            fieldOpt
+          else
+            fieldOpt.flatMap {
+              _.toRightIor(CompilationError(s"Missing field ${field.label}")).toIorNec
+            }
+        }
     }
-  }
+    .map(const)
 
   def union[S](
     first: Alt[PartialCompiler, S, _],
@@ -98,37 +127,44 @@ class QueryCompilerSchematic
   ): PartialCompiler[S] = {
     val opts = NonEmptyList(first, rest.toList)
 
-    {
-      case Struct(defs) if defs.value.value.size == 1 =>
-        def go[A](
-          alt: Alt[PartialCompiler, S, A]
-        ): PartialCompiler[S] = q => alt.instance.compile(q).pipe(alt.inject)
+    PartialCompiler
+      .fromPF { case s @ Struct(_) => s }(ast =>
+        s"Expected a union struct, got ${ast.kind} instead"
+      )
+      .emap {
+        case s if s.fields.value.value.size == 1 =>
+          val defs = s.fields.value.value
+          def go[A](
+            alt: Alt[PartialCompiler, S, A]
+          ): PartialCompiler[S] = alt.instance.map(alt.inject)
 
-        val (k, v) = defs.value.value.head
-        val op = opts
-          .find { e =>
-            e.label == k.value
-          }
-          .getOrElse(
-            throw new Exception(
-              "wrong shape, this union requires one of: " + opts
-                .map(_.label)
-                .mkString_(", ")
-            )
-          )
+          val (k, v) = defs.head
+          val op =
+            opts
+              .find { e =>
+                e.label == k.value.text
+              }
+              .toRightIor(
+                CompilationError(
+                  "wrong shape, this union requires one of: " + opts
+                    .map(_.label)
+                    .mkString_(", ")
+                )
+              )
+              .toIorNec
 
-        go(op).compile(v)
+          op.flatMap(go(_).compile(v))
 
-      case Struct(m) if m.value.value.isEmpty =>
-        throw new Exception(
-          "found empty struct, expected one of: " + opts.map(_.label).mkString_(", ")
-        )
-      case Struct(defs) =>
-        throw new Exception(
-          s"struct mismatch (keys: ${defs.value.value.keys.map(_.value.text).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}"
-        )
+        case s if s.fields.value.value.isEmpty =>
+          CompilationError(
+            "found empty struct, expected one of: " + opts.map(_.label).mkString_(", ")
+          ).leftIor.toIorNec
 
-    }
+        case Struct(defs) =>
+          CompilationError(
+            s"struct mismatch (keys: ${defs.value.value.keys.map(_.value.text).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}"
+          ).leftIor.toIorNec
+      }
   }
 
   def enumeration[A](
@@ -145,8 +181,12 @@ class QueryCompilerSchematic
     from: B => A,
   ): PartialCompiler[B] = f.map(to)
 
-  def timestamp: PartialCompiler[Timestamp] = { case StringLiteral(s) =>
-    Timestamp.parse(s.value, TimestampFormat.DATE_TIME).get /*  */
+  def timestamp: PartialCompiler[Timestamp] = string.emap { s =>
+    Timestamp
+      /*  todo unhardcode format */
+      .parse(s, TimestampFormat.DATE_TIME)
+      .toRightIor(CompilationError("Invalid timestamp format"))
+      .toIorNec
   }
 
   def withHints[A](fa: PartialCompiler[A], hints: Hints): PartialCompiler[A] = fa // todo

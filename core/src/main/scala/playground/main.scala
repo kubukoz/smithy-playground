@@ -1,17 +1,19 @@
 package playground
 
 import cats.FlatMap
-import cats.Id
+import cats.MonadThrow
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits._
+import cats.~>
 import org.http4s.HttpApp
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.implicits._
 import playground._
-import playground.smithyql.WithSource
-import playground.smithyql.Query
 import playground.smithyql.AST
+import playground.smithyql.Query
+import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
@@ -24,35 +26,51 @@ trait CompiledInput[Op[_, _, _, _, _]] {
 
 trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
   def compile(q: Query[WithSource]): F[CompiledInput[Op]]
+
+  def mapK[G[_]](fk: F ~> G): Compiler[Op, G] =
+    new Compiler[Op, G] {
+      def compile(q: Query[WithSource]): G[CompiledInput[Op]] = fk(self.compile(q))
+    }
+
 }
 
 object Compiler {
 
-  def instance[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+  def instance[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
     service: Service[Alg, Op]
-  ): Compiler[Op, Id] = new CompilerImpl(service)
+  ): Compiler[Op, F] = new CompilerImpl(service)
 
 }
 
-private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+final case class CompilationFailed(errors: NonEmptyList[CompilationError]) extends Throwable
+
+private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
   service: Service[Alg, Op]
-) extends Compiler[Op, Id] {
+) extends Compiler[Op, F] {
 
   private val schem = new QueryCompilerSchematic
 
-  // for quick lookup and decoding from AST
-  private val endpoints: Map[String, AST[WithSource] => CompiledInput[Op]] = {
+  // for quick lookup and prepared compilers
+  private val endpoints: Map[String, AST[WithSource] => F[CompiledInput[Op]]] = {
     def go[In](
       e: Endpoint[Op, In, _, _, _, _]
-    ): AST[WithSource] => CompiledInput[Op] = {
+    ): AST[WithSource] => F[CompiledInput[Op]] = {
       val schematic = e.input.compile(schem)
 
       ast =>
-        new CompiledInput[Op] {
-          type I = In
-          val input: I = schematic.compile(ast)
-          val endpoint: Endpoint[Op, I, _, _, _, _] = e
-        }
+        schematic
+          .compile(ast)
+          .toEither
+          .leftMap(_.toNonEmptyList)
+          .leftMap(CompilationFailed(_))
+          .liftTo[F]
+          .map { compiled =>
+            new CompiledInput[Op] {
+              type I = In
+              val input: I = compiled
+              val endpoint: Endpoint[Op, I, _, _, _, _] = e
+            }
+          }
     }
 
     service
@@ -61,13 +79,18 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       .map(_.map(_.head).map(go(_)))
   }
 
-  def compile(q: Query[WithSource]): CompiledInput[Op] =
-    endpoints.getOrElse(
-      q.operationName.value.text,
-      throw new Exception(
-        show"Operation not found: ${q.operationName.value.text}. Available operations: ${endpoints.keys.toList.mkString_(", ")}"
-      ),
-    )(q.input)
+  def compile(q: Query[WithSource]): F[CompiledInput[Op]] = endpoints
+    .get(q.operationName.value.text)
+    .liftTo[F](
+      CompilationFailed(
+        NonEmptyList.one(
+          CompilationError(
+            show"Operation not found: ${q.operationName.value.text}. Available operations: ${endpoints.keys.toList.mkString_(", ")}"
+          )
+        )
+      )
+    )
+    .flatMap(_.apply(q.input))
 
 }
 

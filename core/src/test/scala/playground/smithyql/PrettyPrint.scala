@@ -72,22 +72,7 @@ object PrettyPrint {
         Structure(
           fields
             .fields
-            .map { case (k, v) =>
-              val colored =
-                if (
-                  v.isInstanceOf[Struct[Id]] && v
-                    .asInstanceOf[Struct[Id]]
-                    .fields
-                    .contains(Struct.Key("b"))
-                )
-                  Console.RED + k.text + Console.RESET
-                else if (k.text == "b")
-                  Console.GREEN + k.text + Console.RESET
-                else
-                  k.text
-
-              colored -> toStructure(v)
-            }
+            .map { case (k, v) => k.text -> toStructure(v) }
             .toMap
         ),
     string = s => Structure(Map("string" -> just(s.value))),

@@ -1,11 +1,11 @@
 package playground
 
-import cats.Id
 import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.unsafe.implicits._
 import cats.implicits._
 import cats.parse.Parser.Expectation.InRange
+import cats.~>
 import com.disneystreaming.demo.smithy.CreateHeroOutput
 import com.disneystreaming.demo.smithy.CreateSubscriptionOutput
 import com.disneystreaming.demo.smithy.DemoService
@@ -14,6 +14,7 @@ import com.disneystreaming.demo.smithy.DemoServiceOperation
 import com.disneystreaming.demo.smithy.Hero
 import com.disneystreaming.demo.smithy.Subscription
 import playground.Runner
+import playground.smithyql.SmithyQLParser
 import smithy4s.http4s.SimpleRestJsonBuilder
 import typings.vscode.anon.Dispose
 import typings.vscode.mod
@@ -29,13 +30,19 @@ import typings.vscode.mod.window
 
 import scala.scalajs.js._
 import scala.scalajs.js.annotation.JSExportTopLevel
-import playground.smithyql.SmithyQLParser
 
 object extension {
+  type EitherThrow[+A] = Either[Throwable, A]
+
+  val eitherToIO: EitherThrow ~> IO =
+    new (EitherThrow ~> IO) {
+      override def apply[A](fa: EitherThrow[A]): IO[A] = fa.liftTo[IO]
+    }
+
   val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
   type Op[I, E, O, S, A] = DemoServiceOperation[I, E, O, S, A]
 
-  val compiler: Compiler[Op, Id] = Compiler.instance(DemoServiceGen)
+  val compiler: Compiler[Op, EitherThrow] = Compiler.instance(DemoServiceGen)
   val runnerDeff = Deferred.unsafe[IO, Runner[IO, Op]]
   val runner: Runner[IO, Op] = Runner.unlift(runnerDeff.get)
 
@@ -76,7 +83,7 @@ object extension {
             "smithyql.runQuery",
             (ted, _, _) =>
               run
-                .perform[IO, Op](ted, compiler, runner, chan)
+                .perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
                 .unsafeRunAndForget(),
           ),
         languages.registerCodeLensProvider(
@@ -98,15 +105,17 @@ object extension {
             format.perform(doc)
           },
         ),
-        vscodeutil.registerDiagnosticProvider("smithyql", highlights),
+        vscodeutil.registerDiagnosticProvider("smithyql", getHighlights),
       )
   }
 
-  private def validate(q: String): Either[Throwable, scala.Any] = SmithyQLParser
+  private def validate(q: String): EitherThrow[CompiledInput[Op]] = SmithyQLParser
     .parseFull(q)
-    .flatMap(c => Either.catchNonFatal(compiler.compile(c)))
+    .flatMap(compiler.compile)
 
-  private def highlights(doc: mod.TextDocument): List[Diagnostic] =
+  private def getHighlights(
+    doc: mod.TextDocument
+  ): List[Diagnostic] =
     validate(doc.getText()) match {
       case Right(_) => Nil
 
@@ -134,9 +143,15 @@ object extension {
         val range =
           new mod.Range(doc.lineAt(0).range.start, doc.lineAt(doc.lineCount - 1).range.end)
 
+        val msg =
+          e match {
+            case CompilationFailed(errors) => errors.map(_.message).mkString_("\n", "\n", "")
+            case _                         => Option(e.getMessage()).getOrElse("null")
+          }
+
         List(
           error(
-            "Compilation failure: " + Option(e.getMessage).getOrElse("null"),
+            "Compilation failure: " + msg,
             range,
           )
         )
