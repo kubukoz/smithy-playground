@@ -18,12 +18,14 @@ operation CreateHero {
   errors: [HeroIsBad]
 }
 
+@documentation("todo workaround for https://github.com/disneystreaming/smithy4s/issues/35")
 structure CreateHeroInput {
   @httpPayload
   @required
   hero: Hero
 }
 
+@documentation("todo workaround for https://github.com/disneystreaming/smithy4s/issues/35")
 structure CreateHeroOutput {
   @httpPayload
   @required
@@ -65,12 +67,14 @@ operation CreateSubscription {
   output: CreateSubscriptionOutput,
 }
 
+@documentation("todo workaround for https://github.com/disneystreaming/smithy4s/issues/35")
 structure CreateSubscriptionInput {
   @httpPayload
   @required
   subscription: Subscription
 }
 
+@documentation("todo workaround for https://github.com/disneystreaming/smithy4s/issues/35")
 structure CreateSubscriptionOutput {
   @httpPayload
   @required
