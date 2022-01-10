@@ -25,6 +25,7 @@ object run {
       } *>
         runner
           .run(q)
+          .onError { case e => Sync[F].delay(channel.appendLine("ERROR " + e.toString())) }
           .flatMap { out =>
             Sync[F].delay {
               channel.appendLine(s"< $out")

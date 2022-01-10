@@ -16,6 +16,7 @@ object Formatter {
                 fields
                   .value
                   .toList
+                  .sortBy(_._1.value.text)
                   .map { case (k, v) =>
                     val maybeGrouped: Doc => Doc =
                       if (v.value.kind == NodeKind.Struct)

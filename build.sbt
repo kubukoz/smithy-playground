@@ -37,6 +37,7 @@ lazy val core = projectMatrix
       "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "org.typelevel" %%% "cats-parse" % "0.3.6",
       "org.typelevel" %%% "paiges-cats" % "0.4.2",
+      "com.lihaoyi" %%% "sourcecode" % "0.2.7",
     ),
     commonSettings,
   )

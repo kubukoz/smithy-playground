@@ -18,9 +18,11 @@ import smithy4s.Timestamp
 import java.util.UUID
 import PartialCompiler.WAST
 import cats.data.Ior
+import sourcecode.Enclosing
+import cats.Apply
 
 trait PartialCompiler[A] {
-  def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
+  final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
     ast => compile(ast).flatMap(f)
 
   // TODO: Actually use the powers of Ior. Maybe a custom monad for errors / warnings? Diagnosed[A]? Either+Writer composition?
@@ -30,10 +32,11 @@ trait PartialCompiler[A] {
 object PartialCompiler {
   type Result[+A] = IorNec[CompilationError, A]
 
-  implicit val functor: Functor[PartialCompiler] = Derive.functor
+  implicit val functor: Apply[PartialCompiler] = Derive.apply
 
   type WAST = WithSource[InputNode[WithSource]]
 
+  val pos: PartialCompiler[SourceRange] = _.range.rightIor
   val unit: PartialCompiler[Unit] = _ => ().rightIor
 
   def fromPF[A](
@@ -62,7 +65,8 @@ class QueryCompilerSchematic
   extends smithy4s.Schematic[PartialCompiler]
   with schematic.struct.GenericAritySchematic[PartialCompiler] {
 
-  def todo[A]: PartialCompiler[A] = _ => Ior.leftNec(CompilationError("Unsupported operation"))
+  def todo[A](implicit sc: Enclosing): PartialCompiler[A] =
+    _ => Ior.leftNec(CompilationError(s"Unsupported operation: ${sc.value}"))
 
   def short: PartialCompiler[Short] = todo
 
@@ -222,7 +226,17 @@ class QueryCompilerSchematic
     to: A => (String, Int),
     fromName: Map[String, A],
     fromOrdinal: Map[Int, A],
-  ): PartialCompiler[A] = todo
+  ): PartialCompiler[A] = (string, PartialCompiler.pos).tupled.emap { case (name, range) =>
+    fromName
+      .get(name)
+      .toRightIor(
+        CompilationError(
+          s"Unknown enum value: $name. Available values: ${fromName.keys.mkString(", ")}",
+          range.some,
+        )
+      )
+      .toIorNec
+  }
 
   def suspend[A](f: => PartialCompiler[A]): PartialCompiler[A] = todo
 
