@@ -1,3 +1,5 @@
+import demo.smithy.Good
+
 import playground.smithyql.OperationName
 
 import playground.smithyql.Position
@@ -20,7 +22,7 @@ import demo.smithy.DemoServiceGen
 
 import demo.smithy.CreateHeroOutput
 
-import playground.queryEncoderSchematic
+import playground.NodeEncoderSchematic
 import playground.smithyql.SourceRange
 import cats.effect.unsafe.implicits._
 import playground.smithyql.WithSource
@@ -58,7 +60,10 @@ val op = input.endpoint.wrap(input.input)
 
 val ds =
   new DemoService[IO] {
-    def createHero(hero: Hero): IO[CreateHeroOutput] = IO(CreateHeroOutput(hero))
+
+    def createHero(hero: Hero): IO[CreateHeroOutput] = IO(
+      CreateHeroOutput(Hero.GoodCase(Good(420)))
+    )
 
     def createSubscription(subscription: Subscription): IO[CreateSubscriptionOutput] = IO(
       CreateSubscriptionOutput(subscription)
@@ -87,12 +92,12 @@ val wrapWithSource: Id ~> WithSource =
 
   }
 
-Formatter
-  .writeAst(
-    CreateHeroOutput
-      .schema
-      .compile(queryEncoderSchematic)
-      .toNode(out)
-      .mapK(wrapWithSource)
-  )
-  .renderTrim(80)
+// Formatter
+//   .writeAst(
+//     CreateHeroOutput
+//       .schema
+//       .compile(NodeEncoderSchematic)
+//       .toNode(out)
+//       .mapK(wrapWithSource)
+//   )
+//   .renderTrim(80)

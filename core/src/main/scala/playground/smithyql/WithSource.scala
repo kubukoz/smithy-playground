@@ -30,6 +30,18 @@ final case class WithSource[+A](
 
 object WithSource {
 
+  val liftId: Id ~> WithSource =
+    new (Id ~> WithSource) {
+
+      def apply[A](fa: Id[A]): WithSource[A] = WithSource(
+        commentsLeft = Nil,
+        commentsRight = Nil,
+        range = SourceRange(Position(0), Position(0)),
+        value = fa,
+      )
+
+    }
+
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
     def comments(node: InputNode[WithSource]): List[Comment] = node.fold(

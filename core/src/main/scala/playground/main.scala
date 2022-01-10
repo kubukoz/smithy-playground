@@ -1,6 +1,7 @@
 package playground
 
 import cats.FlatMap
+import cats.Id
 import cats.MonadThrow
 import cats.data.NonEmptyList
 import cats.effect.IO
@@ -20,8 +21,10 @@ import smithy4s.http4s.SimpleRestJsonBuilder
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
+  type O
   def input: I
-  def endpoint: Endpoint[Op, I, _, _, _, _]
+  def writeOutput: NodeEncoder[O]
+  def endpoint: Endpoint[Op, I, _, O, _, _]
 }
 
 trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
@@ -57,10 +60,11 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
 
   // for quick lookup and prepared compilers
   private val endpoints: Map[String, WithSource[InputNode[WithSource]] => F[CompiledInput[Op]]] = {
-    def go[In](
-      e: Endpoint[Op, In, _, _, _, _]
+    def go[In, Err, Out](
+      e: Endpoint[Op, In, Err, Out, _, _]
     ): WithSource[InputNode[WithSource]] => F[CompiledInput[Op]] = {
       val schematic = e.input.compile(schem)
+      val outputEncoder = e.output.compile(NodeEncoderSchematic)
 
       ast =>
         schematic
@@ -72,8 +76,10 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
           .map { compiled =>
             new CompiledInput[Op] {
               type I = In
+              type O = Out
               val input: I = compiled
-              val endpoint: Endpoint[Op, I, _, _, _, _] = e
+              val endpoint: Endpoint[Op, I, _, O, _, _] = e
+              def writeOutput: NodeEncoder[Out] = outputEncoder
             }
           }
     }
@@ -94,14 +100,14 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
 }
 
 trait Runner[F[_], Op[_, _, _, _, _]] {
-  def run(q: CompiledInput[Op]): F[Any]
+  def run(q: CompiledInput[Op]): F[InputNode[Id]]
 }
 
 object Runner {
 
   def unlift[F[_]: FlatMap, Op[_, _, _, _, _]](runner: F[Runner[F, Op]]): Runner[F, Op] =
     new Runner[F, Op] {
-      def run(q: CompiledInput[Op]): F[Any] = runner.flatMap(_.run(q))
+      def run(q: CompiledInput[Op]): F[InputNode[Id]] = runner.flatMap(_.run(q))
     }
 
   def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
@@ -114,7 +120,10 @@ object Runner {
       .map { c =>
         val exec = service.asTransformation(c)
 
-        q => IO.defer(exec(q.endpoint.wrap(q.input)))
+        q =>
+          IO.defer(exec(q.endpoint.wrap(q.input))).map { response =>
+            q.writeOutput.toNode(response)
+          }
       }
   }
 

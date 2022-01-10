@@ -1,6 +1,7 @@
 package playground
 
-import cats.Functor
+import cats.Apply
+import cats.data.Ior
 import cats.data.IorNec
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
@@ -14,12 +15,11 @@ import smithy.api.TimestampFormat
 import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Timestamp
+import sourcecode.Enclosing
 
 import java.util.UUID
+
 import PartialCompiler.WAST
-import cats.data.Ior
-import sourcecode.Enclosing
-import cats.Apply
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =

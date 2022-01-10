@@ -6,6 +6,8 @@ import playground.smithyql.SmithyQLParser
 import typings.vscode.mod.OutputChannel
 import typings.vscode.mod.TextEditor
 import typings.vscode.mod.window
+import playground.smithyql.Formatter
+import playground.smithyql.WithSource
 
 object run {
 
@@ -17,23 +19,27 @@ object run {
   ): F[Unit] = SmithyQLParser
     .parseFull(ted.document.getText())
     .liftTo[F]
-    .flatMap(compiler.compile)
-    .flatMap { q =>
-      Sync[F].delay {
-        channel.show()
-        channel.appendLine(s"> ${q.input}")
-      } *>
-        runner
-          .run(q)
-          .onError { case e => Sync[F].delay(channel.appendLine("ERROR " + e.toString())) }
-          .flatMap { out =>
-            Sync[F].delay {
-              channel.appendLine(s"< $out")
-            }
-          }
-    }
-    .onError { e =>
-      Sync[F].delay(window.showErrorMessage(e.getMessage())).void
+    .flatMap { parsed =>
+      compiler
+        .compile(parsed)
+        .flatMap { compiled =>
+          Sync[F].delay {
+            channel.show()
+            channel.appendLine(s"Calling ${parsed.operationName.value.text}")
+          } *>
+            runner
+              .run(compiled)
+              .onError { case e => Sync[F].delay(channel.appendLine("ERROR " + e.toString())) }
+              .flatMap { out =>
+                Sync[F].delay {
+                  channel.appendLine(s"Succeeded ${parsed.operationName.value.text}, response:")
+                  channel.appendLine(Formatter.writeAst(out.mapK(WithSource.liftId)).renderTrim(80))
+                }
+              }
+        }
+        .onError { e =>
+          Sync[F].delay(window.showErrorMessage(e.getMessage())).void
+        }
     }
 
 }

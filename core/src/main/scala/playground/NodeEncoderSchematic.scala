@@ -20,7 +20,7 @@ trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
 }
 
-object queryEncoderSchematic
+object NodeEncoderSchematic
   extends Schematic[NodeEncoder]
   with schematic.struct.GenericAritySchematic[NodeEncoder] {
 
@@ -69,14 +69,21 @@ object queryEncoderSchematic
     s =>
       Struct[Id] {
 
-        def go[A](f: Field[NodeEncoder, S, A]) =
-          if (f.isOptional)
-            f.get(s) match {
-              case Some(a) => Some(f.label -> f.instance.toNode(a.asInstanceOf[f.T]))
-              case None    => None
-            }
-          else
-            Some(f.label -> f.instance.toNode(f.get(s).asInstanceOf[f.T]))
+        def go[A](
+          f: Field[NodeEncoder, S, A]
+        ) = f.fold(new Field.Folder[NodeEncoder, S, Option[(String, InputNode[Id])]] {
+          def onRequired[F](
+            label: String,
+            instance: NodeEncoder[F],
+            get: S => F,
+          ): Option[(String, InputNode[Id])] = Some(label -> instance.toNode(get(s)))
+
+          def onOptional[F](
+            label: String,
+            instance: NodeEncoder[F],
+            get: S => Option[F],
+          ): Option[(String, InputNode[Id])] = get(s).map(f => label -> instance.toNode(f))
+        })
 
         fields.flatMap {
           go(_).map { case (s, v) => Struct.Key(s) -> v }
