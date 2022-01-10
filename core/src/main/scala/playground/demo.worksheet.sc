@@ -1,5 +1,28 @@
-import playground.smithyql.SourceRange
+import playground.smithyql.OperationName
 
+import playground.smithyql.Position
+
+import cats.Id
+
+import playground.smithyql.Query
+import playground.smithyql.Formatter
+import demo.smithy.Hero
+
+import demo.smithy.CreateSubscriptionOutput
+import demo.smithy.Subscription
+import demo.smithy.DemoService
+import cats.effect.IO
+
+import demo.smithy.DemoServiceOperation
+
+import java.security.interfaces.DSAKeyPairGenerator
+import demo.smithy.DemoServiceGen
+
+import demo.smithy.CreateHeroOutput
+
+import playground.queryEncoderSchematic
+import playground.smithyql.SourceRange
+import cats.effect.unsafe.implicits._
 import playground.smithyql.WithSource
 
 import playground.smithyql.Struct
@@ -10,10 +33,8 @@ val raw = """
 CreateHero {
   hero = {
     bad = {
-
-      // evilName = "Devil",
-      // powerLevel = 420,
-
+      evilName = "Devil",
+      powerLevel = 420,
     },
   },
 }
@@ -25,23 +46,53 @@ val q =
     .toTry
     .get
 
-val also = q
-  .input
-  .fields
-  .value
-  .value
-  .toList
-  .collectFirst { case (k, v) if k.value.text == "hero" => v }
-  .get
-  .asInstanceOf[Struct[WithSource]]
-  .fields
-  .value
-  .value
-  .toList
-  .collectFirst { case (k, v) if k.value.text == "bad" => v }
-  .get
-  .asInstanceOf[Struct[WithSource]]
-
 def show(range: SourceRange) = raw.substring(range.start.index, range.end.index)
 
-show(also.fields.value.range)
+val result = playground
+  .Compiler
+  .instance[DemoServiceGen, DemoServiceOperation, IO](DemoServiceGen)
+
+val input = result.compile(SmithyQLParser.parseFull(raw).toOption.get).unsafeRunSync()
+
+val op = input.endpoint.wrap(input.input)
+
+val ds =
+  new DemoService[IO] {
+    def createHero(hero: Hero): IO[CreateHeroOutput] = IO(CreateHeroOutput(hero))
+
+    def createSubscription(subscription: Subscription): IO[CreateSubscriptionOutput] = IO(
+      CreateSubscriptionOutput(subscription)
+    )
+
+  }
+
+val out: CreateHeroOutput = DemoServiceGen
+  .asTransformation(ds)
+  .apply(op)
+  .unsafeRunSync()
+  .asInstanceOf[CreateHeroOutput]
+
+//
+//
+//
+
+import cats.~>
+
+val wrapWithSource: Id ~> WithSource =
+  new (Id ~> WithSource) {
+
+    def apply[A](
+      fa: Id[A]
+    ): WithSource[A] = WithSource(Nil, Nil, SourceRange(Position(0), Position(0)), fa)
+
+  }
+
+Formatter
+  .writeAst(
+    CreateHeroOutput
+      .schema
+      .compile(queryEncoderSchematic)
+      .toNode(out)
+      .mapK(wrapWithSource)
+  )
+  .renderTrim(80)
