@@ -71,7 +71,7 @@ object extension {
               .full[EitherThrow](doc.getText())
               .map { case (parsed, _) =>
                 new mod.CodeLens(
-                  adapters.toVscodeRange(doc)(parsed.operationName.range),
+                  adapters.toVscodeRange(doc, parsed.operationName.range),
                   mod.Command("smithyql.runQuery", "Run query"),
                 )
               }

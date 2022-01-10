@@ -50,7 +50,7 @@ object PartialCompiler {
           NonEmptyChain(
             CompilationError(
               orElseMessage(ast),
-              Some(ast.range),
+              ast.range,
             )
           )
         )
@@ -59,14 +59,14 @@ object PartialCompiler {
 }
 
 //todo adt
-final case class CompilationError(message: String, range: Option[SourceRange] = None)
+final case class CompilationError(message: String, range: SourceRange)
 
 class QueryCompilerSchematic
   extends smithy4s.Schematic[PartialCompiler]
   with schematic.struct.GenericAritySchematic[PartialCompiler] {
 
   def todo[A](implicit sc: Enclosing): PartialCompiler[A] =
-    _ => Ior.leftNec(CompilationError(s"Unsupported operation: ${sc.value}"))
+    ast => Ior.leftNec(CompilationError(s"Unsupported operation: ${sc.value}", ast.range))
 
   def short: PartialCompiler[Short] = todo
 
@@ -141,7 +141,7 @@ class QueryCompilerSchematic
           .map { unexpectedKey =>
             CompilationError(
               "Unexpected field" + expectedRemainingString,
-              Some(unexpectedKey.range),
+              unexpectedKey.range,
             )
           }
           .toList
@@ -164,7 +164,7 @@ class QueryCompilerSchematic
             else
               fieldOpt.flatMap {
                 _.toRightIor(
-                  CompilationError(s"Missing field ${field.label}", struct.value.fields.range.some)
+                  CompilationError(s"Missing field ${field.label}", struct.value.fields.range)
                 ).toIorNec
               }
           }
@@ -187,6 +187,7 @@ class QueryCompilerSchematic
         s"Expected a union struct, got ${ast.value.kind} instead"
       )
       .emap {
+        // todo rework errors
         case s if s.value.fields.value.size == 1 =>
           val defs = s.value.fields.value
           def go[A](
@@ -203,7 +204,8 @@ class QueryCompilerSchematic
                 CompilationError(
                   "wrong shape, this union requires one of: " + opts
                     .map(_.label)
-                    .mkString_(", ")
+                    .mkString_(", "),
+                  s.range,
                 )
               )
               .toIorNec
@@ -212,12 +214,14 @@ class QueryCompilerSchematic
 
         case s if s.value.fields.value.isEmpty =>
           CompilationError(
-            "found empty struct, expected one of: " + opts.map(_.label).mkString_(", ")
+            "found empty struct, expected one of: " + opts.map(_.label).mkString_(", "),
+            s.range,
           ).leftIor.toIorNec
 
         case s =>
           CompilationError(
-            s"struct mismatch (keys: ${s.value.fields.value.keys.map(_.value.text).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}"
+            s"struct mismatch (keys: ${s.value.fields.value.keys.map(_.value.text).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}",
+            s.range,
           ).leftIor.toIorNec
       }
   }
@@ -232,7 +236,7 @@ class QueryCompilerSchematic
       .toRightIor(
         CompilationError(
           s"Unknown enum value: $name. Available values: ${fromName.keys.mkString(", ")}",
-          range.some,
+          range,
         )
       )
       .toIorNec
@@ -249,9 +253,9 @@ class QueryCompilerSchematic
   val timestamp: PartialCompiler[Timestamp] = stringLiteral.emap { s =>
     Timestamp
       // todo unhardcode format
-      // todo: also, this keeps throwing in an uncatchable way
+      // todo: also, this keeps throwing in an uncatchable way in JS
       .parse(s.value, TimestampFormat.DATE_TIME)
-      .toRightIor(CompilationError("Invalid timestamp format", Some(s.range)))
+      .toRightIor(CompilationError("Invalid timestamp format", s.range))
       .toIorNec
   }
 

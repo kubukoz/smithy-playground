@@ -23,7 +23,7 @@ object highlight {
         List(
           error(
             s"Operation not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}",
-            adapters.toVscodeRange(doc)(name.range),
+            adapters.toVscodeRange(doc, name.range),
           )
         )
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>
@@ -55,7 +55,7 @@ object highlight {
             errors.map { ee => // dźwig
               error(
                 ee.message,
-                ee.range.fold(defaultRange)(adapters.toVscodeRange(doc)),
+                adapters.toVscodeRange(doc, ee.range),
               )
             }.toList
 
