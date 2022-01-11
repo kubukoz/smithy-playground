@@ -23,6 +23,7 @@ object client {
           def createSubscription(subscription: Subscription): F[CreateSubscriptionOutput] =
             CreateSubscriptionOutput(subscription).pure[F]
 
+          def getPowers(): F[GetPowersOutput] = GetPowersOutput(Nil).pure[F]
         }
       }
       .resource

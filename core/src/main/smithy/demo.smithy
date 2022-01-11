@@ -5,7 +5,7 @@ use smithy4s.api#simpleRestJson
 @simpleRestJson
 service DemoService {
   version: "0.0.1",
-  operations: [CreateHero, CreateSubscription],
+  operations: [CreateHero, GetPowers, CreateSubscription],
 }
 
 @http(method: "POST", uri: "/heroes")
@@ -14,6 +14,7 @@ operation CreateHero {
   output: CreateHeroOutput,
   errors: [HeroIsBad]
 }
+
 
 structure CreateHeroInput {
   @httpPayload
@@ -50,6 +51,25 @@ structure HeroIsBad {
   @required
   powerLevel: Integer
 }
+
+@http(method: "GET", uri: "/poweres")
+@readonly
+operation GetPowers {
+  output: GetPowersOutput,
+}
+
+structure GetPowersOutput {
+  @httpPayload
+  @required
+  powers: Powers
+}
+
+list Powers {
+  member: Power
+}
+
+@enum([{value: "Ice", name: "ICE"}, {value: "Fire", name: "FIRE"}, {value: "Lightning", name: "LIGHTNING"}, {value: "Wind", name: "WIND"}])
+string Power
 
 
 @http(method: "PUT", uri: "/subscriptions")
