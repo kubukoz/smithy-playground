@@ -1,7 +1,5 @@
 {
-  "mavenRepositories": [
-    "https://artifactory.us-east-1.bamgrid.net/artifactory/oss-maven/"
-  ],
+  "imports": ["./core/src/main/smithy"],
   "mavenDependencies": [
     "com.disneystreaming.smithy4s:smithy4s-protocol_2.13:0.0.0-388-16474590"
   ]
