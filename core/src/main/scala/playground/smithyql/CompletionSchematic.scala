@@ -40,6 +40,12 @@ class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
 
   }
 
+  override def enumeration[A](
+    to: A => (String, Int),
+    fromName: Map[String, A],
+    fromOrdinal: Map[Int, A],
+  ): Result[A] = _ => fromName.keySet.toList
+
   override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = f
 
   override def withHints[A](fa: Result[A], hints: Hints): Result[A] = fa

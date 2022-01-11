@@ -85,5 +85,10 @@ structure Subscription {
   @required
   id: String,
   name: String,
-  createdAt: Timestamp
+  createdAt: Timestamp,
+  status: SubscriptionStatus
 }
+
+
+@enum([{name: "ACTIVE", value: "ACTIVE"}, {name: "INACTIVE", value: "INACTIVE"}])
+string SubscriptionStatus
