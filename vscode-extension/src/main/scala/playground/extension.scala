@@ -61,7 +61,7 @@ object extension {
           "smithyql",
           mod
             .CompletionItemProvider { (doc, pos, _, _) =>
-              completions.complete(DemoServiceGen)(doc, pos).toJSArray
+              completionProvider(doc, pos).toJSArray
             },
           // todo this might not be working properly
           "\t",
