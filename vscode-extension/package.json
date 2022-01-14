@@ -56,10 +56,10 @@
   ],
   "main": "./out/extension",
   "dependencies": {
-    "@types/vscode": "1.63.1"
+    "vscode": "^1.1.37"
   },
   "devDependencies": {
-    "vsce": "^2.5.3",
-    "typescript": "4.5.2"
+    "typescript": "4.5.2",
+    "vsce": "^2.5.3"
   }
 }
