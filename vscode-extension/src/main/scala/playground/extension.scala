@@ -58,7 +58,7 @@ object extension {
         languages.registerCompletionItemProvider(
           "smithyql",
           mod
-            .CompletionItemProvider[mod.CompletionItem] { (doc, pos, _, _) =>
+            .CompletionItemProvider { (doc, pos, _, _) =>
               completions.complete(doc, pos).toJSArray
             },
           // todo this might not be working properly

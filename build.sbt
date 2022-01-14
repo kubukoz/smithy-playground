@@ -3,7 +3,7 @@ import scala.sys.process._
 def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
 
 val compilerPlugins = List(
-  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.11"),
+  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.13"),
   crossPlugin("org.typelevel" % "kind-projector" % "0.13.2"),
 )
 
@@ -11,24 +11,21 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val commonScalaVersions = Seq("2.13.7")
+val commonScalaVersions = Seq("2.13.8")
 
 val commonSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.typelevel" %%% "cats-effect" % "3.3.1",
+    "org.typelevel" %%% "cats-effect" % "3.3.4",
     "org.typelevel" %%% "cats-tagless-macros" % "0.14.0",
     "com.disneystreaming" %%% "weaver-cats" % "0.7.9" % Test,
-    "com.disneystreaming" %% "weaver-discipline" % "0.7.9" % Test,
-    "com.disneystreaming" %% "weaver-scalacheck" % "0.7.9" % Test,
+    "com.disneystreaming" %%% "weaver-discipline" % "0.7.9" % Test,
+    "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.9" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   libraryDependencies ++= compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
   scalacOptions ++= Seq("-Xsource:3.0"),
-  Compile / doc / sources := Seq(),
-  // todo
-  test := {},
 )
 
 lazy val core = projectMatrix
@@ -66,9 +63,10 @@ lazy val vscode = projectMatrix
         ).!
         (ThisBuild / baseDirectory).value / "vscode-extension"
       },
-      scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
       Compile / fastOptJS / artifactPath := (ThisBuild / baseDirectory).value / "vscode-extension" / "out" / "extension.js",
       Compile / fullOptJS / artifactPath := (ThisBuild / baseDirectory).value / "vscode-extension" / "out" / "extension.js",
+      test := {},
+      scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
     ),
   )
 
