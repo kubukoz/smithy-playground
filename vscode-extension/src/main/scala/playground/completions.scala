@@ -22,7 +22,7 @@ object completions {
     val completeOperationName = service
       .endpoints
       .map { e =>
-        val getName = new getNameHint
+        val getName = new GetNameHint
         new mod.CompletionItem(
           s"${e.name}: ${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}",
           mod.CompletionItemKind.Function,

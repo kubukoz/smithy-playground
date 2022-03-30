@@ -6,13 +6,13 @@ import smithy4s.ShapeId
 import smithy4s.StubSchematic
 import smithy4s.internals.Hinted
 
-object getNameHint {
+object GetNameHint {
   type Result[A] = Hinted[Eval, String]
 }
 
-import getNameHint._
+import GetNameHint._
 
-class getNameHint extends StubSchematic[Result] {
+class GetNameHint extends StubSchematic[Result] {
 
   def default[A]: Result[A] = Hinted[Eval].from { hints =>
     val hint = hints.get[ShapeId].get
