@@ -61,9 +61,7 @@ object PartialCompiler {
 //todo adt
 final case class CompilationError(message: String, range: SourceRange)
 
-class QueryCompilerSchematic
-  extends smithy4s.Schematic[PartialCompiler]
-  with schematic.struct.GenericAritySchematic[PartialCompiler] {
+class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def todo[A](implicit sc: Enclosing): PartialCompiler[A] =
     ast => Ior.leftNec(CompilationError(s"Unsupported operation: ${sc.value}", ast.range))
@@ -111,7 +109,7 @@ class QueryCompilerSchematic
 
   def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] = todo
 
-  def genericStruct[S](
+  def struct[S](
     fields: Vector[Field[PartialCompiler, S, _]]
   )(
     const: Vector[Any] => S

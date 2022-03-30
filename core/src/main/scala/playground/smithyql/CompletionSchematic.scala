@@ -15,7 +15,7 @@ class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
 
   def default[A]: Result[A] = _ => Nil
 
-  override def genericStruct[S](
+  override def struct[S](
     fields: Vector[Field[Result, S, _]]
   )(
     const: Vector[Any] => S

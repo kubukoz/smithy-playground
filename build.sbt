@@ -36,7 +36,6 @@ lazy val core = projectMatrix
       "org.typelevel" %%% "paiges-cats" % "0.4.2",
       "com.lihaoyi" %%% "sourcecode" % "0.2.7",
     ),
-    libraryDependencies -= "com.disneystreaming.smithy4s" %% "smithy4s-core" % smithy4sVersion.value,
     commonSettings,
   )
   .jvmPlatform(commonScalaVersions)

@@ -20,9 +20,7 @@ trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
 }
 
-object NodeEncoderSchematic
-  extends Schematic[NodeEncoder]
-  with schematic.struct.GenericAritySchematic[NodeEncoder] {
+object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def todo[A](implicit sc: Enclosing): NodeEncoder[A] =
     v => throw new Exception(s"Unsupported operation: ${sc.value} for value $v")
@@ -61,7 +59,7 @@ object NodeEncoderSchematic
 
   def map[K, V](fk: NodeEncoder[K], fv: NodeEncoder[V]): NodeEncoder[Map[K, V]] = todo
 
-  def genericStruct[S](
+  def struct[S](
     fields: Vector[Field[NodeEncoder, S, _]]
   )(
     const: Vector[Any] => S
