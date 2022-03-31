@@ -21,6 +21,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.api.SimpleRestJson
 import smithy4s.SchemaIndex
 import smithy4s.dynamic.model.Model
+import scala.scalajs.js
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -32,13 +33,28 @@ object extension {
     import io.scalajs.nodejs.child_process.ChildProcess
     import io.scalajs.nodejs.child_process.Output
 
+    val deps = mod
+      .workspace
+      .getConfiguration()
+      .get[js.Array[String]]("smithyql.dependencies", js.Array[String]())
+
+    val repos = mod
+      .workspace
+      .getConfiguration()
+      .get[js.Array[String]]("smithyql.repositories", js.Array[String]())
+
     val process: Output = ChildProcess.execFileSync(
       "/nix/store/m5igl1nk1wblx5alzj8r2l56awnwgyvk-smithy4s-codegen-0.12.7/bin/smithy4s-codegen",
       scalajs
         .js
         .Array(
           "dump-model",
-          "/Users/kubukoz/projects/smithy-playground/core/src/main/smithy/demo.smithy",
+          "--repositories",
+          // todo handle empty case
+          repos.mkString(","),
+          "--dependencies",
+          // todo handle empty case
+          deps.mkString(","),
         ),
     )
 

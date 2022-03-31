@@ -47,6 +47,14 @@
           "type": "number",
           "description": "The maximum desired width of formatted queries. Note that this isn't a hard limit, as some lines can't be formatted below a given amount of characters.",
           "default": 80
+        },
+        "smithyql.dependencies": {
+          "type": "array",
+          "description": "Extra dependencies to dump the model from"
+        },
+        "smithyql.repositories": {
+          "type": "array",
+          "description": "Extra repositories to fetch the dependencies from"
         }
       }
     }
