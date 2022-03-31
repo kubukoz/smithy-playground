@@ -11,6 +11,8 @@ import smithy4s.api.SimpleRestJson
 import smithy4s.dynamic.model.Model
 import smithy4s.SchemaIndex
 import scala.scalajs.js.JSConverters._
+import smithy.api.Documentation
+import smithy.api.ExternalDocumentation
 
 object build {
 
@@ -75,8 +77,11 @@ object build {
   case class BuildInfo(deps: List[String], repos: List[String], imports: List[String])
 
   def getService(buildFile: BuildInfo): DynamicSchemaIndex.ServiceWrapper = {
-    val repos = buildFile.repos.toNel.foldMap(repos => "--repositories" :: repos.toList)
-    val deps = buildFile.deps.toNel.foldMap(deps => "--dependencies" :: deps.toList)
+    val repos = buildFile
+      .repos
+      .toNel
+      .foldMap(repos => "--repositories" :: repos.mkString_(",") :: Nil)
+    val deps = buildFile.deps.toNel.foldMap(deps => "--dependencies" :: deps.mkString_(",") :: Nil)
 
     val args =
       "dump-model" ::
@@ -105,7 +110,7 @@ object build {
             .protocol
             .schemas ++
             // todo: should be included
-            SchemaIndex(SimpleRestJson),
+            SchemaIndex(SimpleRestJson, Documentation, ExternalDocumentation),
         )
         .allServices
 

@@ -35,10 +35,15 @@ object extension {
     .flatMap { service =>
       client
         .make[IO](useNetwork = false)
-        .flatMap { client =>
-          Runner
-            .make(service.service, client)
-            .evalMap(implicit runner => IO(activateInternal(context, service.service)))
+        .evalMap { client =>
+          implicit val runnerOpt
+            : Runner.Optional[IO, service.Op] = Runner.make(service.service, client)
+          IO(
+            activateInternal(
+              context,
+              service.service,
+            )
+          )
         }
     }
     .allocated
@@ -49,7 +54,7 @@ object extension {
     context: ExtensionContext,
     service: Service[Alg, Op],
   )(
-    implicit runner: Runner[IO, Op]
+    implicit runner: Runner.Optional[IO, Op]
   ): Unit = {
     implicit val compiler: Compiler[Op, EitherThrow] = Compiler.instance(
       service.service
@@ -66,8 +71,13 @@ object extension {
           .registerTextEditorCommand(
             "smithyql.runQuery",
             (ted, _, _) =>
-              run
-                .perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
+              runner
+                .get
+                // todo just show error if protocol is unsupported
+                .liftTo[IO]
+                .flatMap {
+                  run.perform[IO, Op](ted, compiler.mapK(eitherToIO), _, chan)
+                }
                 .unsafeRunAndForget(),
           ),
         languages.registerCompletionItemProvider(
@@ -82,16 +92,20 @@ object extension {
         languages.registerCodeLensProvider(
           "smithyql",
           mod.CodeLensProvider { (doc, _) =>
-            validate
-              .full[Op, EitherThrow](doc.getText())
-              .map { case (parsed, _) =>
-                new mod.CodeLens(
-                  adapters.toVscodeRange(doc, parsed.operationName.range),
-                  mod.Command("smithyql.runQuery", "Run query"),
-                )
-              }
-              .toList
-              .toJSArray
+            {
+              if (runner.get.isRight)
+                validate
+                  .full[Op, EitherThrow](doc.getText())
+                  .map { case (parsed, _) =>
+                    new mod.CodeLens(
+                      adapters.toVscodeRange(doc, parsed.operationName.range),
+                      mod.Command("smithyql.runQuery", "Run query"),
+                    )
+                  }
+                  .toList
+              else
+                Nil
+            }.toJSArray
           },
         ),
         languages.registerDocumentFormattingEditProvider(

@@ -7,7 +7,14 @@ import smithy4s.StubSchematic
 
 object CompletionSchematic {
   // from context
-  type Result[+A] = List[String] => List[String]
+  type Result[+A] = List[String] => List[CompletionItem]
+}
+
+sealed trait CompletionItem extends Product with Serializable
+
+object CompletionItem {
+  final case class Field(label: String) extends CompletionItem
+  final case class UnionMember(label: String) extends CompletionItem
 }
 
 final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
@@ -20,7 +27,13 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
   )(
     const: Vector[Any] => S
   ): Result[S] = {
-    case Nil       => fields.sortBy(field => (field.isRequired, field.label)).map(_.label).toList
+    case Nil =>
+      fields
+        .sortBy(field => (field.isRequired, field.label))
+        .map(_.label)
+        .map(CompletionItem.Field(_))
+        .toList
+
     case h :: rest => fields.find(_.label == h).toList.flatMap(_.instance(rest))
   }
 
@@ -35,19 +48,9 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     {
       case head :: tail => all.find(_.label == head).toList.flatMap(_.instance(tail))
 
-      case Nil => all.map(_.label).toList
+      case Nil => all.map(_.label).map(CompletionItem.UnionMember(_)).toList
     }
 
-  }
-
-  override def enumeration[A](
-    to: A => (String, Int),
-    fromName: Map[String, A],
-    fromOrdinal: Map[Int, A],
-  ): Result[A] = {
-    // todo: the input should probably be something like List(stringLiteral) for this to happen
-    case Nil => fromName.keySet.toList
-    case _   => Nil
   }
 
   override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = f

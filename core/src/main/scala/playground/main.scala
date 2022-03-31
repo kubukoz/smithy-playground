@@ -1,11 +1,10 @@
 package playground
 
-import cats.FlatMap
+import cats.Defer
 import cats.Id
 import cats.MonadThrow
 import cats.data.NonEmptyList
-import cats.effect.IO
-import cats.effect.kernel.Resource
+import cats.effect.Concurrent
 import cats.implicits._
 import cats.~>
 import org.http4s.client.Client
@@ -18,6 +17,7 @@ import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
+import smithy4s.UnsupportedProtocolError
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -111,26 +111,27 @@ trait Runner[F[_], Op[_, _, _, _, _]] {
 
 object Runner {
 
-  def unlift[F[_]: FlatMap, Op[_, _, _, _, _]](runner: F[Runner[F, Op]]): Runner[F, Op] =
-    new Runner[F, Op] {
-      def run(q: CompiledInput[Op]): F[InputNode[Id]] = runner.flatMap(_.run(q))
-    }
-
-  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op],
-    client: Client[IO],
-  ): Resource[IO, Runner[IO, Op]] = {
-    val b = SimpleRestJsonBuilder(service)
-
-    b.clientResource(client, uri"http://localhost:8082")
-      .map { c =>
-        val exec = service.asTransformation(c)
-
-        q =>
-          IO.defer(exec(q.endpoint.wrap(q.input))).map { response =>
-            q.writeOutput.toNode(response)
-          }
-      }
+  trait Optional[F[_], Op[_, _, _, _, _]] {
+    def get: Either[UnsupportedProtocolError, Runner[F, Op]]
   }
+
+  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Defer: Concurrent](
+    service: Service[Alg, Op],
+    client: Client[F],
+  ): Optional[F, Op] =
+    new Optional[F, Op] {
+
+      val get: Either[UnsupportedProtocolError, Runner[F, Op]] = SimpleRestJsonBuilder(service)
+        .client(client, uri"http://localhost:8082")
+        .map { c =>
+          val exec = service.asTransformation(c)
+
+          q =>
+            Defer[F].defer(exec(q.endpoint.wrap(q.input))).map { response =>
+              q.writeOutput.toNode(response)
+            }
+        }
+
+    }
 
 }

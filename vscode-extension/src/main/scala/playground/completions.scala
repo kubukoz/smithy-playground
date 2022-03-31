@@ -11,6 +11,8 @@ import typings.vscode.mod
 
 import smithyql.CompletionSchematic
 import util.chaining._
+import playground.smithyql.CompletionItem.Field
+import playground.smithyql.CompletionItem.UnionMember
 
 object completions {
 
@@ -58,8 +60,16 @@ object completions {
                 val result = e.input.compile(new CompletionSchematic).apply(ctx)
 
                 result.map { key =>
-                  new mod.CompletionItem(key, mod.CompletionItemKind.Field)
-                    .tap(_.insertText = key + " = ")
+                  key match {
+                    case Field(label) =>
+                      new mod.CompletionItem(label, mod.CompletionItemKind.Field)
+                        // todo determine RHS based on field type
+                        .tap(_.insertText = s"$label = ")
+
+                    case UnionMember(label) =>
+                      new mod.CompletionItem(label, mod.CompletionItemKind.Class)
+                        .tap(_.insertText = new mod.SnippetString(s"$label = {$$0},"))
+                  }
                 }
 
               case _ => Nil
