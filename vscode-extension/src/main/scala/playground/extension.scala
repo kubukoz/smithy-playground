@@ -19,6 +19,7 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 import types._
 import smithy4s.Service
 import cats.effect.std
+import org.http4s.Uri
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -36,14 +37,20 @@ object extension {
       client
         .make[IO](useNetwork = false)
         .evalMap { client =>
-          implicit val runnerOpt
-            : Runner.Optional[IO, service.Op] = Runner.make(service.service, client)
-          IO(
-            activateInternal(
-              context,
-              service.service,
-            )
-          )
+          Uri
+            .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUri"))
+            .liftTo[IO]
+            .flatMap { baseUri =>
+              implicit val runnerOpt
+                : Runner.Optional[IO, service.Op] = Runner.make(service.service, client, baseUri)
+
+              IO {
+                activateInternal(
+                  context,
+                  service.service,
+                )
+              }
+            }
         }
     }
     .allocated

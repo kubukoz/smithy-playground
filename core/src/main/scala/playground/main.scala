@@ -8,7 +8,6 @@ import cats.effect.Concurrent
 import cats.implicits._
 import cats.~>
 import org.http4s.client.Client
-import org.http4s.implicits._
 import playground._
 import playground.smithyql.InputNode
 import playground.smithyql.OperationName
@@ -18,6 +17,7 @@ import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.UnsupportedProtocolError
+import org.http4s.Uri
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -118,11 +118,12 @@ object Runner {
   def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Defer: Concurrent](
     service: Service[Alg, Op],
     client: Client[F],
+    baseUri: Uri,
   ): Optional[F, Op] =
     new Optional[F, Op] {
 
       val get: Either[UnsupportedProtocolError, Runner[F, Op]] = SimpleRestJsonBuilder(service)
-        .client(client, uri"http://localhost:8082")
+        .client(client, baseUri)
         .map { c =>
           val exec = service.asTransformation(c)
 

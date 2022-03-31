@@ -11,11 +11,7 @@ import debug.timed
 object format {
 
   def perform(doc: TextDocument): List[TextEdit] = {
-    val maxWidth = mod
-      .workspace
-      .getConfiguration()
-      .get[Int]("smithyql.formatter.maxWidth")
-      .getOrElse(sys.error("no maxWidth set"))
+    val maxWidth = vscodeutil.unsafeGetConfig[Int]("smithyql.formatter.maxWidth")
 
     val firstLine = doc.lineAt(0)
     val lastLine = doc.lineAt(doc.lineCount - 1)

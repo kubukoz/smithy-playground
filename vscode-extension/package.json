@@ -47,6 +47,12 @@
           "type": "number",
           "description": "The maximum desired width of formatted queries. Note that this isn't a hard limit, as some lines can't be formatted below a given amount of characters.",
           "default": 80
+        },
+        "smithyql.http.baseUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "The base URL of the HTTP server to use for running queries.",
+          "default": "http://localhost:8080"
         }
       }
     }
