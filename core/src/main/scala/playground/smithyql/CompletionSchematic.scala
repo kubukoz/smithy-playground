@@ -20,7 +20,7 @@ class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
   )(
     const: Vector[Any] => S
   ): Result[S] = {
-    case Nil       => fields.map(_.label).toList
+    case Nil       => fields.sortBy(field => (field.isRequired, field.label)).map(_.label).toList
     case h :: rest => fields.find(_.label == h).toList.flatMap(_.instance(rest))
   }
 

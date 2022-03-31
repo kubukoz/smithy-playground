@@ -49,6 +49,7 @@ object WithSource {
   case class OperationThing(opName: WithSource[OperationName]) extends Thing
 
   case class StructThing(
+    // why do we need this?
     content: WithSource[Map[WithSource[Struct.Key], WithSource[InputNode[WithSource]]]],
     context: List[String],
   ) extends Thing
@@ -60,24 +61,28 @@ object WithSource {
       else
         None
 
-    val input = q
-      .input
+    val input = findInStruct(q.input, pos)
+
+    op.orElse(input)
+  }
+
+  private def findInStruct(struct: WithSource[Struct[WithSource]], pos: Position): Option[Thing] =
+    struct
       .value
       .fields
       .value
+      // find the first field whose value we're in
       .collectFirst {
         case (k, v) if v.range.contains(pos) && v.value.kind == NodeKind.Struct =>
           StructThing(v.value.asInstanceOf[Struct[WithSource]].fields, k.value.text :: Nil)
       }
+      // we're only in the struct
       .orElse {
-        if (q.input.range.contains(pos))
-          StructThing(q.input.value.fields, Nil).some
+        if (struct.range.contains(pos))
+          StructThing(struct.value.fields, Nil).some
         else
           None
       }
-
-    op.orElse(input)
-  }
 
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
