@@ -2,17 +2,17 @@ package playground
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
-import typings.vscode.mod
-import scalajs.js
 import cats.implicits._
-import smithy4s.dynamic.DynamicSchemaIndex
 import io.scalajs.nodejs.child_process.ChildProcess
-import smithy4s.api.SimpleRestJson
-import smithy4s.dynamic.model.Model
 import smithy4s.SchemaIndex
+import smithy4s.api.SimpleRestJson
+import smithy4s.dynamic.DynamicSchemaIndex
+import smithy4s.dynamic.model.Model
+import typings.vscode.mod
+
 import scala.scalajs.js.JSConverters._
-import smithy.api.Documentation
-import smithy.api.ExternalDocumentation
+
+import scalajs.js
 
 object build {
 
@@ -110,7 +110,12 @@ object build {
             .protocol
             .schemas ++
             // todo: should be included
-            SchemaIndex(SimpleRestJson, Documentation, ExternalDocumentation),
+            SchemaIndex(
+              SimpleRestJson,
+              smithy.api.Documentation,
+              smithy.api.ExternalDocumentation,
+              smithy.api.Deprecated,
+            ),
         )
         .allServices
 

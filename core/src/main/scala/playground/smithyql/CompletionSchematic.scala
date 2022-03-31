@@ -14,7 +14,7 @@ sealed trait CompletionItem extends Product with Serializable
 
 object CompletionItem {
   final case class Field(label: String) extends CompletionItem
-  final case class UnionMember(label: String) extends CompletionItem
+  final case class UnionMember(label: String, deprecated: Boolean) extends CompletionItem
 }
 
 final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
@@ -48,7 +48,9 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     {
       case head :: tail => all.find(_.label == head).toList.flatMap(_.instance(tail))
 
-      case Nil => all.map(_.label).map(CompletionItem.UnionMember(_)).toList
+      case Nil =>
+        // todo: get deprecation hint
+        all.map(_.label).map(CompletionItem.UnionMember(_, deprecated = false)).toList
     }
 
   }

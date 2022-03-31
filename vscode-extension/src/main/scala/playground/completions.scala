@@ -13,6 +13,7 @@ import smithyql.CompletionSchematic
 import util.chaining._
 import playground.smithyql.CompletionItem.Field
 import playground.smithyql.CompletionItem.UnionMember
+import scala.scalajs.js.JSConverters._
 
 object completions {
 
@@ -24,11 +25,15 @@ object completions {
       .map { e =>
         val getName = GetNameHint.singleton
         new mod.CompletionItem(
-          s"${e.name}: ${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}",
+          s"${e.name}",
           mod.CompletionItemKind.Function,
-        ).tap(_.insertText = e.name)
+        )
+          .tap(_.insertText = e.name)
+          .tap(_.detail =
+            s"${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}"
+          )
           .tap(
-            _.detail = List(
+            _.documentation = List(
               e.hints.get(Http).map { http =>
                 show"HTTP ${http.method.value} ${http.uri.value} "
               },
@@ -66,9 +71,18 @@ object completions {
                         // todo determine RHS based on field type
                         .tap(_.insertText = s"$label = ")
 
-                    case UnionMember(label) =>
+                    case UnionMember(label, deprecated) =>
                       new mod.CompletionItem(label, mod.CompletionItemKind.Class)
                         .tap(_.insertText = new mod.SnippetString(s"$label = {$$0},"))
+                        .tap(item =>
+                          if (deprecated)
+                            item.tags =
+                              List[mod.CompletionItemTag](
+                                mod.CompletionItemTag.Deprecated
+                              ).toJSArray
+                          else
+                            Nil
+                        )
                   }
                 }
 
