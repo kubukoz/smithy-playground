@@ -21,7 +21,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.api.SimpleRestJson
 import smithy4s.SchemaIndex
 import smithy4s.dynamic.model.Model
-import io.scalajs.nodejs.child_process.SpawnSyncResult
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -33,7 +32,7 @@ object extension {
     import io.scalajs.nodejs.child_process.ChildProcess
     import io.scalajs.nodejs.child_process.Output
 
-    val process: Output = ChildProcess.execSync(
+    val process: Output = ChildProcess.execFileSync(
       "/nix/store/m5igl1nk1wblx5alzj8r2l56awnwgyvk-smithy4s-codegen-0.12.7/bin/smithy4s-codegen",
       scalajs
         .js
