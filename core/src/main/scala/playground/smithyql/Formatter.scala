@@ -76,6 +76,15 @@ object Formatter {
 
       case IntLiteral(i)    => Doc.text(i.toString())
       case StringLiteral(s) => Doc.text(renderStringLiteral(s))
+      case Listed(values)   =>
+        // todo major hack!
+        Doc.char('[') + Doc.hardLine +
+          comments(values.commentsLeft) + {
+            Doc.intercalate(
+              Doc.char(',') + Doc.hardLine,
+              values.value.map(writeAst),
+            )
+          } + Doc.hardLine + Doc.char(']')
     }
 
   def renderStringLiteral(s: String) = "\"" + s + "\""

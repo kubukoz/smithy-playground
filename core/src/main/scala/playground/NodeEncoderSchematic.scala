@@ -15,6 +15,7 @@ import sourcecode.Enclosing
 import java.util.UUID
 import playground.smithyql.StringLiteral
 import playground.smithyql.IntLiteral
+import playground.smithyql.Listed
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -51,7 +52,7 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def unit: NodeEncoder[Unit] = todo
 
-  def list[S](fs: NodeEncoder[S]): NodeEncoder[List[S]] = todo
+  def list[S](fs: NodeEncoder[S]): NodeEncoder[List[S]] = elems => Listed[Id](elems.map(fs.toNode))
 
   def set[S](fs: NodeEncoder[S]): NodeEncoder[Set[S]] = todo
 

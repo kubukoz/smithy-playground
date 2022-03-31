@@ -15,11 +15,13 @@ sealed trait InputNode[F[_]] extends AST[F] {
     struct: Struct[F] => A,
     string: StringLiteral[F] => A,
     int: IntLiteral[F] => A,
+    listed: Listed[F] => A,
   ): A =
     this match {
       case s @ Struct(_)        => struct(s)
       case i @ IntLiteral(_)    => int(i)
       case s @ StringLiteral(_) => string(s)
+      case l @ Listed(_)        => listed(l)
     }
 
   def mapK[G[_]: Functor](fk: F ~> G): InputNode[G]
@@ -68,6 +70,15 @@ final case class StringLiteral[F[_]](value: String) extends InputNode[F] {
   def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = copy()
 }
 
+final case class Listed[F[_]](values: F[List[InputNode[F]]]) extends InputNode[F] {
+  def kind: NodeKind = NodeKind.Listed
+
+  def mapK[G[_]: Functor](
+    fk: F ~> G
+  ): InputNode[G] = copy(values = fk(values).map(_.map(_.mapK(fk))))
+
+}
+
 sealed trait NodeKind extends Product with Serializable
 
 object NodeKind {
@@ -75,4 +86,5 @@ object NodeKind {
   case object IntLiteral extends NodeKind
   case object StringLiteral extends NodeKind
   case object Query extends NodeKind
+  case object Listed extends NodeKind
 }
