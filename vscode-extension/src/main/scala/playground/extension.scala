@@ -71,14 +71,19 @@ object extension {
           .registerTextEditorCommand(
             "smithyql.runQuery",
             (ted, _, _) =>
-              runner
-                .get
-                // todo just show error if protocol is unsupported
-                .liftTo[IO]
-                .flatMap {
-                  run.perform[IO, Op](ted, compiler.mapK(eitherToIO), _, chan)
+              {
+                runner.get match {
+                  case Left(e) =>
+                    IO(
+                      window.showErrorMessage(
+                        s"Unsupported protocol for service ${e.service.id.show}: ${e.protocolTag.id.show}"
+                      )
+                    ).void
+
+                  case Right(runner) =>
+                    run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
                 }
-                .unsafeRunAndForget(),
+              }.unsafeRunAndForget(),
           ),
         languages.registerCompletionItemProvider(
           "smithyql",
@@ -114,7 +119,7 @@ object extension {
             format.perform(doc).toJSArray
           },
         ),
-        vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights[Op]),
+        vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights[Op, IO]),
       )
   }
 
