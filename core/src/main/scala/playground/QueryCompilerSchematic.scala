@@ -72,6 +72,7 @@ sealed trait CompilationError extends Product with Serializable {
         s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}"
     }
 
+  // todo: move this outside?
   def range: SourceRange
 
 }
