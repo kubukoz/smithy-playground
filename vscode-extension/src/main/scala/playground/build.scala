@@ -14,8 +14,6 @@ import scala.scalajs.js.JSConverters._
 
 object build {
 
-  // todo: use this instead of config
-  // todo: figure out how to do IO there
   def buildFile[F[_]: Async]: F[BuildInfo] = fs2
     .Stream("build/smithy-dependencies.json", ".smithy.json", "smithy-build.json")
     .evalMap { template =>
