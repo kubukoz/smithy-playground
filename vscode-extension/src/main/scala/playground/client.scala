@@ -12,6 +12,7 @@ import demo.smithy.Subscription
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
+import demo.smithy.Power
 
 object client {
 
@@ -24,7 +25,7 @@ object client {
           def createSubscription(subscription: Subscription): F[CreateSubscriptionOutput] =
             CreateSubscriptionOutput(subscription).pure[F]
 
-          def getPowers(): F[GetPowersOutput] = GetPowersOutput(Nil).pure[F]
+          def getPowers(): F[GetPowersOutput] = GetPowersOutput(List(Power.FIRE, Power.ICE)).pure[F]
         }
       }
       .resource

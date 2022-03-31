@@ -24,7 +24,12 @@ object Assertions extends Expectations.Helpers {
         case (a, b) =>
           def tpe(
             n: InputNode[Id]
-          ) = n.fold(struct = _ => "struct", int = _ => "int", string = _ => "string")
+          ) = n.fold(
+            struct = _ => "struct",
+            int = _ => "int",
+            string = _ => "string",
+            listed = _ => "list",
+          )
 
           ensureEqual(tpe(a), tpe(b))(ctx)
       }
