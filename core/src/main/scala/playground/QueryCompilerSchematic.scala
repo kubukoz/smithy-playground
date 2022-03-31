@@ -21,6 +21,7 @@ import java.util.UUID
 
 import PartialCompiler.WAST
 import playground.CompilationError.TypeMismatch
+import playground.CompilationError.OperationNotFound
 import playground.CompilationError.GenericError
 
 trait PartialCompiler[A] {
@@ -67,6 +68,8 @@ sealed trait CompilationError extends Product with Serializable {
     this match {
       case TypeMismatch(expected, actual, _) => s"Type mismatch: expected $expected, got $actual"
       case GenericError(message, _)          => message
+      case OperationNotFound(name, validOperations, _) =>
+        s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}"
     }
 
   def range: SourceRange
@@ -82,6 +85,13 @@ object CompilationError {
   ) extends CompilationError
 
   final case class GenericError(message: String, range: SourceRange) extends CompilationError
+
+  final case class OperationNotFound(
+    name: OperationName,
+    validOperations: List[OperationName],
+    range: SourceRange,
+  ) extends CompilationError
+
 }
 
 class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {

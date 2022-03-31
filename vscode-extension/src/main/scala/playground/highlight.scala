@@ -19,13 +19,6 @@ object highlight {
     validate.full[EitherThrow](doc.getText()) match {
       case Right(_) => Nil
 
-      case Left(OperationNotFound(name, validOperations)) =>
-        List(
-          error(
-            s"Operation not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}",
-            adapters.toVscodeRange(doc, name.range),
-          )
-        )
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>
         val pos = doc.positionAt(e.failedAtOffset.toDouble)
         val range = doc
@@ -62,7 +55,7 @@ object highlight {
           case _ =>
             List(
               error(
-                "Compilation failure: " + Option(e.getMessage()).getOrElse("null"),
+                "Unexpected compilation failure: " + Option(e.getMessage()).getOrElse("null"),
                 defaultRange,
               )
             )
