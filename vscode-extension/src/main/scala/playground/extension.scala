@@ -1,10 +1,13 @@
 package playground
 
 import cats.effect.IO
-import cats.effect.implicits._
+import cats.effect.std
 import cats.effect.unsafe.implicits._
 import cats.implicits._
+import org.http4s.Uri
+import org.http4s.client.Client
 import playground.Runner
+import smithy4s.Service
 import typings.vscode.mod
 import typings.vscode.mod.DocumentFormattingEditProvider
 import typings.vscode.mod.ExtensionContext
@@ -17,45 +20,48 @@ import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
-import smithy4s.Service
-import cats.effect.std
-import org.http4s.Uri
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
+  private var shutdownHook: IO[Unit] = IO.unit
 
   @JSExportTopLevel("activate")
   def activate(
     context: ExtensionContext
-  ): Unit = build
-    .buildFile[IO]
-    .toResource
-    .map { buildFile =>
-      build.getService(buildFile)
-    }
-    .flatMap { service =>
-      client
-        .make[IO](useNetwork = false)
-        .evalMap { client =>
-          Uri
-            .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUri"))
-            .liftTo[IO]
-            .flatMap { baseUri =>
-              implicit val runnerOpt
-                : Runner.Optional[IO, service.Op] = Runner.make(service.service, client, baseUri)
-
-              IO {
-                activateInternal(
-                  context,
-                  service.service,
-                )
-              }
-            }
-        }
-    }
+  ): Unit = client
+    .make[IO](useNetwork = false)
+    .evalMap(activateIO(context, _))
     .allocated
     .onError { case e => std.Console[IO].printStackTrace(e) }
+    .flatMap { case (_, shutdown) => IO { shutdownHook = shutdown } }
     .unsafeRunAndForget()
+
+  @JSExportTopLevel("deactivate")
+  def deactivate(): Unit = shutdownHook.unsafeRunAndForget()
+
+  // No resources allowed here
+  def activateIO(
+    context: ExtensionContext,
+    client: Client[IO],
+  ): IO[Unit] = build
+    .buildFile[IO]
+    .map(build.getService(_))
+    .flatMap { service =>
+      Uri
+        .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUrl"))
+        .liftTo[IO]
+        .flatMap { baseUri =>
+          implicit val runnerOpt
+            : Runner.Optional[IO, service.Op] = Runner.make(service.service, client, baseUri)
+
+          IO {
+            activateInternal(
+              context,
+              service.service,
+            )
+          }
+        }
+    }
 
   def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     context: ExtensionContext,
