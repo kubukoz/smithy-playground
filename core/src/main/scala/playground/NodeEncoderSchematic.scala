@@ -106,7 +106,7 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     to: A => (String, Int),
     fromName: Map[String, A],
     fromOrdinal: Map[Int, A],
-  ): NodeEncoder[A] = todo
+  ): NodeEncoder[A] = v => StringLiteral(to(v)._1)
 
   def suspend[A](f: => NodeEncoder[A]): NodeEncoder[A] = todo
 

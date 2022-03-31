@@ -8,6 +8,8 @@ import smithy4s.internals.Hinted
 
 object GetNameHint {
   type Result[A] = Hinted[Eval, String]
+
+  val singleton = new GetNameHint
 }
 
 import GetNameHint._

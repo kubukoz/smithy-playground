@@ -10,7 +10,7 @@ object CompletionSchematic {
   type Result[+A] = List[String] => List[String]
 }
 
-class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
+final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
   import CompletionSchematic.Result
 
   def default[A]: Result[A] = _ => Nil
@@ -44,7 +44,11 @@ class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
     to: A => (String, Int),
     fromName: Map[String, A],
     fromOrdinal: Map[Int, A],
-  ): Result[A] = _ => fromName.keySet.toList
+  ): Result[A] = {
+    // todo: the input should probably be something like List(stringLiteral) for this to happen
+    case Nil => fromName.keySet.toList
+    case _   => Nil
+  }
 
   override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = f
 

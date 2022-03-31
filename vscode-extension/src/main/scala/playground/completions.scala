@@ -3,7 +3,6 @@ package playground
 import cats.implicits._
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
-import playground.smithyql.WithSource.StructThing
 import smithy.api.Documentation
 import smithy.api.ExternalDocumentation
 import smithy.api.Http
@@ -22,7 +21,7 @@ object completions {
     val completeOperationName = service
       .endpoints
       .map { e =>
-        val getName = new GetNameHint
+        val getName = GetNameHint.singleton
         new mod.CompletionItem(
           s"${e.name}: ${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}",
           mod.CompletionItemKind.Function,
@@ -53,8 +52,8 @@ object completions {
           matchingNode
             .toList
             .flatMap {
-              case WithSource.OperationThing(_) => completeOperationName
-              case StructThing(_, ctx) =>
+              case WithSource.OperationContext(_) => completeOperationName
+              case WithSource.InputContext(ctx) =>
                 val e = service.endpoints.find(_.name == q.operationName.value.text).get
                 // todo caching
                 val result = e.input.compile(new CompletionSchematic).apply(ctx)
