@@ -35,8 +35,9 @@ object CompilationTests extends FunSuite {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(schematic.string.Schema) == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
-            "Expected NodeKind.StringLiteral, got NodeKind.IntLiteral instead",
+          CompilationError.TypeMismatch(
+            NodeKind.StringLiteral,
+            NodeKind.IntLiteral,
             SourceRange(Position(0), Position(0)),
           )
         )
@@ -70,8 +71,9 @@ object CompilationTests extends FunSuite {
         }
       } == Ior.left(
         NonEmptyChain.of(
-          CompilationError("Missing field evilName", range = SourceRange(Position(0), Position(0))),
-          CompilationError(
+          CompilationError
+            .GenericError("Missing field evilName", range = SourceRange(Position(0), Position(0))),
+          CompilationError.GenericError(
             "Missing field powerLevel",
             range = SourceRange(Position(0), Position(0)),
           ),
@@ -102,7 +104,7 @@ object CompilationTests extends FunSuite {
     assert(
       compile[Power](WithSource.liftId("Posion".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.GenericError(
             "Unknown enum value: Posion. Available values: Ice, Fire, Lightning, Wind",
             range = SourceRange(Position(0), Position(0)),
           )

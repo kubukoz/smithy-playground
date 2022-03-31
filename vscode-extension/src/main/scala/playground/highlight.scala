@@ -54,7 +54,7 @@ object highlight {
           case CompilationFailed(errors) =>
             errors.map { ee => // dźwig
               error(
-                ee.message,
+                ee.render,
                 adapters.toVscodeRange(doc, ee.range),
               )
             }.toList

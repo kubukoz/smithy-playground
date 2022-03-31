@@ -20,6 +20,8 @@ import sourcecode.Enclosing
 import java.util.UUID
 
 import PartialCompiler.WAST
+import playground.CompilationError.TypeMismatch
+import playground.CompilationError.GenericError
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -39,39 +41,59 @@ object PartialCompiler {
   val pos: PartialCompiler[SourceRange] = _.range.rightIor
   val unit: PartialCompiler[Unit] = _ => ().rightIor
 
-  def fromPF[A](
-    f: PartialFunction[InputNode[WithSource], A]
+  def typeCheck[A](
+    expected: NodeKind
   )(
-    orElseMessage: WAST => String
+    f: PartialFunction[InputNode[WithSource], A]
   ): PartialCompiler[WithSource[A]] =
     ast =>
-      f.lift(ast.value)
+      ast
+        .traverse(f.lift)
         .toRightIor(
           NonEmptyChain(
-            CompilationError(
-              orElseMessage(ast),
+            CompilationError.TypeMismatch(
+              expected,
+              ast.value.kind,
               ast.range,
             )
           )
         )
-        .map(a => ast.copy(value = a))
 
 }
 
-//todo adt
-final case class CompilationError(message: String, range: SourceRange)
+sealed trait CompilationError extends Product with Serializable {
+
+  def render: String =
+    this match {
+      case TypeMismatch(expected, actual, _) => s"Type mismatch: expected $expected, got $actual"
+      case GenericError(message, _)          => message
+    }
+
+  def range: SourceRange
+
+}
+
+object CompilationError {
+
+  final case class TypeMismatch(
+    expected: NodeKind,
+    actual: NodeKind,
+    range: SourceRange,
+  ) extends CompilationError
+
+  final case class GenericError(message: String, range: SourceRange) extends CompilationError
+}
 
 class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def todo[A](implicit sc: Enclosing): PartialCompiler[A] =
-    ast => Ior.leftNec(CompilationError(s"Unsupported operation: ${sc.value}", ast.range))
+    ast =>
+      Ior.leftNec(CompilationError.GenericError(s"Unsupported operation: ${sc.value}", ast.range))
 
   def short: PartialCompiler[Short] = todo
 
   val int: PartialCompiler[Int] = PartialCompiler
-    .fromPF { case i @ IntLiteral(_) => i }(ast =>
-      s"Type mismatch: expected ${NodeKind.IntLiteral}, this is a ${ast.value.kind}"
-    )
+    .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
     .map(_.value.value)
 
   def long: PartialCompiler[Long] = todo
@@ -85,9 +107,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
   def bigdecimal: PartialCompiler[BigDecimal] = todo
 
   val stringLiteral =
-    PartialCompiler.fromPF { case StringLiteral(s) => s }(ast =>
-      s"Expected ${NodeKind.StringLiteral}, got ${ast.value.kind} instead"
-    )
+    PartialCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
 
   val string: PartialCompiler[String] = stringLiteral.map(_.value)
 
@@ -117,9 +137,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     val validFields = fields.map(_.label).toSet
 
     PartialCompiler
-      .fromPF { case s @ Struct(_) => s }(ast =>
-        s"Expected ${NodeKind.Struct}, got ${ast.value.kind} instead"
-      )
+      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
       .emap { struct =>
         val remainingValidFields = validFields -- struct.value.fields.value.keys.map(_.value.text)
         val expectedRemainingString =
@@ -137,7 +155,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
           .keys
           .filterNot(validFields.compose(_.value.text))
           .map { unexpectedKey =>
-            CompilationError(
+            CompilationError.GenericError(
               "Unexpected field" + expectedRemainingString,
               unexpectedKey.range,
             )
@@ -162,7 +180,8 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
             else
               fieldOpt.flatMap {
                 _.toRightIor(
-                  CompilationError(s"Missing field ${field.label}", struct.value.fields.range)
+                  CompilationError
+                    .GenericError(s"Missing field ${field.label}", struct.value.fields.range)
                 ).toIorNec
               }
           }
@@ -181,9 +200,8 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     val opts = NonEmptyList(first, rest.toList)
 
     PartialCompiler
-      .fromPF { case s @ Struct(_) => s }(ast =>
-        s"Expected a union struct, got ${ast.value.kind} instead"
-      )
+      // todo: should say it's a union
+      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
       .emap {
         // todo rework errors
         case s if s.value.fields.value.size == 1 =>
@@ -199,7 +217,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
                 e.label == k.value.text
               }
               .toRightIor(
-                CompilationError(
+                CompilationError.GenericError(
                   "wrong shape, this union requires one of: " + opts
                     .map(_.label)
                     .mkString_(", "),
@@ -211,16 +229,22 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
           op.flatMap(go(_).compile(v))
 
         case s if s.value.fields.value.isEmpty =>
-          CompilationError(
-            "found empty struct, expected one of: " + opts.map(_.label).mkString_(", "),
-            s.range,
-          ).leftIor.toIorNec
+          CompilationError
+            .GenericError(
+              "found empty struct, expected one of: " + opts.map(_.label).mkString_(", "),
+              s.range,
+            )
+            .leftIor
+            .toIorNec
 
         case s =>
-          CompilationError(
-            s"struct mismatch (keys: ${s.value.fields.value.keys.map(_.value.text).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}",
-            s.range,
-          ).leftIor.toIorNec
+          CompilationError
+            .GenericError(
+              s"struct mismatch (keys: ${s.value.fields.value.keys.map(_.value.text).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}",
+              s.range,
+            )
+            .leftIor
+            .toIorNec
       }
   }
 
@@ -232,7 +256,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     fromName
       .get(name)
       .toRightIor(
-        CompilationError(
+        CompilationError.GenericError(
           s"Unknown enum value: $name. Available values: ${fromName.keys.mkString(", ")}",
           range,
         )
@@ -253,7 +277,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       // todo unhardcode format
       // todo: also, this keeps throwing in an uncatchable way in JS
       .parse(s.value, TimestampFormat.DATE_TIME)
-      .toRightIor(CompilationError("Invalid timestamp format", s.range))
+      .toRightIor(CompilationError.GenericError("Invalid timestamp format", s.range))
       .toIorNec
   }
 
