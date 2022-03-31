@@ -43,7 +43,7 @@ object extension {
     )
 
     val modelText =
-      (process: Any) match {
+      (process: Any @unchecked) match {
         case b: io.scalajs.nodejs.buffer.Buffer => b.toString("UTF-8")
         case s: String                          => s
       }
