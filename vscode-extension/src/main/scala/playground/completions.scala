@@ -10,12 +10,11 @@ import smithy4s.Service
 import typings.vscode.mod
 
 import smithyql.CompletionSchematic
-import types._
 import util.chaining._
 
 object completions {
 
-  def complete(
+  def complete[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op]
   ): (mod.TextDocument, mod.Position) => List[mod.CompletionItem] = {
     val completeOperationName = service

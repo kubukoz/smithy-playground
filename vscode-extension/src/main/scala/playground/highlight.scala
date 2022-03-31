@@ -6,17 +6,16 @@ import playground.smithyql.SmithyQLParser
 import typings.vscode.mod
 import typings.vscode.mod.Diagnostic
 import typings.vscode.mod.DiagnosticSeverity
-
 import types._
 
 object highlight {
 
-  def getHighlights(
+  def getHighlights[Op[_, _, _, _, _]](
     doc: mod.TextDocument
   )(
     implicit c: Compiler[Op, EitherThrow]
   ): List[Diagnostic] =
-    validate.full[EitherThrow](doc.getText()) match {
+    validate.full[Op, EitherThrow](doc.getText()) match {
       case Right(_) => Nil
 
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>
