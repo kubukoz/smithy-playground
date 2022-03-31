@@ -62,18 +62,20 @@ object completions {
               case WithSource.InputContext(ctx) =>
                 val e = service.endpoints.find(_.name == q.operationName.value.text).get
                 // todo caching
-                val result = e.input.compile(new CompletionSchematic).apply(ctx)
+                val result = e.input.compile(new CompletionSchematic).get.apply(ctx)
 
                 result.map { key =>
                   key match {
-                    case Field(label) =>
+                    case Field(label, tpe) =>
                       new mod.CompletionItem(label, mod.CompletionItemKind.Field)
                         // todo determine RHS based on field type
                         .tap(_.insertText = s"$label = ")
+                        .tap(_.detail = tpe)
 
-                    case UnionMember(label, deprecated) =>
+                    case UnionMember(label, deprecated, tpe) =>
                       new mod.CompletionItem(label, mod.CompletionItemKind.Class)
                         .tap(_.insertText = new mod.SnippetString(s"$label = {$$0},"))
+                        .tap(_.detail = tpe)
                         .tap(item =>
                           if (deprecated)
                             item.tags =
