@@ -122,6 +122,7 @@ object build {
 
     println("services: " + services.head.service.id)
     println("error: " + services.head.service.endpoints.map(_.errorable))
+    services.head
   }
 
 }
