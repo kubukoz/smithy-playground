@@ -10,6 +10,7 @@ import playground.CompilationError
 import playground.PartialCompiler
 import playground.QueryCompilerSchematic
 import weaver._
+import playground.CompilationErrorDetails
 
 object CompilationTests extends FunSuite {
 
@@ -35,9 +36,11 @@ object CompilationTests extends FunSuite {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(schematic.string.Schema) == Ior.left(
         NonEmptyChain.of(
-          CompilationError.TypeMismatch(
-            NodeKind.StringLiteral,
-            NodeKind.IntLiteral,
+          CompilationError(
+            CompilationErrorDetails.TypeMismatch(
+              NodeKind.StringLiteral,
+              NodeKind.IntLiteral,
+            ),
             SourceRange(Position(0), Position(0)),
           )
         )
@@ -71,11 +74,14 @@ object CompilationTests extends FunSuite {
         }
       } == Ior.left(
         NonEmptyChain.of(
-          CompilationError
-            .GenericError("Missing field evilName", range = SourceRange(Position(0), Position(0))),
-          CompilationError.GenericError(
-            "Missing field powerLevel",
-            range = SourceRange(Position(0), Position(0)),
+          CompilationError(
+            CompilationErrorDetails
+              .GenericError("Missing field evilName"),
+            SourceRange(Position(0), Position(0)),
+          ),
+          CompilationError(
+            CompilationErrorDetails.GenericError("Missing field powerLevel"),
+            SourceRange(Position(0), Position(0)),
           ),
         )
       )
@@ -104,9 +110,11 @@ object CompilationTests extends FunSuite {
     assert(
       compile[Power](WithSource.liftId("Poison".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
-          CompilationError.GenericError(
-            "Unknown enum value: Poison. Available values: Ice, Fire, Lightning, Wind",
-            range = SourceRange(Position(0), Position(0)),
+          CompilationError(
+            CompilationErrorDetails.GenericError(
+              "Unknown enum value: Poison. Available values: Ice, Fire, Lightning, Wind"
+            ),
+            SourceRange(Position(0), Position(0)),
           )
         )
       )

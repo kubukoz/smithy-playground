@@ -101,12 +101,14 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
     .get(q.operationName.value.text)
     .liftTo[F](
       CompilationFailed.one(
-        CompilationError
-          .OperationNotFound(
-            q.operationName.value,
-            endpoints.keys.map(OperationName(_)).toList,
-            q.operationName.range,
-          )
+        CompilationError(
+          CompilationErrorDetails
+            .OperationNotFound(
+              q.operationName.value,
+              endpoints.keys.map(OperationName(_)).toList,
+            ),
+          q.operationName.range,
+        )
       )
     )
     .flatMap(_.apply(q.input))
