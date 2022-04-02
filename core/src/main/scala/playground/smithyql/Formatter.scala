@@ -16,14 +16,17 @@ object Formatter {
       case BooleanLiteral(b) => Doc.text(b.toString())
       case StringLiteral(s)  => Doc.text(renderStringLiteral(s))
       case Listed(values)    =>
-        // todo major hack!
+        // todo major hack! Needs serious implementation and some sharing with structs.
+        // Missing: comments.
         Doc.char('[') + Doc.hardLine +
-          comments(values.commentsLeft) + {
-            Doc.intercalate(
+          Doc
+            .intercalate(
               Doc.char(',') + Doc.hardLine,
               values.value.map(writeAst),
             )
-          } + Doc.hardLine + Doc.char(']')
+            .indent(2) +
+          Doc.hardLine +
+          Doc.char(']')
     }
 
   def renderStruct(struct: Struct[WithSource]): Doc = {
