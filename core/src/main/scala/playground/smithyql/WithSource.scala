@@ -106,17 +106,23 @@ object WithSource {
 
     def comments(node: InputNode[WithSource]): List[Comment] = node.fold(
       struct = _.fields.allComments(_.flatMap { case (k, v) =>
-        k.allComments(_ => Nil) ++ v.allComments(_.fold(comments, comments, comments, comments))
+        k.allComments(_ => Nil) ++ v.allComments(
+          _.fold(comments, comments, comments, comments, comments)
+        )
       }.toList),
       string = _ => Nil,
       int = _ => Nil,
-      listed = _.values.allComments(_.flatMap(_.fold(comments, comments, comments, comments))),
+      bool = _ => Nil,
+      listed = _.values.allComments(
+        _.flatMap(_.fold(comments, comments, comments, comments, comments))
+      ),
     )
 
     q.operationName.allComments(_ => Nil) ++
       q.input
         .allComments(
           _.fold(
+            comments,
             comments,
             comments,
             comments,

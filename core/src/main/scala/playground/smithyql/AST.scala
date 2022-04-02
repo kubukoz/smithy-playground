@@ -16,12 +16,14 @@ sealed trait InputNode[F[_]] extends AST[F] {
     string: StringLiteral[F] => A,
     int: IntLiteral[F] => A,
     listed: Listed[F] => A,
+    bool: BooleanLiteral[F] => A,
   ): A =
     this match {
-      case s @ Struct(_)        => struct(s)
-      case i @ IntLiteral(_)    => int(i)
-      case s @ StringLiteral(_) => string(s)
-      case l @ Listed(_)        => listed(l)
+      case s @ Struct(_)         => struct(s)
+      case i @ IntLiteral(_)     => int(i)
+      case b @ BooleanLiteral(_) => bool(b)
+      case s @ StringLiteral(_)  => string(s)
+      case l @ Listed(_)         => listed(l)
     }
 
   def mapK[G[_]: Functor](fk: F ~> G): InputNode[G]
@@ -79,6 +81,12 @@ final case class Listed[F[_]](values: F[List[InputNode[F]]]) extends InputNode[F
 
 }
 
+final case class BooleanLiteral[F[_]](value: Boolean) extends InputNode[F] {
+  def kind: NodeKind = NodeKind.Bool
+
+  def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = BooleanLiteral(value)
+}
+
 sealed trait NodeKind extends Product with Serializable
 
 object NodeKind {
@@ -87,4 +95,5 @@ object NodeKind {
   case object StringLiteral extends NodeKind
   case object Query extends NodeKind
   case object Listed extends NodeKind
+  case object Bool extends NodeKind
 }

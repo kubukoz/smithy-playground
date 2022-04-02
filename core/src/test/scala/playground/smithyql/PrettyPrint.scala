@@ -30,6 +30,7 @@ object PrettyPrint {
     def prettyPrintNode(node: InputNode[WithSource]): String =
       node match {
         case StringLiteral(ss) => s"StringLiteral(${escapeString(ss)})"
+        case BooleanLiteral(b) => s"BooleanLiteral(${b.toString})"
         case IntLiteral(ii)    => s"IntLiteral(${ii.toString})"
         case s @ Struct(_)     => prettyPrintStruct(s)
         case Listed(values)    => values.value.map(prettyPrintNode).mkString("Listed(", ", ", ")")
@@ -77,6 +78,7 @@ object PrettyPrint {
     string = s => Structure(Map("string" -> just(s.value))),
     int = i => Structure(Map("int" -> just(i.value.toString))),
     listed = list => ???, /* todo */
+    bool = b => Structure(Map("bool" -> just(b.value.toString))),
   )
 
 }

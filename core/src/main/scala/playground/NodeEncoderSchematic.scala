@@ -16,6 +16,7 @@ import java.util.UUID
 import playground.smithyql.StringLiteral
 import playground.smithyql.IntLiteral
 import playground.smithyql.Listed
+import playground.smithyql.BooleanLiteral
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -42,8 +43,7 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def string: NodeEncoder[String] = StringLiteral(_)
 
-  // todo encode as appropriate ADT
-  def boolean: NodeEncoder[Boolean] = b => string.toNode(b.toString())
+  def boolean: NodeEncoder[Boolean] = b => BooleanLiteral(b)
 
   def uuid: NodeEncoder[UUID] = todo
 

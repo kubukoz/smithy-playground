@@ -74,9 +74,10 @@ object Formatter {
           Doc.hardLine +
           Doc.char('}')
 
-      case IntLiteral(i)    => Doc.text(i.toString())
-      case StringLiteral(s) => Doc.text(renderStringLiteral(s))
-      case Listed(values)   =>
+      case IntLiteral(i)     => Doc.text(i.toString())
+      case BooleanLiteral(b) => Doc.text(b.toString())
+      case StringLiteral(s)  => Doc.text(renderStringLiteral(s))
+      case Listed(values)    =>
         // todo major hack!
         Doc.char('[') + Doc.hardLine +
           comments(values.commentsLeft) + {
