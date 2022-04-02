@@ -10,6 +10,7 @@ import playground.CompilationError
 import playground.PartialCompiler
 import playground.QueryCompilerSchematic
 import weaver._
+import smithy4s.schema.Schema
 
 object CompilationTests extends FunSuite {
 
@@ -25,7 +26,7 @@ object CompilationTests extends FunSuite {
     assert(
       compile {
         WithSource.liftId("foo".mapK(WithSource.liftId))
-      }(schematic.string.Schema) == Ior.right("foo")
+      }(Schema.string) == Ior.right("foo")
     )
   }
 
@@ -33,7 +34,7 @@ object CompilationTests extends FunSuite {
     assert(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(schematic.string.Schema) == Ior.left(
+      }(Schema.string) == Ior.left(
         NonEmptyChain.of(
           CompilationError.TypeMismatch(
             NodeKind.StringLiteral,
@@ -49,7 +50,7 @@ object CompilationTests extends FunSuite {
     assert(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(schematic.int.Schema) == Ior.right(42)
+      }(Schema.int) == Ior.right(42)
     )
   }
 

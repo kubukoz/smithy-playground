@@ -3,7 +3,7 @@ package playground
 import cats.Eval
 import smithy4s.Hints
 import smithy4s.ShapeId
-import smithy4s.StubSchematic
+import smithy4s.schema.StubSchematic
 import smithy4s.internals.Hinted
 
 object GetNameHint {

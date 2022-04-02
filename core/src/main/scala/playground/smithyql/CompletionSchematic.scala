@@ -1,9 +1,9 @@
 package playground.smithyql
 
-import schematic.Alt
-import schematic.Field
+import smithy4s.schema.Alt
+import smithy4s.schema.Field
 import smithy4s.Hints
-import smithy4s.StubSchematic
+import smithy4s.schema.StubSchematic
 import smithy4s.internals.Hinted
 import smithy.api
 import smithy4s.ShapeId

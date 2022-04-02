@@ -3,9 +3,9 @@ package playground
 import cats.Id
 import playground.smithyql.InputNode
 import playground.smithyql.Struct
-import schematic.Alt
-import schematic.ByteArray
-import schematic.Field
+import smithy4s.schema.Alt
+import smithy4s.ByteArray
+import smithy4s.schema.Field
 import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Schematic
@@ -17,6 +17,7 @@ import playground.smithyql.StringLiteral
 import playground.smithyql.IntLiteral
 import playground.smithyql.Listed
 import playground.smithyql.BooleanLiteral
+import smithy4s.Lazy
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -110,7 +111,7 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     fromOrdinal: Map[Int, A],
   ): NodeEncoder[A] = v => string.toNode(to(v)._1)
 
-  def suspend[A](f: => NodeEncoder[A]): NodeEncoder[A] = todo
+  def suspend[A](f: Lazy[NodeEncoder[A]]): NodeEncoder[A] = todo
 
   def bijection[A, B](
     f: NodeEncoder[A],

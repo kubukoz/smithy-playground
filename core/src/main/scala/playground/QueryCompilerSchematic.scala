@@ -8,9 +8,9 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import cats.tagless.Derive
 import playground.smithyql._
-import schematic.Alt
-import schematic.ByteArray
-import schematic.Field
+import smithy4s.schema.Alt
+import smithy4s.ByteArray
+import smithy4s.schema.Field
 import smithy.api.TimestampFormat
 import smithy4s.Document
 import smithy4s.Hints
@@ -23,6 +23,7 @@ import PartialCompiler.WAST
 import playground.CompilationError.TypeMismatch
 import playground.CompilationError.OperationNotFound
 import playground.CompilationError.GenericError
+import smithy4s.Lazy
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -275,7 +276,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       .toIorNec
   }
 
-  def suspend[A](f: => PartialCompiler[A]): PartialCompiler[A] = todo
+  def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = todo
 
   def bijection[A, B](
     f: PartialCompiler[A],
