@@ -6,6 +6,7 @@ use smithy4s.api#simpleRestJson
 service DemoService {
   version: "0.0.1",
   operations: [CreateHero, GetPowers, CreateSubscription],
+  errors: [GenericServerError]
 }
 
 @http(method: "POST", uri: "/heroes")
@@ -54,6 +55,13 @@ structure Bad {
 structure HeroIsBad {
   @required
   powerLevel: Integer
+}
+
+@httpError(500)
+@error("server")
+structure GenericServerError {
+  @required
+  msg: String
 }
 
 @http(method: "GET", uri: "/poweres")

@@ -8,11 +8,14 @@ import demo.smithy.CreateSubscriptionOutput
 import demo.smithy.DemoService
 import demo.smithy.GetPowersOutput
 import demo.smithy.Hero
+import demo.smithy.Hero.BadCase
+import demo.smithy.HeroIsBad
+import demo.smithy.Power
 import demo.smithy.Subscription
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
-import demo.smithy.Power
+import demo.smithy.GenericServerError
 
 object client {
 
@@ -20,7 +23,16 @@ object client {
     val fakeClient = SimpleRestJsonBuilder
       .routes {
         new DemoService[F] {
-          def createHero(hero: Hero): F[CreateHeroOutput] = CreateHeroOutput(hero).pure[F]
+          def createHero(hero: Hero): F[CreateHeroOutput] =
+            hero match {
+              case BadCase(bad) if bad.evilName == "die" =>
+                GenericServerError("generic error").raiseError[F, CreateHeroOutput]
+
+              case BadCase(bad) if bad.evilName == "fail" =>
+                HeroIsBad(bad.powerLevel).raiseError[F, CreateHeroOutput]
+
+              case _ => CreateHeroOutput(hero).pure[F]
+            }
 
           def createSubscription(subscription: Subscription): F[CreateSubscriptionOutput] =
             CreateSubscriptionOutput(subscription).pure[F]

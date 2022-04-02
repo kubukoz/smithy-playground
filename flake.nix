@@ -19,7 +19,13 @@
       in
       {
         devShell = pkgs.mkShell {
-          buildInputs = [ pkgs.yarn pkgs.nodejs-14_x pkgs.sbt pkgs.smithy4s.codegen ];
+          buildInputs = [
+            pkgs.yarn
+            pkgs.nodejs-14_x
+            pkgs.sbt
+            pkgs.smithy4s.codegen
+            pkgs.jless
+          ];
         };
       }
     );
