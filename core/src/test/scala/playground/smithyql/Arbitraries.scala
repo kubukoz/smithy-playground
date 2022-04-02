@@ -1,8 +1,9 @@
 package playground.smithyql
 
-import cats.implicits._
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
+
+import cats.implicits._
 
 object Arbitraries {
 
@@ -48,7 +49,7 @@ object Arbitraries {
       Gen.oneOf(
         arbStringLiteral.arbitrary,
         arbIntLiteral.arbitrary,
-        genStruct(depth),
+        genStruct(genInputNode(depth - 1)),
       )
     else
       Gen.oneOf(
@@ -60,21 +61,19 @@ object Arbitraries {
     Gen.identifier.map(Struct.Key(_))
   }
 
-  def genStruct(depth: Int): Gen[Struct[WithSource]] = {
-    implicit val arbNodes: Arbitrary[InputNode[WithSource]] = Arbitrary(genInputNode(depth - 1))
+  implicit def arbFields[F[_]](
+    implicit arbKey: Arbitrary[F[Struct.Key]],
+    arbValue: Arbitrary[F[InputNode[F]]],
+  ): Arbitrary[Struct.Fields[F]] = Arbitrary(Gen.resultOf(Struct.Fields[F](_)))
+
+  def genStruct(recurse: Gen[InputNode[WithSource]]): Gen[Struct[WithSource]] = {
+    implicit val arbNodes: Arbitrary[InputNode[WithSource]] = Arbitrary(recurse)
 
     Gen
       .resultOf(Struct.apply[WithSource])
-      .map { struct =>
-        Struct(
-          // Workaround for no-mapiness of comments (two identical keys can have different sets of comments, and that makes the map non-unique)
-          // TODO: Make this a parsing failure
-          struct.fields.map(_.toList.distinctBy(_._1.value).toMap)
-        )
-      }
   }
 
-  implicit val arbStruct: Arbitrary[Struct[WithSource]] = Arbitrary(genStruct(2))
+  implicit val arbStruct: Arbitrary[Struct[WithSource]] = Arbitrary(genStruct(genInputNode(1)))
 
   implicit val arbQuery: Arbitrary[Query[WithSource]] = Arbitrary {
     Gen.resultOf(Query.apply[WithSource])

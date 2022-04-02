@@ -3,6 +3,7 @@ package playground.smithyql
 import cats.Functor
 import cats.implicits._
 import cats.~>
+import cats.Applicative
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
@@ -46,20 +47,59 @@ final case class Query[F[_]](
 }
 
 final case class Struct[F[_]](
-  // todo: keep ordering of fields? Map might not be the thing to use
-  fields: F[Map[F[Struct.Key], F[InputNode[F]]]]
+  fields: F[Struct.Fields[F]]
 ) extends InputNode[F] {
 
   def kind: NodeKind = NodeKind.Struct
 
   def mapK[G[_]: Functor](fk: F ~> G): Struct[G] = Struct(
-    fk(fields).map(_.map { case (k, v) => fk(k) -> fk(v).map(_.mapK(fk)) })
+    fk(fields).map(_.mapK(fk))
   )
 
 }
 
 object Struct {
   final case class Key(text: String) extends AnyVal
+
+  final case class Fields[F[_]](value: List[(F[Struct.Key], F[InputNode[F]])]) {
+    def keys: List[F[Struct.Key]] = value.map(_._1)
+
+    def size: Int = value.size
+    def head: (F[Struct.Key], F[InputNode[F]]) = value.head
+    def isEmpty: Boolean = value.isEmpty
+
+    def mapK[G[_]: Functor](fk: F ~> G): Fields[G] = Fields(value.map { case (k, v) =>
+      fk(k) -> fk(v).map(_.mapK(fk))
+    })
+
+    def keySet(getValue: F[Struct.Key] => Struct.Key): Set[String] =
+      value.map(_._1).map(getValue).map(_.text).toSet
+
+    // Usage not recommended, fields can have duplicate fields at the parsing stage
+    def toMap: Map[F[Struct.Key], F[InputNode[F]]] = value.toMap
+
+    def byName(
+      name: String
+    )(
+      getValue: F[Struct.Key] => Struct.Key
+    ): Option[F[InputNode[F]]] = value.find(pair => getValue(pair._1).text == name).map(_._2)
+
+  }
+
+  def one[F[_]: Applicative](key: F[Struct.Key], value: F[InputNode[F]]): Struct[F] = Struct(
+    Fields(List((key, value))).pure[F]
+  )
+
+  object Fields {
+
+    def fromSeq[F[_]](value: Seq[(F[Struct.Key], F[InputNode[F]])]): Fields[F] = Fields(
+      value.toList
+    )
+
+    def empty[F[_]]: Fields[F] = Fields(List.empty)
+
+  }
+
 }
 
 final case class IntLiteral[F[_]](value: Int) extends InputNode[F] {

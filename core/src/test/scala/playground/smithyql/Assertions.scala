@@ -38,18 +38,18 @@ object Assertions extends Expectations.Helpers {
     def compareStruct(lhs: Struct[Id], rhs: Struct[Id])(ctx: List[String]): Expectations =
       ensureEqual(
         lhs.fields.size,
-        lhs.fields.keySet.map(_.text).size,
+        lhs.fields.keySet(identity).size,
       )("key-size-lhs" :: ctx) &&
         ensureEqual(
           rhs.fields.size,
-          rhs.fields.keySet.map(_.text).size,
+          rhs.fields.keySet(identity).size,
         )("key-size-rhs" :: ctx) &&
-        ensureEqual(lhs.fields.keySet.map(_.text), rhs.fields.keySet.map(_.text))(
+        ensureEqual(lhs.fields.keySet(identity), rhs.fields.keySet(identity))(
           "keySet" :: ctx
         ) &&
         (
-          (lhs.fields: Map[Struct.Key, InputNode[Id]]),
-          rhs.fields: Map[Struct.Key, InputNode[Id]],
+          rhs.fields.toMap: Map[Struct.Key, InputNode[Id]],
+          (lhs.fields.toMap: Map[Struct.Key, InputNode[Id]]),
         ).tupled
           .map { case (k, (lhs, rhs)) => compareNode(lhs, rhs)(k.text :: ctx) }
           .toList

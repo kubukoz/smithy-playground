@@ -15,7 +15,7 @@ object DSL {
 
   def struct(
     args: (String, InputNode[Id])*
-  ): Struct[Id] = Struct[Id](args.map(_.leftMap(Struct.Key(_))).toMap)
+  ): Struct[Id] = Struct[Id](Struct.Fields.fromSeq[Id](args.map(_.leftMap(Struct.Key(_)))))
 
   implicit def stringToAST(s: String): StringLiteral[Id] = StringLiteral[Id](s)
   implicit def intToAST(i: Int): IntLiteral[Id] = IntLiteral[Id](i)

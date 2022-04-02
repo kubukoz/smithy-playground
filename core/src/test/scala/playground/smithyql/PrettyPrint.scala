@@ -39,9 +39,10 @@ object PrettyPrint {
     def prettyPrintStruct(s: Struct[WithSource]): String =
       s"""Struct[WithSource](
         ${prettyPrintWithComments(s.fields)(
-        _.map { case (k, v) =>
-          s"${prettyPrintWithComments(k)(kk => s"Key(${escapeString(kk.text)})")} -> ${prettyPrintWithComments(v)(prettyPrintNode)},\n"
-        }
+        _.value
+          .map { case (k, v) =>
+            s"${prettyPrintWithComments(k)(kk => s"Key(${escapeString(kk.text)})")} -> ${prettyPrintWithComments(v)(prettyPrintNode)},\n"
+          }
           .mkString("Map(", "\n", ")")
       )}
       )"""
@@ -72,6 +73,7 @@ object PrettyPrint {
         Structure(
           fields
             .fields
+            .value
             .map { case (k, v) => k.text -> toStructure(v) }
             .toMap
         ),

@@ -85,9 +85,11 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
           ): Option[(String, InputNode[Id])] = get(s).map(f => label -> instance.toNode(f))
         })
 
-        fields.flatMap {
-          go(_).map { case (s, v) => Struct.Key(s) -> v }
-        }.toMap
+        Struct.Fields.fromSeq {
+          fields.flatMap {
+            go(_).map { case (s, v) => Struct.Key(s) -> v }
+          }
+        }
       }
 
   def union[S](
@@ -97,8 +99,9 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     total: S => Alt.WithValue[NodeEncoder, S, _]
   ): NodeEncoder[S] =
     s => {
-      def go[A](r: Alt.WithValue[NodeEncoder, S, A]) = Struct[Id](
-        Map(Struct.Key(r.alt.label) -> r.alt.instance.toNode(r.value))
+      def go[A](r: Alt.WithValue[NodeEncoder, S, A]) = Struct.one[Id](
+        key = Struct.Key(r.alt.label),
+        value = r.alt.instance.toNode(r.value),
       )
 
       go(total(s))
