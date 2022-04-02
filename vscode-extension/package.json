@@ -40,6 +40,10 @@
       "title": "Run Smithy Query",
       "enablement": "editorLangId == 'smithyql'"
     },
+    "keybindings": {
+      "command": "smithyql.runQuery",
+      "key": "ctrl+cmd+enter"
+    },
     "configuration": {
       "title": "Smithy Playground",
       "properties": {

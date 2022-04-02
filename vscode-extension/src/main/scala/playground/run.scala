@@ -24,7 +24,7 @@ object run {
         .compile(parsed)
         .flatMap { compiled =>
           Sync[F].delay {
-            channel.show()
+            channel.show(true)
             channel.appendLine(s"Calling ${parsed.operationName.value.text}")
           } *>
             runner
