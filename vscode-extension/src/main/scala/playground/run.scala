@@ -37,9 +37,6 @@ object run {
                 }
               }
         }
-        .onError { e =>
-          Sync[F].delay(window.showErrorMessage(e.getMessage())).void
-        }
     }
 
 }
