@@ -42,7 +42,8 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def string: NodeEncoder[String] = StringLiteral(_)
 
-  def boolean: NodeEncoder[Boolean] = todo
+  // todo encode as appropriate ADT
+  def boolean: NodeEncoder[Boolean] = b => string.toNode(b.toString())
 
   def uuid: NodeEncoder[UUID] = todo
 
@@ -107,7 +108,7 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     to: A => (String, Int),
     fromName: Map[String, A],
     fromOrdinal: Map[Int, A],
-  ): NodeEncoder[A] = v => StringLiteral(to(v)._1)
+  ): NodeEncoder[A] = v => string.toNode(to(v)._1)
 
   def suspend[A](f: => NodeEncoder[A]): NodeEncoder[A] = todo
 
@@ -117,7 +118,8 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     from: B => A,
   ): NodeEncoder[B] = b => f.toNode(from(b))
 
-  def timestamp: NodeEncoder[Timestamp] = todo
+  // todo support formats
+  def timestamp: NodeEncoder[Timestamp] = ts => string.toNode(ts.toString())
 
   def withHints[A](fa: NodeEncoder[A], hints: Hints): NodeEncoder[A] = fa
 

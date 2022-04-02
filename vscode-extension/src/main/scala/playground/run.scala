@@ -32,7 +32,7 @@ object run {
               .onError { case e => Sync[F].delay(channel.appendLine("ERROR " + e.toString())) }
               .flatMap { out =>
                 Sync[F].delay {
-                  channel.appendLine(s"Succeeded ${parsed.operationName.value.text}, response:")
+                  channel.appendLine(s"Succeeded ${parsed.operationName.value.text}, response:\n")
                   channel.appendLine(Formatter.writeAst(out.mapK(WithSource.liftId)).renderTrim(80))
                 }
               }
