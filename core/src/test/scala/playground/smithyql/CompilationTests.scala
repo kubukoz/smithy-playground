@@ -76,11 +76,11 @@ object CompilationTests extends FunSuite {
         NonEmptyChain.of(
           CompilationError(
             CompilationErrorDetails
-              .GenericError("Missing field evilName"),
+              .MissingField("evilName"),
             SourceRange(Position(0), Position(0)),
           ),
           CompilationError(
-            CompilationErrorDetails.GenericError("Missing field powerLevel"),
+            CompilationErrorDetails.MissingField("powerLevel"),
             SourceRange(Position(0), Position(0)),
           ),
         )
@@ -88,6 +88,22 @@ object CompilationTests extends FunSuite {
     )
   }
 
+  test("Missing fields in struct - 1 already present") {
+    assert(
+      compile[Bad] {
+        WithSource.liftId {
+          struct("evilName" -> "hello").mapK(WithSource.liftId)
+        }
+      } == Ior.left(
+        NonEmptyChain.of(
+          CompilationError(
+            CompilationErrorDetails.MissingField("powerLevel"),
+            SourceRange(Position(0), Position(0)),
+          )
+        )
+      )
+    )
+  }
   test("union") {
     assert(
       compile[Hero] {
@@ -111,8 +127,9 @@ object CompilationTests extends FunSuite {
       compile[Power](WithSource.liftId("Poison".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
           CompilationError(
-            CompilationErrorDetails.GenericError(
-              "Unknown enum value: Poison. Available values: Ice, Fire, Lightning, Wind"
+            CompilationErrorDetails.UnknownEnumValue(
+              "Poison",
+              List("Ice", "Fire", "Lightning", "Wind"),
             ),
             SourceRange(Position(0), Position(0)),
           )
