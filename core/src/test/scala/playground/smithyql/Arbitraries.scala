@@ -42,6 +42,7 @@ object Arbitraries {
     Gen.resultOf(StringLiteral.apply[WithSource])
   }
 
+  // todo: support all kinds of input nodes
   def genInputNode(depth: Int): Gen[InputNode[WithSource]] =
     if (depth > 0)
       Gen.oneOf(
