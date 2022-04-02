@@ -112,6 +112,7 @@ object build {
             // todo: should be included
             SchemaIndex(
               SimpleRestJson,
+              smithy.api.Error,
               smithy.api.Documentation,
               smithy.api.ExternalDocumentation,
               smithy.api.Deprecated,
@@ -120,7 +121,7 @@ object build {
         .allServices
 
     println("services: " + services.head.service.id)
-    services.head
+    println("error: " + services.head.service.endpoints.map(_.errorable))
   }
 
 }
