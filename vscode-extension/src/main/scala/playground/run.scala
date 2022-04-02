@@ -5,9 +5,9 @@ import cats.implicits._
 import playground.smithyql.SmithyQLParser
 import typings.vscode.mod.OutputChannel
 import typings.vscode.mod.TextEditor
-import typings.vscode.mod.window
 import playground.smithyql.Formatter
 import playground.smithyql.WithSource
+import playground.smithyql.InputNode
 
 object run {
 
@@ -29,14 +29,28 @@ object run {
           } *>
             runner
               .run(compiled)
-              .onError { case e => Sync[F].delay(channel.appendLine("ERROR " + e.toString())) }
+              .onError { case e =>
+                val rendered =
+                  compiled
+                    .catchError(e)
+                    .flatMap(err => compiled.writeError.map(_.toNode(err))) match {
+                    case Some(e) => writeOutput(e)
+                    case None    => e.toString
+                  }
+
+                Sync[F].delay(channel.appendLine("ERROR " + rendered))
+              }
               .flatMap { out =>
                 Sync[F].delay {
                   channel.appendLine(s"Succeeded ${parsed.operationName.value.text}, response:\n")
-                  channel.appendLine(Formatter.writeAst(out.mapK(WithSource.liftId)).renderTrim(80))
+                  channel.appendLine(writeOutput(out))
                 }
               }
         }
     }
+
+  private def writeOutput(
+    node: InputNode[cats.Id]
+  ) = Formatter.writeAst(node.mapK(WithSource.liftId)).renderTrim(80)
 
 }

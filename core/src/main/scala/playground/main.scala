@@ -21,10 +21,13 @@ import org.http4s.Uri
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
+  type E
   type O
   def input: I
+  def catchError: Throwable => Option[E]
+  def writeError: Option[NodeEncoder[E]]
   def writeOutput: NodeEncoder[O]
-  def endpoint: Endpoint[Op, I, _, O, _, _]
+  def endpoint: Endpoint[Op, I, E, O, _, _]
 }
 
 trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
@@ -64,6 +67,7 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
     ): WithSource[InputNode[WithSource]] => F[CompiledInput[Op]] = {
       val schematic = e.input.compile(schem)
       val outputEncoder = e.output.compile(NodeEncoderSchematic)
+      val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
 
       ast =>
         schematic
@@ -75,10 +79,14 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
           .map { compiled =>
             new CompiledInput[Op] {
               type I = In
+              type E = Err
               type O = Out
               val input: I = compiled
-              val endpoint: Endpoint[Op, I, _, O, _, _] = e
-              def writeOutput: NodeEncoder[Out] = outputEncoder
+              val endpoint: Endpoint[Op, I, E, O, _, _] = e
+              val writeOutput: NodeEncoder[Out] = outputEncoder
+              val writeError: Option[NodeEncoder[Err]] = errorEncoder
+              val catchError: Throwable => Option[Err] =
+                err => e.errorable.flatMap(_.liftError(err))
             }
           }
     }
