@@ -31,6 +31,7 @@ val commonSettings = Seq(
 lazy val core = projectMatrix
   .settings(
     libraryDependencies ++= Seq(
+      "com.disneystreaming.smithy4s" %%% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "org.typelevel" %%% "cats-parse" % "0.3.6",
       "org.typelevel" %%% "paiges-cats" % "0.4.2",
@@ -48,7 +49,9 @@ lazy val vscode = projectMatrix
     crossScalaVersions := commonScalaVersions,
     moduleName := "smithy-playground-vscode",
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.7"
+      "org.http4s" %%% "http4s-ember-client" % "0.23.7",
+      // I mean... yeah, I know.
+      "net.exoego" %%% "scala-js-nodejs-v14" % "0.14.0",
     ),
     commonSettings,
   )

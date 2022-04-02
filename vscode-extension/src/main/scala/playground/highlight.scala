@@ -6,17 +6,42 @@ import playground.smithyql.SmithyQLParser
 import typings.vscode.mod
 import typings.vscode.mod.Diagnostic
 import typings.vscode.mod.DiagnosticSeverity
-
 import types._
 
 object highlight {
 
-  def getHighlights(
+  def getHighlights[Op[_, _, _, _, _], F[_]](
+    doc: mod.TextDocument
+  )(
+    implicit c: Compiler[Op, EitherThrow],
+    runner: Runner.Optional[F, Op],
+  ): List[Diagnostic] = compilationErrors(doc) ++ runnerErrors(doc)
+
+  def runnerErrors[Op[_, _, _, _, _], F[_]](
+    doc: mod.TextDocument
+  )(
+    implicit runner: Runner.Optional[F, Op]
+  ): List[Diagnostic] =
+    runner.get match {
+      case Left(e) =>
+        List(
+          info(
+            s"""Service ${e.service.id.show} doesn't support the ${e.protocolTag.id.show} protocol.
+               |Running queries will not be possible.""".stripMargin,
+            doc
+              .getWordRangeAtPosition(doc.positionAt(0d))
+              .getOrElse(new mod.Range(0, 0, 0, 1)),
+          )
+        )
+      case Right(_) => Nil
+    }
+
+  def compilationErrors[Op[_, _, _, _, _], F[_]](
     doc: mod.TextDocument
   )(
     implicit c: Compiler[Op, EitherThrow]
   ): List[Diagnostic] =
-    validate.full[EitherThrow](doc.getText()) match {
+    validate.full[Op, EitherThrow](doc.getText()) match {
       case Right(_) => Nil
 
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>
@@ -65,5 +90,8 @@ object highlight {
 
   private def error(msg: String, range: mod.Range) =
     new Diagnostic(range, msg, DiagnosticSeverity.Error)
+
+  private def info(msg: String, range: mod.Range) =
+    new Diagnostic(range, msg, DiagnosticSeverity.Information)
 
 }

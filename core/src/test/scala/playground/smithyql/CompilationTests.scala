@@ -102,10 +102,10 @@ object CompilationTests extends FunSuite {
 
   test("enum - failure") {
     assert(
-      compile[Power](WithSource.liftId("Posion".mapK(WithSource.liftId))) == Ior.left(
+      compile[Power](WithSource.liftId("Poison".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
           CompilationError.GenericError(
-            "Unknown enum value: Posion. Available values: Ice, Fire, Lightning, Wind",
+            "Unknown enum value: Poison. Available values: Ice, Fire, Lightning, Wind",
             range = SourceRange(Position(0), Position(0)),
           )
         )

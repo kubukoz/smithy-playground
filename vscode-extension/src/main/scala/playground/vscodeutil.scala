@@ -52,4 +52,6 @@ object vscodeutil {
     new Disposable(() => disposables.foreach(_.dispose()))
   }
 
+  def unsafeGetConfig[A](key: String): A = workspace.getConfiguration().get[A](key).get
+
 }

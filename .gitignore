@@ -4,4 +4,3 @@
 **/.DS_Store
 .smithy.lsp.log
 .sbt
-dump-model.sh
