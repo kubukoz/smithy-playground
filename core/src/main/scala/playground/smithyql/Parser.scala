@@ -146,8 +146,8 @@ object SmithyQLParser {
         ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
           val fieldsResult =
             fieldsR match {
-              case Nil    => Map.empty[T[Struct.Key], T[InputNode[T]]]
-              case fields => fields.toMap
+              case Nil    => Struct.Fields.empty[T]
+              case fields => Struct.Fields.fromSeq(fields)
             }
 
           val range = SourceRange(Position(indexInside), Position(indexBeforeExit))

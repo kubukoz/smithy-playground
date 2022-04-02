@@ -79,6 +79,7 @@ object WithSource {
         .value
         .fields
         .value
+        .value
         .view
         .map { case (k, v) =>
           v.traverse {
@@ -105,7 +106,7 @@ object WithSource {
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
     def comments(node: InputNode[WithSource]): List[Comment] = node.fold(
-      struct = _.fields.allComments(_.flatMap { case (k, v) =>
+      struct = _.fields.allComments(_.value.flatMap { case (k, v) =>
         k.allComments(_ => Nil) ++ v.allComments(
           _.fold(comments, comments, comments, comments, comments)
         )

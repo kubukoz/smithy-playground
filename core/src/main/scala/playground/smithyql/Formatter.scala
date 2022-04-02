@@ -40,8 +40,7 @@ object Formatter {
             Doc.hardLine,
             fields
               .value
-              .toList
-              .sortBy(_._1.value.text)
+              .value
               .map { case (k, v) =>
                 val maybeGrouped: Doc => Doc =
                   if (v.value.kind == NodeKind.Struct)

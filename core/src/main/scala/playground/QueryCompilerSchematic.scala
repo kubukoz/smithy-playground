@@ -86,6 +86,7 @@ object CompilationError {
     range: SourceRange,
   ) extends CompilationError
 
+  // todo phase out
   final case class GenericError(message: String, range: SourceRange) extends CompilationError
 
   final case class OperationNotFound(
@@ -183,8 +184,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
               .value
               .fields
               .value
-              .find(_._1.value.text == field.label)
-              .map(_._2)
+              .byName(field.label)(_.value)
               .parTraverse(field.instance.compile)
 
             if (field.isOptional)
@@ -215,7 +215,6 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       // todo: should say it's a union
       .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
       .emap {
-        // todo rework errors
         case s if s.value.fields.value.size == 1 =>
           val defs = s.value.fields.value
           def go[A](

@@ -35,6 +35,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
   ): Result[S] = Hinted.static[ResultR, S] {
     case Nil =>
       fields
+        // todo: filter out present fields
         .sortBy(field => (field.isRequired, field.label))
         .map { field =>
           CompletionItem.Field(field.label, tpe = field.instance.hints.get(ShapeId).get.show)

@@ -68,7 +68,8 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
       val unwrapQ = q.mapK(WithSource.unwrap)
       SmithyQLParser.parseFull(formatted) match {
         case Left(e)  => failure(e.msg)
-        case Right(v) => compareQuery(unwrapQ, v.mapK(WithSource.unwrap))
+        case Right(v) => assert(unwrapQ == v.mapK(WithSource.unwrap))
+        // compareQuery( unwrapQ, v.mapK( WithSource.unwrap ))
 
       }
     }
