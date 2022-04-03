@@ -21,7 +21,10 @@ operation CreateHero {
 structure CreateHeroInput {
   @httpPayload
   @required
-  hero: Hero
+  hero: Hero,
+
+  @httpQuery("verbose")
+  verbose: Boolean
 }
 
 structure CreateHeroOutput {

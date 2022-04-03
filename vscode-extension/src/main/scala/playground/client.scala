@@ -20,7 +20,10 @@ object client {
     val fakeClient = SimpleRestJsonBuilder
       .routes {
         new DemoService[F] {
-          def createHero(hero: Hero): F[CreateHeroOutput] = CreateHeroOutput(hero).pure[F]
+          def createHero(
+            hero: Hero,
+            verbose: Option[Boolean],
+          ): F[CreateHeroOutput] = CreateHeroOutput(hero).pure[F]
 
           def createSubscription(subscription: Subscription): F[CreateSubscriptionOutput] =
             CreateSubscriptionOutput(subscription).pure[F]

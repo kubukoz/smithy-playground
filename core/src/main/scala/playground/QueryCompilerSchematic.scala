@@ -174,7 +174,9 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   val string: PartialCompiler[String] = stringLiteral.map(_.value)
 
-  def boolean: PartialCompiler[Boolean] = todo
+  def boolean: PartialCompiler[Boolean] = PartialCompiler
+    .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
+    .map(_.value.value)
 
   def uuid: PartialCompiler[UUID] = todo
 

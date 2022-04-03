@@ -87,6 +87,12 @@ object ParserTests extends FunSuite {
   }""",
   )
 
+  parsingTest("struct with bool", "hello { verbose = true }")(
+    "hello".call(
+      "verbose" -> true
+    )
+  )
+
   parsingTest(
     "empty comment",
     "//\nhello{}",
