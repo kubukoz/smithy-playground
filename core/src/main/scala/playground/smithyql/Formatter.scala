@@ -29,70 +29,80 @@ object Formatter {
           Doc.char(']')
     }
 
+  def renderKey(k: WithSource[Struct.Key]): Doc =
+    comments(k.commentsLeft) +
+      Doc.text(k.value.text) +
+      Doc.space +
+      comments(k.commentsRight)
+
+  def renderValue(v: WithSource[InputNode[WithSource]]): Doc = {
+    val maybeGrouped: Doc => Doc =
+      if (v.value.kind == NodeKind.Struct)
+        identity
+      else
+        _.nested(2).grouped
+
+    maybeGrouped {
+      {
+        if (v.commentsLeft.nonEmpty)
+          Doc.space
+        else
+          Doc.empty
+      } +
+        comments(v.commentsLeft) + {
+          val sepBefore =
+            if (v.commentsLeft.nonEmpty)
+              Doc.empty // hard line included in comment renderer
+            else if (v.value.kind == NodeKind.Struct)
+              Doc.space
+            else
+              Doc.lineOrSpace
+
+          sepBefore + writeAst(v.value)
+        } + {
+          if (v.commentsRight.isEmpty)
+            Doc.empty
+          else {
+            val sep =
+              if (v.value.kind == NodeKind.Struct)
+                Doc.hardLine
+              else
+                Doc.space
+
+            sep
+          } +
+            comments(v.commentsRight)
+        }
+    }
+  }
+
+  def renderFields(fields: Struct.Fields[WithSource]): Doc =
+    Doc
+      .intercalate(
+        // Force newlines between fields
+        Doc.hardLine,
+        fields
+          .value
+          .map { case (k, v) =>
+            renderKey(k) +
+              Doc.char('=') +
+              renderValue(v) +
+              Doc.comma
+          },
+      )
+      .aligned + {
+      if (fields.isEmpty)
+        Doc.empty
+      else
+        Doc.space
+    }
+
   def renderStruct(struct: Struct[WithSource]): Doc = {
     val fields = struct.fields
 
     Doc.char('{') + Doc.hardLine + {
       comments(fields.commentsLeft) +
-        Doc
-          .intercalate(
-            // Force newlines between fields
-            Doc.hardLine,
-            fields
-              .value
-              .value
-              .map { case (k, v) =>
-                val maybeGrouped: Doc => Doc =
-                  if (v.value.kind == NodeKind.Struct)
-                    identity
-                  else
-                    _.nested(2).grouped
-
-                comments(k.commentsLeft) +
-                  Doc.text(k.value.text) +
-                  Doc.space +
-                  comments(k.commentsRight) +
-                  Doc.char('=') + maybeGrouped {
-                    {
-                      if (v.commentsLeft.nonEmpty)
-                        Doc.space
-                      else
-                        Doc.empty
-                    } +
-                      comments(v.commentsLeft) + {
-                        val sepBefore =
-                          if (v.commentsLeft.nonEmpty)
-                            Doc.empty // hard line included in comment renderer
-                          else if (v.value.kind == NodeKind.Struct)
-                            Doc.space
-                          else
-                            Doc.lineOrSpace
-
-                        sepBefore + writeAst(v.value)
-                      } + {
-                        if (v.commentsRight.isEmpty)
-                          Doc.empty
-                        else {
-                          val sep =
-                            if (v.value.kind == NodeKind.Struct)
-                              Doc.hardLine
-                            else
-                              Doc.space
-
-                          sep
-                        } +
-                          comments(v.commentsRight)
-                      }
-                  } +
-                  Doc.comma
-              },
-          )
-          .aligned + {
-          if (fields.value.isEmpty)
-            Doc.empty
-          else
-            Doc.space
-        } + comments(fields.commentsRight)
+        renderFields(fields.value) + comments(fields.commentsRight)
     }
       .indent(2) +
       Doc.hardLine +
