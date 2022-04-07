@@ -1,6 +1,7 @@
 package playground
 
 import cats.effect.Resource
+import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.implicits._
 import demo.smithy.CreateHeroOutput
@@ -8,11 +9,12 @@ import demo.smithy.CreateSubscriptionOutput
 import demo.smithy.DemoService
 import demo.smithy.GetPowersOutput
 import demo.smithy.Hero
+import demo.smithy.Power
 import demo.smithy.Subscription
+import fs2.io.net.Network
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
-import demo.smithy.Power
 
 object client {
 
@@ -37,7 +39,9 @@ object client {
 
     {
       if (useNetwork)
-        EmberClientBuilder.default[F].build
+        Network[F].tlsContext.system.toResource.flatMap { tls =>
+          EmberClientBuilder.default[F].withTLSContext(tls).build
+        }
       else
         fakeClient
     }

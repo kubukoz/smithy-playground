@@ -14,6 +14,8 @@ import scala.scalajs.js.JSConverters._
 
 import scalajs.js
 import scala.concurrent.duration._
+import aws.protocols.AwsJson1_0
+import aws.protocols.AwsJson1_1
 
 object build {
 
@@ -145,6 +147,23 @@ object build {
               smithy.api.Documentation,
               smithy.api.ExternalDocumentation,
               smithy.api.Deprecated,
+            ) ++
+            AwsJson1_0.protocol.schemas ++
+            AwsJson1_1.protocol.schemas ++
+            SchemaIndex(
+              AwsJson1_0,
+              AwsJson1_1,
+              aws.api.Arn,
+              aws.api.ArnNamespace,
+              aws.api.ArnReference,
+              aws.api.ClientDiscoveredEndpoint,
+              aws.api.ClientEndpointDiscovery,
+              aws.api.ClientEndpointDiscoveryId,
+              aws.api.CloudFormationName,
+              aws.api.ControlPlane,
+              aws.api.Data,
+              aws.api.DataPlane,
+              aws.api.Service,
             ),
         )
         .allServices
