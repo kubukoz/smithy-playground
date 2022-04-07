@@ -4,9 +4,13 @@ import cats.Defer
 import cats.Id
 import cats.MonadThrow
 import cats.data.NonEmptyList
-import cats.effect.Concurrent
+import cats.effect.MonadCancelThrow
+import cats.effect.Resource
+import cats.effect.implicits._
+import cats.effect.kernel.Async
 import cats.implicits._
 import cats.~>
+import org.http4s.Uri
 import org.http4s.client.Client
 import playground._
 import playground.smithyql.InputNode
@@ -15,20 +19,14 @@ import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
-import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.UnsupportedProtocolError
-import org.http4s.Uri
-import cats.effect.kernel.Async
-import smithy4s.aws.kernel.AwsRegion
-import smithy4s.aws.AwsClient
-import smithy4s.Transformation
 import smithy4s.aws.AwsCall
+import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
-import smithy4s.aws.http4s.AwsHttp4sBackend
-import cats.effect.implicits._
-import cats.effect.Resource
-import cats.effect.MonadCancelThrow
 import smithy4s.aws.AwsOperationKind
+import smithy4s.aws.http4s.AwsHttp4sBackend
+import smithy4s.aws.kernel.AwsRegion
+import smithy4s.http4s.SimpleRestJsonBuilder
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I

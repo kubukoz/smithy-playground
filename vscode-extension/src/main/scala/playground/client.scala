@@ -15,6 +15,9 @@ import fs2.io.net.Network
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
+import fs2.io.net.tls.TLSContext
+import fs2.io.net.tls.SecureContext
+import fs2.internal.jsdeps.node.tlsMod
 
 object client {
 
@@ -39,9 +42,47 @@ object client {
 
     {
       if (useNetwork)
-        Network[F].tlsContext.system.toResource.flatMap { tls =>
-          EmberClientBuilder.default[F].withTLSContext(tls).build
-        }
+        Async[F]
+          .delay(
+            TLSContext
+              .Builder
+              .forAsync[F]
+              .fromSecureContext(
+                SecureContext
+                  .fromJS(
+                    scalajs
+                      .js
+                      .Dynamic
+                      .global
+                      .require("tls")
+                      .applyDynamic("createSecureContext")(
+                        scalajs
+                          .js
+                          .Object
+                          .fromEntries(
+                            scalajs
+                              .js
+                              .Array(
+                                scalajs
+                                  .js
+                                  .Tuple2(
+                                    "_vscodeAdditionalCaCerts",
+                                    scalajs
+                                      .js
+                                      .Array
+                                      .apply(),
+                                  )
+                              )
+                          )
+                      )
+                  )
+              )
+          )
+          // Network[F].tlsContext.system
+          .toResource
+          .flatMap { tls =>
+            EmberClientBuilder.default[F].withTLSContext(tls).build
+          }
       else
         fakeClient
     }
