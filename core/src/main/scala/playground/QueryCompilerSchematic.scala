@@ -21,6 +21,7 @@ import java.util.UUID
 
 import PartialCompiler.WAST
 import playground.CompilationErrorDetails._
+import cats.data.Chain
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -63,6 +64,12 @@ object PartialCompiler {
 }
 
 final case class CompilationError(err: CompilationErrorDetails, range: SourceRange)
+sealed trait CompilationErrorOrMissingField extends Product with Serializable
+
+object CompilationErrorOrMissingField {
+  final case class Err(e: CompilationError) extends CompilationErrorOrMissingField
+  final case class MissingField(label: String) extends CompilationErrorOrMissingField
+}
 
 sealed trait CompilationErrorDetails extends Product with Serializable {
 
@@ -75,7 +82,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case OperationNotFound(name, validOperations) =>
         s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}."
 
-      case MissingField(label) => s"Missing field $label."
+      case MissingFields(labels) => s"Missing fields: ${labels.mkString_(", ")}."
 
       case InvalidTimestampFormat(expected) => s"Invalid timestamp format, expected $expected."
 
@@ -118,7 +125,7 @@ object CompilationErrorDetails {
     validOperations: List[OperationName],
   ) extends CompilationErrorDetails
 
-  final case class MissingField(label: String) extends CompilationErrorDetails
+  final case class MissingFields(labels: NonEmptyList[String]) extends CompilationErrorDetails
 
   final case class InvalidTimestampFormat(expected: TimestampFormat) extends CompilationErrorDetails
 
@@ -229,7 +236,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
           .map(NonEmptyChain.fromNonEmptyList)
           .toLeftIor(())
 
-        val buildStruct = fields
+        val buildStruct: IorNec[CompilationErrorOrMissingField, S] = fields
           .parTraverse { field =>
             val fieldOpt = struct
               .value
@@ -237,21 +244,34 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
               .value
               .byName(field.label)(_.value)
               .parTraverse(field.instance.compile)
+              .leftMap(_.map(CompilationErrorOrMissingField.Err(_)))
 
             if (field.isOptional)
               fieldOpt
             else
               fieldOpt.flatMap {
                 _.toRightIor(
-                  CompilationError(
-                    MissingField(field.label),
-                    struct.value.fields.range,
-                  )
+                  CompilationErrorOrMissingField.MissingField(field.label)
                 ).toIorNec
               }
           }
+          .map(const)
 
-        buildStruct.map(const) <& extraFieldErrors
+        buildStruct.leftMap { errors =>
+          val (compilationErrors, missingFields) = errors.toList.partitionMap {
+            case CompilationErrorOrMissingField.Err(e)          => Left(e)
+            case CompilationErrorOrMissingField.MissingField(e) => Right(e)
+          }
+
+          NonEmptyChain.fromChainUnsafe(
+            Chain.fromSeq(compilationErrors) ++ Chain.fromOption(
+              missingFields
+                .toNel
+                .map(CompilationErrorDetails.MissingFields(_))
+                .map(CompilationError(_, struct.value.fields.range))
+            )
+          )
+        } <& extraFieldErrors
       }
 
   }

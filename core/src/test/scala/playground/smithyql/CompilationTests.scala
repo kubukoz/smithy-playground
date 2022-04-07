@@ -11,6 +11,7 @@ import playground.PartialCompiler
 import playground.QueryCompilerSchematic
 import weaver._
 import playground.CompilationErrorDetails
+import cats.data.NonEmptyList
 
 object CompilationTests extends FunSuite {
 
@@ -76,13 +77,9 @@ object CompilationTests extends FunSuite {
         NonEmptyChain.of(
           CompilationError(
             CompilationErrorDetails
-              .MissingField("evilName"),
+              .MissingFields(NonEmptyList.of("evilName", "powerLevel")),
             SourceRange(Position(0), Position(0)),
-          ),
-          CompilationError(
-            CompilationErrorDetails.MissingField("powerLevel"),
-            SourceRange(Position(0), Position(0)),
-          ),
+          )
         )
       )
     )
@@ -97,7 +94,7 @@ object CompilationTests extends FunSuite {
       } == Ior.left(
         NonEmptyChain.of(
           CompilationError(
-            CompilationErrorDetails.MissingField("powerLevel"),
+            CompilationErrorDetails.MissingFields(NonEmptyList.of("powerLevel")),
             SourceRange(Position(0), Position(0)),
           )
         )
