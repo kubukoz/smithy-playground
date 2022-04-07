@@ -58,8 +58,6 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def set[S](fs: NodeEncoder[S]): NodeEncoder[Set[S]] = todo
 
-  def vector[S](fs: NodeEncoder[S]): NodeEncoder[Vector[S]] = todo
-
   def map[K, V](fk: NodeEncoder[K], fv: NodeEncoder[V]): NodeEncoder[Map[K, V]] = todo
 
   def struct[S](

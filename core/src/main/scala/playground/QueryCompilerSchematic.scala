@@ -191,8 +191,6 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = todo
 
-  def vector[S](fs: PartialCompiler[S]): PartialCompiler[Vector[S]] = todo
-
   def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] = todo
 
   def struct[S](
