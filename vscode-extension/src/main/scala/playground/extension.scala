@@ -46,8 +46,8 @@ object extension {
     context: ExtensionContext,
     client: Client[IO],
   ): IO[Unit] = build
-    .buildFile[IO]
-    .map(build.getService(_))
+    .buildFile[IO](chan)
+    .map(build.getService(_, chan))
     .flatMap { service =>
       Uri
         .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUrl"))

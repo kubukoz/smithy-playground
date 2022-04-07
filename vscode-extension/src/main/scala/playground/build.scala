@@ -13,11 +13,25 @@ import typings.vscode.mod
 import scala.scalajs.js.JSConverters._
 
 import scalajs.js
+import scala.concurrent.duration._
 
 object build {
 
-  def buildFile[F[_]: Async]: F[BuildInfo] = fs2
-    .Stream("build/smithy-dependencies.json", ".smithy.json", "smithy-build.json")
+  val configFiles = List("build/smithy-dependencies.json", ".smithy.json", "smithy-build.json")
+
+  def buildFile[F[_]: Async](
+    chan: mod.OutputChannel
+  ): F[BuildInfo] = fs2
+    .Stream
+    .emits(configFiles)
+    .append(
+      fs2
+        .Stream
+        .exec(
+          Sync[F].delay(chan.appendLine(s"Loading config from ${configFiles.mkString(", ")}..."))
+        )
+    )
+    .evalTap(_ => Async[F].sleep(1.second))
     .evalMap { template =>
       Async[F]
         .fromFuture {
@@ -47,6 +61,9 @@ object build {
     .head
     .compile
     .lastOrError
+    .flatTap { _ =>
+      Sync[F].delay(chan.appendLine("Parsing config..."))
+    }
     .map { s =>
       val parsed = js.JSON.parse(s)
 
@@ -76,7 +93,12 @@ object build {
 
   case class BuildInfo(deps: List[String], repos: List[String], imports: List[String])
 
-  def getService(buildFile: BuildInfo): DynamicSchemaIndex.ServiceWrapper = {
+  def getService(
+    buildFile: BuildInfo,
+    chan: mod.OutputChannel,
+  ): DynamicSchemaIndex.ServiceWrapper = {
+    chan.appendLine("Dumping model...")
+
     val repos = buildFile
       .repos
       .toNel
@@ -100,12 +122,19 @@ object build {
         case s: String                          => s
       }
 
+    chan.appendLine("Parsing model...")
+
     val capi = smithy4s.http.json.codecs()
+
+    val decodedModel =
+      capi.decodeFromByteArray(capi.compileCodec(Model.schema), modelText.getBytes()).toTry.get
+
+    chan.appendLine("Loading schemas...")
 
     val services =
       DynamicSchemaIndex
         .load(
-          capi.decodeFromByteArray(capi.compileCodec(Model.schema), modelText.getBytes()).toTry.get,
+          decodedModel,
           SimpleRestJson
             .protocol
             .schemas ++
@@ -120,8 +149,8 @@ object build {
         )
         .allServices
 
-    println("services: " + services.head.service.id)
-    println("error: " + services.head.service.endpoints.map(_.errorable))
+    chan.appendLine("Loaded services: " + services.map(_.service.id.show).mkString(", ") + "\n\n")
+
     services.head
   }
 
