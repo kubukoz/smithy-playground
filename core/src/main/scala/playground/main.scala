@@ -122,7 +122,14 @@ trait Runner[F[_], Op[_, _, _, _, _]] {
 object Runner {
 
   trait Optional[F[_], Op[_, _, _, _, _]] {
-    def get: Either[UnsupportedProtocolError, Runner[F, Op]]
+    def get: Either[Issue, Runner[F, Op]]
+  }
+
+  sealed trait Issue extends Product with Serializable
+
+  object Issue {
+    final case class InvalidProtocol(e: UnsupportedProtocolError) extends Issue
+    final case class Other(e: Throwable) extends Issue
   }
 
   def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Defer: Concurrent](
@@ -132,8 +139,12 @@ object Runner {
   ): Optional[F, Op] =
     new Optional[F, Op] {
 
-      val get: Either[UnsupportedProtocolError, Runner[F, Op]] = SimpleRestJsonBuilder(service)
-        .client(client, baseUri)
+      val get: Either[Issue, Runner[F, Op]] = Either
+        .catchNonFatal {
+          SimpleRestJsonBuilder(service).client(client, baseUri)
+        }
+        .leftMap(Issue.Other(_))
+        .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
         .map { c =>
           val exec = service.asTransformation(c)
 

@@ -20,6 +20,8 @@ import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
+import playground.Runner.Issue.InvalidProtocol
+import playground.Runner.Issue.Other
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -44,8 +46,8 @@ object extension {
     context: ExtensionContext,
     client: Client[IO],
   ): IO[Unit] = build
-    .buildFile[IO]
-    .map(build.getService(_))
+    .buildFile[IO](chan)
+    .map(build.getService(_, chan))
     .flatMap { service =>
       Uri
         .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUrl"))
@@ -77,6 +79,11 @@ object extension {
 
     val completionProvider = completions.complete(service.service)
 
+    chan.appendLine("Smithy Playground activated! Info to follow:")
+    chan.appendLine(s"""Service: ${service.service.id.show}
+    |Operations: ${service.service.endpoints.map(_.name).mkString("\n")}
+    |""".stripMargin)
+
     val _ = context
       .subscriptions
       .push(
@@ -87,11 +94,21 @@ object extension {
               {
                 runner.get match {
                   case Left(e) =>
-                    IO(
-                      window.showErrorMessage(
-                        s"Unsupported protocol for service ${e.service.id.show}: ${e.protocolTag.id.show}"
-                      )
-                    ).void
+                    e match {
+                      case InvalidProtocol(e) =>
+                        IO(
+                          window.showErrorMessage(
+                            s"Unsupported protocol for service ${e.service.id.show}: ${e.protocolTag.id.show}"
+                          )
+                        ).void
+
+                      case Other(e) =>
+                        IO(
+                          window.showErrorMessage(
+                            e.toString()
+                          )
+                        )
+                    }
 
                   case Right(runner) =>
                     run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)

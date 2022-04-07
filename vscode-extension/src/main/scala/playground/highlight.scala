@@ -7,6 +7,8 @@ import typings.vscode.mod
 import typings.vscode.mod.Diagnostic
 import typings.vscode.mod.DiagnosticSeverity
 import types._
+import playground.Runner.Issue.InvalidProtocol
+import playground.Runner.Issue.Other
 
 object highlight {
 
@@ -24,15 +26,30 @@ object highlight {
   ): List[Diagnostic] =
     runner.get match {
       case Left(e) =>
-        List(
-          info(
-            s"""Service ${e.service.id.show} doesn't support the ${e.protocolTag.id.show} protocol.
-               |Running queries will not be possible.""".stripMargin,
-            doc
-              .getWordRangeAtPosition(doc.positionAt(0d))
-              .getOrElse(new mod.Range(0, 0, 0, 1)),
-          )
-        )
+        val pos = doc
+          .getWordRangeAtPosition(doc.positionAt(0d))
+          .getOrElse(new mod.Range(0, 0, 0, 1))
+        e match {
+          case InvalidProtocol(e) =>
+            List(
+              info(
+                s"""Service ${e
+                  .service
+                  .id
+                  .show} doesn't support the ${e.protocolTag.id.show} protocol.
+                   |Running queries will not be possible.""".stripMargin,
+                pos,
+              )
+            )
+          case Other(e) =>
+            List(
+              info(
+                s"""Service unsupported. Running queries will not be possible.
+                   |Details: $e""".stripMargin,
+                pos,
+              )
+            )
+        }
       case Right(_) => Nil
     }
 
