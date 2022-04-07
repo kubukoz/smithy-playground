@@ -72,6 +72,7 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
       ast =>
         schematic
           .compile(ast)
+          .get
           .toEither
           .leftMap(_.toNonEmptyList)
           .leftMap(CompilationFailed(_))

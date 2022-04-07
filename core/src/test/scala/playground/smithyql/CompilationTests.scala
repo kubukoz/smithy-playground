@@ -20,7 +20,7 @@ object CompilationTests extends FunSuite {
 
   def compile[A: smithy4s.Schema](
     in: PartialCompiler.WAST
-  ) = implicitly[smithy4s.Schema[A]].compile(comp).compile(in)
+  ) = implicitly[smithy4s.Schema[A]].compile(comp).compile(in).get
 
   test("string") {
     assert(

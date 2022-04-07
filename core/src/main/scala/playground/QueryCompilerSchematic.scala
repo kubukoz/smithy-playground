@@ -6,7 +6,6 @@ import cats.data.IorNec
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
 import cats.implicits._
-import cats.tagless.Derive
 import playground.smithyql._
 import schematic.Alt
 import schematic.ByteArray
@@ -21,24 +20,41 @@ import java.util.UUID
 
 import PartialCompiler.WAST
 import playground.CompilationErrorDetails._
+import smithy4s.internals.Hinted
+import smithy4s.ShapeId
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
-    ast => compile(ast).flatMap(f)
+    ast => compile(ast).transform(_.flatMap(f))
 
   // TODO: Actually use the powers of Ior. Maybe a custom monad for errors / warnings? Diagnosed[A]? Either+Writer composition?
-  def compile(ast: WAST): PartialCompiler.Result[A]
+  def compile(ast: WAST): PartialCompiler.ResultH[A]
 }
 
 object PartialCompiler {
+  type ResultH[A] = Hinted[Result, A]
   type Result[+A] = IorNec[CompilationError, A]
 
-  implicit val functor: Apply[PartialCompiler] = Derive.apply
+  implicit val functor: Apply[PartialCompiler] =
+    new Apply[PartialCompiler] {
+      def map[A, B](fa: PartialCompiler[A])(f: A => B): PartialCompiler[B] =
+        ast => fa.compile(ast).transform(_.map(f))
+
+      def ap[A, B](ff: PartialCompiler[A => B])(fa: PartialCompiler[A]): PartialCompiler[B] =
+        ast => {
+          val lhs = ff.compile(ast)
+
+          val rhs = fa.compile(ast)
+
+          lhs.productTransform(rhs)((_, _).parMapN(_.apply(_)))
+        }
+
+    }
 
   type WAST = WithSource[InputNode[WithSource]]
 
-  val pos: PartialCompiler[SourceRange] = _.range.rightIor
-  val unit: PartialCompiler[Unit] = _ => ().rightIor
+  val pos: PartialCompiler[SourceRange] = in => Hinted.static(in.range.rightIor)
+  val unit: PartialCompiler[Unit] = _ => Hinted.static(().rightIor)
 
   def typeCheck[A](
     expected: NodeKind
@@ -46,19 +62,24 @@ object PartialCompiler {
     f: PartialFunction[InputNode[WithSource], A]
   ): PartialCompiler[WithSource[A]] =
     ast =>
-      ast
-        .traverse(f.lift)
-        .toRightIor(
-          NonEmptyChain(
-            CompilationError(
-              TypeMismatch(
-                expected,
-                ast.value.kind,
-              ),
-              ast.range,
+      Hinted[PartialCompiler.Result].from { hints =>
+        val shapeId = hints.get(ShapeId).getOrElse(sys.error("Shape has no ID"))
+
+        ast
+          .traverse(f.lift)
+          .toRightIor(
+            NonEmptyChain(
+              CompilationError(
+                TypeMismatch(
+                  expected,
+                  ast.value.kind,
+                  shapeId,
+                ),
+                ast.range,
+              )
             )
           )
-        )
+      }
 
 }
 
@@ -68,7 +89,9 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
+      case TypeMismatch(expected, actual, expectedShapeId) => s"""Type mismatch:
+           |Expected ${expectedShapeId.show}
+           |Got      $actual""".stripMargin
 
       case UnsupportedNode(tag) => s"Unsupported operation: $tag"
 
@@ -111,6 +134,7 @@ object CompilationErrorDetails {
   final case class TypeMismatch(
     expected: NodeKind,
     actual: NodeKind,
+    expectedShapeId: ShapeId,
   ) extends CompilationErrorDetails
 
   final case class OperationNotFound(
@@ -146,12 +170,14 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def todo[A](implicit sc: Enclosing): PartialCompiler[A] =
     ast =>
-      Ior.leftNec(
-        CompilationError(
-          UnsupportedNode(sc.value),
-          ast.range,
+      Hinted.static {
+        Ior.leftNec(
+          CompilationError(
+            UnsupportedNode(sc.value),
+            ast.range,
+          )
         )
-      )
+      }
 
   def short: PartialCompiler[Short] = todo
 
@@ -198,118 +224,127 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     fields: Vector[Field[PartialCompiler, S, _]]
   )(
     const: Vector[Any] => S
-  ): PartialCompiler[S] = {
-    val validFields = fields.map(_.label)
+  ): PartialCompiler[S] =
+    ast =>
+      Hinted[PartialCompiler.Result].from { hints =>
+        val validFields = fields.map(_.label)
 
-    PartialCompiler
-      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
-      .emap { struct =>
-        // this is a list to keep the original type's ordering
-        val remainingValidFields =
-          validFields
-            .filterNot(
-              struct.value.fields.value.keys.map(_.value.text).toSet
-            )
-            .toList
+        PartialCompiler
+          .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
+          .emap { struct =>
+            // this is a list to keep the original type's ordering
+            val remainingValidFields =
+              validFields
+                .filterNot(
+                  struct.value.fields.value.keys.map(_.value.text).toSet
+                )
+                .toList
 
-        val extraFieldErrors: PartialCompiler.Result[Unit] = struct
-          .value
-          .fields
-          .value
-          .keys
-          .filterNot(field => validFields.contains(field.value.text))
-          .map { unexpectedKey =>
-            CompilationError(
-              UnexpectedField(remainingValidFields),
-              unexpectedKey.range,
-            )
-          }
-          .toList
-          .toNel
-          .map(NonEmptyChain.fromNonEmptyList)
-          .toLeftIor(())
-
-        val buildStruct = fields
-          .parTraverse { field =>
-            val fieldOpt = struct
+            val extraFieldErrors: PartialCompiler.Result[Unit] = struct
               .value
               .fields
               .value
-              .byName(field.label)(_.value)
-              .parTraverse(field.instance.compile)
-
-            if (field.isOptional)
-              fieldOpt
-            else
-              fieldOpt.flatMap {
-                _.toRightIor(
-                  CompilationError(
-                    MissingField(field.label),
-                    struct.value.fields.range,
-                  )
-                ).toIorNec
+              .keys
+              .filterNot(field => validFields.contains(field.value.text))
+              .map { unexpectedKey =>
+                CompilationError(
+                  UnexpectedField(remainingValidFields),
+                  unexpectedKey.range,
+                )
               }
+              .toList
+              .toNel
+              .map(NonEmptyChain.fromNonEmptyList)
+              .toLeftIor(())
+
+            val buildStruct = fields
+              .parTraverse { field =>
+                val fieldOpt = struct
+                  .value
+                  .fields
+                  .value
+                  .byName(field.label)(_.value)
+                  .parTraverse(field.instance.compile(_).get)
+
+                if (field.isOptional)
+                  fieldOpt
+                else
+                  fieldOpt.flatMap {
+                    _.toRightIor(
+                      CompilationError(
+                        MissingField(field.label),
+                        struct.value.fields.range,
+                      )
+                    ).toIorNec
+                  }
+              }
+
+            buildStruct.map(const) <& extraFieldErrors
           }
-
-        buildStruct.map(const) <& extraFieldErrors
+          .compile(ast)
+          .addHints(hints)
+          .get
       }
-
-  }
 
   def union[S](
     first: Alt[PartialCompiler, S, _],
     rest: Vector[Alt[PartialCompiler, S, _]],
   )(
     total: S => Alt.WithValue[PartialCompiler, S, _]
-  ): PartialCompiler[S] = {
-    val opts = NonEmptyList(first, rest.toList)
+  ): PartialCompiler[S] =
+    ast =>
+      Hinted[PartialCompiler.Result].from { hints =>
+        val opts = NonEmptyList(first, rest.toList)
 
-    PartialCompiler
-      // todo: should say it's a union
-      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
-      .emap {
-        case s if s.value.fields.value.size == 1 =>
-          val defs = s.value.fields.value
-          def go[A](
-            alt: Alt[PartialCompiler, S, A]
-          ): PartialCompiler[S] = alt.instance.map(alt.inject)
+        PartialCompiler
+          // todo: should say it's a union
+          .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
+          .emap {
+            case s if s.value.fields.value.size == 1 =>
+              val defs = s.value.fields.value
+              def go[A](
+                alt: Alt[PartialCompiler, S, A]
+              ): PartialCompiler[S] = alt.instance.map(alt.inject)
 
-          val (k, v) = defs.head
-          val op =
-            opts
-              .find { e =>
-                e.label == k.value.text
-              }
-              .toRightIor(
-                CompilationError(
-                  MissingDiscriminator(opts.map(_.label)),
-                  s.range,
-                )
+              val (k, v) = defs.head
+              val op =
+                opts
+                  .find { e =>
+                    e.label == k.value.text
+                  }
+                  .toRightIor(
+                    CompilationError(
+                      MissingDiscriminator(opts.map(_.label)),
+                      s.range,
+                    )
+                  )
+                  .toIorNec
+
+              op.flatMap(go(_).compile(v).addHints(hints).get)
+
+            case s if s.value.fields.value.isEmpty =>
+              CompilationError(
+                EmptyStruct(opts.map(_.label)),
+                s.range,
               )
-              .toIorNec
+                .leftIor
+                .toIorNec
 
-          op.flatMap(go(_).compile(v))
-
-        case s if s.value.fields.value.isEmpty =>
-          CompilationError(
-            EmptyStruct(opts.map(_.label)),
-            s.range,
-          )
-            .leftIor
-            .toIorNec
-
-        case s =>
-          CompilationError(
-            StructMismatch(
-              s.value.fields.value.keys.map(_.value.text).toList,
-              opts.map(_.label),
-            ),
-            s.range,
-          )
-            .leftIor
-            .toIorNec
+            case s =>
+              CompilationError(
+                StructMismatch(
+                  s.value.fields.value.keys.map(_.value.text).toList,
+                  opts.map(_.label),
+                ),
+                s.range,
+              )
+                .leftIor
+                .toIorNec
+          }
+          .compile(ast)
+          .addHints(hints)
+          .get
       }
-  }
 
   def enumeration[A](
     to: A => (String, Int),
@@ -350,7 +385,10 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       .toIorNec
   }
 
-  def withHints[A](fa: PartialCompiler[A], hints: Hints): PartialCompiler[A] = fa // todo
+  def withHints[A](
+    fa: PartialCompiler[A],
+    hints: Hints,
+  ): PartialCompiler[A] = fa.compile(_).addHints(hints)
 
   def document: PartialCompiler[Document] = todo
 
