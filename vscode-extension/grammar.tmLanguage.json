@@ -13,6 +13,9 @@
     },
     {
       "include": "#operators"
+    },
+    {
+      "include": "#booleans"
     }
   ],
   "repository": {
@@ -42,6 +45,15 @@
         {
           "name": "constant.numeric",
           "match": "\\d+(\\.\\d+)?"
+        }
+      ]
+    },
+    "booleans": {
+      "name": "constant.boolean",
+      "patterns": [
+        {
+          "name": "constant.boolean",
+          "match": "true|false"
         }
       ]
     },

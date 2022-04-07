@@ -20,10 +20,8 @@ import sourcecode.Enclosing
 import java.util.UUID
 
 import PartialCompiler.WAST
-import playground.CompilationError.TypeMismatch
-import playground.CompilationError.OperationNotFound
-import playground.CompilationError.GenericError
 import smithy4s.Lazy
+import playground.CompilationErrorDetails._
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -53,9 +51,11 @@ object PartialCompiler {
         .traverse(f.lift)
         .toRightIor(
           NonEmptyChain(
-            CompilationError.TypeMismatch(
-              expected,
-              ast.value.kind,
+            CompilationError(
+              TypeMismatch(
+                expected,
+                ast.value.kind,
+              ),
               ast.range,
             )
           )
@@ -63,45 +63,96 @@ object PartialCompiler {
 
 }
 
-sealed trait CompilationError extends Product with Serializable {
+final case class CompilationError(err: CompilationErrorDetails, range: SourceRange)
+
+sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case TypeMismatch(expected, actual, _) => s"Type mismatch: expected $expected, got $actual"
-      case GenericError(message, _)          => message
-      case OperationNotFound(name, validOperations, _) =>
-        s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}"
-    }
+      case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
 
-  // todo: move this outside?
-  def range: SourceRange
+      case UnsupportedNode(tag) => s"Unsupported operation: $tag"
+
+      case OperationNotFound(name, validOperations) =>
+        s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}."
+
+      case MissingField(label) => s"Missing field $label."
+
+      case InvalidTimestampFormat(expected) => s"Invalid timestamp format, expected $expected."
+
+      case MissingDiscriminator(labels) =>
+        s"wrong shape, this union requires one of: ${labels.mkString_(", ")}."
+
+      case EmptyStruct(possibleValues) =>
+        s"found empty struct, expected one of: ${possibleValues.mkString_(", ")}."
+
+      case UnknownEnumValue(name, possibleValues) =>
+        s"Unknown enum value: $name. Available values: ${possibleValues.mkString(", ")}"
+
+      case StructMismatch(keys, possibleValues) =>
+        s"struct mismatch (keys: ${keys.mkString_(", ")}), you must choose exactly one of: ${possibleValues
+          .mkString_(", ")}."
+
+      case UnexpectedField(remainingFields) =>
+        val expectedRemainingString =
+          if (remainingFields.isEmpty)
+            ""
+          else if (remainingFields.size == 1)
+            s" Expected: ${remainingFields.head}."
+          else
+            s" Expected: one of ${remainingFields.mkString(", ")}."
+
+        s"Unexpected field.$expectedRemainingString"
+    }
 
 }
 
-object CompilationError {
+object CompilationErrorDetails {
 
   final case class TypeMismatch(
     expected: NodeKind,
     actual: NodeKind,
-    range: SourceRange,
-  ) extends CompilationError
-
-  // todo phase out
-  final case class GenericError(message: String, range: SourceRange) extends CompilationError
+  ) extends CompilationErrorDetails
 
   final case class OperationNotFound(
     name: OperationName,
     validOperations: List[OperationName],
-    range: SourceRange,
-  ) extends CompilationError
+  ) extends CompilationErrorDetails
 
+  final case class MissingField(label: String) extends CompilationErrorDetails
+
+  final case class InvalidTimestampFormat(expected: TimestampFormat) extends CompilationErrorDetails
+
+  final case class MissingDiscriminator(possibleValues: NonEmptyList[String])
+    extends CompilationErrorDetails
+
+  final case class EmptyStruct(possibleValues: NonEmptyList[String]) extends CompilationErrorDetails
+
+  final case class UnknownEnumValue(value: String, possibleValues: List[String])
+    extends CompilationErrorDetails
+
+  final case class StructMismatch(
+    keys: List[String],
+    possibleValues: NonEmptyList[String],
+  ) extends CompilationErrorDetails
+
+  final case class UnexpectedField(
+    remainingFields: List[String]
+  ) extends CompilationErrorDetails
+
+  final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 }
 
 class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def todo[A](implicit sc: Enclosing): PartialCompiler[A] =
     ast =>
-      Ior.leftNec(CompilationError.GenericError(s"Unsupported operation: ${sc.value}", ast.range))
+      Ior.leftNec(
+        CompilationError(
+          UnsupportedNode(sc.value),
+          ast.range,
+        )
+      )
 
   def short: PartialCompiler[Short] = todo
 
@@ -124,7 +175,9 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   val string: PartialCompiler[String] = stringLiteral.map(_.value)
 
-  def boolean: PartialCompiler[Boolean] = todo
+  def boolean: PartialCompiler[Boolean] = PartialCompiler
+    .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
+    .map(_.value.value)
 
   def uuid: PartialCompiler[UUID] = todo
 
@@ -147,29 +200,28 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
   )(
     const: Vector[Any] => S
   ): PartialCompiler[S] = {
-    val validFields = fields.map(_.label).toSet
+    val validFields = fields.map(_.label)
 
     PartialCompiler
       .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
       .emap { struct =>
-        val remainingValidFields = validFields -- struct.value.fields.value.keys.map(_.value.text)
-        val expectedRemainingString =
-          if (remainingValidFields.isEmpty)
-            ""
-          else if (remainingValidFields.size == 1)
-            s". Expected: ${remainingValidFields.head}"
-          else
-            s". Expected: one of ${remainingValidFields.mkString(", ")}"
+        // this is a list to keep the original type's ordering
+        val remainingValidFields =
+          validFields
+            .filterNot(
+              struct.value.fields.value.keys.map(_.value.text).toSet
+            )
+            .toList
 
         val extraFieldErrors: PartialCompiler.Result[Unit] = struct
           .value
           .fields
           .value
           .keys
-          .filterNot(validFields.compose(_.value.text))
+          .filterNot(field => validFields.contains(field.value.text))
           .map { unexpectedKey =>
-            CompilationError.GenericError(
-              "Unexpected field" + expectedRemainingString,
+            CompilationError(
+              UnexpectedField(remainingValidFields),
               unexpectedKey.range,
             )
           }
@@ -192,8 +244,10 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
             else
               fieldOpt.flatMap {
                 _.toRightIor(
-                  CompilationError
-                    .GenericError(s"Missing field ${field.label}", struct.value.fields.range)
+                  CompilationError(
+                    MissingField(field.label),
+                    struct.value.fields.range,
+                  )
                 ).toIorNec
               }
           }
@@ -228,10 +282,8 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
                 e.label == k.value.text
               }
               .toRightIor(
-                CompilationError.GenericError(
-                  "wrong shape, this union requires one of: " + opts
-                    .map(_.label)
-                    .mkString_(", "),
+                CompilationError(
+                  MissingDiscriminator(opts.map(_.label)),
                   s.range,
                 )
               )
@@ -240,20 +292,21 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
           op.flatMap(go(_).compile(v))
 
         case s if s.value.fields.value.isEmpty =>
-          CompilationError
-            .GenericError(
-              "found empty struct, expected one of: " + opts.map(_.label).mkString_(", "),
-              s.range,
-            )
+          CompilationError(
+            EmptyStruct(opts.map(_.label)),
+            s.range,
+          )
             .leftIor
             .toIorNec
 
         case s =>
-          CompilationError
-            .GenericError(
-              s"struct mismatch (keys: ${s.value.fields.value.keys.map(_.value.text).toList.mkString_(", ")}), you must choose exactly one of: ${opts.map(_.label).mkString_(", ")}",
-              s.range,
-            )
+          CompilationError(
+            StructMismatch(
+              s.value.fields.value.keys.map(_.value.text).toList,
+              opts.map(_.label),
+            ),
+            s.range,
+          )
             .leftIor
             .toIorNec
       }
@@ -267,8 +320,8 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     fromName
       .get(name)
       .toRightIor(
-        CompilationError.GenericError(
-          s"Unknown enum value: $name. Available values: ${fromName.keys.mkString(", ")}",
+        CompilationError(
+          UnknownEnumValue(name, fromName.keys.toList),
           range,
         )
       )
@@ -284,11 +337,17 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
   ): PartialCompiler[B] = f.map(to)
 
   val timestamp: PartialCompiler[Timestamp] = stringLiteral.emap { s =>
+    // todo unhardcode format
+    val format = TimestampFormat.DATE_TIME
     Timestamp
-      // todo unhardcode format
       // todo: also, this keeps throwing in an uncatchable way in JS
-      .parse(s.value, TimestampFormat.DATE_TIME)
-      .toRightIor(CompilationError.GenericError("Invalid timestamp format", s.range))
+      .parse(s.value, format)
+      .toRightIor(
+        CompilationError(
+          InvalidTimestampFormat(format),
+          s.range,
+        )
+      )
       .toIorNec
   }
 

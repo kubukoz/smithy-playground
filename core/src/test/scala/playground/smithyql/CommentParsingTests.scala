@@ -8,7 +8,6 @@ import weaver.scalacheck.Checkers
 import Arbitraries._
 
 object CommentParsingTests extends SimpleIOSuite with Checkers {
-  import Assertions._
   pureTest("Comments from entire query are retained while parsing") {
     assert.eql(
       SmithyQLParser.parseFull(Examples.fullOfComments).map(WithSource.allQueryComments),

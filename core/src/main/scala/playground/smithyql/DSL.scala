@@ -19,5 +19,6 @@ object DSL {
 
   implicit def stringToAST(s: String): StringLiteral[Id] = StringLiteral[Id](s)
   implicit def intToAST(i: Int): IntLiteral[Id] = IntLiteral[Id](i)
+  implicit def boolToAST(b: Boolean): BooleanLiteral[Id] = BooleanLiteral[Id](b)
 
 }

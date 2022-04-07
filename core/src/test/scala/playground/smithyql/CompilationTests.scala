@@ -11,6 +11,7 @@ import playground.PartialCompiler
 import playground.QueryCompilerSchematic
 import weaver._
 import smithy4s.schema.Schema
+import playground.CompilationErrorDetails
 
 object CompilationTests extends FunSuite {
 
@@ -36,9 +37,11 @@ object CompilationTests extends FunSuite {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(Schema.string) == Ior.left(
         NonEmptyChain.of(
-          CompilationError.TypeMismatch(
-            NodeKind.StringLiteral,
-            NodeKind.IntLiteral,
+          CompilationError(
+            CompilationErrorDetails.TypeMismatch(
+              NodeKind.StringLiteral,
+              NodeKind.IntLiteral,
+            ),
             SourceRange(Position(0), Position(0)),
           )
         )
@@ -72,17 +75,36 @@ object CompilationTests extends FunSuite {
         }
       } == Ior.left(
         NonEmptyChain.of(
-          CompilationError
-            .GenericError("Missing field evilName", range = SourceRange(Position(0), Position(0))),
-          CompilationError.GenericError(
-            "Missing field powerLevel",
-            range = SourceRange(Position(0), Position(0)),
+          CompilationError(
+            CompilationErrorDetails
+              .MissingField("evilName"),
+            SourceRange(Position(0), Position(0)),
+          ),
+          CompilationError(
+            CompilationErrorDetails.MissingField("powerLevel"),
+            SourceRange(Position(0), Position(0)),
           ),
         )
       )
     )
   }
 
+  test("Missing fields in struct - 1 already present") {
+    assert(
+      compile[Bad] {
+        WithSource.liftId {
+          struct("evilName" -> "hello").mapK(WithSource.liftId)
+        }
+      } == Ior.left(
+        NonEmptyChain.of(
+          CompilationError(
+            CompilationErrorDetails.MissingField("powerLevel"),
+            SourceRange(Position(0), Position(0)),
+          )
+        )
+      )
+    )
+  }
   test("union") {
     assert(
       compile[Hero] {
@@ -105,9 +127,12 @@ object CompilationTests extends FunSuite {
     assert(
       compile[Power](WithSource.liftId("Poison".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
-          CompilationError.GenericError(
-            "Unknown enum value: Poison. Available values: Ice, Fire, Lightning, Wind",
-            range = SourceRange(Position(0), Position(0)),
+          CompilationError(
+            CompilationErrorDetails.UnknownEnumValue(
+              "Poison",
+              List("Ice", "Fire", "Lightning", "Wind"),
+            ),
+            SourceRange(Position(0), Position(0)),
           )
         )
       )

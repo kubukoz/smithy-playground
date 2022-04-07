@@ -72,7 +72,7 @@ object highlight {
           case CompilationFailed(errors) =>
             errors.map { ee => // dźwig
               error(
-                ee.render,
+                ee.err.render,
                 adapters.toVscodeRange(doc, ee.range),
               )
             }.toList

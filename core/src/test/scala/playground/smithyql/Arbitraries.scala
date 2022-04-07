@@ -3,8 +3,6 @@ package playground.smithyql
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 
-import cats.implicits._
-
 object Arbitraries {
 
   implicit val arbitraryComment: Arbitrary[Comment] = Arbitrary {

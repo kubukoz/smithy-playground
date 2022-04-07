@@ -82,6 +82,8 @@ object SmithyQLParser {
       .signedIntString
       .map(_.toInt)
 
+    val bool: Parser[Boolean] = string("true").as(true).orElse(string("false").as(false))
+
     // todo: allow quotes inside
     val stringLiteral: Parser[String] = anyChar
       .repUntil0(char('\"'))
@@ -108,10 +110,13 @@ object SmithyQLParser {
       .number
       .map(IntLiteral[T](_))
 
+    val boolLiteral = tokens.bool.map(BooleanLiteral[T](_))
+
     val stringLiteral = tokens.stringLiteral.map(StringLiteral[T](_))
 
     lazy val node: Parser[InputNode[T]] = Parser.defer {
       intLiteral |
+        boolLiteral |
         stringLiteral |
         struct
     }
