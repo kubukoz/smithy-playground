@@ -77,11 +77,17 @@ object client {
                   )
               )
           )
-          // Network[F].tlsContext.system
           .toResource
           .flatMap { tls =>
             EmberClientBuilder.default[F].withTLSContext(tls).build
           }
+          .map(
+            Logger[F](
+              logHeaders = true,
+              logBody = true,
+              logAction = Some(std.Console[F].println(_)),
+            )
+          )
       else
         fakeClient
     }
