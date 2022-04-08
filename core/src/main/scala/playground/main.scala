@@ -155,7 +155,7 @@ object Runner {
 
           val xa: smithy4s.Interpreter[Op, F] = liftMagic(
             awsEnv
-              .flatMap(AwsClient.resource(service, _))
+              .flatMap(AwsClient(service, _))
               .map(magic(_, service))
           )
 
