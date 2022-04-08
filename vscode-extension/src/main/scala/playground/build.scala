@@ -10,8 +10,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.dynamic.model.Model
 import typings.vscode.mod
 
-import scala.concurrent.duration._
-
 import scalajs.js
 import scala.concurrent.duration._
 import aws.protocols.AwsJson1_0
