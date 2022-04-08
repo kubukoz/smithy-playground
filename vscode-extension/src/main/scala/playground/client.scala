@@ -1,6 +1,7 @@
 package playground
 
 import cats.effect.Resource
+import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.implicits._
 import demo.smithy.CreateHeroOutput
@@ -16,6 +17,8 @@ import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import demo.smithy.GenericServerError
+import fs2.io.net.tls.TLSContext
+import fs2.io.net.tls.SecureContext
 
 object client {
 
@@ -46,7 +49,48 @@ object client {
 
     {
       if (useNetwork)
-        EmberClientBuilder.default[F].build
+        Async[F]
+          .delay(
+            // todo: use facade
+            TLSContext
+              .Builder
+              .forAsync[F]
+              .fromSecureContext(
+                SecureContext
+                  .fromJS(
+                    scalajs
+                      .js
+                      .Dynamic
+                      .global
+                      .require("tls")
+                      .applyDynamic("createSecureContext")(
+                        scalajs
+                          .js
+                          .Object
+                          .fromEntries(
+                            scalajs
+                              .js
+                              .Array(
+                                scalajs
+                                  .js
+                                  .Tuple2(
+                                    "_vscodeAdditionalCaCerts",
+                                    scalajs
+                                      .js
+                                      .Array
+                                      .apply(),
+                                  )
+                              )
+                          )
+                      )
+                  )
+              )
+          )
+          // Network[F].tlsContext.system
+          .toResource
+          .flatMap { tls =>
+            EmberClientBuilder.default[F].withTLSContext(tls).build
+          }
       else
         fakeClient
     }

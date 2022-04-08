@@ -32,7 +32,7 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def int: NodeEncoder[Int] = IntLiteral(_)
 
-  def long: NodeEncoder[Long] = todo
+  def long: NodeEncoder[Long] = l => IntLiteral(l.toInt) // todo this wraps!
 
   def double: NodeEncoder[Double] = todo
 
@@ -50,7 +50,8 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def byte: NodeEncoder[Byte] = todo
 
-  def bytes: NodeEncoder[ByteArray] = todo
+  def bytes: NodeEncoder[ByteArray] =
+    bytes => StringLiteral(bytes.toString()) // todo this only works for UTF-8 text
 
   def unit: NodeEncoder[Unit] = todo
 

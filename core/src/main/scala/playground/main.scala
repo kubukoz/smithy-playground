@@ -4,9 +4,13 @@ import cats.Defer
 import cats.Id
 import cats.MonadThrow
 import cats.data.NonEmptyList
-import cats.effect.Concurrent
+import cats.effect.MonadCancelThrow
+import cats.effect.Resource
+import cats.effect.implicits._
+import cats.effect.kernel.Async
 import cats.implicits._
 import cats.~>
+import org.http4s.Uri
 import org.http4s.client.Client
 import playground._
 import playground.smithyql.InputNode
@@ -15,9 +19,14 @@ import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
-import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.UnsupportedProtocolError
-import org.http4s.Uri
+import smithy4s.aws.AwsCall
+import smithy4s.aws.AwsClient
+import smithy4s.aws.AwsEnvironment
+import smithy4s.aws.AwsOperationKind
+import smithy4s.aws.http4s.AwsHttp4sBackend
+import smithy4s.aws.kernel.AwsRegion
+import smithy4s.http4s.SimpleRestJsonBuilder
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -132,28 +141,62 @@ object Runner {
     final case class Other(e: Throwable) extends Issue
   }
 
-  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Defer: Concurrent](
+  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async](
     service: Service[Alg, Op],
     client: Client[F],
     baseUri: Uri,
-  ): Optional[F, Op] =
-    new Optional[F, Op] {
+  ): Resource[F, Optional[F, Op]] =
+    // todo: configurable region
+    AwsEnvironment
+      .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
+      .memoize
+      .map { awsEnv =>
+        new Optional[F, Op] {
 
-      val get: Either[Issue, Runner[F, Op]] = Either
-        .catchNonFatal {
-          SimpleRestJsonBuilder(service).client(client, baseUri)
-        }
-        .leftMap(Issue.Other(_))
-        .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
-        .map { c =>
-          val exec = service.asTransformation(c)
+          val xa: smithy4s.Interpreter[Op, F] = liftMagic(
+            awsEnv
+              .flatMap(AwsClient(service, _))
+              .map(magic(_, service))
+          )
 
-          q =>
-            Defer[F].defer(exec(q.endpoint.wrap(q.input))).map { response =>
-              q.writeOutput.toNode(response)
+          val get: Either[Issue, Runner[F, Op]] = Either
+            .catchNonFatal {
+              SimpleRestJsonBuilder(service).client(client, baseUri)
             }
-        }
+            .leftMap(Issue.Other(_))
+            .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
+            .map(service.asTransformation)
+            // todo: this takes precedence now, probably not the best idea
+            .orElse(Right(xa))
+            .map { interpreter => q =>
+              Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
+                q.writeOutput.toNode(response)
+              }
+            }
 
+        }
+      }
+
+  def magic[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
+    alg: AwsClient[Alg, F],
+    service: Service[Alg, Op],
+  ): smithy4s.Interpreter[Op, F] = service
+    .asTransformation(alg)
+    .andThen(new smithy4s.Interpreter[AwsCall[F, *, *, *, *, *], F] {
+
+      def apply[I, E, O, SI, SO](
+        fa: AwsCall[F, I, E, O, SI, SO]
+      ): F[O] =
+        // todo big hack!
+        fa.run(AwsOperationKind.Unary.unary.asInstanceOf[AwsOperationKind.Unary[SI, SO]])
+
+    })
+
+  def liftMagic[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
+    interpreterR: Resource[F, smithy4s.Interpreter[Op, F]]
+  ): smithy4s.Interpreter[Op, F] =
+    new smithy4s.Interpreter[Op, F] {
+      def apply[I, E, O, SI, SO](fa: Op[I, E, O, SI, SO]): F[O] = interpreterR.use(_.apply(fa))
     }
 
 }

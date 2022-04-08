@@ -22,6 +22,8 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 import types._
 import playground.Runner.Issue.InvalidProtocol
 import playground.Runner.Issue.Other
+import cats.effect.Resource
+import cats.effect.implicits._
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -31,8 +33,8 @@ object extension {
   def activate(
     context: ExtensionContext
   ): Unit = client
-    .make[IO](useNetwork = false)
-    .evalMap(activateIO(context, _))
+    .make[IO](useNetwork = true)
+    .flatMap(activateR(context, _))
     .allocated
     .onError { case e => std.Console[IO].printStackTrace(e) }
     .flatMap { case (_, shutdown) => IO { shutdownHook = shutdown } }
@@ -41,27 +43,28 @@ object extension {
   @JSExportTopLevel("deactivate")
   def deactivate(): Unit = shutdownHook.unsafeRunAndForget()
 
-  // No resources allowed here
-  def activateIO(
+  def activateR(
     context: ExtensionContext,
     client: Client[IO],
-  ): IO[Unit] = build
+  ): Resource[IO, Unit] = build
     .buildFile[IO](chan)
+    .toResource
     .map(build.getService(_, chan))
     .flatMap { service =>
       Uri
         .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUrl"))
         .liftTo[IO]
+        .toResource
         .flatMap { baseUri =>
-          implicit val runnerOpt
-            : Runner.Optional[IO, service.Op] = Runner.make(service.service, client, baseUri)
-
-          IO {
-            activateInternal(
-              context,
-              service.service,
-            )
+          Runner.make(service.service, client, baseUri).evalMap { implicit runner =>
+            IO {
+              activateInternal(
+                context,
+                service.service,
+              )
+            }
           }
+
         }
     }
 
