@@ -19,6 +19,7 @@ import smithy4s.http4s.SimpleRestJsonBuilder
 import demo.smithy.GenericServerError
 import fs2.io.net.tls.TLSContext
 import fs2.io.net.tls.SecureContext
+import org.http4s.client.middleware.Logger
 
 object client {
 
