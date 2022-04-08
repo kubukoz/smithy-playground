@@ -11,13 +11,11 @@ import demo.smithy.GetPowersOutput
 import demo.smithy.Hero
 import demo.smithy.Power
 import demo.smithy.Subscription
-import fs2.io.net.Network
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import fs2.io.net.tls.TLSContext
 import fs2.io.net.tls.SecureContext
-import fs2.internal.jsdeps.node.tlsMod
 
 object client {
 
@@ -44,6 +42,7 @@ object client {
       if (useNetwork)
         Async[F]
           .delay(
+            // todo: use facade
             TLSContext
               .Builder
               .forAsync[F]
