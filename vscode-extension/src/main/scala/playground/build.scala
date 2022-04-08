@@ -10,7 +10,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.dynamic.model.Model
 import typings.vscode.mod
 
-import scala.scalajs.js.JSConverters._
+import scala.concurrent.duration._
 
 import scalajs.js
 import scala.concurrent.duration._
@@ -113,9 +113,10 @@ object build {
         repos :::
         deps
 
-    val process = ChildProcess.execFileSync(
-      "/nix/store/m5igl1nk1wblx5alzj8r2l56awnwgyvk-smithy4s-codegen-0.12.7/bin/smithy4s-codegen",
-      args.toJSArray,
+    val process = ChildProcess.execSync(
+      // todo: pass version from workspace config, default from sbt-buildinfo
+      ("cs" :: "launch" :: "com.disneystreaming.smithy4s::smithy4s-codegen-cli:0.12.10" :: "--" :: args)
+        .mkString(" ")
     )
 
     val modelText =
