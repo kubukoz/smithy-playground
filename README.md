@@ -6,10 +6,9 @@ Currently, everything is only available as a VS Code plugin, with future ideas t
 
 ## Usage
 
-Note: this currently doesn't work :) check back later. The reason is that the `smithy4s-codegen` binary's filesystem path is hardcoded.
-
 1. Get the extension from [Marketplace](https://marketplace.visualstudio.com/items?itemName=kubukoz.smithy-playground) or build from source (instructions below).
-2. Create a file, `smithy-build.json`. Example:
+2. Make sure you have Coursier available on the PATH as `cs`
+3. Create a file, `smithy-build.json`. Example:
 
 ```json
 {
