@@ -27,6 +27,8 @@ import smithy4s.aws.AwsOperationKind
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 import smithy4s.http4s.SimpleRestJsonBuilder
+import aws.protocols.AwsJson1_0
+import aws.protocols.AwsJson1_1
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -153,11 +155,26 @@ object Runner {
       .map { awsEnv =>
         new Optional[F, Op] {
 
-          val xa: smithy4s.Interpreter[Op, F] = liftMagic(
-            awsEnv
-              .flatMap(AwsClient(service, _))
-              .map(magic(_, service))
-          )
+          // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
+          val xa: Either[Issue, smithy4s.Interpreter[Op, F]] = service
+            .hints
+            .get(AwsJson1_0)
+            .toRight(AwsJson1_0)
+            .orElse(
+              service
+                .hints
+                .get(AwsJson1_1)
+                .toRight(AwsJson1_1)
+            )
+            .void
+            .as {
+              liftMagic(
+                awsEnv
+                  .flatMap(AwsClient(service, _))
+                  .map(magic(_, service))
+              )
+            }
+            .leftMap(protocol => Issue.InvalidProtocol(UnsupportedProtocolError(service, protocol)))
 
           val get: Either[Issue, Runner[F, Op]] = Either
             .catchNonFatal {
@@ -166,8 +183,7 @@ object Runner {
             .leftMap(Issue.Other(_))
             .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
             .map(service.asTransformation)
-            // todo: this takes precedence now, probably not the best idea
-            .orElse(Right(xa))
+            .orElse(xa)
             .map { interpreter => q =>
               Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
                 q.writeOutput.toNode(response)

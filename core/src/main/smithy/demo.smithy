@@ -114,9 +114,24 @@ structure Subscription {
   id: String,
   name: String,
   createdAt: Timestamp,
-  status: SubscriptionStatus
+  status: SubscriptionStatus,
+  skus: Skus
 }
 
+list Skus {
+  member: Sku
+}
+
+structure Sku {
+  @required
+  id: Integer,
+  @required
+  sku: String
+}
 
 @enum([{name: "ACTIVE", value: "ACTIVE"}, {name: "INACTIVE", value: "INACTIVE"}])
 string SubscriptionStatus
+
+list Ints {
+  member: Integer
+}

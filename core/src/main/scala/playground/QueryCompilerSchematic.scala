@@ -187,7 +187,9 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   val unit: PartialCompiler[Unit] = PartialCompiler.unit
 
-  def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = todo
+  def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = PartialCompiler
+    .typeCheck(NodeKind.Listed) { case l @ Listed(_) => l }
+    .emap(_.value.values.value.parTraverse(fs.compile))
 
   def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = todo
 

@@ -112,12 +112,12 @@ final case class StringLiteral[F[_]](value: String) extends InputNode[F] {
   def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = copy()
 }
 
-final case class Listed[F[_]](values: F[List[InputNode[F]]]) extends InputNode[F] {
+final case class Listed[F[_]](values: F[List[F[InputNode[F]]]]) extends InputNode[F] {
   def kind: NodeKind = NodeKind.Listed
 
   def mapK[G[_]: Functor](
     fk: F ~> G
-  ): InputNode[G] = copy(values = fk(values).map(_.map(_.mapK(fk))))
+  ): InputNode[G] = copy(values = fk(values).map(_.map(fk(_).map(_.mapK(fk)))))
 
 }
 

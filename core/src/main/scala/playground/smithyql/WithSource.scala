@@ -114,9 +114,7 @@ object WithSource {
       string = _ => Nil,
       int = _ => Nil,
       bool = _ => Nil,
-      listed = _.values.allComments(
-        _.flatMap(_.fold(comments, comments, comments, comments, comments))
-      ),
+      listed = _.values.allComments(_.flatMap(_.allComments(comments))),
     )
 
     q.operationName.allComments(_ => Nil) ++

@@ -8,6 +8,7 @@ import cats.parse.Parser
 import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import cats.parse.Rfc5234
+import cats.Defer
 
 object SmithyQLParser {
 
@@ -19,6 +20,8 @@ object SmithyQLParser {
     .leftMap(ParsingFailure(_, s))
 
   case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {
+
+    override def getMessage: String = msg
 
     def msg: String = {
       val (valid, failed) = text.splitAt(
@@ -98,6 +101,9 @@ object SmithyQLParser {
     val openBrace = punctuation('{')
     val closeBrace = punctuation('}')
 
+    val openBracket = punctuation('[')
+    val closeBracket = punctuation(']')
+
   }
 
   val parser: Parser[Query[WithSource]] = {
@@ -118,7 +124,20 @@ object SmithyQLParser {
       intLiteral |
         boolLiteral |
         stringLiteral |
-        struct
+        struct |
+        listed
+    }
+
+    def trailingCommaSeparated0[A](
+      parser: Parser[A]
+    ): Parser0[List[A]] = Defer[Parser0].fix[List[A]] { self =>
+      val moreFields: Parser0[List[A]] = (tokens.comma *> self).orElse(
+        Parser.pure(Nil)
+      )
+
+      (parser ~ moreFields)
+        .map { case (h, t) => h :: t }
+        .orElse(Parser.pure(Nil))
     }
 
     lazy val struct: Parser[Struct[T]] = {
@@ -132,13 +151,7 @@ object SmithyQLParser {
         ).tupled
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
-      lazy val fields: Parser0[List[TField]] = Parser.defer0 {
-        val moreFields: Parser0[List[TField]] = (tokens.comma *> fields).orElse(Parser.pure(Nil))
-
-        (field ~ moreFields)
-          .map { case (h, t) => h :: t }
-          .orElse(Parser.pure(Nil))
-      }
+      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
 
       tokens.openBrace *>
         (
@@ -149,15 +162,43 @@ object SmithyQLParser {
             (Parser.index <*
               tokens.closeBrace)
         ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
-          val fieldsResult =
-            fieldsR match {
-              case Nil    => Struct.Fields.empty[T]
-              case fields => Struct.Fields.fromSeq(fields)
-            }
+          val fieldsResult = Struct.Fields.fromSeq(fieldsR)
 
           val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
 
           Struct {
+            WithSource(
+              commentsLeft = Nil,
+              commentsRight = commentsBeforeEnd,
+              range = range,
+              value = fieldsResult,
+            )
+          }
+        }
+    }
+
+    // this is mostly copy-pasted from structs, might not work lmao
+    lazy val listed: Parser[Listed[T]] = {
+      type TField = T[InputNode[T]]
+
+      val field: Parser[TField] = tokens.withComments(node)
+
+      // field, then optional whitespace, then optional coma, then optionally more `fields`
+      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field.backtrack)
+
+      tokens.openBracket *>
+        (
+          Parser.index ~
+            // fields always start with whitespace/comments, so we don't catch that here
+            fields ~
+            tokens.comments ~
+            (Parser.index <*
+              tokens.closeBracket)
+        ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
+          val fieldsResult = fieldsR
+          val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
+
+          Listed {
             WithSource(
               commentsLeft = Nil,
               commentsRight = commentsBeforeEnd,

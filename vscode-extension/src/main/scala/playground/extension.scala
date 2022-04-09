@@ -33,7 +33,7 @@ object extension {
   def activate(
     context: ExtensionContext
   ): Unit = client
-    .make[IO](useNetwork = true)
+    .make[IO](useNetwork = false)
     .flatMap(activateR(context, _))
     .allocated
     .onError { case e => std.Console[IO].printStackTrace(e) }

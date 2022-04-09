@@ -12,6 +12,8 @@ import playground.QueryCompilerSchematic
 import weaver._
 import smithy4s.schema.Schema
 import playground.CompilationErrorDetails
+import demo.smithy.Powers
+import demo.smithy.Ints
 
 object CompilationTests extends FunSuite {
 
@@ -134,6 +136,31 @@ object CompilationTests extends FunSuite {
             ),
             SourceRange(Position(0), Position(0)),
           )
+        )
+      )
+    )
+  }
+
+  test("list of ints") {
+    assert(
+      compile[Ints](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
+        Ints(List(1, 2, 3))
+      )
+    )
+  }
+
+  test("list of strings where a list of ints is expected") {
+    assert(
+      compile[Ints](WithSource.liftId(List("hello", "world").mapK(WithSource.liftId))) == Ior.left(
+        NonEmptyChain.of(
+          CompilationError(
+            CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
+            SourceRange(Position(0), Position(0)),
+          ),
+          CompilationError(
+            CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
+            SourceRange(Position(0), Position(0)),
+          ),
         )
       )
     )

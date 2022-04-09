@@ -93,6 +93,50 @@ object ParserTests extends FunSuite {
     )
   )
 
+  parsingTest("list with bools", "hello { values = [true, false] }")(
+    "hello".call(
+      "values" -> List(true, false)
+    )
+  )
+
+  parsingTest("list with bools, trailing comma", "hello { values = [true, false,] }")(
+    "hello".call(
+      "values" -> List(true, false)
+    )
+  )
+
+  parsingTest("list with strings", """hello { values = ["hello", "world",] }""")(
+    "hello".call(
+      "values" -> List("hello", "world")
+    )
+  )
+
+  parsingTest("list with ints", """hello { values = [420, 2137,] }""")(
+    "hello".call(
+      "values" -> List(420, 2137)
+    )
+  )
+
+  parsingTest(
+    "list with comments",
+    """
+    hello { values =
+         //before list
+     [
+         //before first elem
+     420 //after first elem
+     ,   //before second elem
+
+      2137 //after second elem,
+           //after trailing comma
+      ]    //after list
+    }""",
+  )(
+    "hello".call(
+      "values" -> List(420, 2137)
+    )
+  )
+
   parsingTest(
     "empty comment",
     "//\nhello{}",
