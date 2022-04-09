@@ -1,6 +1,7 @@
 package playground.smithyql
 
 import org.typelevel.paiges.Doc
+import cats.implicits._
 
 object Formatter {
 
@@ -15,18 +16,7 @@ object Formatter {
       case IntLiteral(i)     => Doc.text(i.toString())
       case BooleanLiteral(b) => Doc.text(b.toString())
       case StringLiteral(s)  => Doc.text(renderStringLiteral(s))
-      case Listed(values)    =>
-        // todo major hack! Needs serious implementation and some sharing with structs.
-        // Missing: comments.
-        Doc.char('[') + Doc.hardLine +
-          Doc
-            .intercalate(
-              Doc.char(',') + Doc.hardLine,
-              values.value.map(writeAst),
-            )
-            .indent(2) +
-          Doc.hardLine +
-          Doc.char(']')
+      case l @ Listed(_)     => renderSequence(l)
     }
 
   def renderKey(k: WithSource[Struct.Key]): Doc =
@@ -76,19 +66,18 @@ object Formatter {
     }
   }
 
-  def renderFields(fields: Struct.Fields[WithSource]): Doc =
+  def renderField(k: WithSource[Struct.Key], v: WithSource[InputNode[WithSource]]): Doc =
+    renderKey(k) +
+      Doc.char('=') +
+      renderValue(v)
+
+  def renderFields[T](fields: List[T])(renderField: T => Doc): Doc =
     Doc
       .intercalate(
         // Force newlines between fields
         Doc.hardLine,
         fields
-          .value
-          .map { case (k, v) =>
-            renderKey(k) +
-              Doc.char('=') +
-              renderValue(v) +
-              Doc.comma
-          },
+          .map(renderField),
       )
       .aligned + {
       if (fields.isEmpty)
@@ -97,17 +86,28 @@ object Formatter {
         Doc.space
     }
 
-  def renderStruct(struct: Struct[WithSource]): Doc = {
-    val fields = struct.fields
-
-    Doc.char('{') + Doc.hardLine + {
+  def renderBracketed[T](
+    fields: WithSource[List[T]]
+  )(
+    before: Doc,
+    after: Doc,
+  )(
+    renderField: T => Doc
+  ): Doc =
+    before + Doc.hardLine + {
       comments(fields.commentsLeft) +
-        renderFields(fields.value) + comments(fields.commentsRight)
+        renderFields(fields.value)(renderField(_) + Doc.comma) +
+        comments(fields.commentsRight)
     }
       .indent(2) +
       Doc.hardLine +
-      Doc.char('}')
-  }
+      after
+
+  def renderStruct(struct: Struct[WithSource]): Doc =
+    renderBracketed(struct.fields.map(_.value))(Doc.char('{'), Doc.char('}'))(renderField.tupled)
+
+  def renderSequence(seq: Listed[WithSource]): Doc =
+    renderBracketed(seq.values)(Doc.char('['), Doc.char(']'))(renderValue(_))
 
   def renderStringLiteral(s: String) = "\"" + s + "\""
 

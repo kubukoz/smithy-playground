@@ -33,7 +33,7 @@ object PrettyPrint {
         case BooleanLiteral(b) => s"BooleanLiteral(${b.toString})"
         case IntLiteral(ii)    => s"IntLiteral(${ii.toString})"
         case s @ Struct(_)     => prettyPrintStruct(s)
-        case Listed(values)    => values.value.map(prettyPrintNode).mkString("Listed(", ", ", ")")
+        case Listed(values)    => ??? // todo
       }
 
     def prettyPrintStruct(s: Struct[WithSource]): String =

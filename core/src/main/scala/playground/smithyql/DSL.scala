@@ -21,4 +21,10 @@ object DSL {
   implicit def intToAST(i: Int): IntLiteral[Id] = IntLiteral[Id](i)
   implicit def boolToAST(b: Boolean): BooleanLiteral[Id] = BooleanLiteral[Id](b)
 
+  implicit def listToAST[A](
+    l: List[A]
+  )(
+    implicit ev: A => InputNode[Id]
+  ): Listed[Id] = Listed[Id](l.map(ev))
+
 }

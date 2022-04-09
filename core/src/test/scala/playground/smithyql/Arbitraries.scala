@@ -41,18 +41,24 @@ object Arbitraries {
     Gen.resultOf(StringLiteral.apply[WithSource])
   }
 
-  // todo: support all kinds of input nodes
+  implicit val arbBool: Arbitrary[BooleanLiteral[WithSource]] = Arbitrary {
+    Gen.resultOf(BooleanLiteral[WithSource])
+  }
+
   def genInputNode(depth: Int): Gen[InputNode[WithSource]] =
-    if (depth > 0)
+    if (depth > 0) {
+      val deeper = genInputNode(depth - 1)
       Gen.oneOf(
         arbStringLiteral.arbitrary,
         arbIntLiteral.arbitrary,
-        genStruct(genInputNode(depth - 1)),
+        genStruct(deeper),
+        genSequence(deeper).arbitrary,
       )
-    else
+    } else
       Gen.oneOf(
         arbStringLiteral.arbitrary,
         arbIntLiteral.arbitrary,
+        arbBool.arbitrary,
       )
 
   implicit val arbStructKey: Arbitrary[Struct.Key] = Arbitrary {
@@ -69,6 +75,14 @@ object Arbitraries {
 
     Gen
       .resultOf(Struct.apply[WithSource])
+  }
+
+  def genSequence(
+    recurse: Gen[InputNode[WithSource]]
+  ): Arbitrary[Listed[WithSource]] = {
+    implicit val arbNodes: Arbitrary[InputNode[WithSource]] = Arbitrary(recurse)
+
+    Arbitrary(Gen.resultOf(Listed[WithSource]))
   }
 
   implicit val arbStruct: Arbitrary[Struct[WithSource]] = Arbitrary(genStruct(genInputNode(1)))
