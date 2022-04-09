@@ -157,13 +157,15 @@ object Runner {
       .map { awsEnv =>
         new Optional[F, Op] {
 
-          val simpleRestJsonInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] =
-            simpleFromBuilder(
-              service,
-              client,
-              baseUri,
-              SimpleRestJsonBuilder,
-            )
+          private def simpleFromBuilder(
+            builder: SimpleProtocolBuilder[_]
+          ) = Either
+            .catchNonFatal {
+              builder(service).client(client, baseUri)
+            }
+            .leftMap(Issue.Other(_))
+            .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
+            .map(service.asTransformation)
 
           // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
           val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = service
@@ -186,7 +188,7 @@ object Runner {
             }
             .leftMap(protocol => Issue.InvalidProtocol(UnsupportedProtocolError(service, protocol)))
 
-          val get: Either[Issue, Runner[F, Op]] = simpleRestJsonInterpreter
+          val get: Either[Issue, Runner[F, Op]] = simpleFromBuilder(SimpleRestJsonBuilder)
             .orElse(awsInterpreter)
             .map { interpreter => q =>
               Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
@@ -196,19 +198,6 @@ object Runner {
 
         }
       }
-
-  private def simpleFromBuilder[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Concurrent](
-    service: Service[Alg, Op],
-    client: Client[F],
-    baseUri: Uri,
-    builder: SimpleProtocolBuilder[_],
-  ) = Either
-    .catchNonFatal {
-      builder(service).client(client, baseUri)
-    }
-    .leftMap(Issue.Other(_))
-    .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
-    .map(service.asTransformation)
 
   def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
     alg: AwsClient[Alg, F],
