@@ -156,7 +156,7 @@ object Runner {
         new Optional[F, Op] {
 
           // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
-          val xa: Either[Issue, smithy4s.Interpreter[Op, F]] = service
+          val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = service
             .hints
             .get(AwsJson1_0)
             .toRight(AwsJson1_0)
@@ -183,7 +183,7 @@ object Runner {
             .leftMap(Issue.Other(_))
             .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
             .map(service.asTransformation)
-            .orElse(xa)
+            .orElse(awsInterpreter)
             .map { interpreter => q =>
               Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
                 q.writeOutput.toNode(response)
