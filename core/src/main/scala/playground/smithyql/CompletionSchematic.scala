@@ -58,7 +58,6 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
       case Nil =>
         all.map { field =>
-          // todo: add type
           CompletionItem.UnionMember(
             field.label,
             deprecated = field.instance.hints.get(api.Deprecated).isDefined,

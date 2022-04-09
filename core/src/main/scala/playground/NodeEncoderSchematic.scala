@@ -25,41 +25,41 @@ trait NodeEncoder[A] {
 
 object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
-  def todo[A](implicit sc: Enclosing): NodeEncoder[A] =
+  def unsupported[A](implicit sc: Enclosing): NodeEncoder[A] =
     v => throw new Exception(s"Unsupported operation: ${sc.value} for value $v")
 
-  def short: NodeEncoder[Short] = todo
+  def short: NodeEncoder[Short] = unsupported
 
   def int: NodeEncoder[Int] = IntLiteral(_)
 
   def long: NodeEncoder[Long] = l => IntLiteral(l.toInt) // todo this wraps!
 
-  def double: NodeEncoder[Double] = todo
+  def double: NodeEncoder[Double] = unsupported
 
-  def float: NodeEncoder[Float] = todo
+  def float: NodeEncoder[Float] = unsupported
 
-  def bigint: NodeEncoder[BigInt] = todo
+  def bigint: NodeEncoder[BigInt] = unsupported
 
-  def bigdecimal: NodeEncoder[BigDecimal] = todo
+  def bigdecimal: NodeEncoder[BigDecimal] = unsupported
 
   def string: NodeEncoder[String] = StringLiteral(_)
 
   def boolean: NodeEncoder[Boolean] = b => BooleanLiteral(b)
 
-  def uuid: NodeEncoder[UUID] = todo
+  def uuid: NodeEncoder[UUID] = unsupported
 
-  def byte: NodeEncoder[Byte] = todo
+  def byte: NodeEncoder[Byte] = unsupported
 
   def bytes: NodeEncoder[ByteArray] =
     bytes => StringLiteral(bytes.toString()) // todo this only works for UTF-8 text
 
-  def unit: NodeEncoder[Unit] = todo
+  def unit: NodeEncoder[Unit] = unsupported
 
   def list[S](fs: NodeEncoder[S]): NodeEncoder[List[S]] = elems => Listed[Id](elems.map(fs.toNode))
 
-  def set[S](fs: NodeEncoder[S]): NodeEncoder[Set[S]] = todo
+  def set[S](fs: NodeEncoder[S]): NodeEncoder[Set[S]] = unsupported
 
-  def map[K, V](fk: NodeEncoder[K], fv: NodeEncoder[V]): NodeEncoder[Map[K, V]] = todo
+  def map[K, V](fk: NodeEncoder[K], fv: NodeEncoder[V]): NodeEncoder[Map[K, V]] = unsupported
 
   def struct[S](
     fields: Vector[Field[NodeEncoder, S, _]]
@@ -113,7 +113,7 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     fromOrdinal: Map[Int, A],
   ): NodeEncoder[A] = v => string.toNode(to(v)._1)
 
-  def suspend[A](f: Lazy[NodeEncoder[A]]): NodeEncoder[A] = todo
+  def suspend[A](f: Lazy[NodeEncoder[A]]): NodeEncoder[A] = unsupported
 
   def bijection[A, B](
     f: NodeEncoder[A],
@@ -126,6 +126,6 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def withHints[A](fa: NodeEncoder[A], hints: Hints): NodeEncoder[A] = fa
 
-  def document: NodeEncoder[Document] = todo
+  def document: NodeEncoder[Document] = unsupported
 
 }

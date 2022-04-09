@@ -145,7 +145,7 @@ object CompilationErrorDetails {
 
 class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
-  def todo[A](implicit sc: Enclosing): PartialCompiler[A] =
+  def unsupported[A](implicit sc: Enclosing): PartialCompiler[A] =
     ast =>
       Ior.leftNec(
         CompilationError(
@@ -154,21 +154,21 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
         )
       )
 
-  def short: PartialCompiler[Short] = todo
+  def short: PartialCompiler[Short] = unsupported
 
   val int: PartialCompiler[Int] = PartialCompiler
     .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
     .map(_.value.value)
 
-  def long: PartialCompiler[Long] = todo
+  def long: PartialCompiler[Long] = unsupported
 
-  def double: PartialCompiler[Double] = todo
+  def double: PartialCompiler[Double] = unsupported
 
-  def float: PartialCompiler[Float] = todo
+  def float: PartialCompiler[Float] = unsupported
 
-  def bigint: PartialCompiler[BigInt] = todo
+  def bigint: PartialCompiler[BigInt] = unsupported
 
-  def bigdecimal: PartialCompiler[BigDecimal] = todo
+  def bigdecimal: PartialCompiler[BigDecimal] = unsupported
 
   val stringLiteral =
     PartialCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
@@ -179,11 +179,11 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
     .map(_.value.value)
 
-  def uuid: PartialCompiler[UUID] = todo
+  def uuid: PartialCompiler[UUID] = unsupported
 
-  def byte: PartialCompiler[Byte] = todo
+  def byte: PartialCompiler[Byte] = unsupported
 
-  def bytes: PartialCompiler[ByteArray] = todo
+  def bytes: PartialCompiler[ByteArray] = unsupported
 
   val unit: PartialCompiler[Unit] = PartialCompiler.unit
 
@@ -191,9 +191,10 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     .typeCheck(NodeKind.Listed) { case l @ Listed(_) => l }
     .emap(_.value.values.value.parTraverse(fs.compile))
 
-  def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = todo
+  def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = unsupported
 
-  def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] = todo
+  def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] =
+    unsupported
 
   def struct[S](
     fields: Vector[Field[PartialCompiler, S, _]]
@@ -328,7 +329,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       .toIorNec
   }
 
-  def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = todo
+  def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = unsupported
 
   def bijection[A, B](
     f: PartialCompiler[A],
@@ -353,6 +354,6 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def withHints[A](fa: PartialCompiler[A], hints: Hints): PartialCompiler[A] = fa // todo
 
-  def document: PartialCompiler[Document] = todo
+  def document: PartialCompiler[Document] = unsupported
 
 }
