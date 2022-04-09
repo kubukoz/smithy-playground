@@ -8,7 +8,6 @@ import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.effect.implicits._
 import cats.effect.Async
-import cats.effect.Concurrent
 import cats.implicits._
 import cats.~>
 import org.http4s.Uri
