@@ -7,7 +7,8 @@ import cats.data.NonEmptyList
 import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.effect.implicits._
-import cats.effect.kernel.Async
+import cats.effect.Async
+import cats.effect.Concurrent
 import cats.implicits._
 import cats.~>
 import org.http4s.Uri
@@ -29,6 +30,7 @@ import smithy4s.aws.kernel.AwsRegion
 import smithy4s.http4s.SimpleRestJsonBuilder
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
+import smithy4s.http4s.SimpleProtocolBuilder
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -155,8 +157,16 @@ object Runner {
       .map { awsEnv =>
         new Optional[F, Op] {
 
+          val simpleRestJsonInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] =
+            simpleFromBuilder(
+              service,
+              client,
+              baseUri,
+              SimpleRestJsonBuilder,
+            )
+
           // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
-          val xa: Either[Issue, smithy4s.Interpreter[Op, F]] = service
+          val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = service
             .hints
             .get(AwsJson1_0)
             .toRight(AwsJson1_0)
@@ -168,22 +178,16 @@ object Runner {
             )
             .void
             .as {
-              liftMagic(
+              liftInterpreterResource(
                 awsEnv
                   .flatMap(AwsClient(service, _))
-                  .map(magic(_, service))
+                  .map(flattenAwsInterpreter(_, service))
               )
             }
             .leftMap(protocol => Issue.InvalidProtocol(UnsupportedProtocolError(service, protocol)))
 
-          val get: Either[Issue, Runner[F, Op]] = Either
-            .catchNonFatal {
-              SimpleRestJsonBuilder(service).client(client, baseUri)
-            }
-            .leftMap(Issue.Other(_))
-            .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
-            .map(service.asTransformation)
-            .orElse(xa)
+          val get: Either[Issue, Runner[F, Op]] = simpleRestJsonInterpreter
+            .orElse(awsInterpreter)
             .map { interpreter => q =>
               Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
                 q.writeOutput.toNode(response)
@@ -193,7 +197,20 @@ object Runner {
         }
       }
 
-  def magic[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
+  private def simpleFromBuilder[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Concurrent](
+    service: Service[Alg, Op],
+    client: Client[F],
+    baseUri: Uri,
+    builder: SimpleProtocolBuilder[_],
+  ) = Either
+    .catchNonFatal {
+      builder(service).client(client, baseUri)
+    }
+    .leftMap(Issue.Other(_))
+    .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
+    .map(service.asTransformation)
+
+  def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
     alg: AwsClient[Alg, F],
     service: Service[Alg, Op],
   ): smithy4s.Interpreter[Op, F] = service
@@ -208,7 +225,7 @@ object Runner {
 
     })
 
-  def liftMagic[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
+  def liftInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
     interpreterR: Resource[F, smithy4s.Interpreter[Op, F]]
   ): smithy4s.Interpreter[Op, F] =
     new smithy4s.Interpreter[Op, F] {
