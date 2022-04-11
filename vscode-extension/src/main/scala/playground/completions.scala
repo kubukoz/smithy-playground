@@ -24,15 +24,12 @@ object completions {
     val completeOperationName = service
       .endpoints
       .map { e =>
-        val getName = GetNameHint.singleton
         new mod.CompletionItem(
           s"${e.name}",
           mod.CompletionItemKind.Function,
         )
           .tap(_.insertText = e.name)
-          .tap(_.detail =
-            s"${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}"
-          )
+          .tap(_.detail = s"${e.input.shapeId.name} => ${e.output.shapeId.name}")
           .tap(
             _.documentation = List(
               e.hints.get(Http).map { http =>
