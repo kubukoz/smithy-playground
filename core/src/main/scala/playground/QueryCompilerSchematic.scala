@@ -192,7 +192,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = unsupported
 
-  def vector[S](fs: PartialCompiler[S]): PartialCompiler[Vector[S]] = unsupported
+  def vector[S](fs: PartialCompiler[S]): PartialCompiler[Vector[S]] = list(fs).map(_.toVector)
 
   def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] =
     unsupported
