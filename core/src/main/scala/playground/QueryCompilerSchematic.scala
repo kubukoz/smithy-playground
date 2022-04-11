@@ -330,7 +330,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       .toIorNec
   }
 
-  def suspend[A](f: => PartialCompiler[A]): PartialCompiler[A] = unsupported
+  def suspend[A](f: => PartialCompiler[A]): PartialCompiler[A] = f.compile(_)
 
   def bijection[A, B](
     f: PartialCompiler[A],
