@@ -125,10 +125,7 @@ object build {
 
     chan.appendLine("Parsing model...")
 
-    val capi = smithy4s.http.json.codecs()
-
-    val decodedModel =
-      capi.decodeFromByteArray(capi.compileCodec(Model.schema), modelText.getBytes()).toTry.get
+    val decodedModel = modelParser(modelText)
 
     chan.appendLine("Loading schemas...")
 
@@ -170,6 +167,13 @@ object build {
     chan.appendLine("Loaded services: " + services.map(_.service.id.show).mkString(", ") + "\n\n")
 
     services.head
+  }
+
+  private val modelParser: String => Model = {
+    val capi = smithy4s.http.json.codecs()
+    val codec = capi.compileCodec(Model.schema)
+
+    text => capi.decodeFromByteArray(codec, text.getBytes()).toTry.get
   }
 
 }

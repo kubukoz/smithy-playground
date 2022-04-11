@@ -77,12 +77,12 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
     def go[In, Err, Out](
       e: Endpoint[Op, In, Err, Out, _, _]
     ): WithSource[InputNode[WithSource]] => F[CompiledInput[Op]] = {
-      val schematic = e.input.compile(schem)
+      val inputCompiler = e.input.compile(schem)
       val outputEncoder = e.output.compile(NodeEncoderSchematic)
       val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
 
       ast =>
-        schematic
+        inputCompiler
           .compile(ast)
           .toEither
           .leftMap(_.toNonEmptyList)

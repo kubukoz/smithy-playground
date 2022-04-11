@@ -12,7 +12,6 @@ import playground.QueryCompilerSchematic
 import weaver._
 import smithy4s.schema.Schema
 import playground.CompilationErrorDetails
-import demo.smithy.Powers
 import demo.smithy.Ints
 
 object CompilationTests extends FunSuite {
