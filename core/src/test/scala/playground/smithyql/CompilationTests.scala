@@ -11,7 +11,6 @@ import playground.PartialCompiler
 import playground.QueryCompilerSchematic
 import weaver._
 import playground.CompilationErrorDetails
-import demo.smithy.Powers
 import demo.smithy.Ints
 
 object CompilationTests extends FunSuite {

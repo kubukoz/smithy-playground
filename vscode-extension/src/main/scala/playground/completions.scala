@@ -14,6 +14,7 @@ import util.chaining._
 import playground.smithyql.CompletionItem.Field
 import playground.smithyql.CompletionItem.UnionMember
 import scala.scalajs.js.JSConverters._
+import playground.smithyql.OperationName
 
 object completions {
 
@@ -47,6 +48,14 @@ object completions {
           )
       }
 
+    val completionsByEndpoint: Map[OperationName, CompletionSchematic.ResultR[Any]] =
+      service
+        .endpoints
+        .map { endpoint =>
+          OperationName(endpoint.name) -> endpoint.input.compile(new CompletionSchematic).get
+        }
+        .toMap
+
     (doc, pos) =>
       SmithyQLParser.parseFull(doc.getText()) match {
         case Left(_) =>
@@ -60,9 +69,7 @@ object completions {
             .flatMap {
               case WithSource.OperationContext(_) => completeOperationName
               case WithSource.InputContext(ctx) =>
-                val e = service.endpoints.find(_.name == q.operationName.value.text).get
-                // todo caching
-                val result = e.input.compile(new CompletionSchematic).get.apply(ctx)
+                val result = completionsByEndpoint(q.operationName.value).apply(ctx)
 
                 result.map { key =>
                   key match {
@@ -87,8 +94,6 @@ object completions {
                         )
                   }
                 }
-
-              case _ => Nil
             }
       }
   }
