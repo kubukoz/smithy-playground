@@ -329,7 +329,7 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       .toIorNec
   }
 
-  def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = unsupported
+  def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = f.value.compile(_)
 
   def bijection[A, B](
     f: PartialCompiler[A],
@@ -354,6 +354,18 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def withHints[A](fa: PartialCompiler[A], hints: Hints): PartialCompiler[A] = fa // todo
 
-  def document: PartialCompiler[Document] = unsupported
+  val document: PartialCompiler[Document] =
+    _.value match {
+      case BooleanLiteral(value) => Document.fromBoolean(value).pure[PartialCompiler.Result]
+      case IntLiteral(value)     => Document.fromInt(value).pure[PartialCompiler.Result]
+      case StringLiteral(value)  => Document.fromString(value).pure[PartialCompiler.Result]
+      case Listed(values) => values.value.parTraverse(document.compile(_)).map(Document.array(_))
+      case Struct(fields) =>
+        fields
+          .value
+          .value
+          .parTraverse { case (key, value) => document.compile(value).tupleLeft(key.value.text) }
+          .map(Document.obj(_: _*))
+    }
 
 }
