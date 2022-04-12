@@ -67,8 +67,8 @@ object completions {
           matchingNode
             .toList
             .flatMap {
-              case WithSource.OperationContext(_) => completeOperationName
-              case WithSource.InputContext(ctx) =>
+              case WithSource.NodeContext.OperationContext(_) => completeOperationName
+              case WithSource.NodeContext.InputContext(ctx) =>
                 val result = completionsByEndpoint(q.operationName.value).apply(ctx)
 
                 result.map { key =>
