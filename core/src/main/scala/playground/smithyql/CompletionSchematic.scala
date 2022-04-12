@@ -28,6 +28,16 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
   def default[A]: Result[A] = Hinted.static[ResultR, A](_ => Nil)
 
+  private def retag[A, B](fs: Result[A]): Result[B] = fs.transform(identity(_): ResultR[B])
+
+  override def list[S](
+    fs: Result[S]
+  ): Result[List[S]] = retag(fs)
+
+  override def vector[S](
+    fs: Result[S]
+  ): Result[Vector[S]] = retag(list(fs))
+
   override def struct[S](
     fields: Vector[Field[Result, S, _]]
   )(
@@ -68,9 +78,9 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
   }
 
-  override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = f.transform(
-    identity(_): ResultR[B]
-  )
+  override def suspend[A](f: => Result[A]): Result[A] = Hinted.static[ResultR, A](in => f.get(in))
+
+  override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = retag(f)
 
   override def withHints[A](fa: Result[A], hints: Hints): Result[A] = fa.addHints(hints)
 

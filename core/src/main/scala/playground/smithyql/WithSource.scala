@@ -48,19 +48,54 @@ object WithSource {
 
   // The path to a position in the parsed source
   sealed trait NodeContext extends Product with Serializable
-  final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext
-  final case class InputContext(context: List[String]) extends NodeContext
+
+  object NodeContext {
+
+    final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext
+    final case class InputContext(context: List[String]) extends NodeContext
+  }
 
   def atPosition(q: Query[WithSource])(pos: Position): Option[NodeContext] = {
     val op =
       if (q.operationName.range.contains(pos))
-        OperationContext(q.operationName).some
+        NodeContext.OperationContext(q.operationName).some
       else
         None
 
     val input = findInStruct(q.input, pos, Chain.nil)
 
     op.orElse(input)
+  }
+
+  private def findInNode(
+    node: WithSource[InputNode[WithSource]],
+    pos: Position,
+    ctx: Chain[String],
+  ): Option[NodeContext] =
+    node.value match {
+      case l @ Listed(_) => findInList(node.copy(value = l), pos, ctx)
+      case s @ Struct(_) => findInStruct(node.copy(value = s), pos, ctx)
+      case _             => None // not supported yet
+    }
+
+  private def findInList(
+    list: WithSource[Listed[WithSource]],
+    pos: Position,
+    ctx: Chain[String],
+  ): Option[NodeContext] = {
+    val insideItem = list
+      .value
+      .values
+      .value
+      .find(_.range.contains(pos))
+      .flatMap(findInNode(_, pos, ctx))
+
+    val self =
+      Option.when(list.range.contains(pos))(
+        NodeContext.InputContext(ctx.toList)
+      )
+
+    insideItem.orElse(self)
   }
 
   private def findInStruct(
@@ -73,8 +108,8 @@ object WithSource {
       v: WithSource[Struct[WithSource]],
     ): Option[NodeContext] = findInStruct(v, pos, ctx.append(k.value.text))
 
-    // Struct fields that are also structs
-    val structFields =
+    // Struct fields that allow nesting in them
+    val nestedFields =
       struct
         .value
         .fields
@@ -82,25 +117,24 @@ object WithSource {
         .value
         .view
         .map { case (k, v) =>
-          v.traverse {
-            case s @ Struct(_) => s.some
-            case _             => none
-          }.tupleLeft(k)
+          v.value match {
+            case s @ Struct(_) if v.range.contains(pos) => recurse(k, v.copy(value = s))
+            case l @ Listed(_) if v.range.contains(pos) =>
+              findInList(v.copy(value = l), pos, ctx.append(k.value.text))
+            case _ => none
+          }
         }
         .flatten
-
-    val matchingField = structFields
-      .find { case (_, v) => v.range.contains(pos) }
-      .flatMap(recurse.tupled)
+        .headOption
 
     val self =
       Option.when(struct.range.contains(pos)) {
-        InputContext(ctx.toList)
+        NodeContext.InputContext(ctx.toList)
       }
 
     // possible optimization: don't even attempt to find matching fields
     // if we're not even in the struct range
-    matchingField.orElse(self)
+    nestedFields.orElse(self)
   }
 
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
