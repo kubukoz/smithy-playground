@@ -7,6 +7,7 @@ import smithy4s.schema.StubSchematic
 import smithy4s.internals.Hinted
 import smithy.api
 import smithy4s.ShapeId
+import smithy4s.Lazy
 
 object CompletionSchematic {
   // from context
@@ -33,10 +34,6 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
   override def list[S](
     fs: Result[S]
   ): Result[List[S]] = retag(fs)
-
-  override def vector[S](
-    fs: Result[S]
-  ): Result[Vector[S]] = retag(list(fs))
 
   override def struct[S](
     fields: Vector[Field[Result, S, _]]
@@ -78,7 +75,9 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
   }
 
-  override def suspend[A](f: => Result[A]): Result[A] = Hinted.static[ResultR, A](in => f.get(in))
+  override def suspend[A](
+    f: Lazy[Result[A]]
+  ): Result[A] = Hinted.static[ResultR, A](in => f.value.get(in))
 
   override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = retag(f)
 
