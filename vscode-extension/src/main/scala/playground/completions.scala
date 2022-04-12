@@ -58,7 +58,8 @@ object completions {
 
     (doc, pos) =>
       SmithyQLParser.parseFull(doc.getText()) match {
-        case Left(_) =>
+        case Left(_) if doc.getText().isBlank() => completeOperationName
+        case Left(_)                            =>
           // we can try to deal with this later
           Nil
         case Right(q) =>
