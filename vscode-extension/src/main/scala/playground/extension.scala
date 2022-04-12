@@ -24,10 +24,15 @@ import playground.Runner.Issue.InvalidProtocol
 import playground.Runner.Issue.Other
 import cats.effect.Resource
 import cats.effect.implicits._
+import util.chaining._
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
   private var shutdownHook: IO[Unit] = IO.unit
+
+  private def timedResource[A](tag: String)(res: Resource[IO, A]): Resource[IO, A] = res
+    .timed
+    .evalMap { case (fd, value) => IO.println(s"$tag took ${fd.toMillis}ms").as(value) }
 
   @JSExportTopLevel("activate")
   def activate(
@@ -35,6 +40,7 @@ object extension {
   ): Unit = client
     .make[IO](useNetwork = false)
     .flatMap(activateR(context, _))
+    .pipe(timedResource("activateR"))
     .allocated
     .onError { case e => std.Console[IO].printStackTrace(e) }
     .flatMap { case (_, shutdown) => IO { shutdownHook = shutdown } }
@@ -43,12 +49,13 @@ object extension {
   @JSExportTopLevel("deactivate")
   def deactivate(): Unit = shutdownHook.unsafeRunAndForget()
 
-  def activateR(
+  private def activateR(
     context: ExtensionContext,
     client: Client[IO],
   ): Resource[IO, Unit] = build
     .buildFile[IO](chan)
     .toResource
+    .pipe(timedResource("buildFile"))
     .map(build.getService(_, chan))
     .flatMap { service =>
       Uri
@@ -58,29 +65,36 @@ object extension {
         .flatMap { baseUri =>
           Runner.make(service.service, client, baseUri).evalMap { implicit runner =>
             IO {
-              activateInternal(
-                context,
-                service.service,
-              )
+              debug.timed("activateInternal") {
+                activateInternal(
+                  context,
+                  service.service,
+                )
+              }
             }
           }
 
         }
     }
 
-  def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+  private def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     context: ExtensionContext,
     service: Service[Alg, Op],
   )(
     implicit runner: Runner.Optional[IO, Op]
   ): Unit = {
-    implicit val compiler: Compiler[Op, EitherThrow] = Compiler.instance(
-      service.service
-    )
+
+    implicit val compiler: Compiler[Op, EitherThrow] =
+      debug.timed("compiler setup") {
+        Compiler.instance(
+          service.service
+        )
+      }
 
     import vscodeutil.disposableToDispose
 
-    val completionProvider = completions.complete(service.service)
+    val completionProvider =
+      debug.timed("completionProvider setup")(completions.complete(service.service))
 
     chan.appendLine("Smithy Playground activated! Info to follow:")
     chan.appendLine(s"""Service: ${service.service.id.show}
