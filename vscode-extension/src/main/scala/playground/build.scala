@@ -11,7 +11,6 @@ import smithy4s.dynamic.model.Model
 import typings.vscode.mod
 
 import scalajs.js
-import scala.concurrent.duration._
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 
@@ -23,15 +22,10 @@ object build {
     chan: mod.OutputChannel
   ): F[BuildInfo] = fs2
     .Stream
-    .emits(configFiles)
-    .append(
-      fs2
-        .Stream
-        .exec(
-          Sync[F].delay(chan.appendLine(s"Loading config from ${configFiles.mkString(", ")}..."))
-        )
+    .exec(
+      Sync[F].delay(chan.appendLine(s"Loading config from ${configFiles.mkString(", ")}..."))
     )
-    .evalTap(_ => Async[F].sleep(1.second))
+    .append(fs2.Stream.emits(configFiles))
     .evalMap { template =>
       Async[F]
         .fromFuture {
@@ -96,78 +90,91 @@ object build {
   def getService(
     buildFile: BuildInfo,
     chan: mod.OutputChannel,
-  ): DynamicSchemaIndex.ServiceWrapper = {
-    chan.appendLine("Dumping model...")
+  ): DynamicSchemaIndex.ServiceWrapper =
+    debug.timed("getService") {
+      chan.appendLine("Dumping model...")
 
-    val repos = buildFile
-      .repos
-      .toNel
-      .foldMap(repos => "--repositories" :: repos.mkString_(",") :: Nil)
-    val deps = buildFile.deps.toNel.foldMap(deps => "--dependencies" :: deps.mkString_(",") :: Nil)
+      val repos = buildFile
+        .repos
+        .toNel
+        .foldMap(repos => "--repositories" :: repos.mkString_(",") :: Nil)
+      val deps = buildFile
+        .deps
+        .toNel
+        .foldMap(deps => "--dependencies" :: deps.mkString_(",") :: Nil)
 
-    val args =
-      "dump-model" ::
-        buildFile.imports :::
-        repos :::
-        deps
+      val args =
+        "dump-model" ::
+          buildFile.imports :::
+          repos :::
+          deps
 
-    val process = ChildProcess.execSync(
-      // todo: pass version from workspace config, default from sbt-buildinfo
-      ("cs" :: "launch" :: "com.disneystreaming.smithy4s::smithy4s-codegen-cli:0.12.10" :: "--" :: args)
-        .mkString(" ")
-    )
+      val process =
+        debug.timed("dump-model") {
+          ChildProcess.execSync(
+            // todo: pass version from workspace config, default from sbt-buildinfo
+            ("cs" :: "launch" :: "com.disneystreaming.smithy4s::smithy4s-codegen-cli:0.12.10" :: "--" :: args)
+              .mkString(" ")
+          )
+        }
 
-    val modelText =
-      (process: Any @unchecked) match {
-        case b: io.scalajs.nodejs.buffer.Buffer => b.toString("UTF-8")
-        case s: String                          => s
-      }
+      val modelText =
+        (process: Any @unchecked) match {
+          case b: io.scalajs.nodejs.buffer.Buffer => b.toString("UTF-8")
+          case s: String                          => s
+        }
 
-    chan.appendLine("Parsing model...")
+      chan.appendLine("Parsing model...")
 
-    val decodedModel = modelParser(modelText)
+      val decodedModel = debug.timed("parse-model")(modelParser(modelText))
 
-    chan.appendLine("Loading schemas...")
+      chan.appendLine("Loading schemas...")
 
-    val services =
-      DynamicSchemaIndex
-        .load(
-          decodedModel,
-          SimpleRestJson
-            .protocol
-            .schemas ++
-            // todo: should be included
-            SchemaIndex(
-              SimpleRestJson,
-              smithy.api.Error,
-              smithy.api.Documentation,
-              smithy.api.ExternalDocumentation,
-              smithy.api.Deprecated,
-            ) ++
-            AwsJson1_0.protocol.schemas ++
-            AwsJson1_1.protocol.schemas ++
-            SchemaIndex(
-              AwsJson1_0,
-              AwsJson1_1,
-              aws.api.Arn,
-              aws.api.ArnNamespace,
-              aws.api.ArnReference,
-              aws.api.ClientDiscoveredEndpoint,
-              aws.api.ClientEndpointDiscovery,
-              aws.api.ClientEndpointDiscoveryId,
-              aws.api.CloudFormationName,
-              aws.api.ControlPlane,
-              aws.api.Data,
-              aws.api.DataPlane,
-              aws.api.Service,
-            ),
-        )
-        .allServices
+      val supportedSchemas =
+        SimpleRestJson
+          .protocol
+          .schemas ++
+          // todo: should be included
+          SchemaIndex(
+            SimpleRestJson,
+            smithy.api.Error,
+            smithy.api.Documentation,
+            smithy.api.ExternalDocumentation,
+            smithy.api.Deprecated,
+          ) ++
+          AwsJson1_0.protocol.schemas ++
+          AwsJson1_1.protocol.schemas ++
+          SchemaIndex(
+            AwsJson1_0,
+            AwsJson1_1,
+            aws.api.Arn,
+            aws.api.ArnNamespace,
+            aws.api.ArnReference,
+            aws.api.ClientDiscoveredEndpoint,
+            aws.api.ClientEndpointDiscovery,
+            aws.api.ClientEndpointDiscoveryId,
+            aws.api.CloudFormationName,
+            aws.api.ControlPlane,
+            aws.api.Data,
+            aws.api.DataPlane,
+            aws.api.Service,
+          )
 
-    chan.appendLine("Loaded services: " + services.map(_.service.id.show).mkString(", ") + "\n\n")
+      val services =
+        debug
+          .timed("DSI.load") {
+            DynamicSchemaIndex
+              .load(
+                decodedModel,
+                supportedSchemas,
+              )
+          }
+          .allServices
 
-    services.head
-  }
+      chan.appendLine("Loaded services: " + services.map(_.service.id.show).mkString(", ") + "\n\n")
+
+      services.head
+    }
 
   private val modelParser: String => Model = {
     val capi = smithy4s.http.json.codecs()
