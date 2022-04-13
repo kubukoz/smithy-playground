@@ -107,7 +107,9 @@ structure Subscription {
   name: String,
   createdAt: Timestamp,
   status: SubscriptionStatus,
-  skus: Skus
+  skus: Skus,
+  // recursive call
+  next: Subscription
 }
 
 list Skus {
@@ -127,3 +129,4 @@ string SubscriptionStatus
 list Ints {
   member: Integer
 }
+
