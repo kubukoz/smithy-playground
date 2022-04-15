@@ -5,8 +5,10 @@ import schematic.Field
 import smithy4s.Hints
 import smithy4s.StubSchematic
 import smithy4s.internals.Hinted
-import smithy.api
 import smithy4s.ShapeId
+import playground.GetNameHint
+import smithy4s.Endpoint
+import cats.implicits._
 
 object CompletionSchematic {
   // from context
@@ -14,13 +16,72 @@ object CompletionSchematic {
   type Result[A] = Hinted[ResultR, A]
 }
 
-sealed trait CompletionItem extends Product with Serializable
+final case class CompletionItem(
+  kind: CompletionItemKind,
+  label: String,
+  tpe: String,
+  deprecated: Boolean,
+  docs: Option[String],
+)
 
 object CompletionItem {
-  final case class Enum(label: String, tpe: String) extends CompletionItem
-  final case class Field(label: String, tpe: String) extends CompletionItem
-  final case class UnionMember(label: String, deprecated: Boolean, tpe: String)
-    extends CompletionItem
+
+  def fromHintedField[F[_]](field: Field[Hinted[F, *], _, _]): CompletionItem = fromHints(
+    kind = CompletionItemKind.Field,
+    label = field.label,
+    field.instance.hints,
+  )
+
+  def fromHintedAlt[F[_]](alt: Alt[Hinted[F, *], _, _]): CompletionItem = fromHints(
+    CompletionItemKind.UnionMember,
+    alt.label,
+    alt.instance.hints,
+  )
+
+  def fromHints[F[_]](
+    kind: CompletionItemKind,
+    label: String,
+    hints: Hints,
+  ): CompletionItem = CompletionItem(
+    kind = kind,
+    label = label,
+    deprecated = hints.get(smithy.api.Deprecated).isDefined,
+    tpe = hints.get(ShapeId).get.show,
+    docs = buildDocumentation(hints),
+  )
+
+  def forOperation[Op[_, _, _, _, _]](e: Endpoint[Op, _, _, _, _, _]) = {
+    val getName = GetNameHint.singleton
+    val hints = e.hints
+
+    CompletionItem(
+      kind = CompletionItemKind.Function,
+      label = e.name,
+      tpe = s"${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}",
+      deprecated = hints.get(smithy.api.Deprecated).isDefined,
+      docs = buildDocumentation(hints),
+    )
+  }
+
+  def buildDocumentation(hints: Hints): Option[String] = List(
+    hints.get(smithy.api.Http).map { http =>
+      show"HTTP ${http.method.value} ${http.uri.value} "
+    },
+    hints.get(smithy.api.Documentation).map(_.value),
+    hints.get(smithy.api.ExternalDocumentation).map(_.value).map {
+      _.map { case (k, v) => show"""${k.value}: ${v.value}""" }.mkString("\n")
+    },
+  ).flatten.mkString("\n\n").some.filterNot(_.isEmpty)
+
+}
+
+sealed trait CompletionItemKind extends Product with Serializable
+
+object CompletionItemKind {
+  case object EnumMember extends CompletionItemKind
+  case object Field extends CompletionItemKind
+  case object UnionMember extends CompletionItemKind
+  case object Function extends CompletionItemKind
 }
 
 final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
@@ -41,7 +102,11 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
         fromOrdinal.toList.sortBy(_._1).map(_._2).map { enumValue =>
           val label = to(enumValue)._1
 
-          CompletionItem.Enum(label, tpe = hints.get(ShapeId).get.show)
+          CompletionItem.fromHints(
+            CompletionItemKind.EnumMember,
+            label,
+            hints,
+          )
         }
 
       case _ =>
@@ -80,9 +145,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
       fields
         // todo: filter out present fields
         .sortBy(field => (field.isRequired, field.label))
-        .map { field =>
-          CompletionItem.Field(field.label, tpe = field.instance.hints.get(ShapeId).get.show)
-        }
+        .map(CompletionItem.fromHintedField(_))
         .toList
 
     case h :: rest => fields.find(_.label == h).toList.flatMap(_.instance.get(rest))
@@ -99,14 +162,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     {
       case head :: tail => all.find(_.label == head).toList.flatMap(_.instance.get(tail))
 
-      case Nil =>
-        all.map { field =>
-          CompletionItem.UnionMember(
-            field.label,
-            deprecated = field.instance.hints.get(api.Deprecated).isDefined,
-            tpe = field.instance.hints.get(ShapeId).get.show,
-          )
-        }.toList
+      case Nil => all.map(CompletionItem.fromHintedAlt(_)).toList
     }
 
   }
