@@ -50,9 +50,18 @@ object WithSource {
   sealed trait NodeContext extends Product with Serializable
 
   object NodeContext {
-
     final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext
-    final case class InputContext(context: List[String]) extends NodeContext
+
+    final case class InputContext(context: Chain[String]) extends NodeContext {
+      def append(elem: String) = copy(context.append(elem))
+
+      def toList = context.toList
+    }
+
+    object InputContext {
+      val root: InputContext = InputContext(Chain.nil)
+    }
+
   }
 
   def atPosition(q: Query[WithSource])(pos: Position): Option[NodeContext] = {
@@ -62,7 +71,7 @@ object WithSource {
       else
         None
 
-    val input = findInStruct(q.input, pos, Chain.nil)
+    val input = findInStruct(q.input, pos, NodeContext.InputContext.root)
 
     op.orElse(input)
   }
@@ -70,7 +79,7 @@ object WithSource {
   private def findInNode(
     node: WithSource[InputNode[WithSource]],
     pos: Position,
-    ctx: Chain[String],
+    ctx: NodeContext.InputContext,
   ): Option[NodeContext] =
     node.value match {
       case l @ Listed(_) => findInList(node.copy(value = l), pos, ctx)
@@ -81,7 +90,7 @@ object WithSource {
   private def findInList(
     list: WithSource[Listed[WithSource]],
     pos: Position,
-    ctx: Chain[String],
+    ctx: NodeContext.InputContext,
   ): Option[NodeContext] = {
     val insideItem = list
       .value
@@ -92,7 +101,7 @@ object WithSource {
 
     val self =
       Option.when(list.range.contains(pos))(
-        NodeContext.InputContext(ctx.toList)
+        ctx
       )
 
     insideItem.orElse(self)
@@ -101,7 +110,7 @@ object WithSource {
   private def findInStruct(
     struct: WithSource[Struct[WithSource]],
     pos: Position,
-    ctx: Chain[String],
+    ctx: NodeContext.InputContext,
   ): Option[NodeContext] = {
     def recurse(
       k: WithSource[Struct.Key],
@@ -129,7 +138,7 @@ object WithSource {
 
     val self =
       Option.when(struct.range.contains(pos)) {
-        NodeContext.InputContext(ctx.toList)
+        ctx
       }
 
     // possible optimization: don't even attempt to find matching fields

@@ -42,7 +42,7 @@ object CompletionProvider {
               case WithSource.NodeContext.OperationContext(_) => completeOperationName
               case WithSource.NodeContext.InputContext(ctx) =>
                 completionsByEndpoint(q.operationName.value)
-                  .apply(ctx)
+                  .apply(ctx.toList)
             }
       }
   }
