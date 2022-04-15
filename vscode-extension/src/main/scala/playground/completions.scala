@@ -45,13 +45,17 @@ object completions {
     val docs: scalajs.js.UndefOr[mod.MarkdownString] =
       item
         .docs
-        .fold[scalajs.js.UndefOr[mod.MarkdownString]](scalajs.js.undefined)(
-          new mod.MarkdownString(_)
-        )
+        .map(new mod.MarkdownString(_))
+        .orUndefined
 
-    new mod.CompletionItem(item.label, convertKind(item.kind))
+    new mod.CompletionItem(
+      mod
+        .CompletionItemLabel(item.label)
+        .tap(_.detail = item.detail)
+        .tap(_.description = item.description.orUndefined),
+      convertKind(item.kind),
+    )
       .tap(_.insertText = insertText)
-      .tap(_.detail = item.tpe)
       .tap(result =>
         if (item.deprecated)
           result.tags =

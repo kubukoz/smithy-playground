@@ -19,7 +19,8 @@ object CompletionSchematic {
 final case class CompletionItem(
   kind: CompletionItemKind,
   label: String,
-  tpe: String,
+  detail: String,
+  description: Option[String],
   deprecated: Boolean,
   docs: Option[String],
 )
@@ -46,9 +47,12 @@ object CompletionItem {
     kind = kind,
     label = label,
     deprecated = hints.get(smithy.api.Deprecated).isDefined,
-    tpe = hints.get(ShapeId).get.show,
+    detail = typeAnnotationShort(hints.get(ShapeId).get),
+    description = hints.get(ShapeId).get.namespace.some,
     docs = buildDocumentation(hints),
   )
+
+  def typeAnnotationShort(shapeId: ShapeId): String = s": ${shapeId.name}"
 
   def forOperation[Op[_, _, _, _, _]](e: Endpoint[Op, _, _, _, _, _]) = {
     val getName = GetNameHint.singleton
@@ -57,7 +61,8 @@ object CompletionItem {
     CompletionItem(
       kind = CompletionItemKind.Function,
       label = e.name,
-      tpe = s"${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}",
+      detail = s": ${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}",
+      description = none,
       deprecated = hints.get(smithy.api.Deprecated).isDefined,
       docs = buildDocumentation(hints),
     )
