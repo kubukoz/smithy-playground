@@ -195,7 +195,22 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
   def vector[S](fs: PartialCompiler[S]): PartialCompiler[Vector[S]] = list(fs).map(_.toVector)
 
   def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] =
-    unsupported
+    PartialCompiler
+      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
+      .emap { struct =>
+        val fields = struct.value.fields.value.value
+
+        fields
+          .parTraverse { case (k, v) =>
+            (
+              fk.compile(k.map { key =>
+                StringLiteral[WithSource](key.text)
+              }),
+              fv.compile(v),
+            ).parTupled
+          }
+          .map(_.toMap)
+      }
 
   def struct[S](
     fields: Vector[Field[PartialCompiler, S, _]]
