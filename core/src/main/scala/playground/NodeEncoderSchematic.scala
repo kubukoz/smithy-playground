@@ -73,7 +73,19 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
 
   def set[S](fs: NodeEncoder[S]): NodeEncoder[Set[S]] = unsupported
 
-  def map[K, V](fk: NodeEncoder[K], fv: NodeEncoder[V]): NodeEncoder[Map[K, V]] = unsupported
+  def map[K, V](fk: NodeEncoder[K], fv: NodeEncoder[V]): NodeEncoder[Map[K, V]] =
+    _.toList
+      .parTraverse { case (k, v) =>
+        fk.toNode(k) match {
+          case StringLiteral(s) => (s -> fv.toNode(v)).asRight
+          case n                => s"Expected string key, got $n".leftNel
+        }
+      }
+      .map(obj)
+      .leftMap(errors =>
+        throw new Exception("Map encoding failed: " + errors.toList.mkString(", "))
+      )
+      .merge
 
   private def obj(
     values: List[(String, InputNode[Id])]
