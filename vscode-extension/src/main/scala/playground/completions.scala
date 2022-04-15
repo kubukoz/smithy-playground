@@ -13,6 +13,7 @@ import smithyql.CompletionSchematic
 import util.chaining._
 import playground.smithyql.CompletionItem.Field
 import playground.smithyql.CompletionItem.UnionMember
+import playground.smithyql.CompletionItem.Enum
 import scala.scalajs.js.JSConverters._
 import playground.smithyql.OperationName
 
@@ -74,6 +75,11 @@ object completions {
                     case Field(label, tpe) =>
                       new mod.CompletionItem(label, mod.CompletionItemKind.Field)
                         // todo determine RHS based on field type
+                        .tap(_.insertText = s"$label = ")
+                        .tap(_.detail = tpe)
+
+                    case Enum(label, tpe) =>
+                      new mod.CompletionItem(label, mod.CompletionItemKind.EnumMember)
                         .tap(_.insertText = s"$label = ")
                         .tap(_.detail = tpe)
 

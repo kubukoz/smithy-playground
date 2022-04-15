@@ -20,7 +20,6 @@ import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
-import playground.Runner.Issue.InvalidProtocol
 import playground.Runner.Issue.Other
 import cats.effect.Resource
 import cats.effect.implicits._
@@ -112,10 +111,10 @@ object extension {
                 runner.get match {
                   case Left(e) =>
                     e match {
-                      case InvalidProtocol(e) =>
+                      case Runner.Issue.InvalidProtocols(ps) =>
                         IO(
                           window.showErrorMessage(
-                            s"Unsupported protocol for service ${e.service.id.show}: ${e.protocolTag.id.show}"
+                            s"The service uses an unsupported protocol. Available protocols: ${ps.map(_.show).mkString_(", ")}"
                           )
                         ).void
 

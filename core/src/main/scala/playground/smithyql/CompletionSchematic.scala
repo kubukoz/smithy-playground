@@ -18,6 +18,7 @@ object CompletionSchematic {
 sealed trait CompletionItem extends Product with Serializable
 
 object CompletionItem {
+  final case class Enum(label: String, tpe: String) extends CompletionItem
   final case class Field(label: String, tpe: String) extends CompletionItem
   final case class UnionMember(label: String, deprecated: Boolean, tpe: String)
     extends CompletionItem
@@ -30,6 +31,38 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
   def default[A]: Result[A] = Hinted.static[ResultR, A](_ => Nil)
 
   private def retag[A, B](fs: Result[A]): Result[B] = fs.transform(identity(_): ResultR[B])
+
+  override def enumeration[A](
+    to: A => (String, Int),
+    fromName: Map[String, A],
+    fromOrdinal: Map[Int, A],
+  ): Result[A] = Hinted[ResultR].from { hints =>
+    {
+      case Nil =>
+        fromOrdinal.toList.sortBy(_._1).map(_._2).map { enumValue =>
+          val label = to(enumValue)._1
+
+          CompletionItem.Enum(label, tpe = hints.get(ShapeId).get.show)
+        }
+
+      case _ =>
+        // todo: this seems impossible tbh
+        Nil
+    }
+  }
+
+  override def map[K, V](
+    fk: Result[K],
+    fv: Result[V],
+  ): Result[Map[K, V]] = Hinted.static[ResultR, Map[K, V]] {
+
+    case Nil => fk.get(Nil)
+
+    case _ =>
+      // completions in map items not supported yet
+      Nil
+
+  }
 
   override def list[S](
     fs: Result[S]
