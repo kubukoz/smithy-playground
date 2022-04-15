@@ -16,7 +16,6 @@ val commonScalaVersions = Seq("2.13.8")
 val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.typelevel" %%% "cats-effect" % "3.3.4",
-    "org.typelevel" %%% "cats-tagless-macros" % "0.14.0",
     "com.disneystreaming" %%% "weaver-cats" % "0.7.9" % Test,
     "com.disneystreaming" %%% "weaver-discipline" % "0.7.9" % Test,
     "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.9" % Test,
@@ -55,9 +54,7 @@ lazy val vscode = projectMatrix
     crossScalaVersions := commonScalaVersions,
     moduleName := "smithy-playground-vscode",
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.7",
-      // I mean... yeah, I know.
-      "net.exoego" %%% "scala-js-nodejs-v14" % "0.14.0",
+      "org.http4s" %%% "http4s-ember-client" % "0.23.7"
     ),
     commonSettings,
   )

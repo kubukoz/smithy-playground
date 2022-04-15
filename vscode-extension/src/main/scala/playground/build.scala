@@ -1,19 +1,20 @@
 package playground
 
+import aws.protocols.AwsJson1_0
+import aws.protocols.AwsJson1_1
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
-import io.scalajs.nodejs.child_process.ChildProcess
+import playground.buildinfo.BuildInfo
 import smithy4s.SchemaIndex
 import smithy4s.api.SimpleRestJson
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.dynamic.model.Model
+import typings.node.BufferEncoding
+import typings.node.nodeChildProcessMod
 import typings.vscode.mod
 
 import scalajs.js
-import aws.protocols.AwsJson1_0
-import aws.protocols.AwsJson1_1
-import playground.buildinfo.BuildInfo
 
 object build {
 
@@ -112,7 +113,7 @@ object build {
 
       val process =
         debug.timed("dump-model") {
-          ChildProcess.execSync(
+          nodeChildProcessMod.execSync(
             // todo: pass version from workspace config, default from sbt-buildinfo
             ("cs" :: "launch" :: s"com.disneystreaming.smithy4s::smithy4s-codegen-cli:${BuildInfo.smithy4sVersion}" :: "--" :: args)
               .mkString(" ")
@@ -121,8 +122,8 @@ object build {
 
       val modelText =
         (process: Any @unchecked) match {
-          case b: io.scalajs.nodejs.buffer.Buffer => b.toString("UTF-8")
-          case s: String                          => s
+          case s: String => s
+          case b         => b.asInstanceOf[typings.node.Buffer].toString(BufferEncoding.utf8)
         }
 
       chan.appendLine("Parsing model...")

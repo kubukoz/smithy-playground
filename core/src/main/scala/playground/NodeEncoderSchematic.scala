@@ -3,7 +3,6 @@ package playground
 import cats.Contravariant
 import cats.Id
 import cats.implicits._
-import cats.tagless.Derive
 import playground.smithyql.BooleanLiteral
 import playground.smithyql.InputNode
 import playground.smithyql.IntLiteral
@@ -32,7 +31,12 @@ trait NodeEncoder[A] {
 }
 
 object NodeEncoder {
-  implicit val contravariant: Contravariant[NodeEncoder] = Derive.contravariant
+
+  implicit val contravariant: Contravariant[NodeEncoder] =
+    new Contravariant[NodeEncoder] {
+      def contramap[A, B](fa: NodeEncoder[A])(f: B => A): NodeEncoder[B] = b => fa.toNode(f(b))
+    }
+
 }
 
 object NodeEncoderSchematic extends Schematic[NodeEncoder] {

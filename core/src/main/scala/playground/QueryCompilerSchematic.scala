@@ -6,7 +6,6 @@ import cats.data.IorNec
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
 import cats.implicits._
-import cats.tagless.Derive
 import playground.smithyql._
 import schematic.Alt
 import schematic.ByteArray
@@ -33,7 +32,13 @@ trait PartialCompiler[A] {
 object PartialCompiler {
   type Result[+A] = IorNec[CompilationError, A]
 
-  implicit val functor: Apply[PartialCompiler] = Derive.apply
+  implicit val apply: Apply[PartialCompiler] =
+    new Apply[PartialCompiler] {
+      def map[A, B](fa: PartialCompiler[A])(f: A => B): PartialCompiler[B] = fa.compile(_).map(f)
+
+      def ap[A, B](ff: PartialCompiler[A => B])(fa: PartialCompiler[A]): PartialCompiler[B] =
+        wast => (ff.compile(wast), fa.compile(wast)).parMapN((a, b) => a(b))
+    }
 
   type WAST = WithSource[InputNode[WithSource]]
 
