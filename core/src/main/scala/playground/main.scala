@@ -19,7 +19,6 @@ import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
-import smithy4s.UnsupportedProtocolError
 import smithy4s.aws.AwsCall
 import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
@@ -30,6 +29,8 @@ import smithy4s.http4s.SimpleRestJsonBuilder
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 import smithy4s.http4s.SimpleProtocolBuilder
+import smithy4s.ShapeId
+import cats.kernel.Semigroup
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -140,8 +141,18 @@ object Runner {
   sealed trait Issue extends Product with Serializable
 
   object Issue {
-    final case class InvalidProtocol(e: UnsupportedProtocolError) extends Issue
+    final case class InvalidProtocols(supported: NonEmptyList[ShapeId]) extends Issue
     final case class Other(e: Throwable) extends Issue
+
+    // trust me, lawful
+    implicit val semigroup: Semigroup[Issue] =
+      (a, b) =>
+        (a, b) match {
+          case (e: Other, _)                                => e
+          case (_, e: Other)                                => e
+          case (InvalidProtocols(p1), InvalidProtocols(p2)) => InvalidProtocols(p1 |+| p2)
+        }
+
   }
 
   def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async](
@@ -163,7 +174,9 @@ object Runner {
               builder(service).client(client, baseUri)
             }
             .leftMap(Issue.Other(_))
-            .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
+            .flatMap {
+              _.leftMap(e => Issue.InvalidProtocols(NonEmptyList.one(e.protocolTag.id)))
+            }
             .map(service.asTransformation)
 
           // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
@@ -185,10 +198,16 @@ object Runner {
                   .map(flattenAwsInterpreter(_, service))
               )
             }
-            .leftMap(protocol => Issue.InvalidProtocol(UnsupportedProtocolError(service, protocol)))
+            .leftMap(_ => Issue.InvalidProtocols(NonEmptyList.of(AwsJson1_0.id, AwsJson1_1.id)))
 
-          val get: Either[Issue, Runner[F, Op]] = simpleFromBuilder(SimpleRestJsonBuilder)
-            .orElse(awsInterpreter)
+          val get: Either[Issue, Runner[F, Op]] = NonEmptyList
+            .of(
+              simpleFromBuilder(SimpleRestJsonBuilder),
+              awsInterpreter,
+            )
+            // orElse with error accumulation
+            .reduceMapK(_.toValidated)
+            .toEither
             .map { interpreter => q =>
               Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
                 q.writeOutput.toNode(response)

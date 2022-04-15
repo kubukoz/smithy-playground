@@ -7,7 +7,7 @@ import typings.vscode.mod
 import typings.vscode.mod.Diagnostic
 import typings.vscode.mod.DiagnosticSeverity
 import types._
-import playground.Runner.Issue.InvalidProtocol
+import playground.Runner.Issue.InvalidProtocols
 import playground.Runner.Issue.Other
 
 object highlight {
@@ -30,13 +30,12 @@ object highlight {
           .getWordRangeAtPosition(doc.positionAt(0d))
           .getOrElse(new mod.Range(0, 0, 0, 1))
         e match {
-          case InvalidProtocol(e) =>
+          case InvalidProtocols(ps) =>
             List(
               info(
-                s"""Service ${e
-                  .service
-                  .id
-                  .show} doesn't support the ${e.protocolTag.id.show} protocol.
+                s"""Service doesn't support any of the available protocols: ${ps
+                  .map(_.show)
+                  .mkString_(", ")}.
                    |Running queries will not be possible.""".stripMargin,
                 pos,
               )
