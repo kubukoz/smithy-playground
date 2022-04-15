@@ -13,6 +13,7 @@ import typings.vscode.mod
 import scalajs.js
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
+import playground.buildinfo.BuildInfo
 
 object build {
 
@@ -20,7 +21,7 @@ object build {
 
   def buildFile[F[_]: Async](
     chan: mod.OutputChannel
-  ): F[BuildInfo] = fs2
+  ): F[BuildConfig] = fs2
     .Stream
     .exec(
       Sync[F].delay(chan.appendLine(s"Loading config from ${configFiles.mkString(", ")}..."))
@@ -82,13 +83,13 @@ object build {
           .getOrElse(js.Array())
           .toList
 
-      BuildInfo(deps, repos, imports)
+      BuildConfig(deps, repos, imports)
     }
 
-  case class BuildInfo(deps: List[String], repos: List[String], imports: List[String])
+  case class BuildConfig(deps: List[String], repos: List[String], imports: List[String])
 
   def getService(
-    buildFile: BuildInfo,
+    buildFile: BuildConfig,
     chan: mod.OutputChannel,
   ): DynamicSchemaIndex.ServiceWrapper =
     debug.timed("getService") {
@@ -113,7 +114,7 @@ object build {
         debug.timed("dump-model") {
           ChildProcess.execSync(
             // todo: pass version from workspace config, default from sbt-buildinfo
-            ("cs" :: "launch" :: "com.disneystreaming.smithy4s::smithy4s-codegen-cli:0.12.10" :: "--" :: args)
+            ("cs" :: "launch" :: s"com.disneystreaming.smithy4s::smithy4s-codegen-cli:${BuildInfo.smithy4sVersion}" :: "--" :: args)
               .mkString(" ")
           )
         }

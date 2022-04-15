@@ -39,10 +39,15 @@ lazy val core = projectMatrix
       "com.lihaoyi" %%% "sourcecode" % "0.2.7",
     ),
     commonSettings,
+    buildInfoPackage := "playground.buildinfo",
+    buildInfoKeys ++= Seq(
+      smithy4sVersion
+    ),
   )
   .jvmPlatform(commonScalaVersions)
   .jsPlatform(commonScalaVersions)
   .enablePlugins(Smithy4sCodegenPlugin)
+  .enablePlugins(BuildInfoPlugin)
 
 lazy val vscode = projectMatrix
   .in(file("vscode-extension"))
