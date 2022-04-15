@@ -115,7 +115,9 @@ structure Subscription {
   name: String,
   createdAt: Timestamp,
   status: SubscriptionStatus,
-  skus: Skus
+  skus: Skus,
+  // recursive calls are currently not working - todo https://github.com/disneystreaming/smithy4s/issues/181
+  // next: Subscription
 }
 
 list Skus {
@@ -135,3 +137,4 @@ string SubscriptionStatus
 list Ints {
   member: Integer
 }
+
