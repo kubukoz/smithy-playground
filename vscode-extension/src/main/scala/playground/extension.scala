@@ -24,6 +24,7 @@ import playground.Runner.Issue.Other
 import cats.effect.Resource
 import cats.effect.implicits._
 import util.chaining._
+import typings.vscode.anon.Dispose
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -62,17 +63,21 @@ object extension {
         .liftTo[IO]
         .toResource
         .flatMap { baseUri =>
-          Runner.make(service.service, client, baseUri).evalMap { implicit runner =>
-            IO {
-              debug.timed("activateInternal") {
-                activateInternal(
-                  context,
-                  service.service,
-                )
-              }
+          Runner
+            .make(service.service, client, baseUri)
+            .flatMap { implicit runner =>
+              Resource.make {
+                IO {
+                  debug.timed("activateInternal") {
+                    activateInternal(
+                      context,
+                      service.service,
+                    )
+                  }
+                }
+              }(subs => IO(subs.foreach(_.dispose())))
             }
-          }
-
+            .void
         }
     }
 
@@ -81,7 +86,7 @@ object extension {
     service: Service[Alg, Op],
   )(
     implicit runner: Runner.Optional[IO, Op]
-  ): Unit = {
+  ): List[mod.Disposable] = {
 
     implicit val compiler: Compiler[Op, EitherThrow] =
       debug.timed("compiler setup") {
@@ -100,73 +105,77 @@ object extension {
     |Operations: ${service.service.endpoints.map(_.name).mkString("\n")}
     |""".stripMargin)
 
+    val subs = List(
+      commands
+        .registerTextEditorCommand(
+          "smithyql.runQuery",
+          (ted, _, _) =>
+            {
+              runner.get match {
+                case Left(e) =>
+                  e match {
+                    case Runner.Issue.InvalidProtocols(ps) =>
+                      IO(
+                        window.showErrorMessage(
+                          s"The service uses an unsupported protocol. Available protocols: ${ps.map(_.show).mkString_(", ")}"
+                        )
+                      ).void
+
+                    case Other(e) =>
+                      IO(
+                        window.showErrorMessage(
+                          e.toString()
+                        )
+                      )
+                  }
+
+                case Right(runner) =>
+                  run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
+              }
+            }.unsafeRunAndForget(),
+        ),
+      languages.registerCompletionItemProvider(
+        "smithyql",
+        mod
+          .CompletionItemProvider { (doc, pos, _, _) =>
+            completionProvider(doc, pos).toJSArray
+          },
+        // todo this might not be working properly
+        "\t",
+      ),
+      languages.registerCodeLensProvider(
+        "smithyql",
+        mod.CodeLensProvider { (doc, _) =>
+          {
+            if (runner.get.isRight)
+              validate
+                .full[Op, EitherThrow](doc.getText())
+                .map { case (parsed, _) =>
+                  new mod.CodeLens(
+                    adapters.toVscodeRange(doc, parsed.operationName.range),
+                    mod.Command("smithyql.runQuery", "Run query"),
+                  )
+                }
+                .toList
+            else
+              Nil
+          }.toJSArray
+        },
+      ),
+      languages.registerDocumentFormattingEditProvider(
+        "smithyql",
+        DocumentFormattingEditProvider { (doc, _, _) =>
+          format.perform(doc).toJSArray
+        },
+      ),
+      vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights[Op, IO]),
+    )
+
     val _ = context
       .subscriptions
-      .push(
-        commands
-          .registerTextEditorCommand(
-            "smithyql.runQuery",
-            (ted, _, _) =>
-              {
-                runner.get match {
-                  case Left(e) =>
-                    e match {
-                      case Runner.Issue.InvalidProtocols(ps) =>
-                        IO(
-                          window.showErrorMessage(
-                            s"The service uses an unsupported protocol. Available protocols: ${ps.map(_.show).mkString_(", ")}"
-                          )
-                        ).void
+      .push(subs.map(identity(_): Dispose): _*)
 
-                      case Other(e) =>
-                        IO(
-                          window.showErrorMessage(
-                            e.toString()
-                          )
-                        )
-                    }
-
-                  case Right(runner) =>
-                    run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
-                }
-              }.unsafeRunAndForget(),
-          ),
-        languages.registerCompletionItemProvider(
-          "smithyql",
-          mod
-            .CompletionItemProvider { (doc, pos, _, _) =>
-              completionProvider(doc, pos).toJSArray
-            },
-          // todo this might not be working properly
-          "\t",
-        ),
-        languages.registerCodeLensProvider(
-          "smithyql",
-          mod.CodeLensProvider { (doc, _) =>
-            {
-              if (runner.get.isRight)
-                validate
-                  .full[Op, EitherThrow](doc.getText())
-                  .map { case (parsed, _) =>
-                    new mod.CodeLens(
-                      adapters.toVscodeRange(doc, parsed.operationName.range),
-                      mod.Command("smithyql.runQuery", "Run query"),
-                    )
-                  }
-                  .toList
-              else
-                Nil
-            }.toJSArray
-          },
-        ),
-        languages.registerDocumentFormattingEditProvider(
-          "smithyql",
-          DocumentFormattingEditProvider { (doc, _, _) =>
-            format.perform(doc).toJSArray
-          },
-        ),
-        vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights[Op, IO]),
-      )
+    subs
   }
 
 }
