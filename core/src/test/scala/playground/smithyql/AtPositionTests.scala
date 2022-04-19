@@ -1,6 +1,8 @@
 package playground.smithyql
 
 import weaver._
+import cats.data.Chain
+import WithSource.NodeContext.PathEntry._
 
 object AtPositionTests extends FunSuite {
 
@@ -28,7 +30,7 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = { ${CURSOR}mid = { child = "hello", }, }, }"""
     )
 
-    assert(actual == Some(WithSource.NodeContext.InputContext("root" :: Nil)))
+    assert(actual == Some(WithSource.NodeContext.InputContext(Chain(StructValue("root")))))
   }
 
   test("atPosition - 2 levels deep") {
@@ -36,7 +38,11 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = { mid = {${CURSOR} child = "hello", }, }, }"""
     )
 
-    assert(actual == Some(WithSource.NodeContext.InputContext("root" :: "mid" :: Nil)))
+    assert(
+      actual == Some(
+        WithSource.NodeContext.InputContext(Chain(StructValue("root"), StructValue("mid")))
+      )
+    )
   }
 
   test("atPosition - on operation") {
@@ -60,12 +66,18 @@ object AtPositionTests extends FunSuite {
     )
   }
 
-  test("atPosition - on list".only) {
+  test("atPosition - on list") {
     val actual = locateAtCursor(
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
 
-    assert(actual == Some(WithSource.NodeContext.InputContext("root" :: Nil)))
+    assert(
+      actual == Some(
+        WithSource
+          .NodeContext
+          .InputContext(Chain(StructValue("root")))
+      )
+    )
   }
 
   test("atPosition - on item in list") {
@@ -73,7 +85,7 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
     )
 
-    assert(actual == Some(WithSource.NodeContext.InputContext("root" :: Nil)))
+    assert(actual == Some(WithSource.NodeContext.InputContext(Chain(StructValue("root")))))
   }
 
   test("atPosition - on nested item in list") {
@@ -81,6 +93,24 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ { mid = { ${CURSOR} inner = "hello", }, } ],  }"""
     )
 
-    assert(actual == Some(WithSource.NodeContext.InputContext("root" :: "mid" :: Nil)))
+    assert(
+      actual == Some(
+        WithSource.NodeContext.InputContext(Chain(StructValue("root"), StructValue("mid")))
+      )
+    )
+  }
+
+  test("atPosition - on string field") {
+    val actual = locateAtCursor(
+      s"""Operation { root = { mid = { child = "${CURSOR}", }, }, }"""
+    )
+
+    assert(
+      actual == Some(
+        WithSource
+          .NodeContext
+          .InputContext(Chain(StructValue("root"), StructValue("mid"), StructValue("child")))
+      )
+    )
   }
 }

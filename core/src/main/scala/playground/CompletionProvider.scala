@@ -36,13 +36,15 @@ object CompletionProvider {
         case Right(q) =>
           val matchingNode = WithSource.atPosition(q)(pos)
 
+          println("ctx at position: " + matchingNode)
+
           matchingNode
             .toList
             .flatMap {
               case WithSource.NodeContext.OperationContext(_) => completeOperationName
               case WithSource.NodeContext.InputContext(ctx) =>
                 completionsByEndpoint(q.operationName.value)
-                  .apply(ctx)
+                  .apply(ctx.toList)
             }
       }
   }
