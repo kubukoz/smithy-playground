@@ -99,4 +99,18 @@ object AtPositionTests extends FunSuite {
       )
     )
   }
+
+  test("atPosition - on string field") {
+    val actual = locateAtCursor(
+      s"""Operation { root = { mid = { child = "${CURSOR}", }, }, }"""
+    )
+
+    assert(
+      actual == Some(
+        WithSource
+          .NodeContext
+          .InputContext(Chain(StructValue("root"), StructValue("mid"), StructValue("child")))
+      )
+    )
+  }
 }
