@@ -66,7 +66,7 @@ object AtPositionTests extends FunSuite {
     )
   }
 
-  test("atPosition - on list".only) {
+  test("atPosition - on list") {
     val actual = locateAtCursor(
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
