@@ -170,9 +170,12 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     val all = rest.prepended(first)
 
     {
-      case head :: tail => all.find(_.label == head).toList.flatMap(_.instance.get(tail))
-
       case Nil => all.map(CompletionItem.fromHintedAlt(_)).toList
+
+      case PathEntry.StructValue(head) :: tail =>
+        all.find(_.label === head).toList.flatMap(_.instance.get(tail))
+
+      case _ => Nil
     }
 
   }
