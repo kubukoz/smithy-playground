@@ -10,6 +10,7 @@ import playground.GetNameHint
 import smithy4s.Endpoint
 import cats.implicits._
 import WithSource.NodeContext.PathEntry
+import smithy4s.Timestamp
 
 object CompletionSchematic {
   type ResultR[+A] = List[PathEntry] => List[CompletionItem]
@@ -19,33 +20,45 @@ object CompletionSchematic {
 final case class CompletionItem(
   kind: CompletionItemKind,
   label: String,
+  insertText: InsertText,
   detail: String,
   description: Option[String],
   deprecated: Boolean,
   docs: Option[String],
 )
 
+sealed trait InsertText extends Product with Serializable
+
+object InsertText {
+  final case class JustString(value: String) extends InsertText
+  final case class SnippetString(value: String) extends InsertText
+}
+
 object CompletionItem {
 
   def fromHintedField[F[_]](field: Field[Hinted[F, *], _, _]): CompletionItem = fromHints(
     kind = CompletionItemKind.Field,
     label = field.label,
-    field.instance.hints,
+    insertText = InsertText.JustString(s"${field.label} = "),
+    hints = field.instance.hints,
   )
 
   def fromHintedAlt[F[_]](alt: Alt[Hinted[F, *], _, _]): CompletionItem = fromHints(
-    CompletionItemKind.UnionMember,
-    alt.label,
-    alt.instance.hints,
+    kind = CompletionItemKind.UnionMember,
+    label = alt.label,
+    insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
+    hints = alt.instance.hints,
   )
 
   def fromHints[F[_]](
     kind: CompletionItemKind,
     label: String,
+    insertText: InsertText,
     hints: Hints,
   ): CompletionItem = CompletionItem(
     kind = kind,
     label = label,
+    insertText = insertText,
     deprecated = hints.get(smithy.api.Deprecated).isDefined,
     detail = typeAnnotationShort(hints.get(ShapeId).get),
     description = hints.get(ShapeId).get.namespace.some,
@@ -61,6 +74,7 @@ object CompletionItem {
     CompletionItem(
       kind = CompletionItemKind.Function,
       label = e.name,
+      insertText = InsertText.JustString(e.name),
       detail = s": ${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}",
       description = none,
       deprecated = hints.get(smithy.api.Deprecated).isDefined,
@@ -85,6 +99,7 @@ sealed trait CompletionItemKind extends Product with Serializable
 object CompletionItemKind {
   case object EnumMember extends CompletionItemKind
   case object Field extends CompletionItemKind
+  case object Constant extends CompletionItemKind
   case object UnionMember extends CompletionItemKind
   case object Function extends CompletionItemKind
 }
@@ -94,6 +109,21 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
   import CompletionSchematic.ResultR
 
   def default[A]: Result[A] = Hinted.static[ResultR, A](_ => Nil)
+
+  override def timestamp: Result[Timestamp] = Hinted[ResultR].from { hints =>
+    {
+      case Nil =>
+        val example = Timestamp.nowUTC().toString()
+
+        CompletionItem.fromHints(
+          CompletionItemKind.Constant,
+          s"$example (now)",
+          InsertText.JustString(example),
+          hints,
+        ) :: Nil
+      case _ => Nil
+    }
+  }
 
   private def retag[A, B](fs: Result[A]): Result[B] = fs.transform(identity(_): ResultR[B])
 
@@ -110,6 +140,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
           CompletionItem.fromHints(
             CompletionItemKind.EnumMember,
             label,
+            InsertText.JustString(label),
             hints,
           )
         }
@@ -125,7 +156,14 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     fv: Result[V],
   ): Result[Map[K, V]] = Hinted.static[ResultR, Map[K, V]] {
 
-    case Nil => fk.get(Nil)
+    case Nil =>
+      fk.get(Nil).map { item =>
+        // adding " = " to underlying key's completion because it's not in the usual value position
+        item.copy(
+          insertText = InsertText.JustString(s"${item.label} = ")
+        )
+
+      }
 
     case _ =>
       // completions in map items not supported yet

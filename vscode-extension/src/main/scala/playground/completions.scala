@@ -5,6 +5,8 @@ import playground.smithyql.CompletionItemKind
 import playground.smithyql.CompletionItemKind.EnumMember
 import playground.smithyql.CompletionItemKind.Field
 import playground.smithyql.CompletionItemKind.UnionMember
+import playground.smithyql.InsertText.JustString
+import playground.smithyql.InsertText.SnippetString
 import smithy4s.Service
 import typings.vscode.mod
 
@@ -31,16 +33,16 @@ object completions {
     val convertKind: CompletionItemKind => mod.CompletionItemKind = {
       case EnumMember                  => mod.CompletionItemKind.EnumMember
       case Field                       => mod.CompletionItemKind.Field
+      case CompletionItemKind.Constant => mod.CompletionItemKind.Constant
       case UnionMember                 => mod.CompletionItemKind.Class
       case CompletionItemKind.Function => mod.CompletionItemKind.Function
     }
 
-    // todo determine RHS based on field type
     val insertText: String | mod.SnippetString =
-      if (item.kind == CompletionItemKind.UnionMember)
-        new mod.SnippetString(s"${item.label} = {$$0},")
-      else
-        s"${item.label} = "
+      item.insertText match {
+        case JustString(value)    => value
+        case SnippetString(value) => new mod.SnippetString(value)
+      }
 
     val docs: scalajs.js.UndefOr[mod.MarkdownString] =
       item
