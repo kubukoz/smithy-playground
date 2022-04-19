@@ -9,10 +9,10 @@ import smithy4s.ShapeId
 import playground.GetNameHint
 import smithy4s.Endpoint
 import cats.implicits._
+import WithSource.NodeContext.PathEntry
 
 object CompletionSchematic {
-  // from context
-  type ResultR[+A] = List[String] => List[CompletionItem]
+  type ResultR[+A] = List[PathEntry] => List[CompletionItem]
   type Result[A] = Hinted[ResultR, A]
 }
 
@@ -153,7 +153,12 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
         .map(CompletionItem.fromHintedField(_))
         .toList
 
-    case h :: rest => fields.find(_.label == h).toList.flatMap(_.instance.get(rest))
+    case PathEntry.StructValue(h) :: rest =>
+      fields.find(_.label === h).toList.flatMap(_.instance.get(rest))
+
+    case _ =>
+      // Non-structvalue context, we can neither complete nor descend
+      Nil
   }
 
   override def union[S](

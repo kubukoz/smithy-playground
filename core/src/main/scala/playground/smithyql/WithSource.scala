@@ -52,14 +52,20 @@ object WithSource {
   object NodeContext {
     final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext
 
-    final case class InputContext(context: Chain[String]) extends NodeContext {
-      def append(elem: String) = copy(context.append(elem))
+    final case class InputContext(context: Chain[PathEntry]) extends NodeContext {
+      def append(elem: PathEntry) = copy(context.append(elem))
 
       def toList = context.toList
     }
 
     object InputContext {
       val root: InputContext = InputContext(Chain.nil)
+    }
+
+    sealed trait PathEntry extends Product with Serializable
+
+    object PathEntry {
+      final case class StructValue(key: String) extends PathEntry
     }
 
   }
@@ -115,7 +121,11 @@ object WithSource {
     def recurse(
       k: WithSource[Struct.Key],
       v: WithSource[Struct[WithSource]],
-    ): Option[NodeContext] = findInStruct(v, pos, ctx.append(k.value.text))
+    ): Option[NodeContext] = findInStruct(
+      v,
+      pos,
+      ctx.append(NodeContext.PathEntry.StructValue(k.value.text)),
+    )
 
     // Struct fields that allow nesting in them
     val nestedFields =
@@ -129,7 +139,11 @@ object WithSource {
           v.value match {
             case s @ Struct(_) if v.range.contains(pos) => recurse(k, v.copy(value = s))
             case l @ Listed(_) if v.range.contains(pos) =>
-              findInList(v.copy(value = l), pos, ctx.append(k.value.text))
+              findInList(
+                v.copy(value = l),
+                pos,
+                ctx.append(NodeContext.PathEntry.StructValue(k.value.text)),
+              )
             case _ => none
           }
         }
