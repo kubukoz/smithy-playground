@@ -20,6 +20,7 @@ jobs:
       with:
         path: |
           ~/.sbt
+          ~/.ivy2/local
           ~/.ivy2/cache
           ~/.coursier/cache/v1
           ~/.cache/coursier/v1
