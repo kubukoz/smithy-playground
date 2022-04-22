@@ -31,8 +31,12 @@ import aws.protocols.AwsJson1_1
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.ShapeId
 import cats.kernel.Semigroup
+import smithy4s.dynamic.DynamicSchemaIndex
+import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.UseClause
 
-trait CompiledInput[Op[_, _, _, _, _]] {
+trait CompiledInput {
+  type _Op[_, _, _, _, _]
   type I
   type E
   type O
@@ -40,24 +44,36 @@ trait CompiledInput[Op[_, _, _, _, _]] {
   def catchError: Throwable => Option[E]
   def writeError: Option[NodeEncoder[E]]
   def writeOutput: NodeEncoder[O]
-  def endpoint: Endpoint[Op, I, E, O, _, _]
+  def endpoint: Endpoint[_Op, I, E, O, _, _]
 }
 
-trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
-  def compile(q: Query[WithSource]): F[CompiledInput[Op]]
+object CompiledInput {
 
-  def mapK[G[_]](fk: F ~> G): Compiler[Op, G] =
-    new Compiler[Op, G] {
-      def compile(q: Query[WithSource]): G[CompiledInput[Op]] = fk(self.compile(q))
+  type Aux[_I, _E, _O, Op[_, _, _, _, _]] =
+    CompiledInput {
+      type _Op[I, E, O, SE, SO] = Op[I, E, O, SE, SO]
+      type I = _I
+      type E = _E
+      type O = _O
+    }
+
+}
+
+trait Compiler[F[_]] { self =>
+  def compile(q: Query[WithSource]): F[CompiledInput]
+
+  def mapK[G[_]](fk: F ~> G): Compiler[G] =
+    new Compiler[G] {
+      def compile(q: Query[WithSource]): G[CompiledInput] = fk(self.compile(q))
     }
 
 }
 
 object Compiler {
 
-  def instance[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
-    service: Service[Alg, Op]
-  ): Compiler[Op, F] = new CompilerImpl(service)
+  def instance[F[_]: MonadThrow](
+    dsi: DynamicSchemaIndex
+  ): Compiler[F] = new CompilerImpl(dsi)
 
 }
 
@@ -67,75 +83,125 @@ object CompilationFailed {
   def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
 }
 
+trait CompiledService[F[_]] {
+  type Op[_, _, _, _, _]
+
+  def endpoints: Map[String, WithSource[InputNode[WithSource]] => F[CompiledInput]]
+}
+
 private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
-  service: Service[Alg, Op]
-) extends Compiler[Op, F] {
+  dsi: DynamicSchemaIndex
+) extends Compiler[F] {
 
   private val schem = new QueryCompilerSchematic
 
-  // for quick lookup and prepared compilers
-  private val endpoints: Map[String, WithSource[InputNode[WithSource]] => F[CompiledInput[Op]]] = {
-    def go[In, Err, Out](
-      e: Endpoint[Op, In, Err, Out, _, _]
-    ): WithSource[InputNode[WithSource]] => F[CompiledInput[Op]] = {
-      val inputCompiler = e.input.compile(schem)
-      val outputEncoder = e.output.compile(NodeEncoderSchematic)
-      val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
+  private def compileEndpoint[Op[_, _, _, _, _], In, Err, Out](
+    e: Endpoint[Op, In, Err, Out, _, _]
+  ): WithSource[InputNode[WithSource]] => F[CompiledInput] = {
+    val inputCompiler = e.input.compile(schem)
+    val outputEncoder = e.output.compile(NodeEncoderSchematic)
+    val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
 
-      ast =>
-        inputCompiler
-          .compile(ast)
-          .toEither
-          .leftMap(_.toNonEmptyList)
-          .leftMap(CompilationFailed(_))
-          .liftTo[F]
-          .map { compiled =>
-            new CompiledInput[Op] {
-              type I = In
-              type E = Err
-              type O = Out
-              val input: I = compiled
-              val endpoint: Endpoint[Op, I, E, O, _, _] = e
-              val writeOutput: NodeEncoder[Out] = outputEncoder
-              val writeError: Option[NodeEncoder[Err]] = errorEncoder
-              val catchError: Throwable => Option[Err] =
-                err => e.errorable.flatMap(_.liftError(err))
-            }
+    ast =>
+      inputCompiler
+        .compile(ast)
+        .toEither
+        .leftMap(_.toNonEmptyList)
+        .leftMap(CompilationFailed(_))
+        .liftTo[F]
+        .map { compiled =>
+          new CompiledInput {
+            type _Op[I, E, O, SE, SO] = Op[I, E, O, SE, SO]
+            type I = In
+            type E = Err
+            type O = Out
+            val input: I = compiled
+            val endpoint: Endpoint[Op, I, E, O, _, _] = e
+            val writeOutput: NodeEncoder[Out] = outputEncoder
+            val writeError: Option[NodeEncoder[Err]] = errorEncoder
+            val catchError: Throwable => Option[Err] = err => e.errorable.flatMap(_.liftError(err))
           }
-    }
-
-    service
-      .endpoints
-      .groupByNel(_.name)
-      .map(_.map(_.head).map(go(_)))
+        }
   }
 
-  def compile(q: Query[WithSource]): F[CompiledInput[Op]] = endpoints
-    .get(q.operationName.value.text)
-    .liftTo[F](
-      CompilationFailed.one(
-        CompilationError(
-          CompilationErrorDetails
-            .OperationNotFound(
-              q.operationName.value,
-              endpoints.keys.map(OperationName(_)).toList,
-            ),
-          q.operationName.range,
+  private def compileService[Alg[_[_, _, _, _, _]], Opp[_, _, _, _, _]](
+    service: Service[Alg, Opp]
+  ): CompiledService[F] =
+    new CompiledService[F] {
+      type Op[I, E, O, SE, SO] = Opp[I, E, O, SE, SO]
+
+      val endpoints = service
+        .endpoints
+        .groupByNel(_.name)
+        .map(_.map(_.head).map(compileEndpoint(_)))
+
+    }
+
+  // for quick lookup and prepared compilers
+  private val services: Map[QualifiedIdentifier, CompiledService[F]] =
+    dsi
+      .allServices
+      .map { svc =>
+        QualifiedIdentifier.fromShapeId(svc.service.id) -> compileService(svc.service)
+      }
+      .toMap
+
+  private def getService(useClause: Option[WithSource[UseClause]]): F[CompiledService[F]] =
+    useClause match {
+
+      // todo validate only one service if no use clause
+      case None => services.head._2.pure[F]
+      case Some(clause) =>
+        services
+          .get(clause.value.identifier)
+          .liftTo[F](
+            CompilationFailed.one(
+              CompilationError(
+                CompilationErrorDetails
+                  .UnknownService(clause.value.identifier, services.keySet.toList),
+                clause.range,
+              )
+            )
+          )
+    }
+
+  private def compileWithService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+    q: Query[WithSource],
+    service: CompiledService[F],
+  ): F[CompiledInput] = {
+    val endpoints = service.endpoints
+
+    endpoints
+      .get(q.operationName.value.text)
+      .liftTo[F](
+        CompilationFailed.one(
+          CompilationError(
+            CompilationErrorDetails
+              .OperationNotFound(
+                q.operationName.value,
+                endpoints.keys.map(OperationName(_)).toList,
+              ),
+            q.operationName.range,
+          )
         )
       )
-    )
-    .flatMap(_.apply(q.input))
+      .flatMap(_.apply(q.input))
+  }
+
+  def compile(
+    q: Query[WithSource]
+  ): F[CompiledInput] = getService(q.useClause).flatMap(compileWithService(q, _))
 
 }
 
-trait Runner[F[_], Op[_, _, _, _, _]] {
-  def run(q: CompiledInput[Op]): F[InputNode[Id]]
+trait Runner[F[_]] {
+  def run(q: CompiledInput): F[InputNode[Id]]
 }
 
 object Runner {
 
-  trait Optional[F[_], Op[_, _, _, _, _]] {
-    def get: Either[Issue, Runner[F, Op]]
+  trait Optional[F[_]] {
+    def get: Either[Issue, Runner[F]]
   }
 
   sealed trait Issue extends Product with Serializable
@@ -159,13 +225,13 @@ object Runner {
     service: Service[Alg, Op],
     client: Client[F],
     baseUri: Uri,
-  ): Resource[F, Optional[F, Op]] =
+  ): Resource[F, Optional[F]] =
     // todo: configurable region
     AwsEnvironment
       .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
       .memoize
       .map { awsEnv =>
-        new Optional[F, Op] {
+        new Optional[F] {
 
           private def simpleFromBuilder(
             builder: SimpleProtocolBuilder[_]
@@ -200,7 +266,14 @@ object Runner {
             }
             .leftMap(_ => Issue.InvalidProtocols(NonEmptyList.of(AwsJson1_0.id, AwsJson1_1.id)))
 
-          val get: Either[Issue, Runner[F, Op]] = NonEmptyList
+          private def perform[I, E, O, Op[_, _, _, _, _]](
+            interpreter: smithy4s.Interpreter[Op, F],
+            q: CompiledInput.Aux[I, E, O, Op],
+          ) = Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
+            q.writeOutput.toNode(response)
+          }
+
+          val get: Either[Issue, Runner[F]] = NonEmptyList
             .of(
               simpleFromBuilder(SimpleRestJsonBuilder),
               awsInterpreter,
@@ -209,9 +282,11 @@ object Runner {
             .reduceMapK(_.toValidated)
             .toEither
             .map { interpreter => q =>
-              Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
-                q.writeOutput.toNode(response)
-              }
+              // todo: runner needs to support multiple services too, for now picking one
+              perform[q.I, q.E, q.O, Op](
+                interpreter,
+                q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
+              )
             }
 
         }

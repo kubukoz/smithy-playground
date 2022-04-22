@@ -73,6 +73,9 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case UnknownService(id, known) =>
+        s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
+
       case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
 
       case UnsupportedNode(tag) => s"Unsupported operation: $tag"
@@ -112,6 +115,9 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 }
 
 object CompilationErrorDetails {
+
+  final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
+    extends CompilationErrorDetails
 
   final case class TypeMismatch(
     expected: NodeKind,

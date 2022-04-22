@@ -9,7 +9,11 @@ object DSL {
 
     def call(
       args: (String, InputNode[Id])*
-    ): Query[Id] = Query[Id](OperationName(s), struct(args: _*))
+    ): Query[Id] = Query[Id](
+      useClause = None,
+      operationName = OperationName(s),
+      input = struct(args: _*),
+    )
 
   }
 

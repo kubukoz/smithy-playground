@@ -25,6 +25,7 @@ import cats.effect.Resource
 import cats.effect.implicits._
 import util.chaining._
 import typings.vscode.anon.Dispose
+import smithy4s.dynamic.DynamicSchemaIndex
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -56,8 +57,11 @@ object extension {
     .buildFile[IO](chan)
     .toResource
     .pipe(timedResource("buildFile"))
-    .map(build.getService(_, chan))
-    .flatMap { service =>
+    .map(build.getServices(_, chan))
+    .flatMap { dsi =>
+      // todo: up for removal
+      val service = dsi.allServices.head
+
       Uri
         .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUrl"))
         .liftTo[IO]
@@ -71,6 +75,7 @@ object extension {
                   debug.timed("activateInternal") {
                     activateInternal(
                       context,
+                      dsi,
                       service.service,
                     )
                   }
@@ -83,16 +88,15 @@ object extension {
 
   private def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     context: ExtensionContext,
+    dsi: DynamicSchemaIndex,
     service: Service[Alg, Op],
   )(
-    implicit runner: Runner.Optional[IO, Op]
+    implicit runner: Runner.Optional[IO]
   ): List[mod.Disposable] = {
 
-    implicit val compiler: Compiler[Op, EitherThrow] =
+    implicit val compiler: Compiler[EitherThrow] =
       debug.timed("compiler setup") {
-        Compiler.instance(
-          service.service
-        )
+        Compiler.instance(dsi)
       }
 
     import vscodeutil.disposableToDispose
@@ -149,7 +153,7 @@ object extension {
           {
             if (runner.get.isRight)
               validate
-                .full[Op, EitherThrow](doc.getText())
+                .full[EitherThrow](doc.getText())
                 .map { case (parsed, _) =>
                   new mod.CodeLens(
                     adapters.toVscodeRange(doc, parsed.operationName.range),
@@ -168,7 +172,7 @@ object extension {
           format.perform(doc).toJSArray
         },
       ),
-      vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights[Op, IO]),
+      vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights[IO]),
     )
 
     val _ = context

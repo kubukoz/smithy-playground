@@ -131,17 +131,19 @@ object SmithyQLParser {
     val rawIdent: Parser[String] = tokens.identifier
     val ident: Parser[T[String]] = tokens.withComments(tokens.identifier)
 
-    val qualifiedIdent =
-      rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace)) ~
-        (tokens.hash *>
-          rawIdent.surroundedBy(tokens.whitespace))
+    // doesn't accept comments
+    val qualifiedIdent: Parser[QualifiedIdentifier] =
+      (
+        rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace)),
+        tokens.hash *> rawIdent.surroundedBy(tokens.whitespace),
+      ).mapN(QualifiedIdentifier.apply)
 
-    val useClause = {
+    val useClause: Parser[UseClause] = {
       string("use") *>
         string("service")
           .surroundedBy(tokens.whitespace) *>
         qualifiedIdent
-    }
+    }.map(UseClause.apply)
 
     val intLiteral = tokens
       .number
@@ -240,19 +242,20 @@ object SmithyQLParser {
         }
     }
 
-    tokens.withComments0(useClause.?).with1 *>
-      (ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
-        case ((opName, input), commentsAfter) =>
-          Query(
-            opName,
-            WithSource(
-              commentsLeft = Nil,
-              commentsRight = commentsAfter,
-              range = input.fields.range,
-              value = input,
-            ),
-          )
-      }
+    (tokens.withComments0(useClause.?).map(_.sequence).with1 ~
+      ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
+      case (((useClause, opName), input), commentsAfter) =>
+        Query(
+          useClause,
+          opName,
+          WithSource(
+            commentsLeft = Nil,
+            commentsRight = commentsAfter,
+            range = input.fields.range,
+            value = input,
+          ),
+        )
+    }
   }
 
 }

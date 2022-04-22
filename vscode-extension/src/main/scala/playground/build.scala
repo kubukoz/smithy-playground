@@ -89,10 +89,10 @@ object build {
 
   case class BuildConfig(deps: List[String], repos: List[String], imports: List[String])
 
-  def getService(
+  def getServices(
     buildFile: BuildConfig,
     chan: mod.OutputChannel,
-  ): DynamicSchemaIndex.ServiceWrapper =
+  ): DynamicSchemaIndex =
     debug.timed("getService") {
       chan.appendLine("Dumping model...")
 
@@ -171,11 +171,12 @@ object build {
                 supportedSchemas,
               )
           }
-          .allServices
 
-      chan.appendLine("Loaded services: " + services.map(_.service.id.show).mkString(", ") + "\n\n")
+      chan.appendLine(
+        "Loaded services: " + services.allServices.map(_.service.id.show).mkString(", ") + "\n\n"
+      )
 
-      services.head
+      services
     }
 
   private val modelParser: String => Model = {

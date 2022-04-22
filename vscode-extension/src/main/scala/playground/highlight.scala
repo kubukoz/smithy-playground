@@ -15,11 +15,11 @@ import playground.smithyql.WithSource
 
 object highlight {
 
-  def getHighlights[Op[_, _, _, _, _], F[_]](
+  def getHighlights[F[_]](
     doc: mod.TextDocument
   )(
-    implicit c: Compiler[Op, EitherThrow],
-    runner: Runner.Optional[F, Op],
+    implicit c: Compiler[EitherThrow],
+    runner: Runner.Optional[F],
   ): List[Diagnostic] =
     compilationErrors(doc) match {
       // Even if the file doesn't parse, we want to show runner diagnostics at a default range
@@ -27,12 +27,12 @@ object highlight {
       case Right(parsed) => runnerErrors(doc, parsed.some)
     }
 
-  def runnerErrors[Op[_, _, _, _, _], F[_]](
+  def runnerErrors[F[_]](
     doc: mod.TextDocument,
     parsed: Option[Query[WithSource]],
   )(
     implicit
-    runner: Runner.Optional[F, Op]
+    runner: Runner.Optional[F]
   ): List[Diagnostic] =
     runner.get match {
       case Left(e) =>
@@ -71,9 +71,9 @@ object highlight {
   def compilationErrors[Op[_, _, _, _, _], F[_]](
     doc: mod.TextDocument
   )(
-    implicit c: Compiler[Op, EitherThrow]
+    implicit c: Compiler[EitherThrow]
   ): EitherNel[Diagnostic, Query[WithSource]] =
-    validate.full[Op, EitherThrow](doc.getText()) match {
+    validate.full[EitherThrow](doc.getText()) match {
       case Right((parsed, _)) => parsed.asRight
 
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>

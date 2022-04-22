@@ -4,6 +4,8 @@ import cats.Functor
 import cats.implicits._
 import cats.~>
 import cats.Applicative
+import cats.data.NonEmptyList
+import smithy4s.ShapeId
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
@@ -32,7 +34,24 @@ sealed trait InputNode[F[_]] extends AST[F] {
 
 final case class OperationName(text: String) extends AnyVal
 
+final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: String) {
+  def render: String = segments.mkString_(".") + "#" + selection
+}
+
+object QualifiedIdentifier {
+
+  def fromShapeId(shapeId: ShapeId): QualifiedIdentifier = QualifiedIdentifier(
+    shapeId.namespace.split("\\.").toList.toNel.getOrElse(sys.error("impossible! " + shapeId)),
+    shapeId.name,
+  )
+
+}
+
+//todo: identifier must be in WithSource
+final case class UseClause(identifier: QualifiedIdentifier) extends AnyVal
+
 final case class Query[F[_]](
+  useClause: Option[F[UseClause]],
   operationName: F[OperationName],
   input: F[Struct[F]],
 ) extends AST[F] {
@@ -40,6 +59,7 @@ final case class Query[F[_]](
   def kind: NodeKind = NodeKind.Query
 
   def mapK[G[_]: Functor](fk: F ~> G): Query[G] = Query(
+    useClause.map(fk(_)),
     fk(operationName),
     fk(input).map(_.mapK(fk)),
   )
