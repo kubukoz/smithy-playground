@@ -28,14 +28,17 @@ object SmithyQLParser {
         underlying.failedAtOffset
       )
 
-      s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
-        .expected
-        .map {
+      def showExpectation(e: Parser.Expectation): String =
+        e match {
           case InRange(_, '0', '9')               => "digit"
           case InRange(_, from, to) if from == to => s"'$from'"
           case InRange(_, from, to)               => s"'$from' - '$to'"
           case e                                  => e.toString
         }
+
+      s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
+        .expected
+        .map(showExpectation)
         .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
         .take(10)}\"${Console.RESET} instead"
     }
@@ -59,9 +62,24 @@ object SmithyQLParser {
       .repSep0(whitespace)
       .surroundedBy(whitespace)
 
+    // Should be kept in sync with withComments0
     def withComments[A](
       p: Parser[A]
     ): Parser[T[A]] = ((comments ~ Parser.index).with1 ~ p ~ (Parser.index ~ comments)).map {
+      case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
+        val range = SourceRange(Position(indexBefore), Position(indexAfter))
+        WithSource(
+          commentsLeft = commentsBefore,
+          commentsRight = commentsAfter,
+          range = range,
+          value = v,
+        )
+    }
+
+    // Duplication of withComments for Parser0
+    def withComments0[A](
+      p: Parser0[A]
+    ): Parser0[T[A]] = ((comments ~ Parser.index) ~ p ~ (Parser.index ~ comments)).map {
       case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
         val range = SourceRange(Position(indexBefore), Position(indexAfter))
         WithSource(
@@ -76,10 +94,8 @@ object SmithyQLParser {
       (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
         .map { case (ch, s) => s.prepended(ch) }
 
-    val identifier: Parser[T[String]] = withComments {
-      (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
-        .map { case (ch, s) => s.prepended(ch) }
-    }
+    val identifier: Parser[String] = (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
+      .map { case (ch, s) => s.prepended(ch) }
 
     val number: Parser[Int] = Numbers
       .signedIntString
@@ -97,7 +113,9 @@ object SmithyQLParser {
     def punctuation(c: Char): Parser[Unit] = char(c)
 
     val equalsSign = punctuation('=')
+    val dot = punctuation('.')
     val comma = punctuation(',')
+    val hash = punctuation('#')
     val openBrace = punctuation('{')
     val closeBrace = punctuation('}')
 
@@ -110,7 +128,20 @@ object SmithyQLParser {
 
     import Parser._
 
-    val ident: Parser[T[String]] = tokens.identifier
+    val rawIdent: Parser[String] = tokens.identifier
+    val ident: Parser[T[String]] = tokens.withComments(tokens.identifier)
+
+    val qualifiedIdent =
+      rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace)) ~
+        (tokens.hash *>
+          rawIdent.surroundedBy(tokens.whitespace))
+
+    val useClause = {
+      string("use") *>
+        string("service")
+          .surroundedBy(tokens.whitespace) *>
+        qualifiedIdent
+    }
 
     val intLiteral = tokens
       .number
@@ -209,18 +240,19 @@ object SmithyQLParser {
         }
     }
 
-    (ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
-      case ((opName, input), commentsAfter) =>
-        Query(
-          opName,
-          WithSource(
-            commentsLeft = Nil,
-            commentsRight = commentsAfter,
-            range = input.fields.range,
-            value = input,
-          ),
-        )
-    }
+    tokens.withComments0(useClause.?).with1 *>
+      (ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
+        case ((opName, input), commentsAfter) =>
+          Query(
+            opName,
+            WithSource(
+              commentsLeft = Nil,
+              commentsRight = commentsAfter,
+              range = input.fields.range,
+              value = input,
+            ),
+          )
+      }
   }
 
 }

@@ -16,6 +16,9 @@
     },
     {
       "include": "#booleans"
+    },
+    {
+      "include": "#keywords"
     }
   ],
   "repository": {
@@ -44,7 +47,7 @@
       "patterns": [
         {
           "name": "constant.numeric",
-          "match": "\\d+(\\.\\d+)?"
+          "match": "[^\\w]\\d+(\\.\\d+)?"
         }
       ]
     },
@@ -65,6 +68,10 @@
           "match": "="
         }
       ]
+    },
+    "keywords": {
+      "name": "keyword",
+      "patterns": [{ "name": "keyword", "match": "use|service" }]
     }
   },
   "scopeName": "source.smithyql"

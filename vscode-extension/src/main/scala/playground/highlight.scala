@@ -78,16 +78,20 @@ object highlight {
 
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>
         val pos = doc.positionAt(e.failedAtOffset.toDouble)
-        val range = doc
-          .getWordRangeAtPosition(pos)
-          .getOrElse(new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end))
+        val range = new mod.Range(pos, pos.translate(0, 1))
+
+        val oneOfInfix =
+          if (e.expected.size > 1)
+            "one of "
+          else
+            ""
 
         error(
-          "Parsing failure: expected one of " + e
+          s"Parsing failure: expected $oneOfInfix" + e
             .expected
             .map {
               case InRange(_, lower, upper) if lower == upper => lower.toString
-              case InRange(_, lower, upper)                   => s"$lower-$upper"
+              case InRange(_, lower, upper)                   => s"one of $lower-$upper"
               case msg                                        => msg.toString()
             }
             .mkString_(", "),
