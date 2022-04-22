@@ -1,17 +1,20 @@
 package playground
 
+import cats.data.IorNel
+import cats.data.NonEmptyList
 import cats.implicits._
 import cats.parse.Parser.Expectation.InRange
+import playground.Runner.Issue.InvalidProtocols
+import playground.Runner.Issue.Other
+import playground.smithyql.Query
 import playground.smithyql.SmithyQLParser
+import playground.smithyql.WithSource
 import typings.vscode.mod
 import typings.vscode.mod.Diagnostic
 import typings.vscode.mod.DiagnosticSeverity
+
 import types._
-import playground.Runner.Issue.InvalidProtocols
-import playground.Runner.Issue.Other
-import cats.data.EitherNel
-import playground.smithyql.Query
-import playground.smithyql.WithSource
+import cats.data.Ior
 
 object highlight {
 
@@ -20,12 +23,11 @@ object highlight {
   )(
     implicit c: Compiler[Op, EitherThrow],
     runner: Runner.Optional[F, Op],
-  ): List[Diagnostic] =
-    compilationErrors(doc) match {
-      // Even if the file doesn't parse, we want to show runner diagnostics at a default range
-      case Left(errors)  => errors.toList ++ runnerErrors(doc, None)
-      case Right(parsed) => runnerErrors(doc, parsed.some)
-    }
+  ): List[Diagnostic] = compilationErrors(doc).fold(
+    _.toList ++ runnerErrors(doc, None),
+    parsed => runnerErrors(doc, parsed.some),
+    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed.some),
+  )
 
   def runnerErrors[Op[_, _, _, _, _], F[_]](
     doc: mod.TextDocument,
@@ -72,49 +74,72 @@ object highlight {
     doc: mod.TextDocument
   )(
     implicit c: Compiler[Op, EitherThrow]
-  ): EitherNel[Diagnostic, Query[WithSource]] =
-    validate.full[Op, EitherThrow](doc.getText()) match {
-      case Right((parsed, _)) => parsed.asRight
+  ): IorNel[Diagnostic, Query[WithSource]] = {
 
-      case Left(SmithyQLParser.ParsingFailure(e, _)) =>
-        val pos = doc.positionAt(e.failedAtOffset.toDouble)
-        val range = doc
-          .getWordRangeAtPosition(pos)
-          .getOrElse(new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end))
+    val base: Ior[Throwable, Query[WithSource]] = SmithyQLParser
+      .parseFull(doc.getText())
+      .fold(
+        // If parsing fails, fail
+        Ior.left(_),
+        q =>
+          // If compilation fails, pass the errors but keep the parsing result
+          c.compile(q)
+            .fold(
+              Ior.both(_, q),
+              _ => Ior.right(q),
+            ),
+      )
 
-        error(
-          "Parsing failure: expected one of " + e
-            .expected
-            .map {
-              case InRange(_, lower, upper) if lower == upper => lower.toString
-              case InRange(_, lower, upper)                   => s"$lower-$upper"
-              case msg                                        => msg.toString()
-            }
-            .mkString_(", "),
-          range,
-        ).leftNel
+    base
+      .leftMap {
+        case SmithyQLParser.ParsingFailure(e, _) =>
+          val pos = doc.positionAt(e.failedAtOffset.toDouble)
+          val range = new mod.Range(pos, pos.translate(0, 1))
 
-      case Left(e) =>
-        val defaultRange =
-          new mod.Range(doc.lineAt(0).range.start, doc.lineAt(doc.lineCount - 1).range.end)
+          val oneOfInfix =
+            if (e.expected.size > 1)
+              "one of "
+            else
+              ""
 
-        e match {
-          case CompilationFailed(errors) =>
-            errors.map { ee => // dźwig
-              error(
-                ee.err.render,
-                adapters.toVscodeRange(doc, ee.range),
-              )
-            }.asLeft
-
-          case _ =>
+          NonEmptyList.one {
             error(
-              "Unexpected compilation failure: " + Option(e.getMessage()).getOrElse("null"),
-              defaultRange,
-            ).leftNel
-        }
+              s"Parsing failure: expected $oneOfInfix" + e
+                .expected
+                .map {
+                  case InRange(_, lower, upper) if lower == upper => lower.toString
+                  case InRange(_, lower, upper)                   => s"one of $lower-$upper"
+                  case msg                                        => msg.toString()
+                }
+                .mkString_(", "),
+              range,
+            )
+          }
 
-    }
+        case e =>
+          val defaultRange =
+            new mod.Range(doc.lineAt(0).range.start, doc.lineAt(doc.lineCount - 1).range.end)
+
+          e match {
+            case CompilationFailed(errors) =>
+              errors.map { ee => // dźwig
+                error(
+                  ee.err.render,
+                  adapters.toVscodeRange(doc, ee.range),
+                )
+              }
+
+            case _ =>
+              NonEmptyList.one {
+                error(
+                  "Unexpected compilation failure: " + Option(e.getMessage()).getOrElse("null"),
+                  defaultRange,
+                )
+              }
+          }
+
+      }
+  }
 
   private def error(msg: String, range: mod.Range) =
     new Diagnostic(range, msg, DiagnosticSeverity.Error)
