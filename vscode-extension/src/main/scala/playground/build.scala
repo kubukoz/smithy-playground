@@ -115,7 +115,7 @@ object build {
         debug.timed("dump-model") {
           nodeChildProcessMod.execSync(
             // todo: pass version from workspace config, default from sbt-buildinfo
-            ("cs" :: "launch" :: s"com.disneystreaming.smithy4s::smithy4s-codegen-cli:${BuildInfo.smithy4sVersion}" :: "--" :: args)
+            ("cs" :: "launch" :: s"com.disneystreaming.smithy4s:smithy4s-codegen-cli_2.13:${BuildInfo.smithy4sVersion}" :: "--" :: args)
               .mkString(" ")
           )
         }
