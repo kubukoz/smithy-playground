@@ -9,6 +9,9 @@ import typings.vscode.mod.DiagnosticSeverity
 import types._
 import playground.Runner.Issue.InvalidProtocols
 import playground.Runner.Issue.Other
+import cats.data.EitherNel
+import playground.smithyql.Query
+import playground.smithyql.WithSource
 
 object highlight {
 
@@ -17,18 +20,31 @@ object highlight {
   )(
     implicit c: Compiler[Op, EitherThrow],
     runner: Runner.Optional[F, Op],
-  ): List[Diagnostic] = compilationErrors(doc) ++ runnerErrors(doc)
+  ): List[Diagnostic] =
+    compilationErrors(doc) match {
+      // Even if the file doesn't parse, we want to show runner diagnostics at a default range
+      case Left(errors)  => errors.toList ++ runnerErrors(doc, None)
+      case Right(parsed) => runnerErrors(doc, parsed.some)
+    }
 
   def runnerErrors[Op[_, _, _, _, _], F[_]](
-    doc: mod.TextDocument
+    doc: mod.TextDocument,
+    parsed: Option[Query[WithSource]],
   )(
-    implicit runner: Runner.Optional[F, Op]
+    implicit
+    runner: Runner.Optional[F, Op]
   ): List[Diagnostic] =
     runner.get match {
       case Left(e) =>
-        val pos = doc
+        val beginningOfDocument = doc
           .getWordRangeAtPosition(doc.positionAt(0d))
           .getOrElse(new mod.Range(0, 0, 0, 1))
+
+        val pos = parsed
+          .map(_.operationName.range)
+          .map(adapters.toVscodeRange(doc, _))
+          .getOrElse(beginningOfDocument)
+
         e match {
           case InvalidProtocols(ps) =>
             List(
@@ -56,9 +72,9 @@ object highlight {
     doc: mod.TextDocument
   )(
     implicit c: Compiler[Op, EitherThrow]
-  ): List[Diagnostic] =
+  ): EitherNel[Diagnostic, Query[WithSource]] =
     validate.full[Op, EitherThrow](doc.getText()) match {
-      case Right(_) => Nil
+      case Right((parsed, _)) => parsed.asRight
 
       case Left(SmithyQLParser.ParsingFailure(e, _)) =>
         val pos = doc.positionAt(e.failedAtOffset.toDouble)
@@ -66,19 +82,17 @@ object highlight {
           .getWordRangeAtPosition(pos)
           .getOrElse(new mod.Range(pos, doc.lineAt(doc.lineCount - 1).range.end))
 
-        List(
-          error(
-            "Parsing failure: expected one of " + e
-              .expected
-              .map {
-                case InRange(_, lower, upper) if lower == upper => lower.toString
-                case InRange(_, lower, upper)                   => s"$lower-$upper"
-                case msg                                        => msg.toString()
-              }
-              .mkString_(", "),
-            range,
-          )
-        )
+        error(
+          "Parsing failure: expected one of " + e
+            .expected
+            .map {
+              case InRange(_, lower, upper) if lower == upper => lower.toString
+              case InRange(_, lower, upper)                   => s"$lower-$upper"
+              case msg                                        => msg.toString()
+            }
+            .mkString_(", "),
+          range,
+        ).leftNel
 
       case Left(e) =>
         val defaultRange =
@@ -91,15 +105,13 @@ object highlight {
                 ee.err.render,
                 adapters.toVscodeRange(doc, ee.range),
               )
-            }.toList
+            }.asLeft
 
           case _ =>
-            List(
-              error(
-                "Unexpected compilation failure: " + Option(e.getMessage()).getOrElse("null"),
-                defaultRange,
-              )
-            )
+            error(
+              "Unexpected compilation failure: " + Option(e.getMessage()).getOrElse("null"),
+              defaultRange,
+            ).leftNel
         }
 
     }
