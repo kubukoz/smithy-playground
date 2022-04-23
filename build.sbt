@@ -54,7 +54,7 @@ lazy val vscode = projectMatrix
     crossScalaVersions := commonScalaVersions,
     moduleName := "smithy-playground-vscode",
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.7"
+      "org.http4s" %%% "http4s-ember-client" % "0.23.11"
     ),
     commonSettings,
   )
