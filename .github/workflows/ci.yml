@@ -32,3 +32,5 @@ jobs:
       name: release
       if: startsWith(github.ref, 'refs/tags/v')
       run: nix develop --command ./release.sh
+      env:
+        VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
