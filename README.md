@@ -31,7 +31,7 @@ Currently, everything is only available as a VS Code plugin, with future ideas t
 
 ## Development
 
-1. Use nix and enter the shell, or make sure you have `yarn` and `sbt` on the PATH
+1. Use nix and enter the shell (`nix develop` if you have flake support, `nix-shell` otherwise), or make sure you have `yarn` and `sbt` on the PATH
 2. Run `sbtn` to start an sbt server - after it loads, you can close it at any time, it'll run until you use the `shutdown` command
 3. Use the attached launch configurations to run the extension: it should run `sbtn fastOptJS` and load the compiled extension.
 
