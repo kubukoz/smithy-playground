@@ -6,8 +6,21 @@ import weaver._
 import weaver.scalacheck.Checkers
 
 import Arbitraries._
+import weaver.scalacheck.CheckConfig
 
 object CommentParsingTests extends SimpleIOSuite with Checkers {
+
+  override val checkConfig =
+    if (Platform.isJS)
+      CheckConfig
+        .default
+        .copy(
+          minimumSuccessful = 10,
+          maximumDiscardRatio = 10,
+        )
+    else
+      CheckConfig.default
+
   pureTest("Comments from entire query are retained while parsing") {
     assert.eql(
       SmithyQLParser.parseFull(Examples.fullOfComments).map(WithSource.allQueryComments),
