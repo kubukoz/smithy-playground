@@ -3,7 +3,7 @@ import scala.sys.process._
 def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
 
 val compilerPlugins = List(
-  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.13"),
+  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.15"),
   crossPlugin("org.typelevel" % "kind-projector" % "0.13.2"),
 )
 
