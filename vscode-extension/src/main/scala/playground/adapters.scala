@@ -12,7 +12,8 @@ object adapters {
     new mod.Range(pos, end)
   }
 
-  def fromVscodePosition(doc: mod.TextDocument)(pos: mod.Position): Position =
-    Position(doc.offsetAt(pos).toInt)
+  def fromVscodePosition(doc: mod.TextDocument)(pos: mod.Position): Position = Position(
+    doc.offsetAt(pos).toInt
+  )
 
 }
