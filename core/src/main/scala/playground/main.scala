@@ -31,6 +31,8 @@ import aws.protocols.AwsJson1_1
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.ShapeId
 import cats.kernel.Semigroup
+import org.http4s.implicits._
+import cats.effect.std
 
 trait CompiledInput[Op[_, _, _, _, _]] {
   type I
@@ -155,10 +157,29 @@ object Runner {
 
   }
 
-  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async](
+  def dynamicBaseUri[F[_]: MonadCancelThrow](getUri: F[Uri]): Client[F] => Client[F] =
+    client =>
+      Client[F] { req =>
+        getUri.toResource.flatMap { uri =>
+          client.run(
+            req.withUri(
+              req
+                .uri
+                .copy(
+                  scheme = uri.scheme,
+                  authority = uri.authority,
+                  // prefixing with uri.path
+                  path = uri.path.addSegments(req.uri.path.segments),
+                )
+            )
+          )
+        }
+      }
+
+  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async: std.Console](
     service: Service[Alg, Op],
     client: Client[F],
-    baseUri: Uri,
+    baseUri: F[Uri],
   ): Resource[F, Optional[F, Op]] =
     // todo: configurable region
     AwsEnvironment
@@ -171,7 +192,15 @@ object Runner {
             builder: SimpleProtocolBuilder[_]
           ) = Either
             .catchNonFatal {
-              builder(service).client(client, baseUri)
+              builder(service).client(
+                dynamicBaseUri[F](
+                  baseUri.flatTap { uri =>
+                    std.Console[F].println(s"Using base URI: $uri")
+                  }
+                ).apply(client),
+                // this will be overridden by the middleware
+                uri"http://example.com",
+              )
             }
             .leftMap(Issue.Other(_))
             .flatMap {
