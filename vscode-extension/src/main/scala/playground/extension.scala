@@ -58,27 +58,29 @@ object extension {
     .pipe(timedResource("buildFile"))
     .map(build.getService(_, chan))
     .flatMap { service =>
-      Uri
-        .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUrl"))
-        .liftTo[IO]
-        .toResource
-        .flatMap { baseUri =>
-          Runner
-            .make(service.service, client, baseUri)
-            .flatMap { implicit runner =>
-              Resource.make {
-                IO {
-                  debug.timed("activateInternal") {
-                    activateInternal(
-                      context,
-                      service.service,
-                    )
-                  }
-                }
-              }(subs => IO(subs.foreach(_.dispose())))
+      Runner
+        .make(
+          service.service,
+          client,
+          vscodeutil.getConfigF[IO, String]("smithyql.http.baseUrl").flatMap {
+            Uri
+              .fromString(_)
+              .liftTo[IO]
+          },
+        )
+        .flatMap { implicit runner =>
+          Resource.make {
+            IO {
+              debug.timed("activateInternal") {
+                activateInternal(
+                  context,
+                  service.service,
+                )
+              }
             }
-            .void
+          }(subs => IO(subs.foreach(_.dispose())))
         }
+        .void
     }
 
   private def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](

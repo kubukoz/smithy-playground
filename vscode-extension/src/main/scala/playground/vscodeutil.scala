@@ -9,6 +9,7 @@ import typings.vscode.mod.workspace
 
 import scala.scalajs.js
 import typings.vscode.anon.Dispose
+import cats.effect.kernel.Sync
 
 object vscodeutil {
   implicit def disposableToDispose(d: Disposable): Dispose = Dispose(() => d.dispose())
@@ -53,5 +54,6 @@ object vscodeutil {
   }
 
   def unsafeGetConfig[A](key: String): A = workspace.getConfiguration().get[A](key).get
+  def getConfigF[F[_]: Sync, A](key: String): F[A] = Sync[F].delay(unsafeGetConfig[A](key))
 
 }
