@@ -29,15 +29,15 @@ object SmithyQLParser {
       )
 
       s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
-        .expected
-        .map {
-          case InRange(_, '0', '9')               => "digit"
-          case InRange(_, from, to) if from == to => s"'$from'"
-          case InRange(_, from, to)               => s"'$from' - '$to'"
-          case e                                  => e.toString
-        }
-        .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
-        .take(10)}\"${Console.RESET} instead"
+          .expected
+          .map {
+            case InRange(_, '0', '9')               => "digit"
+            case InRange(_, from, to) if from == to => s"'$from'"
+            case InRange(_, from, to)               => s"'$from' - '$to'"
+            case e                                  => e.toString
+          }
+          .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
+          .take(10)}\"${Console.RESET} instead"
     }
 
   }

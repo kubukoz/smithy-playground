@@ -95,7 +95,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
       case StructMismatch(keys, possibleValues) =>
         s"struct mismatch (keys: ${keys.mkString_(", ")}), you must choose exactly one of: ${possibleValues
-          .mkString_(", ")}."
+            .mkString_(", ")}."
 
       case UnexpectedField(remainingFields) =>
         val expectedRemainingString =
