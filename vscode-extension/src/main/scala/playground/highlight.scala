@@ -52,8 +52,8 @@ object highlight {
             List(
               info(
                 s"""Service doesn't support any of the available protocols: ${ps
-                  .map(_.show)
-                  .mkString_(", ")}.
+                    .map(_.show)
+                    .mkString_(", ")}.
                    |Running queries will not be possible.""".stripMargin,
                 pos,
               )
