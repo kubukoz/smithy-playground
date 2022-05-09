@@ -53,38 +53,41 @@ object extension {
   private def activateR(
     context: ExtensionContext,
     client: Client[IO],
-  ): Resource[IO, Unit] = build
-    .buildFile[IO](chan)
-    .toResource
-    .pipe(timedResource("buildFile"))
-    .map(build.getServices(_, chan))
-    .flatMap { dsi =>
-      // todo: up for removal
-      val service = dsi.allServices.head
+  ): Resource[IO, Unit] =
+    build
+      .buildFile[IO](chan)
+      .toResource
+      .pipe(timedResource("buildFile"))
+      .map(build.getServices(_, chan))
+      .flatMap { dsi =>
+        // todo: up for removal
+        val service = dsi.allServices.head
 
-      Uri
-        .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUrl"))
-        .liftTo[IO]
-        .toResource
-        .flatMap { baseUri =>
-          Runner
-            .make(service.service, client, baseUri)
-            .flatMap { implicit runner =>
-              Resource.make {
-                IO {
-                  debug.timed("activateInternal") {
-                    activateInternal(
-                      context,
-                      dsi,
-                      service.service,
-                    )
-                  }
+        Runner
+          .make(
+            service.service,
+            client,
+            vscodeutil.getConfigF[IO, String]("smithyql.http.baseUrl").flatMap {
+              Uri
+                .fromString(_)
+                .liftTo[IO]
+            },
+          )
+          .flatMap { implicit runner =>
+            Resource.make {
+              IO {
+                debug.timed("activateInternal") {
+                  activateInternal(
+                    context,
+                    dsi,
+                    service.service,
+                  )
                 }
-              }(subs => IO(subs.foreach(_.dispose())))
-            }
-            .void
-        }
-    }
+              }
+            }(subs => IO(subs.foreach(_.dispose())))
+          }
+      }
+      .void
 
   private def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     context: ExtensionContext,

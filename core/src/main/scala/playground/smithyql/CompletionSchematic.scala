@@ -1,16 +1,17 @@
 package playground.smithyql
 
-import schematic.Alt
-import schematic.Field
+import smithy4s.schema.Alt
+import smithy4s.schema.Field
 import smithy4s.Hints
-import smithy4s.StubSchematic
+import smithy4s.schema.StubSchematic
 import smithy4s.internals.Hinted
 import smithy4s.ShapeId
-import playground.GetNameHint
+import smithy4s.Lazy
 import smithy4s.Endpoint
 import cats.implicits._
 import WithSource.NodeContext.PathEntry
 import smithy4s.Timestamp
+import smithy4s.Refinement
 
 object CompletionSchematic {
   type ResultR[+A] = List[PathEntry] => List[CompletionItem]
@@ -68,14 +69,13 @@ object CompletionItem {
   def typeAnnotationShort(shapeId: ShapeId): String = s": ${shapeId.name}"
 
   def forOperation[Op[_, _, _, _, _]](e: Endpoint[Op, _, _, _, _, _]) = {
-    val getName = GetNameHint.singleton
     val hints = e.hints
 
     CompletionItem(
       kind = CompletionItemKind.Function,
       label = e.name,
       insertText = InsertText.JustString(e.name),
-      detail = s": ${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}",
+      detail = s": ${e.input.shapeId.name} => ${e.output.shapeId.name}",
       description = none,
       deprecated = hints.get(smithy.api.Deprecated).isDefined,
       docs = buildDocumentation(hints),
@@ -175,10 +175,6 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     fs: Result[S]
   ): Result[List[S]] = retag(fs)
 
-  override def vector[S](
-    fs: Result[S]
-  ): Result[Vector[S]] = retag(list(fs))
-
   override def struct[S](
     fields: Vector[Field[Result, S, _]]
   )(
@@ -218,10 +214,17 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
   }
 
-  override def suspend[A](f: => Result[A]): Result[A] = Hinted.static[ResultR, A](in => f.get(in))
+  override def suspend[A](
+    f: Lazy[Result[A]]
+  ): Result[A] = Hinted.static[ResultR, A](in => f.value.get(in))
 
   override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = retag(f)
 
-  override def withHints[A](fa: Result[A], hints: Hints): Result[A] = fa.addHints(hints)
+  override def surjection[A, B](
+    f: Result[A],
+    refinement: Refinement[A, B],
+    from: B => A,
+  ): Result[B] = retag(f)
 
+  override def withHints[A](fa: Result[A], hints: Hints): Result[A] = fa.addHints(hints)
 }

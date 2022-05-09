@@ -3,7 +3,7 @@ import scala.sys.process._
 def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
 
 val compilerPlugins = List(
-  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.13"),
+  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.15"),
   crossPlugin("org.typelevel" % "kind-projector" % "0.13.2"),
 )
 
@@ -15,10 +15,10 @@ val commonScalaVersions = Seq("2.13.8")
 
 val commonSettings = Seq(
   libraryDependencies ++= Seq(
-    "org.typelevel" %%% "cats-effect" % "3.3.4",
-    "com.disneystreaming" %%% "weaver-cats" % "0.7.9" % Test,
-    "com.disneystreaming" %%% "weaver-discipline" % "0.7.9" % Test,
-    "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.9" % Test,
+    "org.typelevel" %%% "cats-effect" % "3.3.11",
+    "com.disneystreaming" %%% "weaver-cats" % "0.7.11" % Test,
+    "com.disneystreaming" %%% "weaver-discipline" % "0.7.11" % Test,
+    "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.11" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   libraryDependencies ++= compilerPlugins,
@@ -33,9 +33,9 @@ lazy val core = projectMatrix
       "com.disneystreaming.smithy4s" %%% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %%% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "org.typelevel" %%% "cats-parse" % "0.3.6",
+      "org.typelevel" %%% "cats-parse" % "0.3.7",
       "org.typelevel" %%% "paiges-cats" % "0.4.2",
-      "com.lihaoyi" %%% "sourcecode" % "0.2.7",
+      "com.lihaoyi" %%% "sourcecode" % "0.2.8",
     ),
     commonSettings,
     buildInfoPackage := "playground.buildinfo",
@@ -54,7 +54,7 @@ lazy val vscode = projectMatrix
     crossScalaVersions := commonScalaVersions,
     moduleName := "smithy-playground-vscode",
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.7"
+      "org.http4s" %%% "http4s-ember-client" % "0.23.11"
     ),
     commonSettings,
   )

@@ -3,15 +3,11 @@ package playground
 import cats.Contravariant
 import cats.Id
 import cats.implicits._
-import playground.smithyql.BooleanLiteral
 import playground.smithyql.InputNode
-import playground.smithyql.IntLiteral
-import playground.smithyql.Listed
-import playground.smithyql.StringLiteral
 import playground.smithyql.Struct
-import schematic.Alt
-import schematic.ByteArray
-import schematic.Field
+import smithy4s.schema.Alt
+import smithy4s.ByteArray
+import smithy4s.schema.Field
 import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Schematic
@@ -19,12 +15,18 @@ import smithy4s.Timestamp
 import sourcecode.Enclosing
 
 import java.util.UUID
+import playground.smithyql.StringLiteral
+import playground.smithyql.IntLiteral
+import playground.smithyql.Listed
+import playground.smithyql.BooleanLiteral
+import smithy4s.Lazy
 import smithy4s.Document.DArray
 import smithy4s.Document.DBoolean
 import smithy4s.Document.DNumber
 import smithy4s.Document.DNull
 import smithy4s.Document.DString
 import smithy4s.Document.DObject
+import smithy4s.Refinement
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -75,8 +77,6 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
   def list[S](fs: NodeEncoder[S]): NodeEncoder[List[S]] = elems => Listed[Id](elems.map(fs.toNode))
 
   def set[S](fs: NodeEncoder[S]): NodeEncoder[Set[S]] = unsupported
-
-  def vector[S](fs: NodeEncoder[S]): NodeEncoder[Vector[S]] = list(fs).contramap(_.toList)
 
   def map[K, V](fk: NodeEncoder[K], fv: NodeEncoder[V]): NodeEncoder[Map[K, V]] =
     _.toList
@@ -147,13 +147,19 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     fromOrdinal: Map[Int, A],
   ): NodeEncoder[A] = v => string.toNode(to(v)._1)
 
-  def suspend[A](f: => NodeEncoder[A]): NodeEncoder[A] = unsupported
+  def suspend[A](f: Lazy[NodeEncoder[A]]): NodeEncoder[A] = unsupported
 
   def bijection[A, B](
     f: NodeEncoder[A],
     to: A => B,
     from: B => A,
   ): NodeEncoder[B] = b => f.toNode(from(b))
+
+  def surjection[A, B](
+    f: NodeEncoder[A],
+    to: Refinement[A, B],
+    from: B => A,
+  ): NodeEncoder[B] = f.contramap(from)
 
   // todo support formats
   val timestamp: NodeEncoder[Timestamp] = ts => string.toNode(ts.toString())

@@ -10,6 +10,7 @@ import playground.CompilationError
 import playground.PartialCompiler
 import playground.QueryCompilerSchematic
 import weaver._
+import smithy4s.schema.Schema
 import playground.CompilationErrorDetails
 import demo.smithy.Ints
 import weaver.scalacheck.Checkers
@@ -22,17 +23,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   import DSL._
 
-  val comp = new QueryCompilerSchematic
-
   def compile[A: smithy4s.Schema](
     in: PartialCompiler.WAST
-  ) = implicitly[smithy4s.Schema[A]].compile(comp).compile(in)
+  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerSchematic).compile(in)
 
   pureTest("string") {
     assert(
       compile {
         WithSource.liftId("foo".mapK(WithSource.liftId))
-      }(schematic.string.Schema) == Ior.right("foo")
+      }(Schema.string) == Ior.right("foo")
     )
   }
 
@@ -40,7 +39,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(schematic.string.Schema) == Ior.left(
+      }(Schema.string) == Ior.left(
         NonEmptyChain.of(
           CompilationError(
             CompilationErrorDetails.TypeMismatch(
@@ -58,7 +57,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(schematic.int.Schema) == Ior.right(42)
+      }(Schema.int) == Ior.right(42)
     )
   }
 
@@ -175,7 +174,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   test("anything to document matches") {
     forall((wast: PartialCompiler.WAST) =>
       assert(
-        compile[Document](wast)(smithy4s.syntax.document).isRight
+        compile[Document](wast)(Schema.document).isRight
       )
     )
   }
@@ -189,7 +188,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             struct("name" -> "aaa"),
           ).mapK(WithSource.liftId)
         )
-      )(smithy4s.syntax.document) == Ior.right(
+      )(Schema.document) == Ior.right(
         Document.array(
           Document.obj(
             "good" -> Document.fromBoolean(true),

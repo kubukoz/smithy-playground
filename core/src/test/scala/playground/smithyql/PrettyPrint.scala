@@ -18,10 +18,12 @@ object PrettyPrint {
 //
   def prettyPrintWithComments[A](withSource: WithSource[A])(ppContent: A => String): String =
     s"""WithSource(
-      commentsLeft = ${printList(withSource.commentsLeft)(c => s"Comment(${escapeString(c.text)})")},
+      commentsLeft = ${printList(withSource.commentsLeft)(c =>
+        s"Comment(${escapeString(c.text)})"
+      )},
       commentsRight = ${printList(withSource.commentsRight)(c =>
-      s"Comment(${escapeString(c.text)})"
-    )},
+        s"Comment(${escapeString(c.text)})"
+      )},
       value = ${ppContent(withSource.value)},
     )"""
 
@@ -39,17 +41,17 @@ object PrettyPrint {
     def prettyPrintStruct(s: Struct[WithSource]): String =
       s"""Struct[WithSource](
         ${prettyPrintWithComments(s.fields)(
-        _.value
-          .map { case (k, v) =>
-            s"${prettyPrintWithComments(k)(kk => s"Key(${escapeString(kk.text)})")} -> ${prettyPrintWithComments(v)(prettyPrintNode)},\n"
-          }
-          .mkString("Map(", "\n", ")")
-      )}
+          _.value
+            .map { case (k, v) =>
+              s"${prettyPrintWithComments(k)(kk => s"Key(${escapeString(kk.text)})")} -> ${prettyPrintWithComments(v)(prettyPrintNode)},\n"
+            }
+            .mkString("Map(", "\n", ")")
+        )}
       )"""
 
     s"""Query[WithSource](operationName = ${prettyPrintWithComments(q.operationName)(n =>
-      s"OperationName(${escapeString(n.text)})"
-    )}, input = ${prettyPrintWithComments(q.input)(prettyPrintStruct)})"""
+        s"OperationName(${escapeString(n.text)})"
+      )}, input = ${prettyPrintWithComments(q.input)(prettyPrintStruct)})"""
   }
 
   case class Structure(keys: Map[String, Structure]) {
@@ -67,20 +69,21 @@ object PrettyPrint {
 
   def just(k: String) = Structure(Map(k -> empty))
 
-  def toStructure: InputNode[Id] => Structure = _.fold(
-    struct =
-      fields =>
-        Structure(
-          fields
-            .fields
-            .value
-            .map { case (k, v) => k.text -> toStructure(v) }
-            .toMap
-        ),
-    string = s => Structure(Map("string" -> just(s.value))),
-    int = i => Structure(Map("int" -> just(i.value.toString))),
-    listed = list => ???, /* todo */
-    bool = b => Structure(Map("bool" -> just(b.value.toString))),
-  )
+  def toStructure: InputNode[Id] => Structure =
+    _.fold(
+      struct =
+        fields =>
+          Structure(
+            fields
+              .fields
+              .value
+              .map { case (k, v) => k.text -> toStructure(v) }
+              .toMap
+          ),
+      string = s => Structure(Map("string" -> just(s.value))),
+      int = i => Structure(Map("int" -> just(i.value.toString))),
+      listed = list => ???, /* todo */
+      bool = b => Structure(Map("bool" -> just(b.value.toString))),
+    )
 
 }

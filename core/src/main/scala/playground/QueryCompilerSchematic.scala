@@ -7,9 +7,9 @@ import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
 import cats.implicits._
 import playground.smithyql._
-import schematic.Alt
-import schematic.ByteArray
-import schematic.Field
+import smithy4s.schema.Alt
+import smithy4s.ByteArray
+import smithy4s.schema.Field
 import smithy.api.TimestampFormat
 import smithy4s.Document
 import smithy4s.Hints
@@ -19,7 +19,9 @@ import sourcecode.Enclosing
 import java.util.UUID
 
 import PartialCompiler.WAST
+import smithy4s.Lazy
 import playground.CompilationErrorDetails._
+import smithy4s.Refinement
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -76,6 +78,8 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case UnknownService(id, known) =>
         s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
 
+      case RefinementFailure(msg) => s"Refinement failed: $msg."
+
       case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
 
       case UnsupportedNode(tag) => s"Unsupported operation: $tag"
@@ -98,7 +102,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
       case StructMismatch(keys, possibleValues) =>
         s"struct mismatch (keys: ${keys.mkString_(", ")}), you must choose exactly one of: ${possibleValues
-          .mkString_(", ")}."
+            .mkString_(", ")}."
 
       case UnexpectedField(remainingFields) =>
         val expectedRemainingString =
@@ -150,10 +154,12 @@ object CompilationErrorDetails {
     remainingFields: List[String]
   ) extends CompilationErrorDetails
 
+  final case class RefinementFailure(msg: String) extends CompilationErrorDetails
+
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 }
 
-class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
+object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def unsupported[A](implicit sc: Enclosing): PartialCompiler[A] =
     ast =>
@@ -202,8 +208,6 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     .emap(_.value.values.value.parTraverse(fs.compile))
 
   def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = unsupported
-
-  def vector[S](fs: PartialCompiler[S]): PartialCompiler[Vector[S]] = list(fs).map(_.toVector)
 
   def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] =
     PartialCompiler
@@ -356,7 +360,23 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       .toIorNec
   }
 
-  def suspend[A](f: => PartialCompiler[A]): PartialCompiler[A] = f.compile(_)
+  def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = f.value.compile(_)
+
+  def surjection[A, B](
+    f: PartialCompiler[A],
+    to: Refinement[A, B],
+    from: B => A,
+  ): PartialCompiler[B] = (f, PartialCompiler.pos).tupled.emap { case (a, pos) =>
+    to(a)
+      .toIor
+      .leftMap { msg =>
+        CompilationError(
+          CompilationErrorDetails.RefinementFailure(msg),
+          pos,
+        )
+      }
+      .toIorNec
+  }
 
   def bijection[A, B](
     f: PartialCompiler[A],

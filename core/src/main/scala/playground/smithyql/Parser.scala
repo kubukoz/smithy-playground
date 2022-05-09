@@ -37,10 +37,10 @@ object SmithyQLParser {
         }
 
       s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
-        .expected
-        .map(showExpectation)
-        .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
-        .take(10)}\"${Console.RESET} instead"
+          .expected
+          .map(showExpectation)
+          .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
+          .take(10)}\"${Console.RESET} instead"
     }
 
   }

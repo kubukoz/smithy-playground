@@ -34,6 +34,8 @@ import cats.kernel.Semigroup
 import smithy4s.dynamic.DynamicSchemaIndex
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.UseClause
+import org.http4s.implicits._
+import cats.effect.std
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -93,12 +95,10 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
   dsi: DynamicSchemaIndex
 ) extends Compiler[F] {
 
-  private val schem = new QueryCompilerSchematic
-
   private def compileEndpoint[Op[_, _, _, _, _], In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
   ): WithSource[InputNode[WithSource]] => F[CompiledInput] = {
-    val inputCompiler = e.input.compile(schem)
+    val inputCompiler = e.input.compile(QueryCompilerSchematic)
     val outputEncoder = e.output.compile(NodeEncoderSchematic)
     val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
 
@@ -221,10 +221,29 @@ object Runner {
 
   }
 
-  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async](
+  def dynamicBaseUri[F[_]: MonadCancelThrow](getUri: F[Uri]): Client[F] => Client[F] =
+    client =>
+      Client[F] { req =>
+        getUri.toResource.flatMap { uri =>
+          client.run(
+            req.withUri(
+              req
+                .uri
+                .copy(
+                  scheme = uri.scheme,
+                  authority = uri.authority,
+                  // prefixing with uri.path
+                  path = uri.path.addSegments(req.uri.path.segments),
+                )
+            )
+          )
+        }
+      }
+
+  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async: std.Console](
     service: Service[Alg, Op],
     client: Client[F],
-    baseUri: Uri,
+    baseUri: F[Uri],
   ): Resource[F, Optional[F]] =
     // todo: configurable region
     AwsEnvironment
@@ -237,7 +256,15 @@ object Runner {
             builder: SimpleProtocolBuilder[_]
           ) = Either
             .catchNonFatal {
-              builder(service).client(client, baseUri)
+              builder(service).client(
+                dynamicBaseUri[F](
+                  baseUri.flatTap { uri =>
+                    std.Console[F].println(s"Using base URI: $uri")
+                  }
+                ).apply(client),
+                // this will be overridden by the middleware
+                uri"http://example.com",
+              )
             }
             .leftMap(Issue.Other(_))
             .flatMap {
