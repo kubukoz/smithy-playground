@@ -21,6 +21,7 @@ import java.util.UUID
 import PartialCompiler.WAST
 import smithy4s.Lazy
 import playground.CompilationErrorDetails._
+import smithy4s.Refinement
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -74,6 +75,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case RefinementFailure(msg)         => s"Refinement failed: $msg."
       case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
 
       case UnsupportedNode(tag) => s"Unsupported operation: $tag"
@@ -144,6 +146,8 @@ object CompilationErrorDetails {
   final case class UnexpectedField(
     remainingFields: List[String]
   ) extends CompilationErrorDetails
+
+  final case class RefinementFailure(msg: String) extends CompilationErrorDetails
 
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 }
@@ -350,6 +354,22 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
   }
 
   def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = f.value.compile(_)
+
+  def surjection[A, B](
+    f: PartialCompiler[A],
+    to: Refinement[A, B],
+    from: B => A,
+  ): PartialCompiler[B] = (f, PartialCompiler.pos).tupled.emap { case (a, pos) =>
+    to(a)
+      .toIor
+      .leftMap { msg =>
+        CompilationError(
+          CompilationErrorDetails.RefinementFailure(msg),
+          pos,
+        )
+      }
+      .toIorNec
+  }
 
   def bijection[A, B](
     f: PartialCompiler[A],

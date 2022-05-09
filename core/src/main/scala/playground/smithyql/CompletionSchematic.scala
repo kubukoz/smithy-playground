@@ -11,6 +11,7 @@ import smithy4s.Endpoint
 import cats.implicits._
 import WithSource.NodeContext.PathEntry
 import smithy4s.Timestamp
+import smithy4s.Refinement
 
 object CompletionSchematic {
   type ResultR[+A] = List[PathEntry] => List[CompletionItem]
@@ -219,6 +220,11 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
   override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = retag(f)
 
-  override def withHints[A](fa: Result[A], hints: Hints): Result[A] = fa.addHints(hints)
+  override def surjection[A, B](
+    f: Result[A],
+    refinement: Refinement[A, B],
+    from: B => A,
+  ): Result[B] = retag(f)
 
+  override def withHints[A](fa: Result[A], hints: Hints): Result[A] = fa.addHints(hints)
 }

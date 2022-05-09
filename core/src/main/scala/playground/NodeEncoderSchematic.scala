@@ -26,6 +26,7 @@ import smithy4s.Document.DNumber
 import smithy4s.Document.DNull
 import smithy4s.Document.DString
 import smithy4s.Document.DObject
+import smithy4s.Refinement
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -153,6 +154,12 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     to: A => B,
     from: B => A,
   ): NodeEncoder[B] = b => f.toNode(from(b))
+
+  def surjection[A, B](
+    f: NodeEncoder[A],
+    to: Refinement[A, B],
+    from: B => A,
+  ): NodeEncoder[B] = f.contramap(from)
 
   // todo support formats
   val timestamp: NodeEncoder[Timestamp] = ts => string.toNode(ts.toString())
