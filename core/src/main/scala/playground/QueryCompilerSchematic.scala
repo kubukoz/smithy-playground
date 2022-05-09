@@ -152,7 +152,7 @@ object CompilationErrorDetails {
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 }
 
-class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
+object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def unsupported[A](implicit sc: Enclosing): PartialCompiler[A] =
     ast =>

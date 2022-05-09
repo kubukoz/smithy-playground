@@ -73,14 +73,12 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
   service: Service[Alg, Op]
 ) extends Compiler[Op, F] {
 
-  private val schem = new QueryCompilerSchematic
-
   // for quick lookup and prepared compilers
   private val endpoints: Map[String, WithSource[InputNode[WithSource]] => F[CompiledInput[Op]]] = {
     def go[In, Err, Out](
       e: Endpoint[Op, In, Err, Out, _, _]
     ): WithSource[InputNode[WithSource]] => F[CompiledInput[Op]] = {
-      val inputCompiler = e.input.compile(schem)
+      val inputCompiler = e.input.compile(QueryCompilerSchematic)
       val outputEncoder = e.output.compile(NodeEncoderSchematic)
       val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
 

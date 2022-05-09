@@ -23,11 +23,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   import DSL._
 
-  val comp = new QueryCompilerSchematic
-
   def compile[A: smithy4s.Schema](
     in: PartialCompiler.WAST
-  ) = implicitly[smithy4s.Schema[A]].compile(comp).compile(in)
+  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerSchematic).compile(in)
 
   pureTest("string") {
     assert(
