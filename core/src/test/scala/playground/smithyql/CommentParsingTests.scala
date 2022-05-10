@@ -21,6 +21,7 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
     else
       CheckConfig.default
 
+  /*
   pureTest("Comments from entire query are retained while parsing") {
     assert.eql(
       SmithyQLParser.parseFull(Examples.fullOfComments).map(WithSource.allQueryComments),
@@ -69,11 +70,12 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
       ),
     )
   }
+   */
 
   implicit val showQuery: Show[Query[WithSource]] = Show.fromToString
   implicit val showStruct: Show[Struct[WithSource]] = Show.fromToString
 
-  test("Any query can be parsed back to the same query (minus comments)") {
+  /* test("Any query can be parsed back to the same query (minus comments)") {
     forall { (q: Query[WithSource]) =>
       val formatted = playground.smithyql.Formatter.format(q, 80)
 
@@ -86,5 +88,5 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
       }
     }
   }
-
+   */
 }

@@ -2,8 +2,13 @@ package playground.smithyql
 
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
+import cats.data.NonEmptyList
 
 object Arbitraries {
+
+  implicit def arbitraryNel[A: Arbitrary]: Arbitrary[NonEmptyList[A]] = Arbitrary(
+    Gen.resultOf(NonEmptyList.of[A])
+  )
 
   implicit val arbitraryComment: Arbitrary[Comment] = Arbitrary {
     Gen
@@ -40,6 +45,12 @@ object Arbitraries {
 
     Gen.resultOf(StringLiteral.apply[WithSource])
   }
+
+  implicit val arbQualifiedIdentifier: Arbitrary[QualifiedIdentifier] = Arbitrary(
+    Gen.resultOf(QualifiedIdentifier.apply)
+  )
+
+  implicit val arbitraryUseClause: Arbitrary[UseClause] = Arbitrary(Gen.resultOf(UseClause.apply))
 
   implicit val arbBool: Arbitrary[BooleanLiteral[WithSource]] = Arbitrary {
     Gen.resultOf(BooleanLiteral[WithSource])
