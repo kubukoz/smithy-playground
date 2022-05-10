@@ -61,15 +61,15 @@ object extension {
       .pipe(timedResource("buildFile"))
       .map(build.getServices(_, chan))
       .flatMap { dsi =>
-        // todo: up for removal
         val service = dsi.allServices.head
+
         AwsEnvironment
           .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
           .memoize
           .map { awsEnv =>
             Runner
-              .forService(
-                service.service,
+              .forSchemaIndex(
+                dsi,
                 client,
                 vscodeutil.getConfigF[IO, String]("smithyql.http.baseUrl").flatMap {
                   Uri
@@ -79,7 +79,7 @@ object extension {
                 awsEnv,
               )
           }
-          .flatMap { implicit runner =>
+          .flatMap { runner =>
             val compiler: Compiler[EitherThrow] =
               debug.timed("compiler setup") {
                 Compiler.fromSchemaIndex(dsi)
@@ -92,6 +92,7 @@ object extension {
                     context,
                     compiler,
                     CompletionProvider.forService(service.service),
+                    runner,
                   )
                 }
               }
@@ -104,8 +105,7 @@ object extension {
     context: ExtensionContext,
     compiler: Compiler[EitherThrow],
     completionProvider: CompletionProvider,
-  )(
-    implicit runner: Runner.Optional[IO]
+    runner: Runner.Optional[IO],
   ): List[mod.Disposable] = {
 
     import vscodeutil.disposableToDispose

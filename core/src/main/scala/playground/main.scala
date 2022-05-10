@@ -44,6 +44,7 @@ trait CompiledInput {
   def catchError: Throwable => Option[E]
   def writeError: Option[NodeEncoder[E]]
   def writeOutput: NodeEncoder[O]
+  def serviceId: QualifiedIdentifier
   def endpoint: Endpoint[_Op, I, E, O, _, _]
 }
 
@@ -123,6 +124,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
             type E = Err
             type O = Out
             val input: I = compiled
+            val serviceId: QualifiedIdentifier = QualifiedIdentifier.fromShapeId(service.id)
             val endpoint: Endpoint[Op, I, E, O, _, _] = e
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
@@ -227,6 +229,35 @@ object Runner {
         }
       }
 
+  def forSchemaIndex[F[_]: Async: std.Console](
+    dsi: DynamicSchemaIndex,
+    client: Client[F],
+    baseUri: F[Uri],
+    awsEnv: Resource[F, AwsEnvironment[F]],
+  ): Optional[F] = {
+    val runners: Map[QualifiedIdentifier, Optional[F]] =
+      dsi
+        .allServices
+        .map { svc =>
+          QualifiedIdentifier.fromShapeId(svc.service.id) ->
+            Runner.forService[svc.Alg, svc.Op, F](svc.service, client, baseUri, awsEnv)
+        }
+        .toMap
+
+    new Optional[F] {
+      def get: Either[Issue, Runner[F]] =
+        // big todo - quite an issue with Either on the underlying runners here
+        Right { input =>
+          runners
+            .getOrElse(input.serviceId, sys.error("todo"))
+            .get
+            .toOption
+            .get
+            .run(input)
+        }
+    }
+  }
+
   def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async: std.Console](
     service: Service[Alg, Op],
     client: Client[F],
@@ -293,9 +324,9 @@ object Runner {
         .reduceMapK(_.toValidated)
         .toEither
         .map { interpreter => q =>
-          // todo: runner needs to support multiple services too, for now picking one
           perform[q.I, q.E, q.O](
             interpreter,
+            // todo: try to find a safer way to do this, should be safe tho
             q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
           )
         }
