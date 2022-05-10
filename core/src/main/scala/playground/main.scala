@@ -227,7 +227,7 @@ object Runner {
         }
       }
 
-  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async: std.Console](
+  def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async: std.Console](
     service: Service[Alg, Op],
     client: Client[F],
     baseUri: F[Uri],

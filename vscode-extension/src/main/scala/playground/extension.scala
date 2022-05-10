@@ -68,7 +68,7 @@ object extension {
           .memoize
           .map { awsEnv =>
             Runner
-              .make(
+              .forService(
                 service.service,
                 client,
                 vscodeutil.getConfigF[IO, String]("smithyql.http.baseUrl").flatMap {
