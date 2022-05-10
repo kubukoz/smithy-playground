@@ -99,7 +99,7 @@ object extension {
 
     implicit val compiler: Compiler[EitherThrow] =
       debug.timed("compiler setup") {
-        Compiler.instance(dsi)
+        Compiler.fromSchemaIndex(dsi)
       }
 
     import vscodeutil.disposableToDispose
