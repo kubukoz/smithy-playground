@@ -61,8 +61,6 @@ object extension {
       .pipe(timedResource("buildFile"))
       .map(build.getServices(_, chan))
       .flatMap { dsi =>
-        val service = dsi.allServices.head
-
         AwsEnvironment
           .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
           .memoize
@@ -91,7 +89,7 @@ object extension {
                   activateInternal(
                     context,
                     compiler,
-                    CompletionProvider.forService(service.service),
+                    CompletionProvider.forSchemaIndex(dsi),
                     runner,
                   )
                 }
@@ -115,10 +113,7 @@ object extension {
         completions.complete(completionProvider)
       )
 
-    // chan.appendLine("Smithy Playground activated! Info to follow:")
-    // chan.appendLine(s"""Service: ${service.service.id.show}
-    // |Operations: ${service.service.endpoints.map(_.name).mkString("\n")}
-    // |""".stripMargin)
+    chan.appendLine("Smithy Playground activated!")
 
     val subs = List(
       commands
