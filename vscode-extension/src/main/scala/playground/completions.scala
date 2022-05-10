@@ -13,6 +13,7 @@ import scala.scalajs.js.JSConverters._
 
 import util.chaining._
 import scalajs.js.|
+import playground.smithyql.TextEdit
 
 object completions {
 
@@ -24,10 +25,13 @@ object completions {
         doc.getText(),
         adapters.fromVscodePosition(doc)(pos),
       )
-      .map(convertCompletion)
+      .map(convertCompletion(doc, _))
   }
 
-  private def convertCompletion(item: CompletionItem): mod.CompletionItem = {
+  private def convertCompletion(
+    doc: mod.TextDocument,
+    item: CompletionItem,
+  ): mod.CompletionItem = {
     val convertKind: CompletionItemKind => mod.CompletionItemKind = {
       case EnumMember                  => mod.CompletionItemKind.EnumMember
       case Field                       => mod.CompletionItemKind.Field
@@ -41,6 +45,11 @@ object completions {
         case JustString(value)    => value
         case SnippetString(value) => new mod.SnippetString(value)
       }
+
+    val additionalTextEdits: List[mod.TextEdit] = item.extraTextEdits.map {
+      case TextEdit.Insert(what, where) =>
+        mod.TextEdit.insert(doc.positionAt(where.index.toDouble), what)
+    }
 
     val docs: scalajs.js.UndefOr[mod.MarkdownString] =
       item
@@ -56,6 +65,7 @@ object completions {
       convertKind(item.kind),
     )
       .tap(_.insertText = insertText)
+      .tap(_.additionalTextEdits = additionalTextEdits.toJSArray)
       .tap(result =>
         if (item.deprecated)
           result.tags =

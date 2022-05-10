@@ -12,7 +12,7 @@ service DemoService {
 @simpleRestJson
 service DemoService2 {
   version: "0.0.1",
-  operations: [GetVersion],
+  operations: [GetVersion, CreateSubscription],
 }
 
 @readonly

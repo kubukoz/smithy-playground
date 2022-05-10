@@ -18,6 +18,10 @@ object Comment {
 
 final case class Position(index: Int)
 
+object Position {
+  val origin: Position = Position(index = 0)
+}
+
 final case class SourceRange(start: Position, end: Position) {
   def contains(pos: Position): Boolean = pos.index >= start.index && pos.index <= end.index
 }
