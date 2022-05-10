@@ -110,7 +110,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
   def default[A]: Result[A] = Hinted.static[ResultR, A](_ => Nil)
 
-  override def timestamp: Result[Timestamp] = Hinted[ResultR].from { hints =>
+  override val timestamp: Result[Timestamp] = Hinted[ResultR].from { hints =>
     {
       case Nil =>
         val example = Timestamp.nowUTC().toString()
