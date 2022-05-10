@@ -73,9 +73,13 @@ trait Compiler[F[_]] { self =>
 
 object Compiler {
 
-  def instance[F[_]: MonadThrow](
+  def fromSchemaIndex[F[_]: MonadThrow](
     dsi: DynamicSchemaIndex
   ): Compiler[F] = new CompilerImpl(dsi)
+
+  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+    service: Service[Alg, Op]
+  ): Compiler[F] = new ServiceCompiler(service)
 
 }
 
@@ -85,17 +89,11 @@ object CompilationFailed {
   def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
 }
 
-trait CompiledService[F[_]] {
-  type Op[_, _, _, _, _]
-
-  def endpoints: Map[String, WithSource[InputNode[WithSource]] => F[CompiledInput]]
-}
-
-private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
-  dsi: DynamicSchemaIndex
+private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+  service: Service[Alg, Op]
 ) extends Compiler[F] {
 
-  private def compileEndpoint[Op[_, _, _, _, _], In, Err, Out](
+  private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
   ): WithSource[InputNode[WithSource]] => F[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerSchematic)
@@ -111,7 +109,7 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
         .liftTo[F]
         .map { compiled =>
           new CompiledInput {
-            type _Op[I, E, O, SE, SO] = Op[I, E, O, SE, SO]
+            type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
             type I = In
             type E = Err
             type O = Out
@@ -124,29 +122,43 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
         }
   }
 
-  private def compileService[Alg[_[_, _, _, _, _]], Opp[_, _, _, _, _]](
-    service: Service[Alg, Opp]
-  ): CompiledService[F] =
-    new CompiledService[F] {
-      type Op[I, E, O, SE, SO] = Opp[I, E, O, SE, SO]
+  private val endpoints = service
+    .endpoints
+    .groupByNel(_.name)
+    .map(_.map(_.head).map(compileEndpoint(_)))
 
-      val endpoints = service
-        .endpoints
-        .groupByNel(_.name)
-        .map(_.map(_.head).map(compileEndpoint(_)))
+  def compile(q: Query[WithSource]): F[CompiledInput] = endpoints
+    .get(q.operationName.value.text)
+    .liftTo[F](
+      CompilationFailed.one(
+        CompilationError(
+          CompilationErrorDetails
+            .OperationNotFound(
+              q.operationName.value,
+              endpoints.keys.map(OperationName(_)).toList,
+            ),
+          q.operationName.range,
+        )
+      )
+    )
+    .flatMap(_.apply(q.input))
 
-    }
+}
 
-  // for quick lookup and prepared compilers
-  private val services: Map[QualifiedIdentifier, CompiledService[F]] =
+private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+  dsi: DynamicSchemaIndex
+) extends Compiler[F] {
+
+  private val services: Map[QualifiedIdentifier, Compiler[F]] =
     dsi
       .allServices
       .map { svc =>
-        QualifiedIdentifier.fromShapeId(svc.service.id) -> compileService(svc.service)
+        QualifiedIdentifier
+          .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op, F](svc.service)
       }
       .toMap
 
-  private def getService(useClause: Option[WithSource[UseClause]]): F[CompiledService[F]] =
+  private def getService(useClause: Option[WithSource[UseClause]]): F[Compiler[F]] =
     useClause match {
 
       // todo validate only one service if no use clause
@@ -165,32 +177,9 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
           )
     }
 
-  private def compileWithService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    q: Query[WithSource],
-    service: CompiledService[F],
-  ): F[CompiledInput] = {
-    val endpoints = service.endpoints
-
-    endpoints
-      .get(q.operationName.value.text)
-      .liftTo[F](
-        CompilationFailed.one(
-          CompilationError(
-            CompilationErrorDetails
-              .OperationNotFound(
-                q.operationName.value,
-                endpoints.keys.map(OperationName(_)).toList,
-              ),
-            q.operationName.range,
-          )
-        )
-      )
-      .flatMap(_.apply(q.input))
-  }
-
   def compile(
     q: Query[WithSource]
-  ): F[CompiledInput] = getService(q.useClause).flatMap(compileWithService(q, _))
+  ): F[CompiledInput] = getService(q.useClause).flatMap(_.compile(q))
 
 }
 
