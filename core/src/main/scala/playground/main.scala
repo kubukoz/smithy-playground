@@ -53,7 +53,7 @@ object CompiledInput {
 
   type Aux[_I, _E, _O, Op[_, _, _, _, _]] =
     CompiledInput {
-      type _Op[I, E, O, SE, SO] = Op[I, E, O, SE, SO]
+      type _Op[__I, __E, __O, __SE, __SO] = Op[__I, __E, __O, __SE, __SO]
       type I = _I
       type E = _E
       type O = _O
@@ -75,7 +75,18 @@ object Compiler {
 
   def fromSchemaIndex[F[_]: MonadThrow](
     dsi: DynamicSchemaIndex
-  ): Compiler[F] = new CompilerImpl(dsi)
+  ): Compiler[F] = {
+    val services: Map[QualifiedIdentifier, Compiler[F]] =
+      dsi
+        .allServices
+        .map { svc =>
+          QualifiedIdentifier
+            .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op, F](svc.service)
+        }
+        .toMap
+
+    new MultiServiceCompiler(services)
+  }
 
   def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
     service: Service[Alg, Op]
@@ -145,18 +156,9 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
 
 }
 
-private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
-  dsi: DynamicSchemaIndex
+private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+  services: Map[QualifiedIdentifier, Compiler[F]]
 ) extends Compiler[F] {
-
-  private val services: Map[QualifiedIdentifier, Compiler[F]] =
-    dsi
-      .allServices
-      .map { svc =>
-        QualifiedIdentifier
-          .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op, F](svc.service)
-      }
-      .toMap
 
   private def getService(useClause: Option[WithSource[UseClause]]): F[Compiler[F]] =
     useClause match {
@@ -200,13 +202,11 @@ object Runner {
     final case class Other(e: Throwable) extends Issue
 
     // trust me, lawful
-    implicit val semigroup: Semigroup[Issue] =
-      (a, b) =>
-        (a, b) match {
-          case (e: Other, _)                                => e
-          case (_, e: Other)                                => e
-          case (InvalidProtocols(p1), InvalidProtocols(p2)) => InvalidProtocols(p1 |+| p2)
-        }
+    implicit val semigroup: Semigroup[Issue] = {
+      case (e: Other, _)                                => e
+      case (_, e: Other)                                => e
+      case (InvalidProtocols(p1), InvalidProtocols(p2)) => InvalidProtocols(p1 |+| p2)
+    }
 
   }
 
@@ -262,6 +262,7 @@ object Runner {
             .map(service.asTransformation)
 
           // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
+          // todo: AwsClient.prepare
           val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = service
             .hints
             .get(AwsJson1_0)
@@ -282,7 +283,7 @@ object Runner {
             }
             .leftMap(_ => Issue.InvalidProtocols(NonEmptyList.of(AwsJson1_0.id, AwsJson1_1.id)))
 
-          private def perform[I, E, O, Op[_, _, _, _, _]](
+          private def perform[I, E, O](
             interpreter: smithy4s.Interpreter[Op, F],
             q: CompiledInput.Aux[I, E, O, Op],
           ) = Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
@@ -299,7 +300,7 @@ object Runner {
             .toEither
             .map { interpreter => q =>
               // todo: runner needs to support multiple services too, for now picking one
-              perform[q.I, q.E, q.O, Op](
+              perform[q.I, q.E, q.O](
                 interpreter,
                 q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
               )
