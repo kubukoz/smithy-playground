@@ -1,41 +1,39 @@
 package playground
 
+import aws.protocols.AwsJson1_0
+import aws.protocols.AwsJson1_1
 import cats.Defer
 import cats.Id
 import cats.MonadThrow
 import cats.data.NonEmptyList
+import cats.effect.Async
 import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.effect.implicits._
-import cats.effect.Async
+import cats.effect.std
 import cats.implicits._
+import cats.kernel.Semigroup
 import cats.~>
 import org.http4s.Uri
 import org.http4s.client.Client
+import org.http4s.implicits._
 import playground._
 import playground.smithyql.InputNode
 import playground.smithyql.OperationName
+import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
+import playground.smithyql.UseClause
 import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
+import smithy4s.ShapeId
 import smithy4s.aws.AwsCall
 import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.AwsOperationKind
-import smithy4s.aws.http4s.AwsHttp4sBackend
-import smithy4s.aws.kernel.AwsRegion
-import smithy4s.http4s.SimpleRestJsonBuilder
-import aws.protocols.AwsJson1_0
-import aws.protocols.AwsJson1_1
-import smithy4s.http4s.SimpleProtocolBuilder
-import smithy4s.ShapeId
-import cats.kernel.Semigroup
 import smithy4s.dynamic.DynamicSchemaIndex
-import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.UseClause
-import org.http4s.implicits._
-import cats.effect.std
+import smithy4s.http4s.SimpleProtocolBuilder
+import smithy4s.http4s.SimpleRestJsonBuilder
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -233,81 +231,76 @@ object Runner {
     service: Service[Alg, Op],
     client: Client[F],
     baseUri: F[Uri],
-  ): Resource[F, Optional[F]] =
-    // todo: configurable region
-    AwsEnvironment
-      .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
-      .memoize
-      .map { awsEnv =>
-        new Optional[F] {
+    awsEnv: Resource[F, AwsEnvironment[F]],
+  ): Optional[F] =
+    new Optional[F] {
 
-          private def simpleFromBuilder(
-            builder: SimpleProtocolBuilder[_]
-          ) = Either
-            .catchNonFatal {
-              builder(service).client(
-                dynamicBaseUri[F](
-                  baseUri.flatTap { uri =>
-                    std.Console[F].println(s"Using base URI: $uri")
-                  }
-                ).apply(client),
-                // this will be overridden by the middleware
-                uri"http://example.com",
-              )
-            }
-            .leftMap(Issue.Other(_))
-            .flatMap {
-              _.leftMap(e => Issue.InvalidProtocols(NonEmptyList.one(e.protocolTag.id)))
-            }
-            .map(service.asTransformation)
-
-          // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
-          // todo: AwsClient.prepare
-          val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = service
-            .hints
-            .get(AwsJson1_0)
-            .toRight(AwsJson1_0)
-            .orElse(
-              service
-                .hints
-                .get(AwsJson1_1)
-                .toRight(AwsJson1_1)
-            )
-            .void
-            .as {
-              liftInterpreterResource(
-                awsEnv
-                  .flatMap(AwsClient(service, _))
-                  .map(flattenAwsInterpreter(_, service))
-              )
-            }
-            .leftMap(_ => Issue.InvalidProtocols(NonEmptyList.of(AwsJson1_0.id, AwsJson1_1.id)))
-
-          private def perform[I, E, O](
-            interpreter: smithy4s.Interpreter[Op, F],
-            q: CompiledInput.Aux[I, E, O, Op],
-          ) = Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
-            q.writeOutput.toNode(response)
-          }
-
-          val get: Either[Issue, Runner[F]] = NonEmptyList
-            .of(
-              simpleFromBuilder(SimpleRestJsonBuilder),
-              awsInterpreter,
-            )
-            // orElse with error accumulation
-            .reduceMapK(_.toValidated)
-            .toEither
-            .map { interpreter => q =>
-              // todo: runner needs to support multiple services too, for now picking one
-              perform[q.I, q.E, q.O](
-                interpreter,
-                q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
-              )
-            }
-
+      private def simpleFromBuilder(
+        builder: SimpleProtocolBuilder[_]
+      ) = Either
+        .catchNonFatal {
+          builder(service).client(
+            dynamicBaseUri[F](
+              baseUri.flatTap { uri =>
+                std.Console[F].println(s"Using base URI: $uri")
+              }
+            ).apply(client),
+            // this will be overridden by the middleware
+            uri"http://example.com",
+          )
         }
+        .leftMap(Issue.Other(_))
+        .flatMap {
+          _.leftMap(e => Issue.InvalidProtocols(NonEmptyList.one(e.protocolTag.id)))
+        }
+        .map(service.asTransformation)
+
+      // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
+      // todo: AwsClient.prepare
+      val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = service
+        .hints
+        .get(AwsJson1_0)
+        .toRight(AwsJson1_0)
+        .orElse(
+          service
+            .hints
+            .get(AwsJson1_1)
+            .toRight(AwsJson1_1)
+        )
+        .void
+        .as {
+          liftInterpreterResource(
+            awsEnv
+              .flatMap(AwsClient(service, _))
+              .map(flattenAwsInterpreter(_, service))
+          )
+        }
+        .leftMap(_ => Issue.InvalidProtocols(NonEmptyList.of(AwsJson1_0.id, AwsJson1_1.id)))
+
+      private def perform[I, E, O](
+        interpreter: smithy4s.Interpreter[Op, F],
+        q: CompiledInput.Aux[I, E, O, Op],
+      ) = Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
+        q.writeOutput.toNode(response)
       }
+
+      val get: Either[Issue, Runner[F]] = NonEmptyList
+        .of(
+          simpleFromBuilder(SimpleRestJsonBuilder),
+          awsInterpreter,
+        )
+        // orElse with error accumulation
+        .reduceMapK(_.toValidated)
+        .toEither
+        .map { interpreter => q =>
+          // todo: runner needs to support multiple services too, for now picking one
+          perform[q.I, q.E, q.O](
+            interpreter,
+            q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
+          )
+        }
+
+    }
 
   def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
     alg: AwsClient[Alg, F],

@@ -9,11 +9,15 @@ import smithy4s.Service
 
 import smithyql.CompletionSchematic
 
+trait CompletionProvider {
+  def provide(documentText: String, pos: Position): List[CompletionItem]
+}
+
 object CompletionProvider {
 
-  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+  def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op]
-  ): (String, Position) => List[CompletionItem] = {
+  ): CompletionProvider = {
     val completeOperationName = service
       .endpoints
       .map(CompletionItem.forOperation)

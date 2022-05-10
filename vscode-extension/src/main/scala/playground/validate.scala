@@ -10,9 +10,8 @@ import cats.MonadThrow
 object validate {
 
   def full[F[_]: MonadThrow](
-    q: String
-  )(
-    implicit compiler: Compiler[F]
+    q: String,
+    compiler: Compiler[F],
   ): F[(Query[WithSource], CompiledInput)] = SmithyQLParser
     .parseFull(q)
     .liftTo[F]

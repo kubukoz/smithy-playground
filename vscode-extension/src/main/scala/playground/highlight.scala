@@ -19,22 +19,19 @@ import cats.data.Ior
 object highlight {
 
   def getHighlights[F[_]](
-    doc: mod.TextDocument
-  )(
-    implicit c: Compiler[EitherThrow],
+    doc: mod.TextDocument,
+    c: Compiler[EitherThrow],
     runner: Runner.Optional[F],
-  ): List[Diagnostic] = compilationErrors(doc).fold(
-    _.toList ++ runnerErrors(doc, None),
-    parsed => runnerErrors(doc, parsed.some),
-    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed.some),
+  ): List[Diagnostic] = compilationErrors(doc, c).fold(
+    _.toList ++ runnerErrors(doc, None, runner),
+    parsed => runnerErrors(doc, parsed.some, runner),
+    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed.some, runner),
   )
 
   def runnerErrors[F[_]](
     doc: mod.TextDocument,
     parsed: Option[Query[WithSource]],
-  )(
-    implicit
-    runner: Runner.Optional[F]
+    runner: Runner.Optional[F],
   ): List[Diagnostic] =
     runner.get match {
       case Left(e) =>
@@ -71,9 +68,8 @@ object highlight {
     }
 
   def compilationErrors[Op[_, _, _, _, _], F[_]](
-    doc: mod.TextDocument
-  )(
-    implicit c: Compiler[EitherThrow]
+    doc: mod.TextDocument,
+    c: Compiler[EitherThrow],
   ): IorNel[Diagnostic, Query[WithSource]] = {
 
     val base: Ior[Throwable, Query[WithSource]] = SmithyQLParser

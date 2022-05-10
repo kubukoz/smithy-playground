@@ -1,13 +1,19 @@
 package playground
 
 import cats.effect.IO
+import cats.effect.Resource
+import cats.effect.implicits._
 import cats.effect.std
 import cats.effect.unsafe.implicits._
 import cats.implicits._
 import org.http4s.Uri
 import org.http4s.client.Client
 import playground.Runner
-import smithy4s.Service
+import playground.Runner.Issue.Other
+import smithy4s.aws.AwsEnvironment
+import smithy4s.aws.http4s.AwsHttp4sBackend
+import smithy4s.aws.kernel.AwsRegion
+import typings.vscode.anon.Dispose
 import typings.vscode.mod
 import typings.vscode.mod.DocumentFormattingEditProvider
 import typings.vscode.mod.ExtensionContext
@@ -20,12 +26,7 @@ import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
-import playground.Runner.Issue.Other
-import cats.effect.Resource
-import cats.effect.implicits._
 import util.chaining._
-import typings.vscode.anon.Dispose
-import smithy4s.dynamic.DynamicSchemaIndex
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -62,25 +63,35 @@ object extension {
       .flatMap { dsi =>
         // todo: up for removal
         val service = dsi.allServices.head
-
-        Runner
-          .make(
-            service.service,
-            client,
-            vscodeutil.getConfigF[IO, String]("smithyql.http.baseUrl").flatMap {
-              Uri
-                .fromString(_)
-                .liftTo[IO]
-            },
-          )
+        AwsEnvironment
+          .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
+          .memoize
+          .map { awsEnv =>
+            Runner
+              .make(
+                service.service,
+                client,
+                vscodeutil.getConfigF[IO, String]("smithyql.http.baseUrl").flatMap {
+                  Uri
+                    .fromString(_)
+                    .liftTo[IO]
+                },
+                awsEnv,
+              )
+          }
           .flatMap { implicit runner =>
+            val compiler: Compiler[EitherThrow] =
+              debug.timed("compiler setup") {
+                Compiler.fromSchemaIndex(dsi)
+              }
+
             Resource.make {
               IO {
                 debug.timed("activateInternal") {
                   activateInternal(
                     context,
-                    dsi,
-                    service.service,
+                    compiler,
+                    CompletionProvider.forService(service.service),
                   )
                 }
               }
@@ -91,26 +102,23 @@ object extension {
 
   private def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     context: ExtensionContext,
-    dsi: DynamicSchemaIndex,
-    service: Service[Alg, Op],
+    compiler: Compiler[EitherThrow],
+    completionProvider: CompletionProvider,
   )(
     implicit runner: Runner.Optional[IO]
   ): List[mod.Disposable] = {
 
-    implicit val compiler: Compiler[EitherThrow] =
-      debug.timed("compiler setup") {
-        Compiler.fromSchemaIndex(dsi)
-      }
-
     import vscodeutil.disposableToDispose
 
-    val completionProvider =
-      debug.timed("completionProvider setup")(completions.complete(service.service))
+    val vscodeCompletionProvider =
+      debug.timed("vscodeCompletionProvider setup")(
+        completions.complete(completionProvider)
+      )
 
-    chan.appendLine("Smithy Playground activated! Info to follow:")
-    chan.appendLine(s"""Service: ${service.service.id.show}
-    |Operations: ${service.service.endpoints.map(_.name).mkString("\n")}
-    |""".stripMargin)
+    // chan.appendLine("Smithy Playground activated! Info to follow:")
+    // chan.appendLine(s"""Service: ${service.service.id.show}
+    // |Operations: ${service.service.endpoints.map(_.name).mkString("\n")}
+    // |""".stripMargin)
 
     val subs = List(
       commands
@@ -145,7 +153,7 @@ object extension {
         "smithyql",
         mod
           .CompletionItemProvider { (doc, pos, _, _) =>
-            completionProvider(doc, pos).toJSArray
+            vscodeCompletionProvider(doc, pos).toJSArray
           },
         // todo this might not be working properly
         "\t",
@@ -156,7 +164,7 @@ object extension {
           {
             if (runner.get.isRight)
               validate
-                .full[EitherThrow](doc.getText())
+                .full(doc.getText(), compiler)
                 .map { case (parsed, _) =>
                   new mod.CodeLens(
                     adapters.toVscodeRange(doc, parsed.operationName.range),
@@ -175,7 +183,10 @@ object extension {
           format.perform(doc).toJSArray
         },
       ),
-      vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights[IO]),
+      vscodeutil.registerDiagnosticProvider(
+        "smithyql",
+        highlight.getHighlights(_, compiler, runner),
+      ),
     )
 
     val _ = context

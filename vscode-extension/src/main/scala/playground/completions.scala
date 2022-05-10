@@ -7,7 +7,6 @@ import playground.smithyql.CompletionItemKind.Field
 import playground.smithyql.CompletionItemKind.UnionMember
 import playground.smithyql.InsertText.JustString
 import playground.smithyql.InsertText.SnippetString
-import smithy4s.Service
 import typings.vscode.mod
 
 import scala.scalajs.js.JSConverters._
@@ -18,15 +17,14 @@ import scalajs.js.|
 object completions {
 
   def complete[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
-  ): (mod.TextDocument, mod.Position) => List[mod.CompletionItem] = {
-    val provider = CompletionProvider.make(service)
-
-    (doc, pos) =>
-      provider(
+    provider: CompletionProvider
+  ): (mod.TextDocument, mod.Position) => List[mod.CompletionItem] = { (doc, pos) =>
+    provider
+      .provide(
         doc.getText(),
         adapters.fromVscodePosition(doc)(pos),
-      ).map(convertCompletion)
+      )
+      .map(convertCompletion)
   }
 
   private def convertCompletion(item: CompletionItem): mod.CompletionItem = {

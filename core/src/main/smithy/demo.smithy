@@ -9,6 +9,18 @@ service DemoService {
   errors: [GenericServerError]
 }
 
+@simpleRestJson
+service DemoService2 {
+  version: "0.0.1",
+  operations: [GetVersion],
+}
+
+@readonly
+@http(uri: "/version", method: "GET")
+operation GetVersion {
+
+}
+
 @http(method: "POST", uri: "/heroes")
 @documentation("""
 Create a hero.
