@@ -38,15 +38,20 @@ object CompletionProvider {
     val completeOperationName = servicesById
       .map { case (serviceId, service) =>
         serviceId -> { (needsUseClause: Boolean) =>
+          val insertUseClause =
+            if (needsUseClause)
+              CompletionItem.InsertUseClause.Required(opsToServices)
+            else
+              CompletionItem.InsertUseClause.NotRequired
+
           service
             .service
             .endpoints
             .map { e =>
               CompletionItem.forOperation(
-                needsUseClause = needsUseClause,
+                insertUseClause = insertUseClause,
                 endpoint = e,
                 serviceId = serviceId,
-                opsToServices = opsToServices,
               )
             }
         }

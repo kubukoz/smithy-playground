@@ -27,8 +27,12 @@ object run {
             channel.show(true)
             channel.appendLine(s"Calling ${parsed.operationName.value.text}")
           } *>
-            runner
-              .run(compiled)
+            // todo: this ideally wouldn't throw
+            Sync[F]
+              .defer(
+                runner
+                  .run(compiled)
+              )
               .onError { case e =>
                 val rendered =
                   compiled

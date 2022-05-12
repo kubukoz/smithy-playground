@@ -14,6 +14,8 @@ import smithy4s.Timestamp
 import smithy4s.Refinement
 import org.typelevel.paiges.Doc
 import cats.data.NonEmptyList
+import playground.smithyql.CompletionItem.InsertUseClause.Required
+import playground.smithyql.CompletionItem.InsertUseClause.NotRequired
 
 object CompletionSchematic {
   type ResultR[+A] = List[PathEntry] => List[CompletionItem]
@@ -78,30 +80,43 @@ object CompletionItem {
 
   def typeAnnotationShort(shapeId: ShapeId): String = s": ${shapeId.name}"
 
+  sealed trait InsertUseClause extends Product with Serializable
+
+  object InsertUseClause {
+    case class Required(opsToServices: Map[OperationName, NonEmptyList[QualifiedIdentifier]])
+      extends InsertUseClause
+    case object NotRequired extends InsertUseClause
+  }
+
   def forOperation[Op[_, _, _, _, _]](
-    needsUseClause: Boolean,
+    insertUseClause: InsertUseClause,
     endpoint: Endpoint[Op, _, _, _, _, _],
     serviceId: QualifiedIdentifier,
-    opsToServices: Map[OperationName, NonEmptyList[QualifiedIdentifier]],
   ) = {
     val hints = endpoint.hints
 
     val useClauseOpt =
-      Option.when(needsUseClause) {
-        TextEdit.Insert(
-          (
-            Formatter.renderUseClause(UseClause(serviceId)) + Doc.hardLine.repeat(2)
-          ).render(Int.MaxValue),
-          Position.origin,
-        )
+      insertUseClause match {
+        case Required(_) =>
+          TextEdit
+            .Insert(
+              (
+                Formatter.renderUseClause(UseClause(serviceId)) + Doc.hardLine.repeat(2)
+              ).render(Int.MaxValue),
+              Position.origin,
+            )
+            .some
+        case NotRequired => None
       }
 
     val fromServiceHint =
-      // non-unique endpoint names need to be distinguished by service
-      if (opsToServices.get(OperationName(endpoint.name)).foldMap(_.toList).sizeIs > 1)
-        s"(from ${Formatter.renderIdent(serviceId).render(Int.MaxValue)})"
-      else
-        ""
+      insertUseClause match {
+        case Required(opsToServices)
+            // non-unique endpoint names need to be distinguished by service
+            if opsToServices.get(OperationName(endpoint.name)).foldMap(_.toList).sizeIs > 1 =>
+          s"(from ${Formatter.renderIdent(serviceId).render(Int.MaxValue)})"
+        case _ => ""
+      }
 
     CompletionItem(
       kind = CompletionItemKind.Function,
