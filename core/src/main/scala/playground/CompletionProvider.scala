@@ -10,6 +10,7 @@ import smithyql.CompletionSchematic
 import smithy4s.dynamic.DynamicSchemaIndex
 import playground.smithyql.QualifiedIdentifier
 import cats.data.NonEmptyList
+import playground.smithyql.UseClause
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -28,6 +29,8 @@ object CompletionProvider {
         }
         .toMap
 
+    val serviceIdsById = servicesById.map { case (k, _) => (k, k) }
+
     val opsToServices = servicesById.toList.foldMap { case (serviceId, service) =>
       service
         .service
@@ -37,7 +40,8 @@ object CompletionProvider {
 
     val completeOperationName = servicesById
       .map { case (serviceId, service) =>
-        serviceId -> { (needsUseClause: Boolean) =>
+        serviceId -> { (useClause: Option[WithSource[UseClause]]) =>
+          val needsUseClause = useClause.isEmpty && dsi.allServices.sizeIs > 1
           val insertUseClause =
             if (needsUseClause)
               CompletionItem.InsertUseClause.Required(opsToServices)
@@ -73,12 +77,8 @@ object CompletionProvider {
     (doc, pos) =>
       SmithyQLParser.parseFull(doc) match {
         case Left(_) if doc.isBlank() =>
-          if (completeOperationName.sizeIs == 1)
-            // one service only - use clause not necessary
-            completeOperationName.head._2(false)
-          else {
-            completeOperationName.toList.map(_._2).flatSequence.apply(true)
-          }
+          completeOperationName.toList.map(_._2).flatSequence.apply(None)
+
         case Left(_) =>
           // we can try to deal with this later
           Nil
@@ -89,11 +89,13 @@ object CompletionProvider {
           println("ctx at position: " + matchingNode)
 
           val serviceIdOpt =
-            q.useClause match {
-              case Some(useClause)                  => useClause.value.identifier.some
-              case None if servicesById.sizeIs == 1 => servicesById.head._1.some
-              case None                             => None
-            }
+            MultiServiceCompiler
+              .resolveService(
+                q.useClause,
+                q.operationName,
+                serviceIdsById,
+              )
+              .toOption
 
           serviceIdOpt match {
             case Some(serviceId) =>
@@ -102,8 +104,7 @@ object CompletionProvider {
                 .flatMap {
                   case WithSource.NodeContext.OperationContext(_) =>
                     completeOperationName(serviceId)(
-                      // when the clause is missing and necessary
-                      q.useClause.isEmpty && dsi.allServices.sizeIs > 1
+                      q.useClause
                     )
 
                   case WithSource.NodeContext.InputContext(ctx) =>
