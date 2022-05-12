@@ -83,7 +83,7 @@ object Compiler {
         }
         .toMap
 
-    new MultiServiceCompiler(dsi, services)
+    new MultiServiceCompiler(services)
   }
 
   def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
@@ -156,14 +156,12 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
 }
 
 private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
-  dsi: DynamicSchemaIndex,
-  services: Map[QualifiedIdentifier, Compiler[F]],
+  services: Map[QualifiedIdentifier, Compiler[F]]
 ) extends Compiler[F] {
 
   private def getService(q: Query[WithSource]): F[Compiler[F]] =
     q.useClause match {
 
-      // todo validate only one service if no use clause
       case None if services.sizeIs == 1 => services.head._2.pure[F]
       case None =>
         CompilationFailed
