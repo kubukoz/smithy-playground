@@ -7,18 +7,16 @@ import playground.smithyql.UseClause
 import weaver.scalacheck.Checkers
 import playground.smithyql.Arbitraries._
 
-object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
+object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
 
   test("resolveService with no use clause and one service") {
     forall {
       (
-        op: WithSource[Unit],
         ident: QualifiedIdentifier,
         name: String,
       ) =>
-        val result = MultiServiceCompiler.resolveService(
+        val result = MultiServiceResolver.resolveService(
           None,
-          op,
           Map(
             ident -> name
           ),
@@ -31,14 +29,12 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
   test("resolveService with any amount of services and a matching clause") {
     forall {
       (
-        op: WithSource[Unit],
         useClause: WithSource[UseClause],
         name: String,
         otherServices: Map[QualifiedIdentifier, String],
       ) =>
-        val result = MultiServiceCompiler.resolveService(
+        val result = MultiServiceResolver.resolveService(
           Some(useClause),
-          op,
           otherServices ++ Map(
             useClause.value.identifier -> name
           ),
@@ -51,24 +47,19 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
   test("resolveService with any amount of services and a mismatching clause") {
     forall {
       (
-        op: WithSource[Unit],
         useClause: WithSource[UseClause],
         services: Map[QualifiedIdentifier, String],
       ) =>
         val ident = useClause.value.identifier
 
-        val result = MultiServiceCompiler.resolveService(
+        val result = MultiServiceResolver.resolveService(
           Some(useClause),
-          op,
           services - useClause.value.identifier,
         )
 
-        val expected = CompilationFailed.one(
-          CompilationError(
-            CompilationErrorDetails.UnknownService(ident, services.keySet.toList),
-            useClause.range,
-          )
-        )
+        val expected = MultiServiceResolver
+          .ResolutionFailure
+          .UnknownService(ident, services.keySet.toList)
 
         assert(
           result == Left(
@@ -81,25 +72,20 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
   test("resolveService with multiple services and no clause") {
     forall {
       (
-        op: WithSource[Unit],
         services: Map[QualifiedIdentifier, String],
         extraService1: (QualifiedIdentifier, String),
         extraService2: (QualifiedIdentifier, String),
       ) =>
         val allServices = services + extraService1 + extraService2
 
-        val result = MultiServiceCompiler.resolveService(
+        val result = MultiServiceResolver.resolveService(
           useClause = None,
-          op = op,
           services = allServices,
         )
 
-        val expected = CompilationFailed.one(
-          CompilationError(
-            CompilationErrorDetails.AmbiguousService(allServices.keySet.toList),
-            op.range,
-          )
-        )
+        val expected = MultiServiceResolver
+          .ResolutionFailure
+          .AmbiguousService(allServices.keySet.toList)
 
         assert(result == Left(expected))
     }

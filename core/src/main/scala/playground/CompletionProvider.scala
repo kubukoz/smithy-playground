@@ -42,12 +42,9 @@ object CompletionProvider {
       .map { case (serviceId, service) =>
         serviceId -> { (useClause: Option[WithSource[UseClause]]) =>
           val needsUseClause =
-            MultiServiceCompiler
+            MultiServiceResolver
               .resolveService(
                 useClause,
-                // Passing arbitrary value as it's only used for the error position
-                // and that's not even used from here
-                WithSource.liftId(()),
                 servicesById,
               )
               .isLeft
@@ -99,10 +96,9 @@ object CompletionProvider {
           println("ctx at position: " + matchingNode)
 
           val serviceIdOpt =
-            MultiServiceCompiler
+            MultiServiceResolver
               .resolveService(
                 q.useClause,
-                q.operationName,
                 serviceIdsById,
               )
               .toOption

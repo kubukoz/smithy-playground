@@ -4,7 +4,6 @@ import cats.Show
 import weaver._
 import weaver.scalacheck.Checkers
 
-import Arbitraries._
 import weaver.scalacheck.CheckConfig
 
 object CommentParsingTests extends SimpleIOSuite with Checkers {

@@ -34,6 +34,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import playground.smithyql.UseClause
+import playground.smithyql.SourceRange
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -162,8 +163,16 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_
 
   private def getService(
     q: Query[WithSource]
-  ): F[Compiler[F]] = MultiServiceCompiler
-    .resolveService(q.useClause, q.operationName, services)
+  ): F[Compiler[F]] = MultiServiceResolver
+    .resolveService(q.useClause, services)
+    .leftMap { rf =>
+      CompilationFailed.one(
+        CompilationError(
+          CompilationErrorDetails.fromResolutionFailure(rf),
+          MultiServiceResolver.ResolutionFailure.diagnosticRange(q),
+        )
+      )
+    }
     .liftTo[F]
 
   def compile(
@@ -172,39 +181,41 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_
 
 }
 
-object MultiServiceCompiler {
+object MultiServiceResolver {
+
+  sealed trait ResolutionFailure extends Product with Serializable
+
+  object ResolutionFailure {
+    final case class AmbiguousService(knownServices: List[QualifiedIdentifier])
+      extends ResolutionFailure
+
+    final case class UnknownService(
+      unknownId: QualifiedIdentifier,
+      knownServices: List[QualifiedIdentifier],
+    ) extends ResolutionFailure
+
+    // Returns the preferred range for diagnostics about resolution failure
+    def diagnosticRange(q: Query[WithSource]): SourceRange =
+      q.useClause match {
+        case None         => q.operationName.range
+        case Some(clause) => clause.range
+      }
+
+  }
 
   def resolveService[A](
     useClause: Option[WithSource[UseClause]],
-    op: WithSource[Any],
     services: Map[QualifiedIdentifier, A],
-  ): Either[CompilationFailed, A] =
+  ): Either[ResolutionFailure, A] =
     useClause match {
       case None if services.sizeIs == 1 => services.head._2.asRight
-      case None =>
-        CompilationFailed
-          .one(
-            CompilationError(
-              CompilationErrorDetails
-                .AmbiguousService(
-                  services.keySet.toList
-                ),
-              op.range,
-            )
-          )
-          .asLeft
+      case None => ResolutionFailure.AmbiguousService(services.keySet.toList).asLeft
 
       case Some(clause) =>
         services
           .get(clause.value.identifier)
           .toRight(
-            CompilationFailed.one(
-              CompilationError(
-                CompilationErrorDetails
-                  .UnknownService(clause.value.identifier, services.keySet.toList),
-                clause.range,
-              )
-            )
+            ResolutionFailure.UnknownService(clause.value.identifier, services.keySet.toList)
           )
     }
 
@@ -282,11 +293,18 @@ object Runner {
         .toMap
 
     new Optional[F] {
-      def get(q: Query[WithSource]): IorNel[Issue, Runner[F]] = MultiServiceCompiler
+      def get(q: Query[WithSource]): IorNel[Issue, Runner[F]] = MultiServiceResolver
         .resolveService(
           q.useClause,
-          q.operationName,
           runners,
+        )
+        .leftMap(rf =>
+          CompilationFailed.one(
+            CompilationError(
+              CompilationErrorDetails.fromResolutionFailure(rf),
+              q.useClause.fold(q.operationName.range)(_.range),
+            )
+          )
         )
         .toIor
         .leftMap(Issue.Other(_))
