@@ -77,7 +77,6 @@ object CompletionProvider {
             // one service only - use clause not necessary
             completeOperationName.head._2(false)
           else {
-            // todo: if the operation name shows up in many services, show it twice with explicit service name?
             completeOperationName.toList.map(_._2).flatSequence.apply(true)
           }
         case Left(_) =>
