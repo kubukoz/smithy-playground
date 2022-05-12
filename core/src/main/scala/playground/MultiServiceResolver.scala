@@ -4,24 +4,23 @@ import cats.implicits._
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.SourceRange
-import playground.smithyql.UseClause
 import playground.smithyql.WithSource
 
 object MultiServiceResolver {
 
   def resolveService[A](
-    useClause: Option[WithSource[UseClause]],
+    useClauseIdentifier: Option[QualifiedIdentifier],
     services: Map[QualifiedIdentifier, A],
   ): Either[ResolutionFailure, A] =
-    useClause match {
+    useClauseIdentifier match {
       case None if services.sizeIs == 1 => services.head._2.asRight
       case None => ResolutionFailure.AmbiguousService(services.keySet.toList).asLeft
 
-      case Some(clause) =>
+      case Some(ident) =>
         services
-          .get(clause.value.identifier)
+          .get(ident)
           .toRight(
-            ResolutionFailure.UnknownService(clause.value.identifier, services.keySet.toList)
+            ResolutionFailure.UnknownService(ident, services.keySet.toList)
           )
     }
 

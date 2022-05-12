@@ -10,7 +10,6 @@ import smithyql.CompletionSchematic
 import smithy4s.dynamic.DynamicSchemaIndex
 import playground.smithyql.QualifiedIdentifier
 import cats.data.NonEmptyList
-import playground.smithyql.UseClause
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -40,11 +39,11 @@ object CompletionProvider {
 
     val completeOperationName = servicesById
       .map { case (serviceId, service) =>
-        serviceId -> { (useClause: Option[WithSource[UseClause]]) =>
+        serviceId -> { (useClauseIdent: Option[QualifiedIdentifier]) =>
           val needsUseClause =
             MultiServiceResolver
               .resolveService(
-                useClause,
+                useClauseIdent,
                 servicesById,
               )
               .isLeft
@@ -98,7 +97,7 @@ object CompletionProvider {
           val serviceIdOpt =
             MultiServiceResolver
               .resolveService(
-                q.useClause,
+                q.useClause.map(_.value.identifier),
                 serviceIdsById,
               )
               .toOption
@@ -110,7 +109,7 @@ object CompletionProvider {
                 .flatMap {
                   case WithSource.NodeContext.OperationContext(_) =>
                     completeOperationName(serviceId)(
-                      q.useClause
+                      q.useClause.map(_.value.identifier)
                     )
 
                   case WithSource.NodeContext.InputContext(ctx) =>

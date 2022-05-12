@@ -1,11 +1,9 @@
 package playground
 
-import weaver._
-import playground.smithyql.WithSource
-import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.UseClause
-import weaver.scalacheck.Checkers
 import playground.smithyql.Arbitraries._
+import playground.smithyql.QualifiedIdentifier
+import weaver._
+import weaver.scalacheck.Checkers
 
 object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
 
@@ -29,14 +27,14 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
   test("resolveService with any amount of services and a matching clause") {
     forall {
       (
-        useClause: WithSource[UseClause],
+        useClauseIdent: QualifiedIdentifier,
         name: String,
         otherServices: Map[QualifiedIdentifier, String],
       ) =>
         val result = MultiServiceResolver.resolveService(
-          Some(useClause),
+          Some(useClauseIdent),
           otherServices ++ Map(
-            useClause.value.identifier -> name
+            useClauseIdent -> name
           ),
         )
 
@@ -47,14 +45,14 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
   test("resolveService with any amount of services and a mismatching clause") {
     forall {
       (
-        useClause: WithSource[UseClause],
+        useClauseIdent: QualifiedIdentifier,
         services: Map[QualifiedIdentifier, String],
       ) =>
-        val ident = useClause.value.identifier
+        val ident = useClauseIdent
 
         val result = MultiServiceResolver.resolveService(
-          Some(useClause),
-          services - useClause.value.identifier,
+          Some(useClauseIdent),
+          services - useClauseIdent,
         )
 
         val expected = ResolutionFailure.UnknownService(ident, services.keySet.toList)
@@ -77,7 +75,7 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
         val allServices = services + extraService1 + extraService2
 
         val result = MultiServiceResolver.resolveService(
-          useClause = None,
+          useClauseIdentifier = None,
           services = allServices,
         )
 
