@@ -165,9 +165,9 @@ object extension {
           {
             SmithyQLParser.parseFull(doc.getText()) match {
               case Right(parsed) if runner.get(parsed).toEither.isRight =>
-                validate
-                  .full(doc.getText(), compiler)
-                  .map { case (parsed, _) =>
+                compiler
+                  .compile(parsed)
+                  .as {
                     new mod.CodeLens(
                       adapters.toVscodeRange(doc, parsed.operationName.range),
                       mod.Command("smithyql.runQuery", "Run query"),
