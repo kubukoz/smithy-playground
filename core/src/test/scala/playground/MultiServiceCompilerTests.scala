@@ -2,9 +2,7 @@ package playground
 
 import weaver._
 import playground.smithyql.WithSource
-import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
-import cats.data.NonEmptyList
 import playground.smithyql.UseClause
 import weaver.scalacheck.Checkers
 import playground.smithyql.Arbitraries._
@@ -14,7 +12,7 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
   test("resolveService with no use clause and one service") {
     forall {
       (
-        op: WithSource[OperationName],
+        op: WithSource[Unit],
         ident: QualifiedIdentifier,
         name: String,
       ) =>
@@ -33,7 +31,7 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
   test("resolveService with any amount of services and a matching clause") {
     forall {
       (
-        op: WithSource[OperationName],
+        op: WithSource[Unit],
         useClause: WithSource[UseClause],
         name: String,
         otherServices: Map[QualifiedIdentifier, String],
@@ -53,7 +51,7 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
   test("resolveService with any amount of services and a mismatching clause") {
     forall {
       (
-        op: WithSource[OperationName],
+        op: WithSource[Unit],
         useClause: WithSource[UseClause],
         services: Map[QualifiedIdentifier, String],
       ) =>
@@ -65,12 +63,10 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
           services - useClause.value.identifier,
         )
 
-        val expected = CompilationFailed(
-          NonEmptyList.one(
-            CompilationError(
-              CompilationErrorDetails.UnknownService(ident, services.keySet.toList),
-              useClause.range,
-            )
+        val expected = CompilationFailed.one(
+          CompilationError(
+            CompilationErrorDetails.UnknownService(ident, services.keySet.toList),
+            useClause.range,
           )
         )
 
@@ -85,7 +81,7 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
   test("resolveService with multiple services and no clause") {
     forall {
       (
-        op: WithSource[OperationName],
+        op: WithSource[Unit],
         services: Map[QualifiedIdentifier, String],
         extraService1: (QualifiedIdentifier, String),
         extraService2: (QualifiedIdentifier, String),
@@ -98,12 +94,10 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
           services = allServices,
         )
 
-        val expected = CompilationFailed(
-          NonEmptyList.one(
-            CompilationError(
-              CompilationErrorDetails.AmbiguousService(allServices.keySet.toList),
-              op.range,
-            )
+        val expected = CompilationFailed.one(
+          CompilationError(
+            CompilationErrorDetails.AmbiguousService(allServices.keySet.toList),
+            op.range,
           )
         )
 

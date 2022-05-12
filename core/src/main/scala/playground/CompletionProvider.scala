@@ -41,7 +41,17 @@ object CompletionProvider {
     val completeOperationName = servicesById
       .map { case (serviceId, service) =>
         serviceId -> { (useClause: Option[WithSource[UseClause]]) =>
-          val needsUseClause = useClause.isEmpty && dsi.allServices.sizeIs > 1
+          val needsUseClause =
+            MultiServiceCompiler
+              .resolveService(
+                useClause,
+                // Passing arbitrary value as it's only used for the error position
+                // and that's not even used from here
+                WithSource.liftId(()),
+                servicesById,
+              )
+              .isLeft
+
           val insertUseClause =
             if (needsUseClause)
               CompletionItem.InsertUseClause.Required(opsToServices)

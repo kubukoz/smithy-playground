@@ -176,7 +176,7 @@ object MultiServiceCompiler {
 
   def resolveService[A](
     useClause: Option[WithSource[UseClause]],
-    op: WithSource[OperationName],
+    op: WithSource[Any],
     services: Map[QualifiedIdentifier, A],
   ): Either[CompilationFailed, A] =
     useClause match {
