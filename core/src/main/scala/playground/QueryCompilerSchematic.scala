@@ -127,10 +127,10 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
 object CompilationErrorDetails {
 
-  val fromResolutionFailure: MultiServiceResolver.ResolutionFailure => CompilationErrorDetails = {
-    case MultiServiceResolver.ResolutionFailure.AmbiguousService(knownServices) =>
+  val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
+    case ResolutionFailure.AmbiguousService(knownServices) =>
       CompilationErrorDetails.AmbiguousService(knownServices)
-    case MultiServiceResolver.ResolutionFailure.UnknownService(unknownId, knownServices) =>
+    case ResolutionFailure.UnknownService(unknownId, knownServices) =>
       CompilationErrorDetails.UnknownService(unknownId, knownServices)
 
   }

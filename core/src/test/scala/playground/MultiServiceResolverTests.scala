@@ -57,9 +57,7 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
           services - useClause.value.identifier,
         )
 
-        val expected = MultiServiceResolver
-          .ResolutionFailure
-          .UnknownService(ident, services.keySet.toList)
+        val expected = ResolutionFailure.UnknownService(ident, services.keySet.toList)
 
         assert(
           result == Left(
@@ -83,9 +81,7 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
           services = allServices,
         )
 
-        val expected = MultiServiceResolver
-          .ResolutionFailure
-          .AmbiguousService(allServices.keySet.toList)
+        val expected = ResolutionFailure.AmbiguousService(allServices.keySet.toList)
 
         assert(result == Left(expected))
     }

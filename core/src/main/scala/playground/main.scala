@@ -5,6 +5,7 @@ import aws.protocols.AwsJson1_1
 import cats.Defer
 import cats.Id
 import cats.MonadThrow
+import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
 import cats.effect.MonadCancelThrow
@@ -12,7 +13,6 @@ import cats.effect.Resource
 import cats.effect.implicits._
 import cats.effect.std
 import cats.implicits._
-import cats.data.IorNel
 import cats.~>
 import org.http4s.Uri
 import org.http4s.client.Client
@@ -33,8 +33,6 @@ import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
-import playground.smithyql.UseClause
-import playground.smithyql.SourceRange
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -169,7 +167,7 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_
       CompilationFailed.one(
         CompilationError(
           CompilationErrorDetails.fromResolutionFailure(rf),
-          MultiServiceResolver.ResolutionFailure.diagnosticRange(q),
+          ResolutionFailure.diagnosticRange(q),
         )
       )
     }
@@ -178,46 +176,6 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_
   def compile(
     q: Query[WithSource]
   ): F[CompiledInput] = getService(q).flatMap(_.compile(q))
-
-}
-
-object MultiServiceResolver {
-
-  sealed trait ResolutionFailure extends Product with Serializable
-
-  object ResolutionFailure {
-    final case class AmbiguousService(knownServices: List[QualifiedIdentifier])
-      extends ResolutionFailure
-
-    final case class UnknownService(
-      unknownId: QualifiedIdentifier,
-      knownServices: List[QualifiedIdentifier],
-    ) extends ResolutionFailure
-
-    // Returns the preferred range for diagnostics about resolution failure
-    def diagnosticRange(q: Query[WithSource]): SourceRange =
-      q.useClause match {
-        case None         => q.operationName.range
-        case Some(clause) => clause.range
-      }
-
-  }
-
-  def resolveService[A](
-    useClause: Option[WithSource[UseClause]],
-    services: Map[QualifiedIdentifier, A],
-  ): Either[ResolutionFailure, A] =
-    useClause match {
-      case None if services.sizeIs == 1 => services.head._2.asRight
-      case None => ResolutionFailure.AmbiguousService(services.keySet.toList).asLeft
-
-      case Some(clause) =>
-        services
-          .get(clause.value.identifier)
-          .toRight(
-            ResolutionFailure.UnknownService(clause.value.identifier, services.keySet.toList)
-          )
-    }
 
 }
 
