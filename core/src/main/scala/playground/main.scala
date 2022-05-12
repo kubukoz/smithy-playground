@@ -33,6 +33,7 @@ import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
+import playground.smithyql.UseClause
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -159,26 +160,44 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_
   services: Map[QualifiedIdentifier, Compiler[F]]
 ) extends Compiler[F] {
 
-  private def getService(q: Query[WithSource]): F[Compiler[F]] =
-    q.useClause match {
+  private def getService(
+    q: Query[WithSource]
+  ): F[Compiler[F]] = MultiServiceCompiler
+    .resolveService(q.useClause, q.operationName, services)
+    .liftTo[F]
 
-      case None if services.sizeIs == 1 => services.head._2.pure[F]
+  def compile(
+    q: Query[WithSource]
+  ): F[CompiledInput] = getService(q).flatMap(_.compile(q))
+
+}
+
+object MultiServiceCompiler {
+
+  def resolveService[A](
+    useClause: Option[WithSource[UseClause]],
+    op: WithSource[OperationName],
+    services: Map[QualifiedIdentifier, A],
+  ): Either[CompilationFailed, A] =
+    useClause match {
+      case None if services.sizeIs == 1 => services.head._2.asRight
       case None =>
         CompilationFailed
           .one(
             CompilationError(
-              CompilationErrorDetails.AmbiguousService(
-                services.keySet.toList
-              ),
-              q.operationName.range,
+              CompilationErrorDetails
+                .AmbiguousService(
+                  services.keySet.toList
+                ),
+              op.range,
             )
           )
-          .raiseError[F, Compiler[F]]
+          .asLeft
 
       case Some(clause) =>
         services
           .get(clause.value.identifier)
-          .liftTo[F](
+          .toRight(
             CompilationFailed.one(
               CompilationError(
                 CompilationErrorDetails
@@ -189,10 +208,6 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_
           )
     }
 
-  def compile(
-    q: Query[WithSource]
-  ): F[CompiledInput] = getService(q).flatMap(_.compile(q))
-
 }
 
 trait Runner[F[_]] {
@@ -202,7 +217,7 @@ trait Runner[F[_]] {
 object Runner {
 
   trait Optional[F[_]] {
-    def get: Either[Issue, Runner[F]]
+    def get(parsed: Query[WithSource]): Either[Issue, Runner[F]]
   }
 
   sealed trait Issue extends Product with Serializable
@@ -255,16 +270,14 @@ object Runner {
         .toMap
 
     new Optional[F] {
-      def get: Either[Issue, Runner[F]] =
-        // big todo - quite an issue with Either on the underlying runners here
-        Right { input =>
-          runners
-            .getOrElse(input.serviceId, sys.error("todo"))
-            .get
-            .toOption
-            .get
-            .run(input)
-        }
+      def get(q: Query[WithSource]): Either[Issue, Runner[F]] = MultiServiceCompiler
+        .resolveService(
+          q.useClause,
+          q.operationName,
+          runners,
+        )
+        .leftMap(Issue.Other(_))
+        .flatMap(_.get(q))
     }
   }
 
@@ -314,7 +327,7 @@ object Runner {
         q.writeOutput.toNode(response)
       }
 
-      val get: Either[Issue, Runner[F]] = NonEmptyList
+      val getInternal: Either[Issue, Runner[F]] = NonEmptyList
         .of(
           simpleFromBuilder(SimpleRestJsonBuilder),
           awsInterpreter,
@@ -330,6 +343,7 @@ object Runner {
           )
         }
 
+      def get(parsed: Query[WithSource]): Either[Issue, Runner[F]] = getInternal
     }
 
   def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](

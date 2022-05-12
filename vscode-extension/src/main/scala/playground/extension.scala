@@ -27,6 +27,7 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
 import util.chaining._
+import playground.smithyql.SmithyQLParser
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -120,29 +121,33 @@ object extension {
         .registerTextEditorCommand(
           "smithyql.runQuery",
           (ted, _, _) =>
-            {
-              runner.get match {
-                case Left(e) =>
-                  e match {
-                    case Runner.Issue.InvalidProtocols(ps) =>
-                      IO(
-                        window.showErrorMessage(
-                          s"The service uses an unsupported protocol. Available protocols: ${ps.map(_.show).mkString_(", ")}"
-                        )
-                      ).void
+            SmithyQLParser
+              .parseFull(ted.document.getText())
+              .liftTo[IO]
+              .flatMap { parsed =>
+                runner.get(parsed) match {
+                  case Left(e) =>
+                    e match {
+                      case Runner.Issue.InvalidProtocols(ps) =>
+                        IO(
+                          window.showErrorMessage(
+                            s"The service uses an unsupported protocol. Available protocols: ${ps.map(_.show).mkString_(", ")}"
+                          )
+                        ).void
 
-                    case Other(e) =>
-                      IO(
-                        window.showErrorMessage(
-                          e.toString()
+                      case Other(e) =>
+                        IO(
+                          window.showErrorMessage(
+                            e.toString()
+                          )
                         )
-                      )
-                  }
+                    }
 
-                case Right(runner) =>
-                  run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
+                  case Right(runner) =>
+                    run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
+                }
               }
-            }.unsafeRunAndForget(),
+              .unsafeRunAndForget(),
         ),
       languages.registerCompletionItemProvider(
         "smithyql",
@@ -157,18 +162,19 @@ object extension {
         "smithyql",
         mod.CodeLensProvider { (doc, _) =>
           {
-            if (runner.get.isRight)
-              validate
-                .full(doc.getText(), compiler)
-                .map { case (parsed, _) =>
-                  new mod.CodeLens(
-                    adapters.toVscodeRange(doc, parsed.operationName.range),
-                    mod.Command("smithyql.runQuery", "Run query"),
-                  )
-                }
-                .toList
-            else
-              Nil
+            SmithyQLParser.parseFull(doc.getText()) match {
+              case Right(parsed) if runner.get(parsed).isRight =>
+                validate
+                  .full(doc.getText(), compiler)
+                  .map { case (parsed, _) =>
+                    new mod.CodeLens(
+                      adapters.toVscodeRange(doc, parsed.operationName.range),
+                      mod.Command("smithyql.runQuery", "Run query"),
+                    )
+                  }
+                  .toList
+              case _ => Nil
+            }
           }.toJSArray
         },
       ),

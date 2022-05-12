@@ -23,26 +23,19 @@ object highlight {
     c: Compiler[EitherThrow],
     runner: Runner.Optional[F],
   ): List[Diagnostic] = compilationErrors(doc, c).fold(
-    _.toList ++ runnerErrors(doc, None, runner),
-    parsed => runnerErrors(doc, parsed.some, runner),
-    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed.some, runner),
+    _.toList,
+    parsed => runnerErrors(doc, parsed, runner),
+    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed, runner),
   )
 
   def runnerErrors[F[_]](
     doc: mod.TextDocument,
-    parsed: Option[Query[WithSource]],
+    parsed: Query[WithSource],
     runner: Runner.Optional[F],
   ): List[Diagnostic] =
-    runner.get match {
+    runner.get(parsed) match {
       case Left(e) =>
-        val beginningOfDocument = doc
-          .getWordRangeAtPosition(doc.positionAt(0d))
-          .getOrElse(new mod.Range(0, 0, 0, 1))
-
-        val pos = parsed
-          .map(_.operationName.range)
-          .map(adapters.toVscodeRange(doc, _))
-          .getOrElse(beginningOfDocument)
+        val pos = adapters.toVscodeRange(doc, parsed.operationName.range)
 
         e match {
           case InvalidProtocols(ps) =>
@@ -55,6 +48,7 @@ object highlight {
                 pos,
               )
             )
+          case Other(_: CompilationFailed) => Nil // ignoring to avoid duplicating compiler errors
           case Other(e) =>
             List(
               info(
