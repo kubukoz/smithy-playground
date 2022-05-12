@@ -50,27 +50,25 @@ object MultiServiceCompilerTests extends SimpleIOSuite with Checkers {
     }
   }
 
-  test("resolveService with one service and a mismatching clause") {
+  test("resolveService with any amount of services and a mismatching clause") {
     forall {
       (
         op: WithSource[OperationName],
         useClause: WithSource[UseClause],
-        name: String,
+        services: Map[QualifiedIdentifier, String],
       ) =>
         val ident = useClause.value.identifier
-        val otherIdent = ident.copy(selection = ident.selection + "Valid")
 
         val result = MultiServiceCompiler.resolveService(
           Some(useClause),
           op,
-          Map(
-            otherIdent -> name
-          ),
+          services - useClause.value.identifier,
         )
+
         val expected = CompilationFailed(
           NonEmptyList.one(
             CompilationError(
-              CompilationErrorDetails.UnknownService(ident, List(otherIdent)),
+              CompilationErrorDetails.UnknownService(ident, services.keySet.toList),
               useClause.range,
             )
           )

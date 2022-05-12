@@ -131,7 +131,7 @@ object CompilationErrorDetails {
     extends CompilationErrorDetails
 
   final case class AmbiguousService(
-    matchingServices: List[QualifiedIdentifier]
+    known: List[QualifiedIdentifier]
   ) extends CompilationErrorDetails
 
   final case class TypeMismatch(
