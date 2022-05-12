@@ -4,8 +4,6 @@ import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.parse.Parser.Expectation.InRange
-import playground.Runner.Issue.InvalidProtocols
-import playground.Runner.Issue.Other
 import playground.smithyql.Query
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
@@ -18,37 +16,27 @@ import cats.data.Ior
 
 object highlight {
 
-  def getHighlights[Op[_, _, _, _, _], F[_]](
-    doc: mod.TextDocument
-  )(
-    implicit c: Compiler[Op, EitherThrow],
-    runner: Runner.Optional[F, Op],
-  ): List[Diagnostic] = compilationErrors(doc).fold(
-    _.toList ++ runnerErrors(doc, None),
-    parsed => runnerErrors(doc, parsed.some),
-    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed.some),
+  def getHighlights[F[_]](
+    doc: mod.TextDocument,
+    c: Compiler[EitherThrow],
+    runner: Runner.Optional[F],
+  ): List[Diagnostic] = compilationErrors(doc, c).fold(
+    _.toList,
+    parsed => runnerErrors(doc, parsed, runner),
+    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed, runner),
   )
 
-  def runnerErrors[Op[_, _, _, _, _], F[_]](
+  def runnerErrors[F[_]](
     doc: mod.TextDocument,
-    parsed: Option[Query[WithSource]],
-  )(
-    implicit
-    runner: Runner.Optional[F, Op]
+    parsed: Query[WithSource],
+    runner: Runner.Optional[F],
   ): List[Diagnostic] =
-    runner.get match {
+    runner.get(parsed).toEither match {
       case Left(e) =>
-        val beginningOfDocument = doc
-          .getWordRangeAtPosition(doc.positionAt(0d))
-          .getOrElse(new mod.Range(0, 0, 0, 1))
+        val pos = adapters.toVscodeRange(doc, parsed.operationName.range)
 
-        val pos = parsed
-          .map(_.operationName.range)
-          .map(adapters.toVscodeRange(doc, _))
-          .getOrElse(beginningOfDocument)
-
-        e match {
-          case InvalidProtocols(ps) =>
+        Runner.Issue.squash(e) match {
+          case Left(ps) =>
             List(
               info(
                 s"""Service doesn't support any of the available protocols: ${ps
@@ -58,22 +46,25 @@ object highlight {
                 pos,
               )
             )
-          case Other(e) =>
-            List(
-              info(
-                s"""Service unsupported. Running queries will not be possible.
-                   |Details: $e""".stripMargin,
-                pos,
-              )
-            )
+          case Right(es) =>
+            es.toList.flatMap {
+              case CompilationFailed(_) => Nil // ignoring to avoid duplicating compiler errors
+              case e =>
+                List(
+                  info(
+                    s"""Service unsupported. Running queries will not be possible.
+                       |Details: $e""".stripMargin,
+                    pos,
+                  )
+                )
+            }
         }
       case Right(_) => Nil
     }
 
   def compilationErrors[Op[_, _, _, _, _], F[_]](
-    doc: mod.TextDocument
-  )(
-    implicit c: Compiler[Op, EitherThrow]
+    doc: mod.TextDocument,
+    c: Compiler[EitherThrow],
   ): IorNel[Diagnostic, Query[WithSource]] = {
 
     val base: Ior[Throwable, Query[WithSource]] = SmithyQLParser

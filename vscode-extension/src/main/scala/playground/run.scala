@@ -13,8 +13,8 @@ object run {
 
   def perform[F[_]: Sync, Op[_, _, _, _, _]](
     ted: TextEditor,
-    compiler: Compiler[Op, F],
-    runner: Runner[F, Op],
+    compiler: Compiler[F],
+    runner: Runner[F],
     channel: OutputChannel,
   ): F[Unit] = SmithyQLParser
     .parseFull(ted.document.getText())

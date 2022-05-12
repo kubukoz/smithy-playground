@@ -12,6 +12,10 @@ import cats.implicits._
 import WithSource.NodeContext.PathEntry
 import smithy4s.Timestamp
 import smithy4s.Refinement
+import org.typelevel.paiges.Doc
+import cats.data.NonEmptyList
+import playground.smithyql.CompletionItem.InsertUseClause.Required
+import playground.smithyql.CompletionItem.InsertUseClause.NotRequired
 
 object CompletionSchematic {
   type ResultR[+A] = List[PathEntry] => List[CompletionItem]
@@ -26,7 +30,14 @@ final case class CompletionItem(
   description: Option[String],
   deprecated: Boolean,
   docs: Option[String],
+  extraTextEdits: List[TextEdit],
 )
+
+sealed trait TextEdit extends Product with Serializable
+
+object TextEdit {
+  final case class Insert(text: String, pos: Position) extends TextEdit
+}
 
 sealed trait InsertText extends Product with Serializable
 
@@ -64,21 +75,59 @@ object CompletionItem {
     detail = typeAnnotationShort(hints.get(ShapeId).get),
     description = hints.get(ShapeId).get.namespace.some,
     docs = buildDocumentation(hints),
+    extraTextEdits = Nil,
   )
 
   def typeAnnotationShort(shapeId: ShapeId): String = s": ${shapeId.name}"
 
-  def forOperation[Op[_, _, _, _, _]](e: Endpoint[Op, _, _, _, _, _]) = {
-    val hints = e.hints
+  sealed trait InsertUseClause extends Product with Serializable
+
+  object InsertUseClause {
+    case class Required(opsToServices: Map[OperationName, NonEmptyList[QualifiedIdentifier]])
+      extends InsertUseClause
+    case object NotRequired extends InsertUseClause
+  }
+
+  def forOperation[Op[_, _, _, _, _]](
+    insertUseClause: InsertUseClause,
+    endpoint: Endpoint[Op, _, _, _, _, _],
+    serviceId: QualifiedIdentifier,
+  ) = {
+    val hints = endpoint.hints
+
+    val useClauseOpt =
+      insertUseClause match {
+        case Required(_) =>
+          TextEdit
+            .Insert(
+              (
+                Formatter.renderUseClause(UseClause(serviceId)) + Doc.hardLine.repeat(2)
+              ).render(Int.MaxValue),
+              Position.origin,
+            )
+            .some
+        case NotRequired => None
+      }
+
+    val fromServiceHint =
+      insertUseClause match {
+        case Required(opsToServices)
+            // non-unique endpoint names need to be distinguished by service
+            if opsToServices.get(OperationName(endpoint.name)).foldMap(_.toList).sizeIs > 1 =>
+          s"(from ${Formatter.renderIdent(serviceId).render(Int.MaxValue)})"
+        case _ => ""
+      }
 
     CompletionItem(
       kind = CompletionItemKind.Function,
-      label = e.name,
-      insertText = InsertText.JustString(e.name),
-      detail = s": ${e.input.shapeId.name} => ${e.output.shapeId.name}",
+      label = endpoint.name,
+      insertText = InsertText.JustString(endpoint.name),
+      detail =
+        s"$fromServiceHint: ${endpoint.input.shapeId.name} => ${endpoint.output.shapeId.name}",
       description = none,
       deprecated = hints.get(smithy.api.Deprecated).isDefined,
       docs = buildDocumentation(hints),
+      extraTextEdits = useClauseOpt.toList,
     )
   }
 
@@ -110,7 +159,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
   def default[A]: Result[A] = Hinted.static[ResultR, A](_ => Nil)
 
-  override def timestamp: Result[Timestamp] = Hinted[ResultR].from { hints =>
+  override val timestamp: Result[Timestamp] = Hinted[ResultR].from { hints =>
     {
       case Nil =>
         val example = Timestamp.nowUTC().toString()

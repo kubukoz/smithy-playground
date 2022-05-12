@@ -75,7 +75,18 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case RefinementFailure(msg)         => s"Refinement failed: $msg."
+      case AmbiguousService(matching) =>
+        s"""Multiple services are available. Add a use clause to specify the service you want to use.
+           |Available services:""".stripMargin + matching
+          .map(UseClause(_))
+          .map(Formatter.renderUseClause(_).render(Int.MaxValue))
+          .mkString_("\n", "\n", "")
+
+      case UnknownService(id, known) =>
+        s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
+
+      case RefinementFailure(msg) => s"Refinement failed: $msg."
+
       case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
 
       case UnsupportedNode(tag) => s"Unsupported operation: $tag"
@@ -115,6 +126,21 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 }
 
 object CompilationErrorDetails {
+
+  val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
+    case ResolutionFailure.AmbiguousService(knownServices) =>
+      CompilationErrorDetails.AmbiguousService(knownServices)
+    case ResolutionFailure.UnknownService(unknownId, knownServices) =>
+      CompilationErrorDetails.UnknownService(unknownId, knownServices)
+
+  }
+
+  final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
+    extends CompilationErrorDetails
+
+  final case class AmbiguousService(
+    known: List[QualifiedIdentifier]
+  ) extends CompilationErrorDetails
 
   final case class TypeMismatch(
     expected: NodeKind,

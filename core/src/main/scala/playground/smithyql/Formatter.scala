@@ -19,6 +19,22 @@ object Formatter {
       case l @ Listed(_)     => renderSequence(l)
     }
 
+  def renderUseClause(
+    clause: UseClause
+  ): Doc = Doc
+    .text("use")
+    .space("service")
+    .space(renderIdent(clause.identifier))
+
+  def renderIdent(ident: QualifiedIdentifier): Doc =
+    Doc.intercalate(
+      Doc.char('.'),
+      ident.segments.map(Doc.text(_)).toList,
+    ) + Doc.char('#') + Doc
+      .text(
+        ident.selection
+      )
+
   def renderKey(k: WithSource[Struct.Key]): Doc =
     comments(k.commentsLeft) +
       Doc.text(k.value.text) +
@@ -135,7 +151,15 @@ object Formatter {
   }
 
   def writeQuery(q: Query[WithSource]): Doc =
-    comments(q.operationName.commentsLeft) +
+    // note: commenting a clause seems to make it disappear on formatting
+    q.useClause
+      .fold(Doc.empty)(a =>
+        comments(a.commentsLeft) +
+          renderUseClause(a.value) +
+          Doc.hardLine +
+          comments(a.commentsRight) + Doc.hardLine
+      ) +
+      comments(q.operationName.commentsLeft) +
       Doc.text(q.operationName.value.text) +
       Doc.space +
       comments(q.operationName.commentsRight) +

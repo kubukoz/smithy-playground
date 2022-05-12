@@ -7,29 +7,31 @@ import playground.smithyql.CompletionItemKind.Field
 import playground.smithyql.CompletionItemKind.UnionMember
 import playground.smithyql.InsertText.JustString
 import playground.smithyql.InsertText.SnippetString
-import smithy4s.Service
 import typings.vscode.mod
 
 import scala.scalajs.js.JSConverters._
 
 import util.chaining._
 import scalajs.js.|
+import playground.smithyql.TextEdit
 
 object completions {
 
   def complete[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
-  ): (mod.TextDocument, mod.Position) => List[mod.CompletionItem] = {
-    val provider = CompletionProvider.make(service)
-
-    (doc, pos) =>
-      provider(
+    provider: CompletionProvider
+  ): (mod.TextDocument, mod.Position) => List[mod.CompletionItem] = { (doc, pos) =>
+    provider
+      .provide(
         doc.getText(),
         adapters.fromVscodePosition(doc)(pos),
-      ).map(convertCompletion)
+      )
+      .map(convertCompletion(doc, _))
   }
 
-  private def convertCompletion(item: CompletionItem): mod.CompletionItem = {
+  private def convertCompletion(
+    doc: mod.TextDocument,
+    item: CompletionItem,
+  ): mod.CompletionItem = {
     val convertKind: CompletionItemKind => mod.CompletionItemKind = {
       case EnumMember                  => mod.CompletionItemKind.EnumMember
       case Field                       => mod.CompletionItemKind.Field
@@ -43,6 +45,11 @@ object completions {
         case JustString(value)    => value
         case SnippetString(value) => new mod.SnippetString(value)
       }
+
+    val additionalTextEdits: List[mod.TextEdit] = item.extraTextEdits.map {
+      case TextEdit.Insert(what, where) =>
+        mod.TextEdit.insert(doc.positionAt(where.index.toDouble), what)
+    }
 
     val docs: scalajs.js.UndefOr[mod.MarkdownString] =
       item
@@ -58,6 +65,7 @@ object completions {
       convertKind(item.kind),
     )
       .tap(_.insertText = insertText)
+      .tap(_.additionalTextEdits = additionalTextEdits.toJSArray)
       .tap(result =>
         if (item.deprecated)
           result.tags =

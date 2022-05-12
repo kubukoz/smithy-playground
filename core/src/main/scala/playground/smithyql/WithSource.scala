@@ -8,6 +8,7 @@ import cats.data.Chain
 import cats.implicits._
 import cats.kernel.Eq
 import cats.~>
+import cats.Show
 
 // todo: multiline
 final case class Comment(text: String) extends AnyVal
@@ -17,6 +18,10 @@ object Comment {
 }
 
 final case class Position(index: Int)
+
+object Position {
+  val origin: Position = Position(index = 0)
+}
 
 final case class SourceRange(start: Position, end: Position) {
   def contains(pos: Position): Boolean = pos.index >= start.index && pos.index <= end.index
@@ -45,6 +50,8 @@ object WithSource {
       )
 
     }
+
+  implicit def showWithSource[A]: Show[WithSource[A]] = Show.fromToString
 
   // The path to a position in the parsed source
   sealed trait NodeContext extends Product with Serializable
