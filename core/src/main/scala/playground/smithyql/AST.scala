@@ -6,6 +6,7 @@ import cats.~>
 import cats.Applicative
 import cats.data.NonEmptyList
 import smithy4s.ShapeId
+import cats.Show
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
@@ -46,6 +47,8 @@ object QualifiedIdentifier {
     shapeId.namespace.split("\\.").toList.toNel.getOrElse(sys.error("impossible! " + shapeId)),
     shapeId.name,
   )
+
+  implicit val show: Show[QualifiedIdentifier] = Show.fromToString
 
 }
 

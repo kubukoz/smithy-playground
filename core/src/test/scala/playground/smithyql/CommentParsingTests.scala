@@ -1,7 +1,6 @@
 package playground.smithyql
 
 import cats.Show
-import cats.implicits._
 import weaver._
 import weaver.scalacheck.Checkers
 

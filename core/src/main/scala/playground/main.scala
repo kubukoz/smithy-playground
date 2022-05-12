@@ -12,7 +12,6 @@ import cats.effect.Resource
 import cats.effect.implicits._
 import cats.effect.std
 import cats.implicits._
-import cats.kernel.Semigroup
 import cats.data.IorNel
 import cats.~>
 import org.http4s.Uri
@@ -35,8 +34,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import playground.smithyql.UseClause
-import cats.data.Ior
-import cats.data.Ior.Both
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
