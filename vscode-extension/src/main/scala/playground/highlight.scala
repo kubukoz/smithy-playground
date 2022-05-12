@@ -4,8 +4,6 @@ import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.parse.Parser.Expectation.InRange
-import playground.Runner.Issue.InvalidProtocols
-import playground.Runner.Issue.Other
 import playground.smithyql.Query
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
@@ -33,12 +31,12 @@ object highlight {
     parsed: Query[WithSource],
     runner: Runner.Optional[F],
   ): List[Diagnostic] =
-    runner.get(parsed) match {
+    runner.get(parsed).toEither match {
       case Left(e) =>
         val pos = adapters.toVscodeRange(doc, parsed.operationName.range)
 
-        e match {
-          case InvalidProtocols(ps) =>
+        Runner.Issue.squash(e) match {
+          case Left(ps) =>
             List(
               info(
                 s"""Service doesn't support any of the available protocols: ${ps
@@ -48,15 +46,18 @@ object highlight {
                 pos,
               )
             )
-          case Other(_: CompilationFailed) => Nil // ignoring to avoid duplicating compiler errors
-          case Other(e) =>
-            List(
-              info(
-                s"""Service unsupported. Running queries will not be possible.
-                   |Details: $e""".stripMargin,
-                pos,
-              )
-            )
+          case Right(es) =>
+            es.toList.flatMap {
+              case CompilationFailed(_) => Nil // ignoring to avoid duplicating compiler errors
+              case e =>
+                List(
+                  info(
+                    s"""Service unsupported. Running queries will not be possible.
+                       |Details: $e""".stripMargin,
+                    pos,
+                  )
+                )
+            }
         }
       case Right(_) => Nil
     }

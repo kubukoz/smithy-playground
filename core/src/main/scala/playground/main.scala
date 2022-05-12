@@ -13,6 +13,7 @@ import cats.effect.implicits._
 import cats.effect.std
 import cats.implicits._
 import cats.kernel.Semigroup
+import cats.data.IorNel
 import cats.~>
 import org.http4s.Uri
 import org.http4s.client.Client
@@ -34,6 +35,8 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import playground.smithyql.UseClause
+import cats.data.Ior
+import cats.data.Ior.Both
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -217,20 +220,32 @@ trait Runner[F[_]] {
 object Runner {
 
   trait Optional[F[_]] {
-    def get(parsed: Query[WithSource]): Either[Issue, Runner[F]]
+    def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]]
   }
 
   sealed trait Issue extends Product with Serializable
 
   object Issue {
-    final case class InvalidProtocols(supported: NonEmptyList[ShapeId]) extends Issue
+    final case class InvalidProtocol(supported: ShapeId) extends Issue
     final case class Other(e: Throwable) extends Issue
 
-    // trust me, lawful
-    implicit val semigroup: Semigroup[Issue] = {
-      case (e: Other, _)                                => e
-      case (_, e: Other)                                => e
-      case (InvalidProtocols(p1), InvalidProtocols(p2)) => InvalidProtocols(p1 |+| p2)
+    // Either remove all protocol errors, or only keep those.
+    // If there are any non-protocol errors, they'll be returned in Right.
+    // If there are only protocol errors, they'll be returned in Left
+    def squash(
+      issues: NonEmptyList[Issue]
+    ): Either[NonEmptyList[ShapeId], NonEmptyList[Throwable]] = {
+      val (protocols, others) = issues.toList.partitionMap {
+        case InvalidProtocol(p) => Left(p)
+        case Other(e)           => Right(e)
+      }
+
+      others.toNel match {
+        case None =>
+          // must be nonempty at this point
+          NonEmptyList.fromListUnsafe(protocols).asLeft
+        case Some(otherErrors) => otherErrors.asRight
+      }
     }
 
   }
@@ -270,13 +285,15 @@ object Runner {
         .toMap
 
     new Optional[F] {
-      def get(q: Query[WithSource]): Either[Issue, Runner[F]] = MultiServiceCompiler
+      def get(q: Query[WithSource]): IorNel[Issue, Runner[F]] = MultiServiceCompiler
         .resolveService(
           q.useClause,
           q.operationName,
           runners,
         )
+        .toIor
         .leftMap(Issue.Other(_))
+        .toIorNel
         .flatMap(_.get(q))
     }
   }
@@ -291,25 +308,28 @@ object Runner {
 
       private def simpleFromBuilder(
         builder: SimpleProtocolBuilder[_]
-      ) = Either
-        .catchNonFatal {
-          builder(service).client(
-            dynamicBaseUri[F](
-              baseUri.flatTap { uri =>
-                std.Console[F].println(s"Using base URI: $uri")
-              }
-            ).apply(client),
-            // this will be overridden by the middleware
-            uri"http://example.com",
-          )
-        }
-        .leftMap(Issue.Other(_))
-        .flatMap {
-          _.leftMap(e => Issue.InvalidProtocols(NonEmptyList.one(e.protocolTag.id)))
-        }
-        .map(service.asTransformation)
+      ): IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+        Either
+          .catchNonFatal {
+            builder(service).client(
+              dynamicBaseUri[F](
+                baseUri.flatTap { uri =>
+                  std.Console[F].println(s"Using base URI: $uri")
+                }
+              ).apply(client),
+              // this will be overridden by the middleware
+              uri"http://example.com",
+            )
+          }
+          .leftMap(Issue.Other(_))
+          .flatMap {
+            _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id))
+          }
+          .map(service.asTransformation)
+          .toIor
+          .toIorNel
 
-      val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = AwsClient
+      val awsInterpreter: IorNel[Issue, smithy4s.Interpreter[Op, F]] = AwsClient
         .prepare(service)
         .as {
           liftInterpreterResource(
@@ -318,7 +338,12 @@ object Runner {
               .map(flattenAwsInterpreter(_, service))
           )
         }
-        .leftMap(_ => Issue.InvalidProtocols(NonEmptyList.of(AwsJson1_0.id, AwsJson1_1.id)))
+        .toIor
+        .leftMap(_ =>
+          NonEmptyList
+            .of(AwsJson1_0.id, AwsJson1_1.id)
+            .map(Issue.InvalidProtocol(_))
+        )
 
       private def perform[I, E, O](
         interpreter: smithy4s.Interpreter[Op, F],
@@ -327,23 +352,48 @@ object Runner {
         q.writeOutput.toNode(response)
       }
 
-      val getInternal: Either[Issue, Runner[F]] = NonEmptyList
+      private def orElseCombine[A: Semigroup, B](lhs: Ior[A, B], rhs: Ior[A, B]): Ior[A, B] =
+        lhs match {
+          case Both(a, b) =>
+            rhs match {
+              case Both(a2, _)  => Both(a |+| a2, b)
+              case Ior.Left(a2) => Both(a |+| a2, b)
+              case Ior.Right(_) => Both(a, b)
+            }
+          case Ior.Left(a) =>
+            rhs match {
+              case Both(a2, b2)  => Both(a |+| a2, b2)
+              case Ior.Left(a2)  => Ior.Left(a |+| a2)
+              case Ior.Right(b2) => Both(a, b2)
+            }
+          case Ior.Right(b) =>
+            rhs match {
+              case Both(a2, _)  => Both(a2, b)
+              case Ior.Left(a)  => Both(a, b)
+              case Ior.Right(_) => Ior.Right(b)
+            }
+        }
+
+      val runners: NonEmptyList[IorNel[Issue, Runner[F]]] = NonEmptyList
         .of(
           simpleFromBuilder(SimpleRestJsonBuilder),
           awsInterpreter,
         )
-        // orElse with error accumulation
-        .reduceMapK(_.toValidated)
-        .toEither
-        .map { interpreter => q =>
-          perform[q.I, q.E, q.O](
-            interpreter,
-            // todo: try to find a safer way to do this, should be safe tho
-            q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
-          )
-        }
+        .map(
+          _.map { interpreter => q =>
+            perform[q.I, q.E, q.O](
+              interpreter,
+              // todo: try to find a safer way to do this, should be safe tho
+              q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
+            )
+          }
+        )
 
-      def get(parsed: Query[WithSource]): Either[Issue, Runner[F]] = getInternal
+      val getInternal: IorNel[Issue, Runner[F]] = runners.reduce(
+        orElseCombine[NonEmptyList[Issue], Runner[F]]
+      )
+
+      def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]] = getInternal
     }
 
   def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](

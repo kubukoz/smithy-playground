@@ -9,7 +9,6 @@ import cats.implicits._
 import org.http4s.Uri
 import org.http4s.client.Client
 import playground.Runner
-import playground.Runner.Issue.Other
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
@@ -125,27 +124,29 @@ object extension {
               .parseFull(ted.document.getText())
               .liftTo[IO]
               .flatMap { parsed =>
-                runner.get(parsed) match {
-                  case Left(e) =>
-                    e match {
-                      case Runner.Issue.InvalidProtocols(ps) =>
-                        IO(
-                          window.showErrorMessage(
-                            s"The service uses an unsupported protocol. Available protocols: ${ps.map(_.show).mkString_(", ")}"
-                          )
-                        ).void
-
-                      case Other(e) =>
-                        IO(
-                          window.showErrorMessage(
-                            e.toString()
-                          )
+                runner
+                  .get(parsed)
+                  .toEither
+                  .leftMap(Runner.Issue.squash(_))
+                  .leftMap {
+                    case Left(protocols) =>
+                      IO(
+                        window.showErrorMessage(
+                          s"The service uses an unsupported protocol. Available protocols: ${protocols.map(_.show).mkString_(", ")}"
                         )
-                    }
+                      ).void
 
-                  case Right(runner) =>
+                    case Right(others) =>
+                      IO(
+                        window.showErrorMessage(
+                          others.map(_.toString).mkString_("\n\n")
+                        )
+                      ).void
+                  }
+                  .map { runner =>
                     run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
-                }
+                  }
+                  .merge
               }
               .unsafeRunAndForget(),
         ),
@@ -163,7 +164,7 @@ object extension {
         mod.CodeLensProvider { (doc, _) =>
           {
             SmithyQLParser.parseFull(doc.getText()) match {
-              case Right(parsed) if runner.get(parsed).isRight =>
+              case Right(parsed) if runner.get(parsed).toEither.isRight =>
                 validate
                   .full(doc.getText(), compiler)
                   .map { case (parsed, _) =>
