@@ -75,6 +75,13 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case AmbiguousService(matching) =>
+        s"""Multiple services are available. Add a use clause to specify the service you want to use.
+           |Available services:""".stripMargin + matching
+          .map(UseClause(_))
+          .map(Formatter.renderUseClause(_).render(Int.MaxValue))
+          .mkString_("\n", "\n", "")
+
       case UnknownService(id, known) =>
         s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
 
@@ -122,6 +129,10 @@ object CompilationErrorDetails {
 
   final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
     extends CompilationErrorDetails
+
+  final case class AmbiguousService(
+    matchingServices: List[QualifiedIdentifier]
+  ) extends CompilationErrorDetails
 
   final case class TypeMismatch(
     expected: NodeKind,

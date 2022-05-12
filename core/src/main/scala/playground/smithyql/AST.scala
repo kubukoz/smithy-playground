@@ -36,6 +36,8 @@ final case class OperationName(text: String) extends AnyVal
 
 final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: String) {
   def render: String = segments.mkString_(".") + "#" + selection
+
+  def toShapeId: ShapeId = ShapeId(segments.mkString_("."), selection)
 }
 
 object QualifiedIdentifier {

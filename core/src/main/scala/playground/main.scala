@@ -22,7 +22,6 @@ import playground.smithyql.InputNode
 import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
-import playground.smithyql.UseClause
 import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
@@ -84,7 +83,7 @@ object Compiler {
         }
         .toMap
 
-    new MultiServiceCompiler(services)
+    new MultiServiceCompiler(dsi, services)
   }
 
   def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
@@ -157,14 +156,27 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
 }
 
 private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
-  services: Map[QualifiedIdentifier, Compiler[F]]
+  dsi: DynamicSchemaIndex,
+  services: Map[QualifiedIdentifier, Compiler[F]],
 ) extends Compiler[F] {
 
-  private def getService(useClause: Option[WithSource[UseClause]]): F[Compiler[F]] =
-    useClause match {
+  private def getService(q: Query[WithSource]): F[Compiler[F]] =
+    q.useClause match {
 
       // todo validate only one service if no use clause
-      case None => services.head._2.pure[F]
+      case None if services.sizeIs == 1 => services.head._2.pure[F]
+      case None =>
+        CompilationFailed
+          .one(
+            CompilationError(
+              CompilationErrorDetails.AmbiguousService(
+                services.keySet.toList
+              ),
+              q.operationName.range,
+            )
+          )
+          .raiseError[F, Compiler[F]]
+
       case Some(clause) =>
         services
           .get(clause.value.identifier)
@@ -181,7 +193,7 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_
 
   def compile(
     q: Query[WithSource]
-  ): F[CompiledInput] = getService(q.useClause).flatMap(_.compile(q))
+  ): F[CompiledInput] = getService(q).flatMap(_.compile(q))
 
 }
 
