@@ -296,19 +296,8 @@ object Runner {
         }
         .map(service.asTransformation)
 
-      // todo: upstream this. Get an AwsClient variant that can be statically used on a service.
-      // todo: AwsClient.prepare
-      val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = service
-        .hints
-        .get(AwsJson1_0)
-        .toRight(AwsJson1_0)
-        .orElse(
-          service
-            .hints
-            .get(AwsJson1_1)
-            .toRight(AwsJson1_1)
-        )
-        .void
+      val awsInterpreter: Either[Issue, smithy4s.Interpreter[Op, F]] = AwsClient
+        .prepare(service)
         .as {
           liftInterpreterResource(
             awsEnv
