@@ -54,7 +54,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         .as(ExitCode.Success)
     }
 
-  private val buildSchemaIndex = IO(
+  private val readBuildConfig = IO(
     // todo
     BuildConfig(
       deps = Nil,
@@ -62,6 +62,8 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
       imports = "/Users/kubukoz/projects/smithy-playground/core/src/main/smithy/demo.smithy" :: Nil,
     )
   )
+
+  private val buildSchemaIndex = readBuildConfig
     .flatMap { bc =>
       IO.interruptibleMany {
         DumpModel.run(
@@ -147,9 +149,18 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         .as(ExitCode.Success)
   }
 
+  val info = Opts {
+    readBuildConfig
+      .flatMap { bc =>
+        IO.println(bc)
+      }
+      .as(ExitCode.Success)
+  }
+
   def main: Opts[IO[ExitCode]] =
     Opts.subcommand("run", "Run query")(run) <+>
       Opts.subcommand("format", "Format query")(fmt) <+>
-      Opts.subcommand("compile", "Compile query")(compile)
+      Opts.subcommand("compile", "Compile query")(compile) <+>
+      Opts.subcommand("info", "Show information about the current context")(info)
 
 }
