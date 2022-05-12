@@ -88,25 +88,34 @@ object CompletionProvider {
 
           println("ctx at position: " + matchingNode)
 
-          val serviceId =
-            // todo: if many services and no clause, yield some failure
-            q.useClause.fold(servicesById.head._1) {
-              _.value.identifier
+          val serviceIdOpt =
+            q.useClause match {
+              case Some(useClause)                  => useClause.value.identifier.some
+              case None if servicesById.sizeIs == 1 => servicesById.head._1.some
+              case None                             => None
             }
 
-          matchingNode
-            .toList
-            .flatMap {
-              case WithSource.NodeContext.OperationContext(_) =>
-                completeOperationName(serviceId)(
-                  // when the clause is missing and necessary
-                  q.useClause.isEmpty && dsi.allServices.sizeIs > 1
-                )
+          serviceIdOpt match {
+            case Some(serviceId) =>
+              matchingNode
+                .toList
+                .flatMap {
+                  case WithSource.NodeContext.OperationContext(_) =>
+                    completeOperationName(serviceId)(
+                      // when the clause is missing and necessary
+                      q.useClause.isEmpty && dsi.allServices.sizeIs > 1
+                    )
 
-              case WithSource.NodeContext.InputContext(ctx) =>
-                completionsByEndpoint(serviceId)(q.operationName.value)
-                  .apply(ctx.toList)
-            }
+                  case WithSource.NodeContext.InputContext(ctx) =>
+                    completionsByEndpoint(serviceId)(q.operationName.value)
+                      .apply(ctx.toList)
+                }
+
+            case None =>
+              // Compilation errors will be shown in the meantime
+              Nil
+          }
+
       }
   }
 
