@@ -352,28 +352,6 @@ object Runner {
         q.writeOutput.toNode(response)
       }
 
-      private def orElseCombine[A: Semigroup, B](lhs: Ior[A, B], rhs: Ior[A, B]): Ior[A, B] =
-        lhs match {
-          case Both(a, b) =>
-            rhs match {
-              case Both(a2, _)  => Both(a |+| a2, b)
-              case Ior.Left(a2) => Both(a |+| a2, b)
-              case Ior.Right(_) => Both(a, b)
-            }
-          case Ior.Left(a) =>
-            rhs match {
-              case Both(a2, b2)  => Both(a |+| a2, b2)
-              case Ior.Left(a2)  => Ior.Left(a |+| a2)
-              case Ior.Right(b2) => Both(a, b2)
-            }
-          case Ior.Right(b) =>
-            rhs match {
-              case Both(a2, _)  => Both(a2, b)
-              case Ior.Left(a)  => Both(a, b)
-              case Ior.Right(_) => Ior.Right(b)
-            }
-        }
-
       val runners: NonEmptyList[IorNel[Issue, Runner[F]]] = NonEmptyList
         .of(
           simpleFromBuilder(SimpleRestJsonBuilder),
@@ -390,7 +368,7 @@ object Runner {
         )
 
       val getInternal: IorNel[Issue, Runner[F]] = runners.reduce(
-        orElseCombine[NonEmptyList[Issue], Runner[F]]
+        IorUtils.orElseCombine[NonEmptyList[Issue], Runner[F]]
       )
 
       def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]] = getInternal

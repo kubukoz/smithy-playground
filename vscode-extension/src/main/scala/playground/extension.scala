@@ -9,6 +9,7 @@ import cats.implicits._
 import org.http4s.Uri
 import org.http4s.client.Client
 import playground.Runner
+import playground.smithyql.SmithyQLParser
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
@@ -26,7 +27,6 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
 import util.chaining._
-import playground.smithyql.SmithyQLParser
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
