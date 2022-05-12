@@ -1,15 +1,10 @@
 package playground
 
-import aws.protocols.AwsJson1_0
-import aws.protocols.AwsJson1_1
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
 import playground.buildinfo.BuildInfo
-import smithy4s.SchemaIndex
-import smithy4s.api.SimpleRestJson
 import smithy4s.dynamic.DynamicSchemaIndex
-import smithy4s.dynamic.model.Model
 import typings.node.BufferEncoding
 import typings.node.nodeChildProcessMod
 import typings.vscode.mod
@@ -87,8 +82,6 @@ object build {
       BuildConfig(deps, repos, imports)
     }
 
-  case class BuildConfig(deps: List[String], repos: List[String], imports: List[String])
-
   def getServices(
     buildFile: BuildConfig,
     chan: mod.OutputChannel,
@@ -128,48 +121,14 @@ object build {
 
       chan.appendLine("Parsing model...")
 
-      val decodedModel = debug.timed("parse-model")(modelParser(modelText))
+      val decodedModel = debug.timed("parse-model")(ModelReader.modelParser(modelText))
 
       chan.appendLine("Loading schemas...")
-
-      val supportedSchemas =
-        SimpleRestJson
-          .protocol
-          .schemas ++
-          // todo: should be included
-          SchemaIndex(
-            SimpleRestJson,
-            smithy.api.Error,
-            smithy.api.Documentation,
-            smithy.api.ExternalDocumentation,
-            smithy.api.Deprecated,
-          ) ++
-          AwsJson1_0.protocol.schemas ++
-          AwsJson1_1.protocol.schemas ++
-          SchemaIndex(
-            AwsJson1_0,
-            AwsJson1_1,
-            aws.api.Arn,
-            aws.api.ArnNamespace,
-            aws.api.ArnReference,
-            aws.api.ClientDiscoveredEndpoint,
-            aws.api.ClientEndpointDiscovery,
-            aws.api.ClientEndpointDiscoveryId,
-            aws.api.CloudFormationName,
-            aws.api.ControlPlane,
-            aws.api.Data,
-            aws.api.DataPlane,
-            aws.api.Service,
-          )
 
       val services =
         debug
           .timed("DSI.load") {
-            DynamicSchemaIndex
-              .load(
-                decodedModel,
-                supportedSchemas,
-              )
+            ModelReader.buildSchemaIndex(decodedModel)
           }
 
       chan.appendLine(
@@ -178,12 +137,5 @@ object build {
 
       services
     }
-
-  private val modelParser: String => Model = {
-    val capi = smithy4s.http.json.codecs()
-    val codec = capi.compileCodec(Model.schema)
-
-    text => capi.decodeFromByteArray(codec, text.getBytes()).toTry.get
-  }
 
 }

@@ -76,6 +76,19 @@ lazy val vscode = projectMatrix
     ),
   )
 
+lazy val cli = projectMatrix
+  .in(file("cli"))
+  .settings(
+    commonSettings,
+    libraryDependencies ++= Seq(
+      "org.http4s" %%% "http4s-ember-client" % "0.23.11",
+      "com.monovore" %% "decline-effect" % "2.2.0",
+      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
+    ),
+  )
+  .dependsOn(core)
+  .jvmPlatform(commonScalaVersions)
+
 lazy val root = project
   .in(file("."))
-  .aggregate(List(core, vscode).flatMap(_.projectRefs): _*)
+  .aggregate(List(core, vscode, cli).flatMap(_.projectRefs): _*)
