@@ -28,6 +28,7 @@ import java.nio.file.Path
 import smithy4s.dynamic.DynamicSchemaIndex
 import org.http4s.client.Client
 import cats.effect.kernel.Resource
+import cats.effect.std
 
 object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
@@ -175,6 +176,22 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                                   .renderTrim(width)
                               )
                             }
+                            .handleErrorWith { e =>
+                              compiled
+                                .catchError(e)
+                                .flatMap(ee => compiled.writeError.map(_.toNode(ee)))
+                                .map { result =>
+                                  std
+                                    .Console[IO]
+                                    .errorln(
+                                      "ERROR: " + Formatter
+                                        .writeAst(result.mapK(WithSource.liftId))
+                                        .renderTrim(width)
+                                    )
+                                }
+                                .getOrElse(IO.raiseError(e))
+                            }
+
                         }
                       }
                   }
