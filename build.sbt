@@ -14,6 +14,7 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 val commonScalaVersions = Seq("2.13.8")
 
 val commonSettings = Seq(
+  organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
     "org.typelevel" %%% "cats-effect" % "3.3.11",
     "com.disneystreaming" %%% "weaver-cats" % "0.7.11" % Test,
