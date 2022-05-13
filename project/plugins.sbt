@@ -1,5 +1,5 @@
 addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.3.1")
-addSbtPlugin("com.disneystreaming.smithy4s" % "smithy4s-sbt-codegen" % "0.12.16-11-deaa5a36")
+addSbtPlugin("com.disneystreaming.smithy4s" % "smithy4s-sbt-codegen" % "0.12.16-43-1071a140")
 
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.10.0")
 addSbtPlugin("com.eed3si9n" % "sbt-projectmatrix" % "0.9.0")
