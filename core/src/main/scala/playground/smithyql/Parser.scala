@@ -94,8 +94,9 @@ object SmithyQLParser {
       (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
         .map { case (ch, s) => s.prepended(ch) }
 
-    val identifier: Parser[String] = (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
-      .map { case (ch, s) => s.prepended(ch) }
+    val identifier: Parser[String] =
+      (Rfc5234.alpha ~ Parser.charsWhile0(ch => ch.isLetterOrDigit || "_".contains(ch)))
+        .map { case (ch, s) => s.prepended(ch) }
 
     val number: Parser[Int] = Numbers
       .signedIntString

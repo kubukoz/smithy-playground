@@ -3,6 +3,7 @@ package playground.smithyql
 import cats.Id
 import playground.smithyql.Query
 import weaver._
+import cats.data.NonEmptyList
 
 object ParserTests extends FunSuite {
 
@@ -27,6 +28,31 @@ object ParserTests extends FunSuite {
   parsingTest("simple call, space in object", "hello{ }")("hello".call())
   parsingTest("simple call, trailing/leading space", " hello{} ")("hello".call())
   parsingTest("simple call, sparse", " hello { } ")("hello".call())
+  parsingTest("simple call, sparse with underscore", " hello_world { } ")("hello_world".call())
+
+  parsingTest("use service", "use service com.example#Demo hello {}")(
+    Query[Id](
+      Some(UseClause(QualifiedIdentifier(NonEmptyList.of("com", "example"), "Demo"))),
+      OperationName("hello"),
+      Struct[Id](Struct.Fields(Nil)),
+    )
+  )
+
+  parsingTest("use service with numbers", "use service com1.example2#Demo3 hello {}")(
+    Query[Id](
+      Some(UseClause(QualifiedIdentifier(NonEmptyList.of("com1", "example2"), "Demo3"))),
+      OperationName("hello"),
+      Struct[Id](Struct.Fields(Nil)),
+    )
+  )
+
+  parsingTest("use service with underscore", "use service com.aws#Kinesis_2022 hello {}")(
+    Query[Id](
+      Some(UseClause(QualifiedIdentifier(NonEmptyList.of("com", "aws"), "Kinesis_2022"))),
+      OperationName("hello"),
+      Struct[Id](Struct.Fields(Nil)),
+    )
+  )
 
   val simpleResult = "hello".call("world" -> "bar")
 
