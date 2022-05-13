@@ -47,15 +47,23 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
       SmithyQLParser.parseFull(queryString).liftTo[IO]
     }
 
-  private val fmt = Opts
-    .argument[Path]("input")
-    .map { filePath =>
-      loadAndParse(filePath)
-        .flatMap { parsed =>
-          IO.println(Formatter.format(parsed, 80))
-        }
-        .as(ExitCode.Success)
-    }
+  private val widthOpt = Opts
+    .option[Int]("width", "Max width of formatted output (not enforced)")
+    .withDefault(80)
+
+  private val fmt =
+    (
+      Opts
+        .argument[Path]("input"),
+      widthOpt,
+    )
+      .mapN { (filePath, width) =>
+        loadAndParse(filePath)
+          .flatMap { parsed =>
+            IO.println(Formatter.format(parsed, width))
+          }
+          .as(ExitCode.Success)
+      }
 
   private def readBuildConfig(ctx: file.Path) = Files[IO]
     .readAll(ctx / "smithy-build.json")
@@ -129,8 +137,13 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         .as(ExitCode.Success)
     }
 
-  private val run = (Opts.argument[Path]("input"), Opts.argument[Uri]("base-uri"), ctxOpt).mapN {
-    (filePath, baseUri, ctx) =>
+  private val run =
+    (
+      Opts.argument[Path]("input"),
+      Opts.argument[Uri]("base-uri"),
+      widthOpt,
+      ctxOpt,
+    ).mapN { (filePath, baseUri, width, ctx) =>
       loadAndParse(filePath)
         .flatMap { parsed =>
           readBuildConfig(ctx)
@@ -159,7 +172,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                               IO.println(
                                 Formatter
                                   .writeAst(result.mapK(WithSource.liftId))
-                                  .renderTrim(80)
+                                  .renderTrim(width)
                               )
                             }
                         }
@@ -169,7 +182,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
             }
         }
         .as(ExitCode.Success)
-  }
+    }
 
   val info = ctxOpt.map { ctx =>
     readBuildConfig(ctx)
