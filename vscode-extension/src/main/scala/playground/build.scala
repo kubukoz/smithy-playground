@@ -55,31 +55,8 @@ object build {
     .flatTap { _ =>
       Sync[F].delay(chan.appendLine("Parsing config..."))
     }
-    .map { s =>
-      val parsed = js.JSON.parse(s)
-
-      val deps =
-        parsed
-          .mavenDependencies
-          .asInstanceOf[js.UndefOr[js.Array[String]]]
-          .getOrElse(js.Array())
-          .toList
-
-      val repos =
-        parsed
-          .mavenRepositories
-          .asInstanceOf[js.UndefOr[js.Array[String]]]
-          .getOrElse(js.Array())
-          .toList
-
-      val imports =
-        parsed
-          .imports
-          .asInstanceOf[js.UndefOr[js.Array[String]]]
-          .getOrElse(js.Array())
-          .toList
-
-      BuildConfig(deps, repos, imports)
+    .flatMap { s =>
+      BuildConfig.decode(s.getBytes()).liftTo[F]
     }
 
   def getServices(
@@ -90,17 +67,19 @@ object build {
       chan.appendLine("Dumping model...")
 
       val repos = buildFile
-        .repos
+        .mavenRepositories
+        .combineAll
         .toNel
         .foldMap(repos => "--repositories" :: repos.mkString_(",") :: Nil)
       val deps = buildFile
-        .deps
+        .mavenDependencies
+        .combineAll
         .toNel
         .foldMap(deps => "--dependencies" :: deps.mkString_(",") :: Nil)
 
       val args =
         "dump-model" ::
-          buildFile.imports :::
+          buildFile.imports.combineAll :::
           repos :::
           deps
 

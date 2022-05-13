@@ -1,6 +1,5 @@
 package playground.cli
 
-import cats.data.NonEmptyList
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.implicits._
@@ -18,6 +17,7 @@ import playground.Runner
 import playground.smithyql.Formatter
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
+import smithy4s.Document
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
@@ -25,17 +25,20 @@ import smithy4s.codegen.cli.DumpModel
 import smithy4s.codegen.cli.Smithy4sCommand
 
 import java.nio.file.Path
-import smithy4s.internals.DocumentEncoder
-import smithy4s.internals.SchematicDocumentDecoder
-import smithy4s.internals.SchematicDocumentEncoder
-import smithy4s.Document
+import smithy4s.dynamic.DynamicSchemaIndex
+import org.http4s.client.Client
+import cats.effect.kernel.Resource
 
 object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
-  implicit val uriArgument: Argument[Uri] =
+  private implicit val uriArgument: Argument[Uri] =
     Argument.from("uri")(s => Uri.fromString(s).leftMap(_.toString()).toValidatedNel)
 
-  def loadAndParse(filePath: Path) = Files[IO]
+  private implicit val fs2PathArgument: Argument[file.Path] = Argument[Path].map(
+    file.Path.fromNioPath
+  )
+
+  private def loadAndParse(filePath: Path) = Files[IO]
     .readAll(file.Path.fromNioPath(filePath))
     .through(fs2.text.utf8.decode[IO])
     .compile
@@ -54,27 +57,25 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         .as(ExitCode.Success)
     }
 
-  private val readBuildConfig = IO(
-    // todo
-    BuildConfig(
-      deps = Nil,
-      repos = Nil,
-      imports = "/Users/kubukoz/projects/smithy-playground/core/src/main/smithy/demo.smithy" :: Nil,
-    )
-  )
+  private def readBuildConfig(ctx: file.Path) = Files[IO]
+    .readAll(ctx / "smithy-build.json")
+    .compile
+    .toVector
+    .map(_.toArray)
+    .flatMap {
+      BuildConfig.decode(_).liftTo[IO]
+    }
 
-  private val buildSchemaIndex = readBuildConfig
-    .flatMap { bc =>
-      IO.interruptibleMany {
-        DumpModel.run(
-          Smithy4sCommand.DumpModelArgs(
-            specs = bc.imports.map(os.Path(_)),
-            repositories = bc.repos,
-            dependencies = bc.deps,
-            transformers = Nil,
-          )
+  private def buildSchemaIndex(bc: BuildConfig): IO[DynamicSchemaIndex] = IO
+    .interruptibleMany {
+      DumpModel.run(
+        Smithy4sCommand.DumpModelArgs(
+          specs = bc.imports.combineAll.map(os.Path(_)),
+          repositories = bc.mavenRepositories.combineAll,
+          dependencies = bc.mavenDependencies.combineAll,
+          transformers = Nil,
         )
-      }
+      )
     }
     .flatMap { modelText =>
       Either
@@ -83,32 +84,57 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         .map(ModelReader.buildSchemaIndex(_))
     }
 
-  private val compile = Opts.argument[Path]("input").map { filePath =>
-    loadAndParse(filePath)
-      .flatMap { parsed =>
-        buildSchemaIndex
-          .flatMap { dsi =>
-            val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+  private val ctxOpt = Opts
+    .option[file.Path](
+      "ctx",
+      "Context (location of smithy-build.json will be resolved against this path)",
+    )
+    .withDefault(file.Path("."))
 
-            compiler.compile(parsed).flatMap { cin =>
-              val input = Document.Encoder.fromSchema(cin.endpoint.input).encode(cin.input)
-
-              IO.println(
-                s"""Service: ${cin.serviceId.render}
-                   |Endpoint: ${cin.endpoint.id}
-                   |Compiled input: $input""".stripMargin
-              )
-            }
-          }
-      }
-      .as(ExitCode.Success)
-  }
-
-  private val run = (Opts.argument[Path]("input"), Opts.argument[Uri]("base-uri")).mapN {
-    (filePath, baseUri) =>
+  private val compile =
+    (
+      Opts.argument[Path]("input"),
+      ctxOpt,
+    ).mapN { (filePath, ctx) =>
       loadAndParse(filePath)
         .flatMap { parsed =>
-          buildSchemaIndex
+          readBuildConfig(ctx)
+            .flatMap(buildSchemaIndex)
+            .flatMap { dsi =>
+              val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+
+              val runner = Runner
+                .forSchemaIndex[IO](dsi, Client(_ => Resource.never), IO.never, Resource.never)
+                .get(parsed)
+
+              val runnerStatus = runner
+                .toEither
+                .fold(
+                  issues => s"unavailable ($issues)",
+                  _ => "available",
+                )
+
+              compiler.compile(parsed).flatMap { cin =>
+                val input = Document.Encoder.fromSchema(cin.endpoint.input).encode(cin.input)
+
+                IO.println(
+                  s"""Service: ${cin.serviceId.render}
+                   |Endpoint: ${cin.endpoint.id}
+                   |Compiled input: $input
+                   |Runner status: $runnerStatus""".stripMargin
+                )
+              }
+            }
+        }
+        .as(ExitCode.Success)
+    }
+
+  private val run = (Opts.argument[Path]("input"), Opts.argument[Uri]("base-uri"), ctxOpt).mapN {
+    (filePath, baseUri, ctx) =>
+      loadAndParse(filePath)
+        .flatMap { parsed =>
+          readBuildConfig(ctx)
+            .flatMap(buildSchemaIndex)
             .flatMap { dsi =>
               val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
 
@@ -122,10 +148,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                       .get(parsed)
                       .toEither
                       .leftMap { issues =>
-                        issues match {
-                          case NonEmptyList(Runner.Issue.Other(e), Nil) => e
-                          case _                                        => ???
-                        }
+                        new Throwable("Cannot build runner: " + issues)
                       }
                       .liftTo[IO]
                       .flatMap { runner =>
@@ -141,7 +164,6 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                             }
                         }
                       }
-
                   }
               }
             }
@@ -149,10 +171,19 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         .as(ExitCode.Success)
   }
 
-  val info = Opts {
-    readBuildConfig
+  val info = ctxOpt.map { ctx =>
+    readBuildConfig(ctx)
       .flatMap { bc =>
-        IO.println(bc)
+        IO.println(s"Build config:\n$bc\n") *>
+          buildSchemaIndex(bc)
+            .flatMap { dsi =>
+              IO.println(
+                "Discovered services:\n" + dsi
+                  .allServices
+                  .map(svc => s"${svc.service.id} (${svc.service.endpoints.size} operations)")
+                  .mkString("\n")
+              )
+            }
       }
       .as(ExitCode.Success)
   }
