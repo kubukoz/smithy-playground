@@ -50,55 +50,59 @@ final class PlaygroundLanguageServer(client: Deferred[IO, LanguageClient]) {
   @JsonRequest("textDocument/formatting")
   def formatting(
     params: DocumentFormattingParams
-  ): CompletableFuture[java.util.List[TextEdit]] = Files[IO]
-    .readAll(Path.fromNioPath(Paths.get(new URI(params.getTextDocument().getUri()))))
-    .through(fs2.text.utf8.decode[IO])
-    .compile
-    .string
-    .flatMap { text =>
-      client
-        .get
-        .flatMap { client =>
-          IO.fromCompletableFuture {
-            IO {
-              client.configuration(
-                new lsp4j.ConfigurationParams(
-                  List(
-                    new lsp4j.ConfigurationItem().tap(_.setSection("smithyql.formatter.maxWidth"))
-                  ).asJava
+  ): CompletableFuture[java.util.List[TextEdit]] =
+    // todo: this won't see unsaved changes to the file, so we should have some sort of in-memory storage of file contents.
+    // At least for currently active / unsaved files.
+    Files[IO]
+      .readAll(Path.fromNioPath(Paths.get(new URI(params.getTextDocument().getUri()))))
+      .through(fs2.text.utf8.decode[IO])
+      .compile
+      .string
+      .flatMap { text =>
+        client
+          .get
+          .flatMap { client =>
+            IO.fromCompletableFuture {
+              IO {
+                client.configuration(
+                  new lsp4j.ConfigurationParams(
+                    List(
+                      new lsp4j.ConfigurationItem().tap(_.setSection("smithyql.formatter.maxWidth"))
+                    ).asJava
+                  )
                 )
-              )
+              }
             }
           }
-        }
-        .map(_.asScala.toList)
-        .flatMap {
-          case (width: JsonElement) :: Nil => IO.pure(width.getAsInt())
-          case r                           => IO.raiseError(new Throwable("config error: " + r))
-        }
-        .flatMap { maxWidth =>
-          SmithyQLParser
-            .parseFull(text)
-            .liftTo[IO]
-            .map { parsed =>
-              val formatted = Formatter.format(parsed, maxWidth)
+          .map(_.asScala.toList)
+          .flatMap {
+            case (width: JsonElement) :: Nil => IO.pure(width.getAsInt())
+            case r                           => IO.raiseError(new Throwable("config error: " + r))
+          }
+          .map { maxWidth =>
+            SmithyQLParser
+              .parseFull(text)
+              .map { parsed =>
+                val formatted = Formatter.format(parsed, maxWidth)
 
-              val lines = text.linesWithSeparators.toList
+                val lines = text.linesWithSeparators.toList
 
-              List(
-                new TextEdit(
-                  new lsp4j.Range(
-                    new lsp4j.Position(0, 0),
-                    new lsp4j.Position(lines.indices.last, lines.last.size),
-                  ),
-                  formatted,
+                List(
+                  new TextEdit(
+                    new lsp4j.Range(
+                      new lsp4j.Position(0, 0),
+                      new lsp4j.Position(lines.indices.last, lines.last.size),
+                    ),
+                    formatted,
+                  )
                 )
-              )
-            }
-        }
-    }
-    .map(_.asJava)
-    .unsafeToCompletableFuture()
+              }
+              // doesn't parse, we won't format
+              .getOrElse(Nil)
+          }
+      }
+      .map(_.asJava)
+      .unsafeToCompletableFuture()
 
   @JsonRequest("exit")
   def exit(): CompletableFuture[Object] = IO.unit.as(null: Object).unsafeToCompletableFuture()

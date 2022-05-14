@@ -40,29 +40,28 @@ object extension {
     .timed
     .evalMap { case (fd, value) => IO.println(s"$tag took ${fd.toMillis}ms").as(value) }
 
-  val lspClient =
-    new LanguageClient(
-      "smithyPlayground",
-      "Smithy Playground Client",
-      _ServerOptions.Executable(
-        "/Users/kubukoz/projects/smithy-playground/lsp/target/jvm-2.13/universal/stage/bin/lsp"
-      ),
-      LanguageClientOptions().setDocumentSelectorVarargs(
-        mod
-          .DocumentFilter()
-          .setLanguage("smithyql")
-          .asInstanceOf[protocolMod.DocumentFilter]
-      ),
-    )
-
-  var disp: mod.Disposable = null
-
   @JSExportTopLevel("activate")
   def activateWithClient(
     context: ExtensionContext
   ): Unit = {
+    val lspClient =
+      new LanguageClient(
+        "smithyPlayground",
+        "Smithy Playground Client",
+        _ServerOptions.Executable(
+          "/Users/kubukoz/projects/smithy-playground/lsp/target/jvm-2.13/universal/stage/bin/lsp"
+        ),
+        LanguageClientOptions().setDocumentSelectorVarargs(
+          mod
+            .DocumentFilter()
+            .setLanguage("smithyql")
+            .asInstanceOf[protocolMod.DocumentFilter]
+        ),
+      )
 
-    disp = lspClient.start()
+    import vscodeutil._
+
+    context.subscriptions.push(lspClient.start())
     chan.appendLine("Connected client")
   }
 
@@ -77,12 +76,6 @@ object extension {
     .onError { case e => std.Console[IO].printStackTrace(e) }
     .flatMap { case (_, shutdown) => IO { shutdownHook = shutdown } }
     .unsafeRunAndForget()
-
-  @JSExportTopLevel("deactivate")
-  def deactivate(): Unit = disp.dispose()
-
-  // @JSExportTopLevel("deactivate")
-  // def deactivate(): Unit = shutdownHook.unsafeRunAndForget()
 
   private def activateR(
     context: ExtensionContext,
@@ -210,12 +203,6 @@ object extension {
               case _ => Nil
             }
           }.toJSArray
-        },
-      ),
-      languages.registerDocumentFormattingEditProvider(
-        "smithyql",
-        DocumentFormattingEditProvider { (doc, _, _) =>
-          format.perform(doc).toJSArray
         },
       ),
       vscodeutil.registerDiagnosticProvider(
