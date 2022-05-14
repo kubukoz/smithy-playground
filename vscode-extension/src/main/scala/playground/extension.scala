@@ -1,13 +1,19 @@
 package playground
 
 import cats.effect.IO
+import cats.effect.Resource
+import cats.effect.implicits._
 import cats.effect.std
 import cats.effect.unsafe.implicits._
 import cats.implicits._
 import org.http4s.Uri
 import org.http4s.client.Client
 import playground.Runner
-import smithy4s.Service
+import playground.smithyql.SmithyQLParser
+import smithy4s.aws.AwsEnvironment
+import smithy4s.aws.http4s.AwsHttp4sBackend
+import smithy4s.aws.kernel.AwsRegion
+import typings.vscode.anon.Dispose
 import typings.vscode.mod
 import typings.vscode.mod.DocumentFormattingEditProvider
 import typings.vscode.mod.ExtensionContext
@@ -20,21 +26,23 @@ import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
-import playground.Runner.Issue.InvalidProtocol
-import playground.Runner.Issue.Other
-import cats.effect.Resource
-import cats.effect.implicits._
+import util.chaining._
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
   private var shutdownHook: IO[Unit] = IO.unit
 
+  private def timedResource[A](tag: String)(res: Resource[IO, A]): Resource[IO, A] = res
+    .timed
+    .evalMap { case (fd, value) => IO.println(s"$tag took ${fd.toMillis}ms").as(value) }
+
   @JSExportTopLevel("activate")
   def activate(
     context: ExtensionContext
   ): Unit = client
-    .make[IO](useNetwork = true)
+    .make[IO](useNetwork = false)
     .flatMap(activateR(context, _))
+    .pipe(timedResource("activateR"))
     .allocated
     .onError { case e => std.Console[IO].printStackTrace(e) }
     .flatMap { case (_, shutdown) => IO { shutdownHook = shutdown } }
@@ -43,117 +51,151 @@ object extension {
   @JSExportTopLevel("deactivate")
   def deactivate(): Unit = shutdownHook.unsafeRunAndForget()
 
-  def activateR(
+  private def activateR(
     context: ExtensionContext,
     client: Client[IO],
-  ): Resource[IO, Unit] = build
-    .buildFile[IO](chan)
-    .toResource
-    .map(build.getService(_, chan))
-    .flatMap { service =>
-      Uri
-        .fromString(vscodeutil.unsafeGetConfig[String]("smithyql.http.baseUrl"))
-        .liftTo[IO]
-        .toResource
-        .flatMap { baseUri =>
-          Runner.make(service.service, client, baseUri).evalMap { implicit runner =>
-            IO {
-              activateInternal(
-                context,
-                service.service,
+  ): Resource[IO, Unit] =
+    build
+      .buildFile[IO](chan)
+      .toResource
+      .pipe(timedResource("buildFile"))
+      .map(build.getServices(_, chan))
+      .flatMap { dsi =>
+        AwsEnvironment
+          .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
+          .memoize
+          .map { awsEnv =>
+            Runner
+              .forSchemaIndex(
+                dsi,
+                client,
+                vscodeutil.getConfigF[IO, String]("smithyql.http.baseUrl").flatMap {
+                  Uri
+                    .fromString(_)
+                    .liftTo[IO]
+                },
+                awsEnv,
               )
-            }
           }
+          .flatMap { runner =>
+            val compiler: Compiler[EitherThrow] =
+              debug.timed("compiler setup") {
+                Compiler.fromSchemaIndex(dsi)
+              }
 
-        }
-    }
+            Resource.make {
+              IO {
+                debug.timed("activateInternal") {
+                  activateInternal(
+                    context,
+                    compiler,
+                    CompletionProvider.forSchemaIndex(dsi),
+                    runner,
+                  )
+                }
+              }
+            }(subs => IO(subs.foreach(_.dispose())))
+          }
+      }
+      .void
 
-  def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+  private def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     context: ExtensionContext,
-    service: Service[Alg, Op],
-  )(
-    implicit runner: Runner.Optional[IO, Op]
-  ): Unit = {
-    implicit val compiler: Compiler[Op, EitherThrow] = Compiler.instance(
-      service.service
-    )
+    compiler: Compiler[EitherThrow],
+    completionProvider: CompletionProvider,
+    runner: Runner.Optional[IO],
+  ): List[mod.Disposable] = {
 
     import vscodeutil.disposableToDispose
 
-    val completionProvider = completions.complete(service.service)
+    val vscodeCompletionProvider =
+      debug.timed("vscodeCompletionProvider setup")(
+        completions.complete(completionProvider)
+      )
 
-    chan.appendLine("Smithy Playground activated! Info to follow:")
-    chan.appendLine(s"""Service: ${service.service.id.show}
-    |Operations: ${service.service.endpoints.map(_.name).mkString("\n")}
-    |""".stripMargin)
+    chan.appendLine("Smithy Playground activated!")
 
-    val _ = context
-      .subscriptions
-      .push(
-        commands
-          .registerTextEditorCommand(
-            "smithyql.runQuery",
-            (ted, _, _) =>
-              {
-                runner.get match {
-                  case Left(e) =>
-                    e match {
-                      case InvalidProtocol(e) =>
-                        IO(
-                          window.showErrorMessage(
-                            s"Unsupported protocol for service ${e.service.id.show}: ${e.protocolTag.id.show}"
-                          )
-                        ).void
-
-                      case Other(e) =>
-                        IO(
-                          window.showErrorMessage(
-                            e.toString()
-                          )
+    val subs = List(
+      commands
+        .registerTextEditorCommand(
+          "smithyql.runQuery",
+          (ted, _, _) =>
+            SmithyQLParser
+              .parseFull(ted.document.getText())
+              .liftTo[IO]
+              .flatMap { parsed =>
+                runner
+                  .get(parsed)
+                  .toEither
+                  .leftMap(Runner.Issue.squash(_))
+                  .leftMap {
+                    case Left(protocols) =>
+                      IO(
+                        window.showErrorMessage(
+                          s"The service uses an unsupported protocol. Available protocols: ${protocols.map(_.show).mkString_(", ")}"
                         )
-                    }
+                      ).void
 
-                  case Right(runner) =>
+                    case Right(others) =>
+                      IO(
+                        window.showErrorMessage(
+                          others.map(_.toString).mkString_("\n\n")
+                        )
+                      ).void
+                  }
+                  .map { runner =>
                     run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
-                }
-              }.unsafeRunAndForget(),
-          ),
-        languages.registerCompletionItemProvider(
-          "smithyql",
-          mod
-            .CompletionItemProvider { (doc, pos, _, _) =>
-              completionProvider(doc, pos).toJSArray
-            },
-          // todo this might not be working properly
-          "\t",
+                  }
+                  .merge
+              }
+              .unsafeRunAndForget(),
         ),
-        languages.registerCodeLensProvider(
-          "smithyql",
-          mod.CodeLensProvider { (doc, _) =>
-            {
-              if (runner.get.isRight)
-                validate
-                  .full[Op, EitherThrow](doc.getText())
-                  .map { case (parsed, _) =>
+      languages.registerCompletionItemProvider(
+        "smithyql",
+        mod
+          .CompletionItemProvider { (doc, pos, _, _) =>
+            vscodeCompletionProvider(doc, pos).toJSArray
+          },
+        // todo this might not be working properly
+        "\t",
+      ),
+      languages.registerCodeLensProvider(
+        "smithyql",
+        mod.CodeLensProvider { (doc, _) =>
+          {
+            SmithyQLParser.parseFull(doc.getText()) match {
+              case Right(parsed) if runner.get(parsed).toEither.isRight =>
+                compiler
+                  .compile(parsed)
+                  .as {
                     new mod.CodeLens(
                       adapters.toVscodeRange(doc, parsed.operationName.range),
                       mod.Command("smithyql.runQuery", "Run query"),
                     )
                   }
                   .toList
-              else
-                Nil
-            }.toJSArray
-          },
-        ),
-        languages.registerDocumentFormattingEditProvider(
-          "smithyql",
-          DocumentFormattingEditProvider { (doc, _, _) =>
-            format.perform(doc).toJSArray
-          },
-        ),
-        vscodeutil.registerDiagnosticProvider("smithyql", highlight.getHighlights[Op, IO]),
-      )
+              case _ => Nil
+            }
+          }.toJSArray
+        },
+      ),
+      languages.registerDocumentFormattingEditProvider(
+        "smithyql",
+        DocumentFormattingEditProvider { (doc, _, _) =>
+          format.perform(doc).toJSArray
+        },
+      ),
+      vscodeutil.registerDiagnosticProvider(
+        "smithyql",
+        highlight.getHighlights(_, compiler, runner),
+      ),
+    )
+
+    val _ = context
+      .subscriptions
+      .push(subs.map(identity(_): Dispose): _*)
+
+    subs
   }
 
 }

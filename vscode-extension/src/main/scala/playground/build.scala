@@ -3,17 +3,13 @@ package playground
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
-import io.scalajs.nodejs.child_process.ChildProcess
-import smithy4s.SchemaIndex
-import smithy4s.api.SimpleRestJson
+import playground.buildinfo.BuildInfo
 import smithy4s.dynamic.DynamicSchemaIndex
-import smithy4s.dynamic.model.Model
+import typings.node.BufferEncoding
+import typings.node.nodeChildProcessMod
 import typings.vscode.mod
 
 import scalajs.js
-import scala.concurrent.duration._
-import aws.protocols.AwsJson1_0
-import aws.protocols.AwsJson1_1
 
 object build {
 
@@ -21,17 +17,12 @@ object build {
 
   def buildFile[F[_]: Async](
     chan: mod.OutputChannel
-  ): F[BuildInfo] = fs2
+  ): F[BuildConfig] = fs2
     .Stream
-    .emits(configFiles)
-    .append(
-      fs2
-        .Stream
-        .exec(
-          Sync[F].delay(chan.appendLine(s"Loading config from ${configFiles.mkString(", ")}..."))
-        )
+    .exec(
+      Sync[F].delay(chan.appendLine(s"Loading config from ${configFiles.mkString(", ")}..."))
     )
-    .evalTap(_ => Async[F].sleep(1.second))
+    .append(fs2.Stream.emits(configFiles))
     .evalMap { template =>
       Async[F]
         .fromFuture {
@@ -64,112 +55,66 @@ object build {
     .flatTap { _ =>
       Sync[F].delay(chan.appendLine("Parsing config..."))
     }
-    .map { s =>
-      val parsed = js.JSON.parse(s)
-
-      val deps =
-        parsed
-          .mavenDependencies
-          .asInstanceOf[js.UndefOr[js.Array[String]]]
-          .getOrElse(js.Array())
-          .toList
-
-      val repos =
-        parsed
-          .mavenRepositories
-          .asInstanceOf[js.UndefOr[js.Array[String]]]
-          .getOrElse(js.Array())
-          .toList
-
-      val imports =
-        parsed
-          .imports
-          .asInstanceOf[js.UndefOr[js.Array[String]]]
-          .getOrElse(js.Array())
-          .toList
-
-      BuildInfo(deps, repos, imports)
+    .flatMap { s =>
+      BuildConfig.decode(s.getBytes()).liftTo[F]
     }
 
-  case class BuildInfo(deps: List[String], repos: List[String], imports: List[String])
-
-  def getService(
-    buildFile: BuildInfo,
+  def getServices(
+    buildFile: BuildConfig,
     chan: mod.OutputChannel,
-  ): DynamicSchemaIndex.ServiceWrapper = {
-    chan.appendLine("Dumping model...")
+  ): DynamicSchemaIndex =
+    debug.timed("getService") {
+      chan.appendLine("Dumping model...")
 
-    val repos = buildFile
-      .repos
-      .toNel
-      .foldMap(repos => "--repositories" :: repos.mkString_(",") :: Nil)
-    val deps = buildFile.deps.toNel.foldMap(deps => "--dependencies" :: deps.mkString_(",") :: Nil)
+      val repos = buildFile
+        .mavenRepositories
+        .combineAll
+        .toNel
+        .foldMap(repos => "--repositories" :: repos.mkString_(",") :: Nil)
+      val deps = buildFile
+        .mavenDependencies
+        .combineAll
+        .toNel
+        .foldMap(deps => "--dependencies" :: deps.mkString_(",") :: Nil)
 
-    val args =
-      "dump-model" ::
-        buildFile.imports :::
-        repos :::
-        deps
+      val args =
+        "dump-model" ::
+          buildFile.imports.combineAll :::
+          repos :::
+          deps
 
-    val process = ChildProcess.execSync(
-      // todo: pass version from workspace config, default from sbt-buildinfo
-      ("cs" :: "launch" :: "com.disneystreaming.smithy4s::smithy4s-codegen-cli:0.12.10" :: "--" :: args)
-        .mkString(" ")
-    )
+      val process =
+        debug.timed("dump-model") {
+          nodeChildProcessMod.execSync(
+            // todo: pass version from workspace config, default from sbt-buildinfo
+            ("cs" :: "launch" :: s"com.disneystreaming.smithy4s:smithy4s-codegen-cli_2.13:${BuildInfo.smithy4sVersion}" :: "--" :: args)
+              .mkString(" ")
+          )
+        }
 
-    val modelText =
-      (process: Any @unchecked) match {
-        case b: io.scalajs.nodejs.buffer.Buffer => b.toString("UTF-8")
-        case s: String                          => s
-      }
+      val modelText =
+        (process: Any @unchecked) match {
+          case s: String => s
+          case b         => b.asInstanceOf[typings.node.Buffer].toString(BufferEncoding.utf8)
+        }
 
-    chan.appendLine("Parsing model...")
+      chan.appendLine("Parsing model...")
 
-    val capi = smithy4s.http.json.codecs()
+      val decodedModel = debug.timed("parse-model")(ModelReader.modelParser(modelText))
 
-    val decodedModel =
-      capi.decodeFromByteArray(capi.compileCodec(Model.schema), modelText.getBytes()).toTry.get
+      chan.appendLine("Loading schemas...")
 
-    chan.appendLine("Loading schemas...")
+      val services =
+        debug
+          .timed("DSI.load") {
+            ModelReader.buildSchemaIndex(decodedModel)
+          }
 
-    val services =
-      DynamicSchemaIndex
-        .load(
-          decodedModel,
-          SimpleRestJson
-            .protocol
-            .schemas ++
-            // todo: should be included
-            SchemaIndex(
-              SimpleRestJson,
-              smithy.api.Error,
-              smithy.api.Documentation,
-              smithy.api.ExternalDocumentation,
-              smithy.api.Deprecated,
-            ) ++
-            AwsJson1_0.protocol.schemas ++
-            AwsJson1_1.protocol.schemas ++
-            SchemaIndex(
-              AwsJson1_0,
-              AwsJson1_1,
-              aws.api.Arn,
-              aws.api.ArnNamespace,
-              aws.api.ArnReference,
-              aws.api.ClientDiscoveredEndpoint,
-              aws.api.ClientEndpointDiscovery,
-              aws.api.ClientEndpointDiscoveryId,
-              aws.api.CloudFormationName,
-              aws.api.ControlPlane,
-              aws.api.Data,
-              aws.api.DataPlane,
-              aws.api.Service,
-            ),
-        )
-        .allServices
+      chan.appendLine(
+        "Loaded services: " + services.allServices.map(_.service.id.show).mkString(", ") + "\n\n"
+      )
 
-    chan.appendLine("Loaded services: " + services.map(_.service.id.show).mkString(", ") + "\n\n")
-
-    services.head
-  }
+      services
+    }
 
 }

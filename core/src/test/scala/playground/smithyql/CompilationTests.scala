@@ -10,31 +10,36 @@ import playground.CompilationError
 import playground.PartialCompiler
 import playground.QueryCompilerSchematic
 import weaver._
+import smithy4s.schema.Schema
 import playground.CompilationErrorDetails
+import demo.smithy.Ints
+import weaver.scalacheck.Checkers
+import smithy4s.Document
+import Arbitraries._
+import org.scalacheck.Arbitrary
+import cats.Show
 
-object CompilationTests extends FunSuite {
+object CompilationTests extends SimpleIOSuite with Checkers {
 
   import DSL._
 
-  val comp = new QueryCompilerSchematic
-
   def compile[A: smithy4s.Schema](
     in: PartialCompiler.WAST
-  ) = implicitly[smithy4s.Schema[A]].compile(comp).compile(in)
+  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerSchematic).compile(in)
 
-  test("string") {
+  pureTest("string") {
     assert(
       compile {
         WithSource.liftId("foo".mapK(WithSource.liftId))
-      }(schematic.string.Schema) == Ior.right("foo")
+      }(Schema.string) == Ior.right("foo")
     )
   }
 
-  test("string - got int instead") {
+  pureTest("string - got int instead") {
     assert(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(schematic.string.Schema) == Ior.left(
+      }(Schema.string) == Ior.left(
         NonEmptyChain.of(
           CompilationError(
             CompilationErrorDetails.TypeMismatch(
@@ -48,15 +53,15 @@ object CompilationTests extends FunSuite {
     )
   }
 
-  test("int") {
+  pureTest("int") {
     assert(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(schematic.int.Schema) == Ior.right(42)
+      }(Schema.int) == Ior.right(42)
     )
   }
 
-  test("Simple struct") {
+  pureTest("Simple struct") {
     assert(
       compile[Good] {
         WithSource.liftId {
@@ -66,7 +71,7 @@ object CompilationTests extends FunSuite {
     )
   }
 
-  test("Missing fields in struct") {
+  pureTest("Missing fields in struct") {
     assert(
       compile[Bad] {
         WithSource.liftId {
@@ -88,7 +93,7 @@ object CompilationTests extends FunSuite {
     )
   }
 
-  test("Missing fields in struct - 1 already present") {
+  pureTest("Missing fields in struct - 1 already present") {
     assert(
       compile[Bad] {
         WithSource.liftId {
@@ -104,7 +109,7 @@ object CompilationTests extends FunSuite {
       )
     )
   }
-  test("union") {
+  pureTest("union") {
     assert(
       compile[Hero] {
         WithSource.liftId {
@@ -116,13 +121,13 @@ object CompilationTests extends FunSuite {
     )
   }
 
-  test("enum - OK") {
+  pureTest("enum - OK") {
     assert(
       compile[Power](WithSource.liftId("Wind".mapK(WithSource.liftId))) == Ior.right(Power.WIND)
     )
   }
 
-  test("enum - failure") {
+  pureTest("enum - failure") {
     assert(
       compile[Power](WithSource.liftId("Poison".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
@@ -133,6 +138,65 @@ object CompilationTests extends FunSuite {
             ),
             SourceRange(Position(0), Position(0)),
           )
+        )
+      )
+    )
+  }
+
+  pureTest("list of ints") {
+    assert(
+      compile[Ints](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
+        Ints(List(1, 2, 3))
+      )
+    )
+  }
+
+  pureTest("list of strings where a list of ints is expected") {
+    assert(
+      compile[Ints](WithSource.liftId(List("hello", "world").mapK(WithSource.liftId))) == Ior.left(
+        NonEmptyChain.of(
+          CompilationError(
+            CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
+            SourceRange(Position(0), Position(0)),
+          ),
+          CompilationError(
+            CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
+            SourceRange(Position(0), Position(0)),
+          ),
+        )
+      )
+    )
+  }
+
+  implicit val arbInputNode = Arbitrary(genInputNode(2))
+  implicit val showWast: Show[PartialCompiler.WAST] = Show.fromToString
+
+  test("anything to document matches") {
+    forall((wast: PartialCompiler.WAST) =>
+      assert(
+        compile[Document](wast)(Schema.document).isRight
+      )
+    )
+  }
+
+  pureTest("list of structs to document") {
+    assert(
+      compile(
+        WithSource.liftId(
+          List(
+            struct("good" -> true, "howGood" -> 200),
+            struct("name" -> "aaa"),
+          ).mapK(WithSource.liftId)
+        )
+      )(Schema.document) == Ior.right(
+        Document.array(
+          Document.obj(
+            "good" -> Document.fromBoolean(true),
+            "howGood" -> Document.fromInt(200),
+          ),
+          Document.obj(
+            "name" -> Document.fromString("aaa")
+          ),
         )
       )
     )

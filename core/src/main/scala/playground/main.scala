@@ -1,34 +1,41 @@
 package playground
 
+import aws.protocols.AwsJson1_0
+import aws.protocols.AwsJson1_1
 import cats.Defer
 import cats.Id
 import cats.MonadThrow
+import cats.data.IorNel
 import cats.data.NonEmptyList
+import cats.effect.Async
 import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.effect.implicits._
-import cats.effect.kernel.Async
+import cats.effect.std
 import cats.implicits._
 import cats.~>
 import org.http4s.Uri
 import org.http4s.client.Client
+import org.http4s.implicits._
 import playground._
 import playground.smithyql.InputNode
 import playground.smithyql.OperationName
+import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy4s.Endpoint
 import smithy4s.Service
-import smithy4s.UnsupportedProtocolError
+import smithy4s.ShapeId
 import smithy4s.aws.AwsCall
 import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.AwsOperationKind
-import smithy4s.aws.http4s.AwsHttp4sBackend
-import smithy4s.aws.kernel.AwsRegion
+import smithy4s.dynamic.DynamicSchemaIndex
+import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 
-trait CompiledInput[Op[_, _, _, _, _]] {
+trait CompiledInput {
+  type _Op[_, _, _, _, _]
   type I
   type E
   type O
@@ -36,24 +43,52 @@ trait CompiledInput[Op[_, _, _, _, _]] {
   def catchError: Throwable => Option[E]
   def writeError: Option[NodeEncoder[E]]
   def writeOutput: NodeEncoder[O]
-  def endpoint: Endpoint[Op, I, E, O, _, _]
+  def serviceId: QualifiedIdentifier
+  def endpoint: Endpoint[_Op, I, E, O, _, _]
 }
 
-trait Compiler[Op[_, _, _, _, _], F[_]] { self =>
-  def compile(q: Query[WithSource]): F[CompiledInput[Op]]
+object CompiledInput {
 
-  def mapK[G[_]](fk: F ~> G): Compiler[Op, G] =
-    new Compiler[Op, G] {
-      def compile(q: Query[WithSource]): G[CompiledInput[Op]] = fk(self.compile(q))
+  type Aux[_I, _E, _O, Op[_, _, _, _, _]] =
+    CompiledInput {
+      type _Op[__I, __E, __O, __SE, __SO] = Op[__I, __E, __O, __SE, __SO]
+      type I = _I
+      type E = _E
+      type O = _O
+    }
+
+}
+
+trait Compiler[F[_]] { self =>
+  def compile(q: Query[WithSource]): F[CompiledInput]
+
+  def mapK[G[_]](fk: F ~> G): Compiler[G] =
+    new Compiler[G] {
+      def compile(q: Query[WithSource]): G[CompiledInput] = fk(self.compile(q))
     }
 
 }
 
 object Compiler {
 
-  def instance[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+  def fromSchemaIndex[F[_]: MonadThrow](
+    dsi: DynamicSchemaIndex
+  ): Compiler[F] = {
+    val services: Map[QualifiedIdentifier, Compiler[F]] =
+      dsi
+        .allServices
+        .map { svc =>
+          QualifiedIdentifier
+            .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op, F](svc.service)
+        }
+        .toMap
+
+    new MultiServiceCompiler(services)
+  }
+
+  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
     service: Service[Alg, Op]
-  ): Compiler[Op, F] = new CompilerImpl(service)
+  ): Compiler[F] = new ServiceCompiler(service)
 
 }
 
@@ -63,50 +98,46 @@ object CompilationFailed {
   def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
 }
 
-private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
   service: Service[Alg, Op]
-) extends Compiler[Op, F] {
+) extends Compiler[F] {
 
-  private val schem = new QueryCompilerSchematic
+  private def compileEndpoint[In, Err, Out](
+    e: Endpoint[Op, In, Err, Out, _, _]
+  ): WithSource[InputNode[WithSource]] => F[CompiledInput] = {
+    val inputCompiler = e.input.compile(QueryCompilerSchematic)
+    val outputEncoder = e.output.compile(NodeEncoderSchematic)
+    val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
 
-  // for quick lookup and prepared compilers
-  private val endpoints: Map[String, WithSource[InputNode[WithSource]] => F[CompiledInput[Op]]] = {
-    def go[In, Err, Out](
-      e: Endpoint[Op, In, Err, Out, _, _]
-    ): WithSource[InputNode[WithSource]] => F[CompiledInput[Op]] = {
-      val schematic = e.input.compile(schem)
-      val outputEncoder = e.output.compile(NodeEncoderSchematic)
-      val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
-
-      ast =>
-        schematic
-          .compile(ast)
-          .toEither
-          .leftMap(_.toNonEmptyList)
-          .leftMap(CompilationFailed(_))
-          .liftTo[F]
-          .map { compiled =>
-            new CompiledInput[Op] {
-              type I = In
-              type E = Err
-              type O = Out
-              val input: I = compiled
-              val endpoint: Endpoint[Op, I, E, O, _, _] = e
-              val writeOutput: NodeEncoder[Out] = outputEncoder
-              val writeError: Option[NodeEncoder[Err]] = errorEncoder
-              val catchError: Throwable => Option[Err] =
-                err => e.errorable.flatMap(_.liftError(err))
-            }
+    ast =>
+      inputCompiler
+        .compile(ast)
+        .toEither
+        .leftMap(_.toNonEmptyList)
+        .leftMap(CompilationFailed(_))
+        .liftTo[F]
+        .map { compiled =>
+          new CompiledInput {
+            type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
+            type I = In
+            type E = Err
+            type O = Out
+            val input: I = compiled
+            val serviceId: QualifiedIdentifier = QualifiedIdentifier.fromShapeId(service.id)
+            val endpoint: Endpoint[Op, I, E, O, _, _] = e
+            val writeOutput: NodeEncoder[Out] = outputEncoder
+            val writeError: Option[NodeEncoder[Err]] = errorEncoder
+            val catchError: Throwable => Option[Err] = err => e.errorable.flatMap(_.liftError(err))
           }
-    }
-
-    service
-      .endpoints
-      .groupByNel(_.name)
-      .map(_.map(_.head).map(go(_)))
+        }
   }
 
-  def compile(q: Query[WithSource]): F[CompiledInput[Op]] = endpoints
+  private val endpoints = service
+    .endpoints
+    .groupByNel(_.name)
+    .map(_.map(_.head).map(compileEndpoint(_)))
+
+  def compile(q: Query[WithSource]): F[CompiledInput] = endpoints
     .get(q.operationName.value.text)
     .liftTo[F](
       CompilationFailed.one(
@@ -124,60 +155,199 @@ private class CompilerImpl[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Monad
 
 }
 
-trait Runner[F[_], Op[_, _, _, _, _]] {
-  def run(q: CompiledInput[Op]): F[InputNode[Id]]
+private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+  services: Map[QualifiedIdentifier, Compiler[F]]
+) extends Compiler[F] {
+
+  private def getService(
+    q: Query[WithSource]
+  ): F[Compiler[F]] = MultiServiceResolver
+    .resolveService(q.useClause.map(_.value.identifier), services)
+    .leftMap { rf =>
+      CompilationFailed.one(
+        CompilationError(
+          CompilationErrorDetails.fromResolutionFailure(rf),
+          ResolutionFailure.diagnosticRange(q),
+        )
+      )
+    }
+    .liftTo[F]
+
+  def compile(
+    q: Query[WithSource]
+  ): F[CompiledInput] = getService(q).flatMap(_.compile(q))
+
+}
+
+trait Runner[F[_]] {
+  def run(q: CompiledInput): F[InputNode[Id]]
 }
 
 object Runner {
 
-  trait Optional[F[_], Op[_, _, _, _, _]] {
-    def get: Either[Issue, Runner[F, Op]]
+  trait Optional[F[_]] {
+    def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]]
   }
 
   sealed trait Issue extends Product with Serializable
 
   object Issue {
-    final case class InvalidProtocol(e: UnsupportedProtocolError) extends Issue
+    final case class InvalidProtocol(supported: ShapeId) extends Issue
     final case class Other(e: Throwable) extends Issue
+
+    // Either remove all protocol errors, or only keep those.
+    // If there are any non-protocol errors, they'll be returned in Right.
+    // If there are only protocol errors, they'll be returned in Left
+    def squash(
+      issues: NonEmptyList[Issue]
+    ): Either[NonEmptyList[ShapeId], NonEmptyList[Throwable]] = {
+      val (protocols, others) = issues.toList.partitionMap {
+        case InvalidProtocol(p) => Left(p)
+        case Other(e)           => Right(e)
+      }
+
+      others.toNel match {
+        case None =>
+          // must be nonempty at this point
+          NonEmptyList.fromListUnsafe(protocols).asLeft
+        case Some(otherErrors) => otherErrors.asRight
+      }
+    }
+
   }
 
-  def make[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async](
-    service: Service[Alg, Op],
-    client: Client[F],
-    baseUri: Uri,
-  ): Resource[F, Optional[F, Op]] =
-    // todo: configurable region
-    AwsEnvironment
-      .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
-      .memoize
-      .map { awsEnv =>
-        new Optional[F, Op] {
-
-          val xa: smithy4s.Interpreter[Op, F] = liftMagic(
-            awsEnv
-              .flatMap(AwsClient(service, _))
-              .map(magic(_, service))
+  def dynamicBaseUri[F[_]: MonadCancelThrow](getUri: F[Uri]): Client[F] => Client[F] =
+    client =>
+      Client[F] { req =>
+        getUri.toResource.flatMap { uri =>
+          client.run(
+            req.withUri(
+              req
+                .uri
+                .copy(
+                  scheme = uri.scheme,
+                  authority = uri.authority,
+                  // prefixing with uri.path
+                  path = uri.path.addSegments(req.uri.path.segments),
+                )
+            )
           )
-
-          val get: Either[Issue, Runner[F, Op]] = Either
-            .catchNonFatal {
-              SimpleRestJsonBuilder(service).client(client, baseUri)
-            }
-            .leftMap(Issue.Other(_))
-            .flatMap(_.leftMap(Issue.InvalidProtocol(_)))
-            .map(service.asTransformation)
-            // todo: this takes precedence now, probably not the best idea
-            .orElse(Right(xa))
-            .map { interpreter => q =>
-              Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
-                q.writeOutput.toNode(response)
-              }
-            }
-
         }
       }
 
-  def magic[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
+  def forSchemaIndex[F[_]: Async: std.Console](
+    dsi: DynamicSchemaIndex,
+    client: Client[F],
+    baseUri: F[Uri],
+    awsEnv: Resource[F, AwsEnvironment[F]],
+  ): Optional[F] = {
+    val runners: Map[QualifiedIdentifier, Optional[F]] =
+      dsi
+        .allServices
+        .map { svc =>
+          QualifiedIdentifier.fromShapeId(svc.service.id) ->
+            Runner.forService[svc.Alg, svc.Op, F](svc.service, client, baseUri, awsEnv)
+        }
+        .toMap
+
+    new Optional[F] {
+      def get(q: Query[WithSource]): IorNel[Issue, Runner[F]] = MultiServiceResolver
+        .resolveService(
+          q.useClause.map(_.value.identifier),
+          runners,
+        )
+        .leftMap(rf =>
+          CompilationFailed.one(
+            CompilationError(
+              CompilationErrorDetails.fromResolutionFailure(rf),
+              q.useClause.fold(q.operationName.range)(_.range),
+            )
+          )
+        )
+        .toIor
+        .leftMap(Issue.Other(_))
+        .toIorNel
+        .flatMap(_.get(q))
+    }
+  }
+
+  def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async: std.Console](
+    service: Service[Alg, Op],
+    client: Client[F],
+    baseUri: F[Uri],
+    awsEnv: Resource[F, AwsEnvironment[F]],
+  ): Optional[F] =
+    new Optional[F] {
+
+      private def simpleFromBuilder(
+        builder: SimpleProtocolBuilder[_]
+      ): IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+        Either
+          .catchNonFatal {
+            builder(service).client(
+              dynamicBaseUri[F](
+                baseUri.flatTap { uri =>
+                  std.Console[F].println(s"Using base URI: $uri")
+                }
+              ).apply(client),
+              // this will be overridden by the middleware
+              uri"http://example.com",
+            )
+          }
+          .leftMap(Issue.Other(_))
+          .flatMap {
+            _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id))
+          }
+          .map(service.asTransformation)
+          .toIor
+          .toIorNel
+
+      val awsInterpreter: IorNel[Issue, smithy4s.Interpreter[Op, F]] = AwsClient
+        .prepare(service)
+        .as {
+          liftInterpreterResource(
+            awsEnv
+              .flatMap(AwsClient(service, _))
+              .map(flattenAwsInterpreter(_, service))
+          )
+        }
+        .toIor
+        .leftMap(_ =>
+          NonEmptyList
+            .of(AwsJson1_0.id, AwsJson1_1.id)
+            .map(Issue.InvalidProtocol(_))
+        )
+
+      private def perform[I, E, O](
+        interpreter: smithy4s.Interpreter[Op, F],
+        q: CompiledInput.Aux[I, E, O, Op],
+      ) = Defer[F].defer(interpreter(q.endpoint.wrap(q.input))).map { response =>
+        q.writeOutput.toNode(response)
+      }
+
+      val runners: NonEmptyList[IorNel[Issue, Runner[F]]] = NonEmptyList
+        .of(
+          simpleFromBuilder(SimpleRestJsonBuilder),
+          awsInterpreter,
+        )
+        .map(
+          _.map { interpreter => q =>
+            perform[q.I, q.E, q.O](
+              interpreter,
+              // todo: try to find a safer way to do this, should be safe tho
+              q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
+            )
+          }
+        )
+
+      val getInternal: IorNel[Issue, Runner[F]] = runners.reduce(
+        IorUtils.orElseCombine[NonEmptyList[Issue], Runner[F]]
+      )
+
+      def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]] = getInternal
+    }
+
+  def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
     alg: AwsClient[Alg, F],
     service: Service[Alg, Op],
   ): smithy4s.Interpreter[Op, F] = service
@@ -192,7 +362,7 @@ object Runner {
 
     })
 
-  def liftMagic[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
+  def liftInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
     interpreterR: Resource[F, smithy4s.Interpreter[Op, F]]
   ): smithy4s.Interpreter[Op, F] =
     new smithy4s.Interpreter[Op, F] {

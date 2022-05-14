@@ -8,6 +8,7 @@ import cats.parse.Parser
 import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import cats.parse.Rfc5234
+import cats.Defer
 
 object SmithyQLParser {
 
@@ -20,21 +21,26 @@ object SmithyQLParser {
 
   case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {
 
+    override def getMessage: String = msg
+
     def msg: String = {
       val (valid, failed) = text.splitAt(
         underlying.failedAtOffset
       )
 
-      s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
-        .expected
-        .map {
+      def showExpectation(e: Parser.Expectation): String =
+        e match {
           case InRange(_, '0', '9')               => "digit"
           case InRange(_, from, to) if from == to => s"'$from'"
           case InRange(_, from, to)               => s"'$from' - '$to'"
           case e                                  => e.toString
         }
-        .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
-        .take(10)}\"${Console.RESET} instead"
+
+      s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
+          .expected
+          .map(showExpectation)
+          .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
+          .take(10)}\"${Console.RESET} instead"
     }
 
   }
@@ -56,9 +62,24 @@ object SmithyQLParser {
       .repSep0(whitespace)
       .surroundedBy(whitespace)
 
+    // Should be kept in sync with withComments0
     def withComments[A](
       p: Parser[A]
     ): Parser[T[A]] = ((comments ~ Parser.index).with1 ~ p ~ (Parser.index ~ comments)).map {
+      case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
+        val range = SourceRange(Position(indexBefore), Position(indexAfter))
+        WithSource(
+          commentsLeft = commentsBefore,
+          commentsRight = commentsAfter,
+          range = range,
+          value = v,
+        )
+    }
+
+    // Duplication of withComments for Parser0
+    def withComments0[A](
+      p: Parser0[A]
+    ): Parser0[T[A]] = ((comments ~ Parser.index) ~ p ~ (Parser.index ~ comments)).map {
       case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
         val range = SourceRange(Position(indexBefore), Position(indexAfter))
         WithSource(
@@ -73,10 +94,9 @@ object SmithyQLParser {
       (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
         .map { case (ch, s) => s.prepended(ch) }
 
-    val identifier: Parser[T[String]] = withComments {
-      (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
+    val identifier: Parser[String] =
+      (Rfc5234.alpha ~ Parser.charsWhile0(ch => ch.isLetterOrDigit || "_".contains(ch)))
         .map { case (ch, s) => s.prepended(ch) }
-    }
 
     val number: Parser[Int] = Numbers
       .signedIntString
@@ -94,9 +114,14 @@ object SmithyQLParser {
     def punctuation(c: Char): Parser[Unit] = char(c)
 
     val equalsSign = punctuation('=')
+    val dot = punctuation('.')
     val comma = punctuation(',')
+    val hash = punctuation('#')
     val openBrace = punctuation('{')
     val closeBrace = punctuation('}')
+
+    val openBracket = punctuation('[')
+    val closeBracket = punctuation(']')
 
   }
 
@@ -104,7 +129,22 @@ object SmithyQLParser {
 
     import Parser._
 
-    val ident: Parser[T[String]] = tokens.identifier
+    val rawIdent: Parser[String] = tokens.identifier
+    val ident: Parser[T[String]] = tokens.withComments(tokens.identifier)
+
+    // doesn't accept comments
+    val qualifiedIdent: Parser[QualifiedIdentifier] =
+      (
+        rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace)),
+        tokens.hash *> rawIdent.surroundedBy(tokens.whitespace),
+      ).mapN(QualifiedIdentifier.apply)
+
+    val useClause: Parser[UseClause] = {
+      string("use") *>
+        string("service")
+          .surroundedBy(tokens.whitespace) *>
+        qualifiedIdent
+    }.map(UseClause.apply)
 
     val intLiteral = tokens
       .number
@@ -118,7 +158,20 @@ object SmithyQLParser {
       intLiteral |
         boolLiteral |
         stringLiteral |
-        struct
+        struct |
+        listed
+    }
+
+    def trailingCommaSeparated0[A](
+      parser: Parser[A]
+    ): Parser0[List[A]] = Defer[Parser0].fix[List[A]] { self =>
+      val moreFields: Parser0[List[A]] = (tokens.comma *> self).orElse(
+        Parser.pure(Nil)
+      )
+
+      (parser ~ moreFields)
+        .map { case (h, t) => h :: t }
+        .orElse(Parser.pure(Nil))
     }
 
     lazy val struct: Parser[Struct[T]] = {
@@ -132,13 +185,7 @@ object SmithyQLParser {
         ).tupled
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
-      lazy val fields: Parser0[List[TField]] = Parser.defer0 {
-        val moreFields: Parser0[List[TField]] = (tokens.comma *> fields).orElse(Parser.pure(Nil))
-
-        (field ~ moreFields)
-          .map { case (h, t) => h :: t }
-          .orElse(Parser.pure(Nil))
-      }
+      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
 
       tokens.openBrace *>
         (
@@ -149,11 +196,7 @@ object SmithyQLParser {
             (Parser.index <*
               tokens.closeBrace)
         ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
-          val fieldsResult =
-            fieldsR match {
-              case Nil    => Struct.Fields.empty[T]
-              case fields => Struct.Fields.fromSeq(fields)
-            }
+          val fieldsResult = Struct.Fields.fromSeq(fieldsR)
 
           val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
 
@@ -168,9 +211,43 @@ object SmithyQLParser {
         }
     }
 
-    (ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
-      case ((opName, input), commentsAfter) =>
+    // this is mostly copy-pasted from structs, might not work lmao
+    lazy val listed: Parser[Listed[T]] = {
+      type TField = T[InputNode[T]]
+
+      val field: Parser[TField] = tokens.withComments(node)
+
+      // field, then optional whitespace, then optional coma, then optionally more `fields`
+      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field.backtrack)
+
+      tokens.openBracket *>
+        (
+          Parser.index ~
+            // fields always start with whitespace/comments, so we don't catch that here
+            fields ~
+            tokens.comments ~
+            (Parser.index <*
+              tokens.closeBracket)
+        ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
+          val fieldsResult = fieldsR
+          val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
+
+          Listed {
+            WithSource(
+              commentsLeft = Nil,
+              commentsRight = commentsBeforeEnd,
+              range = range,
+              value = fieldsResult,
+            )
+          }
+        }
+    }
+
+    (tokens.withComments0(useClause.?).map(_.sequence).with1 ~
+      ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
+      case (((useClause, opName), input), commentsAfter) =>
         Query(
+          useClause,
           opName,
           WithSource(
             commentsLeft = Nil,

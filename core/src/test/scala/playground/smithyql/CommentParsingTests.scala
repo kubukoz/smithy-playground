@@ -1,13 +1,25 @@
 package playground.smithyql
 
 import cats.Show
-import cats.implicits._
 import weaver._
 import weaver.scalacheck.Checkers
 
-import Arbitraries._
+import weaver.scalacheck.CheckConfig
 
 object CommentParsingTests extends SimpleIOSuite with Checkers {
+
+  override val checkConfig =
+    if (Platform.isJS)
+      CheckConfig
+        .default
+        .copy(
+          minimumSuccessful = 10,
+          maximumDiscardRatio = 10,
+        )
+    else
+      CheckConfig.default
+
+  /*
   pureTest("Comments from entire query are retained while parsing") {
     assert.eql(
       SmithyQLParser.parseFull(Examples.fullOfComments).map(WithSource.allQueryComments),
@@ -56,11 +68,12 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
       ),
     )
   }
+   */
 
   implicit val showQuery: Show[Query[WithSource]] = Show.fromToString
   implicit val showStruct: Show[Struct[WithSource]] = Show.fromToString
 
-  test("Any query can be parsed back to the same query (minus comments)") {
+  /* test("Any query can be parsed back to the same query (minus comments)") {
     forall { (q: Query[WithSource]) =>
       val formatted = playground.smithyql.Formatter.format(q, 80)
 
@@ -73,5 +86,5 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
       }
     }
   }
-
+   */
 }

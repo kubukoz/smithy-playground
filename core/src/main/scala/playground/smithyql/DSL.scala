@@ -9,7 +9,11 @@ object DSL {
 
     def call(
       args: (String, InputNode[Id])*
-    ): Query[Id] = Query[Id](OperationName(s), struct(args: _*))
+    ): Query[Id] = Query[Id](
+      useClause = None,
+      operationName = OperationName(s),
+      input = struct(args: _*),
+    )
 
   }
 
@@ -20,5 +24,11 @@ object DSL {
   implicit def stringToAST(s: String): StringLiteral[Id] = StringLiteral[Id](s)
   implicit def intToAST(i: Int): IntLiteral[Id] = IntLiteral[Id](i)
   implicit def boolToAST(b: Boolean): BooleanLiteral[Id] = BooleanLiteral[Id](b)
+
+  implicit def listToAST[A](
+    l: List[A]
+  )(
+    implicit ev: A => InputNode[Id]
+  ): Listed[Id] = Listed[Id](l.map(ev))
 
 }

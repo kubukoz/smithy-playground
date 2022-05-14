@@ -6,6 +6,19 @@ use smithy4s.api#simpleRestJson
 service DemoService {
   version: "0.0.1",
   operations: [CreateHero, GetPowers, CreateSubscription],
+  errors: [GenericServerError]
+}
+
+@simpleRestJson
+service DemoService2 {
+  version: "0.0.1",
+  operations: [GetVersion, CreateSubscription],
+}
+
+@readonly
+@http(uri: "/version", method: "GET")
+operation GetVersion {
+
 }
 
 @http(method: "POST", uri: "/heroes")
@@ -59,6 +72,13 @@ structure HeroIsBad {
   powerLevel: Integer
 }
 
+@httpError(500)
+@error("server")
+structure GenericServerError {
+  @required
+  msg: String
+}
+
 @http(method: "GET", uri: "/poweres")
 @readonly
 operation GetPowers {
@@ -106,9 +126,27 @@ structure Subscription {
   id: String,
   name: String,
   createdAt: Timestamp,
-  status: SubscriptionStatus
+  status: SubscriptionStatus,
+  skus: Skus,
+  // recursive calls are currently not working - todo https://github.com/disneystreaming/smithy4s/issues/181
+  // next: Subscription
 }
 
+list Skus {
+  member: Sku
+}
+
+structure Sku {
+  @required
+  id: Integer,
+  @required
+  sku: String
+}
 
 @enum([{name: "ACTIVE", value: "ACTIVE"}, {name: "INACTIVE", value: "INACTIVE"}])
 string SubscriptionStatus
+
+list Ints {
+  member: Integer
+}
+

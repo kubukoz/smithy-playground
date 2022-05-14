@@ -8,6 +8,7 @@ import cats.data.Chain
 import cats.implicits._
 import cats.kernel.Eq
 import cats.~>
+import cats.Show
 
 // todo: multiline
 final case class Comment(text: String) extends AnyVal
@@ -17,6 +18,10 @@ object Comment {
 }
 
 final case class Position(index: Int)
+
+object Position {
+  val origin: Position = Position(index = 0)
+}
 
 final case class SourceRange(start: Position, end: Position) {
   def contains(pos: Position): Boolean = pos.index >= start.index && pos.index <= end.index
@@ -46,77 +51,104 @@ object WithSource {
 
     }
 
+  implicit def showWithSource[A]: Show[WithSource[A]] = Show.fromToString
+
   // The path to a position in the parsed source
   sealed trait NodeContext extends Product with Serializable
-  final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext
-  final case class InputContext(context: List[String]) extends NodeContext
+
+  object NodeContext {
+    final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext
+
+    final case class InputContext(context: Chain[PathEntry]) extends NodeContext {
+      def append(elem: PathEntry) = copy(context.append(elem))
+
+      def toList = context.toList
+    }
+
+    object InputContext {
+      val root: InputContext = InputContext(Chain.nil)
+    }
+
+    sealed trait PathEntry extends Product with Serializable
+
+    object PathEntry {
+      final case class StructValue(key: String) extends PathEntry
+    }
+
+  }
 
   def atPosition(q: Query[WithSource])(pos: Position): Option[NodeContext] = {
     val op =
       if (q.operationName.range.contains(pos))
-        OperationContext(q.operationName).some
+        NodeContext.OperationContext(q.operationName).some
       else
         None
 
-    val input = findInStruct(q.input, pos, Chain.nil)
+    val input = findInNode(q.input, pos, NodeContext.InputContext.root)
 
     op.orElse(input)
   }
 
+  private def findInNode(
+    node: WithSource[InputNode[WithSource]],
+    pos: Position,
+    ctx: NodeContext.InputContext,
+  ): Option[NodeContext] = {
+    val entireNode = Option.when(node.range.contains(pos))(ctx)
+
+    val inside =
+      node.value match {
+        case l @ Listed(_) => findInList(node.copy(value = l), pos, ctx)
+        case s @ Struct(_) => findInStruct(node.copy(value = s), pos, ctx)
+        case _             => None // not supported yet
+      }
+
+    inside
+      .orElse(entireNode)
+  }
+
+  private def findInList(
+    list: WithSource[Listed[WithSource]],
+    pos: Position,
+    ctx: NodeContext.InputContext,
+  ): Option[NodeContext] = list
+    .value
+    .values
+    .value
+    .find(_.range.contains(pos))
+    .flatMap(findInNode(_, pos, ctx))
+
   private def findInStruct(
     struct: WithSource[Struct[WithSource]],
     pos: Position,
-    ctx: Chain[String],
-  ): Option[NodeContext] = {
-    def recurse(
-      k: WithSource[Struct.Key],
-      v: WithSource[Struct[WithSource]],
-    ): Option[NodeContext] = findInStruct(v, pos, ctx.append(k.value.text))
-
-    // Struct fields that are also structs
-    val structFields =
-      struct
-        .value
-        .fields
-        .value
-        .value
-        .view
-        .map { case (k, v) =>
-          v.traverse {
-            case s @ Struct(_) => s.some
-            case _             => none
-          }.tupleLeft(k)
-        }
-        .flatten
-
-    val matchingField = structFields
-      .find { case (_, v) => v.range.contains(pos) }
-      .flatMap(recurse.tupled)
-
-    val self =
-      Option.when(struct.range.contains(pos)) {
-        InputContext(ctx.toList)
+    ctx: NodeContext.InputContext,
+  ): Option[NodeContext] =
+    // Struct fields that allow nesting in them
+    struct
+      .value
+      .fields
+      .value
+      .value
+      .view
+      .map { case (k, v) =>
+        findInNode(v, pos, ctx.append(NodeContext.PathEntry.StructValue(k.value.text)))
       }
-
-    // possible optimization: don't even attempt to find matching fields
-    // if we're not even in the struct range
-    matchingField.orElse(self)
-  }
+      .flatten
+      .headOption
 
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
     def comments(node: InputNode[WithSource]): List[Comment] = node.fold(
-      struct = _.fields.allComments(_.value.flatMap { case (k, v) =>
-        k.allComments(_ => Nil) ++ v.allComments(
-          _.fold(comments, comments, comments, comments, comments)
-        )
-      }.toList),
+      struct =
+        _.fields.allComments(_.value.flatMap { case (k, v) =>
+          k.allComments(_ => Nil) ++ v.allComments(
+            _.fold(comments, comments, comments, comments, comments)
+          )
+        }.toList),
       string = _ => Nil,
       int = _ => Nil,
       bool = _ => Nil,
-      listed = _.values.allComments(
-        _.flatMap(_.fold(comments, comments, comments, comments, comments))
-      ),
+      listed = _.values.allComments(_.flatMap(_.allComments(comments))),
     )
 
     q.operationName.allComments(_ => Nil) ++

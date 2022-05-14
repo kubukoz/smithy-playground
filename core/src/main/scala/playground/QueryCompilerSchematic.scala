@@ -6,11 +6,10 @@ import cats.data.IorNec
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
 import cats.implicits._
-import cats.tagless.Derive
 import playground.smithyql._
-import schematic.Alt
-import schematic.ByteArray
-import schematic.Field
+import smithy4s.schema.Alt
+import smithy4s.ByteArray
+import smithy4s.schema.Field
 import smithy.api.TimestampFormat
 import smithy4s.Document
 import smithy4s.Hints
@@ -20,7 +19,9 @@ import sourcecode.Enclosing
 import java.util.UUID
 
 import PartialCompiler.WAST
+import smithy4s.Lazy
 import playground.CompilationErrorDetails._
+import smithy4s.Refinement
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -33,7 +34,13 @@ trait PartialCompiler[A] {
 object PartialCompiler {
   type Result[+A] = IorNec[CompilationError, A]
 
-  implicit val functor: Apply[PartialCompiler] = Derive.apply
+  implicit val apply: Apply[PartialCompiler] =
+    new Apply[PartialCompiler] {
+      def map[A, B](fa: PartialCompiler[A])(f: A => B): PartialCompiler[B] = fa.compile(_).map(f)
+
+      def ap[A, B](ff: PartialCompiler[A => B])(fa: PartialCompiler[A]): PartialCompiler[B] =
+        wast => (ff.compile(wast), fa.compile(wast)).parMapN((a, b) => a(b))
+    }
 
   type WAST = WithSource[InputNode[WithSource]]
 
@@ -68,6 +75,18 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case AmbiguousService(matching) =>
+        s"""Multiple services are available. Add a use clause to specify the service you want to use.
+           |Available services:""".stripMargin + matching
+          .map(UseClause(_))
+          .map(Formatter.renderUseClause(_).render(Int.MaxValue))
+          .mkString_("\n", "\n", "")
+
+      case UnknownService(id, known) =>
+        s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
+
+      case RefinementFailure(msg) => s"Refinement failed: $msg."
+
       case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
 
       case UnsupportedNode(tag) => s"Unsupported operation: $tag"
@@ -90,7 +109,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
       case StructMismatch(keys, possibleValues) =>
         s"struct mismatch (keys: ${keys.mkString_(", ")}), you must choose exactly one of: ${possibleValues
-          .mkString_(", ")}."
+            .mkString_(", ")}."
 
       case UnexpectedField(remainingFields) =>
         val expectedRemainingString =
@@ -107,6 +126,21 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 }
 
 object CompilationErrorDetails {
+
+  val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
+    case ResolutionFailure.AmbiguousService(knownServices) =>
+      CompilationErrorDetails.AmbiguousService(knownServices)
+    case ResolutionFailure.UnknownService(unknownId, knownServices) =>
+      CompilationErrorDetails.UnknownService(unknownId, knownServices)
+
+  }
+
+  final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
+    extends CompilationErrorDetails
+
+  final case class AmbiguousService(
+    known: List[QualifiedIdentifier]
+  ) extends CompilationErrorDetails
 
   final case class TypeMismatch(
     expected: NodeKind,
@@ -139,12 +173,14 @@ object CompilationErrorDetails {
     remainingFields: List[String]
   ) extends CompilationErrorDetails
 
+  final case class RefinementFailure(msg: String) extends CompilationErrorDetails
+
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 }
 
-class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
+object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
-  def todo[A](implicit sc: Enclosing): PartialCompiler[A] =
+  def unsupported[A](implicit sc: Enclosing): PartialCompiler[A] =
     ast =>
       Ior.leftNec(
         CompilationError(
@@ -153,21 +189,21 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
         )
       )
 
-  def short: PartialCompiler[Short] = todo
+  def short: PartialCompiler[Short] = unsupported
 
   val int: PartialCompiler[Int] = PartialCompiler
     .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
     .map(_.value.value)
 
-  def long: PartialCompiler[Long] = todo
+  def long: PartialCompiler[Long] = unsupported
 
-  def double: PartialCompiler[Double] = todo
+  def double: PartialCompiler[Double] = unsupported
 
-  def float: PartialCompiler[Float] = todo
+  def float: PartialCompiler[Float] = unsupported
 
-  def bigint: PartialCompiler[BigInt] = todo
+  def bigint: PartialCompiler[BigInt] = unsupported
 
-  def bigdecimal: PartialCompiler[BigDecimal] = todo
+  def bigdecimal: PartialCompiler[BigDecimal] = unsupported
 
   val stringLiteral =
     PartialCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
@@ -178,21 +214,37 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
     .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
     .map(_.value.value)
 
-  def uuid: PartialCompiler[UUID] = todo
+  def uuid: PartialCompiler[UUID] = unsupported
 
-  def byte: PartialCompiler[Byte] = todo
+  def byte: PartialCompiler[Byte] = unsupported
 
-  def bytes: PartialCompiler[ByteArray] = todo
+  def bytes: PartialCompiler[ByteArray] = unsupported
 
   val unit: PartialCompiler[Unit] = PartialCompiler.unit
 
-  def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = todo
+  def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = PartialCompiler
+    .typeCheck(NodeKind.Listed) { case l @ Listed(_) => l }
+    .emap(_.value.values.value.parTraverse(fs.compile))
 
-  def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = todo
+  def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = unsupported
 
-  def vector[S](fs: PartialCompiler[S]): PartialCompiler[Vector[S]] = todo
+  def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] =
+    PartialCompiler
+      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
+      .emap { struct =>
+        val fields = struct.value.fields.value.value
 
-  def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] = todo
+        fields
+          .parTraverse { case (k, v) =>
+            (
+              fk.compile(k.map { key =>
+                StringLiteral[WithSource](key.text)
+              }),
+              fv.compile(v),
+            ).parTupled
+          }
+          .map(_.toMap)
+      }
 
   def struct[S](
     fields: Vector[Field[PartialCompiler, S, _]]
@@ -327,7 +379,23 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       .toIorNec
   }
 
-  def suspend[A](f: => PartialCompiler[A]): PartialCompiler[A] = todo
+  def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = f.value.compile(_)
+
+  def surjection[A, B](
+    f: PartialCompiler[A],
+    to: Refinement[A, B],
+    from: B => A,
+  ): PartialCompiler[B] = (f, PartialCompiler.pos).tupled.emap { case (a, pos) =>
+    to(a)
+      .toIor
+      .leftMap { msg =>
+        CompilationError(
+          CompilationErrorDetails.RefinementFailure(msg),
+          pos,
+        )
+      }
+      .toIorNec
+  }
 
   def bijection[A, B](
     f: PartialCompiler[A],
@@ -352,6 +420,18 @@ class QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   def withHints[A](fa: PartialCompiler[A], hints: Hints): PartialCompiler[A] = fa // todo
 
-  def document: PartialCompiler[Document] = todo
+  val document: PartialCompiler[Document] =
+    _.value match {
+      case BooleanLiteral(value) => Document.fromBoolean(value).pure[PartialCompiler.Result]
+      case IntLiteral(value)     => Document.fromInt(value).pure[PartialCompiler.Result]
+      case StringLiteral(value)  => Document.fromString(value).pure[PartialCompiler.Result]
+      case Listed(values) => values.value.parTraverse(document.compile(_)).map(Document.array(_))
+      case Struct(fields) =>
+        fields
+          .value
+          .value
+          .parTraverse { case (key, value) => document.compile(value).tupleLeft(key.value.text) }
+          .map(Document.obj(_: _*))
+    }
 
 }

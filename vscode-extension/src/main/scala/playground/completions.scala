@@ -1,96 +1,81 @@
 package playground
 
-import cats.implicits._
-import playground.smithyql.SmithyQLParser
-import playground.smithyql.WithSource
-import smithy.api.Documentation
-import smithy.api.ExternalDocumentation
-import smithy.api.Http
-import smithy4s.Service
+import playground.smithyql.CompletionItem
+import playground.smithyql.CompletionItemKind
+import playground.smithyql.CompletionItemKind.EnumMember
+import playground.smithyql.CompletionItemKind.Field
+import playground.smithyql.CompletionItemKind.UnionMember
+import playground.smithyql.InsertText.JustString
+import playground.smithyql.InsertText.SnippetString
 import typings.vscode.mod
 
-import smithyql.CompletionSchematic
-import util.chaining._
-import playground.smithyql.CompletionItem.Field
-import playground.smithyql.CompletionItem.UnionMember
 import scala.scalajs.js.JSConverters._
+
+import util.chaining._
+import scalajs.js.|
+import playground.smithyql.TextEdit
 
 object completions {
 
   def complete[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
-  ): (mod.TextDocument, mod.Position) => List[mod.CompletionItem] = {
-    val completeOperationName = service
-      .endpoints
-      .map { e =>
-        val getName = GetNameHint.singleton
-        new mod.CompletionItem(
-          s"${e.name}",
-          mod.CompletionItemKind.Function,
-        )
-          .tap(_.insertText = e.name)
-          .tap(_.detail =
-            s"${e.input.compile(getName).get.value} => ${e.output.compile(getName).get.value}"
-          )
-          .tap(
-            _.documentation = List(
-              e.hints.get(Http).map { http =>
-                show"HTTP ${http.method.value} ${http.uri.value} "
-              },
-              e.hints.get(Documentation).map(_.value),
-              e.hints.get(ExternalDocumentation).map(_.value).map {
-                _.map { case (k, v) => show"""${k.value}: ${v.value}""" }.mkString("\n")
-              },
-            ).flatten
-              .map(_ + " ") // workaround for concatenation in the shortened view
-              .mkString("\n\n")
-          )
+    provider: CompletionProvider
+  ): (mod.TextDocument, mod.Position) => List[mod.CompletionItem] = { (doc, pos) =>
+    provider
+      .provide(
+        doc.getText(),
+        adapters.fromVscodePosition(doc)(pos),
+      )
+      .map(convertCompletion(doc, _))
+  }
+
+  private def convertCompletion(
+    doc: mod.TextDocument,
+    item: CompletionItem,
+  ): mod.CompletionItem = {
+    val convertKind: CompletionItemKind => mod.CompletionItemKind = {
+      case EnumMember                  => mod.CompletionItemKind.EnumMember
+      case Field                       => mod.CompletionItemKind.Field
+      case CompletionItemKind.Constant => mod.CompletionItemKind.Constant
+      case UnionMember                 => mod.CompletionItemKind.Class
+      case CompletionItemKind.Function => mod.CompletionItemKind.Function
+    }
+
+    val insertText: String | mod.SnippetString =
+      item.insertText match {
+        case JustString(value)    => value
+        case SnippetString(value) => new mod.SnippetString(value)
       }
 
-    (doc, pos) =>
-      SmithyQLParser.parseFull(doc.getText()) match {
-        case Left(_) =>
-          // we can try to deal with this later
+    val additionalTextEdits: List[mod.TextEdit] = item.extraTextEdits.map {
+      case TextEdit.Insert(what, where) =>
+        mod.TextEdit.insert(doc.positionAt(where.index.toDouble), what)
+    }
+
+    val docs: scalajs.js.UndefOr[mod.MarkdownString] =
+      item
+        .docs
+        .map(new mod.MarkdownString(_))
+        .orUndefined
+
+    new mod.CompletionItem(
+      mod
+        .CompletionItemLabel(item.label)
+        .tap(_.detail = item.detail)
+        .tap(_.description = item.description.orUndefined),
+      convertKind(item.kind),
+    )
+      .tap(_.insertText = insertText)
+      .tap(_.additionalTextEdits = additionalTextEdits.toJSArray)
+      .tap(result =>
+        if (item.deprecated)
+          result.tags =
+            List[mod.CompletionItemTag](
+              mod.CompletionItemTag.Deprecated
+            ).toJSArray
+        else
           Nil
-        case Right(q) =>
-          val matchingNode = WithSource.atPosition(q)(adapters.fromVscodePosition(doc)(pos))
-
-          matchingNode
-            .toList
-            .flatMap {
-              case WithSource.OperationContext(_) => completeOperationName
-              case WithSource.InputContext(ctx) =>
-                val e = service.endpoints.find(_.name == q.operationName.value.text).get
-                // todo caching
-                val result = e.input.compile(new CompletionSchematic).get.apply(ctx)
-
-                result.map { key =>
-                  key match {
-                    case Field(label, tpe) =>
-                      new mod.CompletionItem(label, mod.CompletionItemKind.Field)
-                        // todo determine RHS based on field type
-                        .tap(_.insertText = s"$label = ")
-                        .tap(_.detail = tpe)
-
-                    case UnionMember(label, deprecated, tpe) =>
-                      new mod.CompletionItem(label, mod.CompletionItemKind.Class)
-                        .tap(_.insertText = new mod.SnippetString(s"$label = {$$0},"))
-                        .tap(_.detail = tpe)
-                        .tap(item =>
-                          if (deprecated)
-                            item.tags =
-                              List[mod.CompletionItemTag](
-                                mod.CompletionItemTag.Deprecated
-                              ).toJSArray
-                          else
-                            Nil
-                        )
-                  }
-                }
-
-              case _ => Nil
-            }
-      }
+      )
+      .tap(_.documentation = docs)
   }
 
 }
