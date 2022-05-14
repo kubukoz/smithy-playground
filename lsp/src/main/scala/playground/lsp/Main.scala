@@ -23,7 +23,7 @@ object Main extends IOApp.Simple {
 
   def launch(in: InputStream, out: OutputStream) = Deferred[IO, LanguageClient].flatMap {
     clientPromise =>
-      val server = new MyLanguageServer(clientPromise)
+      val server = new PlaygroundLanguageServer(clientPromise)
 
       val launcher = new LSPLauncher.Builder[LanguageClient]()
         .setLocalService(server)

@@ -29,7 +29,7 @@ import scala.jdk.CollectionConverters._
 
 import util.chaining._
 
-final class MyLanguageServer(client: Deferred[IO, LanguageClient]) {
+final class PlaygroundLanguageServer(client: Deferred[IO, LanguageClient]) {
 
   @JsonRequest("initialize")
   def initialize(
