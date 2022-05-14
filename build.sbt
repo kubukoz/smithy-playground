@@ -58,6 +58,7 @@ lazy val lsp = projectMatrix
   )
   .jvmPlatform(commonScalaVersions)
   .enablePlugins(Smithy4sCodegenPlugin)
+  .enablePlugins(JavaAppPackaging)
   .dependsOn(core)
 
 lazy val vscode = projectMatrix

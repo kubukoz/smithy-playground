@@ -3,7 +3,7 @@
   "tasks": [
     {
       "command": "sbtn",
-      "args": ["fastOptJS"],
+      "args": ["stage;fastOptJS"],
       "label": "fastOptJS"
     }
   ]

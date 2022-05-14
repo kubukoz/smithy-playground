@@ -21,6 +21,10 @@ import typings.vscode.mod.OutputChannel
 import typings.vscode.mod.commands
 import typings.vscode.mod.languages
 import typings.vscode.mod.window
+import typings.vscodeLanguageclient.clientMod.LanguageClientOptions
+import typings.vscodeLanguageclient.mod.LanguageClient
+import typings.vscodeLanguageclient.mod._ServerOptions
+import typings.vscodeLanguageserverProtocol.protocolMod
 
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
@@ -36,7 +40,33 @@ object extension {
     .timed
     .evalMap { case (fd, value) => IO.println(s"$tag took ${fd.toMillis}ms").as(value) }
 
+  val lspClient =
+    new LanguageClient(
+      "smithyPlayground",
+      "Smithy Playground Client",
+      _ServerOptions.Executable(
+        "/Users/kubukoz/projects/smithy-playground/lsp/target/jvm-2.13/universal/stage/bin/lsp"
+      ),
+      LanguageClientOptions().setDocumentSelectorVarargs(
+        mod
+          .DocumentFilter()
+          .setLanguage("smithyql")
+          .asInstanceOf[protocolMod.DocumentFilter]
+      ),
+    )
+
+  var disp: mod.Disposable = null
+
   @JSExportTopLevel("activate")
+  def activateWithClient(
+    context: ExtensionContext
+  ): Unit = {
+
+    disp = lspClient.start()
+    chan.appendLine("Connected client")
+  }
+
+  @JSExportTopLevel("activate_old")
   def activate(
     context: ExtensionContext
   ): Unit = client
@@ -49,7 +79,10 @@ object extension {
     .unsafeRunAndForget()
 
   @JSExportTopLevel("deactivate")
-  def deactivate(): Unit = shutdownHook.unsafeRunAndForget()
+  def deactivate(): Unit = disp.dispose()
+
+  // @JSExportTopLevel("deactivate")
+  // def deactivate(): Unit = shutdownHook.unsafeRunAndForget()
 
   private def activateR(
     context: ExtensionContext,
