@@ -27,6 +27,7 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
 import util.chaining._
+import fs2.io.file.Path
 
 object extension {
   private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
@@ -59,7 +60,16 @@ object extension {
       .buildFile[IO](chan)
       .toResource
       .pipe(timedResource("buildFile"))
-      .map(build.getServices(_, chan))
+      .map { case (buildConfig, buildConfigUri) =>
+        build.getServices(
+          Path(buildConfigUri.fsPath)
+            .parent
+            .getOrElse(sys.error("Couldn't find parent of " + buildConfigUri))
+            .toString,
+          buildConfig,
+          chan,
+        )
+      }
       .flatMap { dsi =>
         AwsEnvironment
           .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)

@@ -10,6 +10,7 @@ import typings.node.nodeChildProcessMod
 import typings.vscode.mod
 
 import scalajs.js
+import typings.node.childProcessMod.ExecSyncOptions
 
 object build {
 
@@ -17,7 +18,7 @@ object build {
 
   def buildFile[F[_]: Async](
     chan: mod.OutputChannel
-  ): F[BuildConfig] = fs2
+  ): F[(BuildConfig, mod.Uri)] = fs2
     .Stream
     .exec(
       Sync[F].delay(chan.appendLine(s"Loading config from ${configFiles.mkString(", ")}..."))
@@ -38,28 +39,30 @@ object build {
     }
     .flatMap(fs2.Stream.emits(_))
     .evalMap { uri =>
-      Async[F].fromFuture {
-        Sync[F].delay {
-          mod
-            .workspace
-            .openTextDocument(uri)
-            .asInstanceOf[js.Thenable[mod.TextDocument]]
-            .toFuture
+      Async[F]
+        .fromFuture {
+          Sync[F].delay {
+            mod
+              .workspace
+              .openTextDocument(uri)
+              .asInstanceOf[js.Thenable[mod.TextDocument]]
+              .toFuture
+          }
         }
-      }
+        .tupleRight(uri)
     }
-    .map(_.getText())
     .head
     .compile
     .lastOrError
     .flatTap { _ =>
       Sync[F].delay(chan.appendLine("Parsing config..."))
     }
-    .flatMap { s =>
-      BuildConfig.decode(s.getBytes()).liftTo[F]
+    .flatMap { case (doc, uri) =>
+      BuildConfig.decode(doc.getText().getBytes()).liftTo[F].tupleRight(uri)
     }
 
   def getServices(
+    cwd: String,
     buildFile: BuildConfig,
     chan: mod.OutputChannel,
   ): DynamicSchemaIndex =
@@ -88,7 +91,8 @@ object build {
           nodeChildProcessMod.execSync(
             // todo: pass version from workspace config, default from sbt-buildinfo
             ("cs" :: "launch" :: s"com.disneystreaming.smithy4s:smithy4s-codegen-cli_2.13:${BuildInfo.smithy4sVersion}" :: "--" :: args)
-              .mkString(" ")
+              .mkString(" "),
+            ExecSyncOptions().setCwd(cwd),
           )
         }
 
