@@ -10,7 +10,7 @@ Currently, everything is only available as a VS Code plugin, with future ideas t
 2. Make sure you have Coursier available on the PATH as `cs`
 3. Create a file, `smithy-build.json`. Example:
 
-```json
+```jsonc
 {
   // This comes from https://github.com/aws/aws-sdk-js-v3/blob/main/codegen/sdk-codegen/aws-models/kinesis.json
   "imports": ["/Users/kubukoz/projects/aws-sdk-js-v3/codegen/sdk-codegen/aws-models/kinesis.json"],
