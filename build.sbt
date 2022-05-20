@@ -87,6 +87,7 @@ lazy val cli = projectMatrix
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
     ),
   )
+  .enablePlugins(Smithy4sCodegenPlugin)
   .dependsOn(core)
   .jvmPlatform(commonScalaVersions)
 
