@@ -29,6 +29,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import org.http4s.client.Client
 import cats.effect.kernel.Resource
 import cats.effect.std
+import playground.BuildConfigDecoder
 
 object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
@@ -72,7 +73,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
     .toVector
     .map(_.toArray)
     .flatMap {
-      BuildConfig.decode(_).liftTo[IO]
+      BuildConfigDecoder.decode(_).liftTo[IO]
     }
 
   private def buildSchemaIndex(bc: BuildConfig): IO[DynamicSchemaIndex] = IO

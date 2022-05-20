@@ -58,7 +58,7 @@ object build {
       Sync[F].delay(chan.appendLine("Parsing config..."))
     }
     .flatMap { case (doc, uri) =>
-      BuildConfig.decode(doc.getText().getBytes()).liftTo[F].tupleRight(uri)
+      BuildConfigDecoder.decode(doc.getText().getBytes()).liftTo[F].tupleRight(uri)
     }
 
   def getServices(
