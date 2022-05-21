@@ -16,7 +16,7 @@ val commonScalaVersions = Seq("2.13.8")
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %%% "cats-effect" % "3.3.11",
+    "org.typelevel" %%% "cats-effect" % "3.3.12",
     "com.disneystreaming" %%% "weaver-cats" % "0.7.11" % Test,
     "com.disneystreaming" %%% "weaver-discipline" % "0.7.11" % Test,
     "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.11" % Test,
