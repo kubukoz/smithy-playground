@@ -20,11 +20,15 @@ import demo.smithy.GenericServerError
 import fs2.io.net.tls.TLSContext
 import fs2.io.net.tls.SecureContext
 import org.http4s.client.middleware.Logger
-import cats.effect.std
+import typings.vscode.mod.OutputChannel
+import cats.effect.kernel.Sync
 
 object client {
 
-  def make[F[_]: Async: std.Console](useNetwork: Boolean): Resource[F, Client[F]] = {
+  def make[F[_]: Async](
+    useNetwork: Boolean,
+    chan: OutputChannel,
+  ): Resource[F, Client[F]] = {
     val fakeClient = SimpleRestJsonBuilder
       .routes {
         new DemoService[F] {
@@ -96,7 +100,7 @@ object client {
             Logger[F](
               logHeaders = true,
               logBody = true,
-              logAction = Some(std.Console[F].println(_)),
+              logAction = Some(s => Sync[F].delay(chan.appendLine(s))),
             )
           )
       else
