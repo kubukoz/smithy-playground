@@ -29,14 +29,14 @@ trait PlatformMain {
           SimpleRestJsonBuilder(CliService).clientResource(client, uri"http://localhost:4200")
         }
     else
-      Resource.pure[IO, CliService[IO]](CommandLineRunner.instance)
+      CommandLineRunner.instance
 
   private val serve: Opts[IO[ExitCode]] = Opts {
     import com.comcast.ip4s._
 
-    SimpleRestJsonBuilder
-      .routes(CommandLineRunner.instance)
-      .resource
+    CommandLineRunner
+      .instance
+      .flatMap(SimpleRestJsonBuilder.routes(_).resource)
       .flatMap { routes =>
         EmberServerBuilder
           .default[IO]

@@ -29,49 +29,66 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 object CommandLineRunner {
 
-  val instance: CliService[IO] =
-    new CliService[IO] {
+  val instance: Resource[IO, CliService[IO]] = EmberClientBuilder
+    .default[IO]
+    .build
+    // .map(
+    //   middleware.Logger[IO](
+    //     logHeaders = true,
+    //     logBody = true,
+    //     logAction = Some(IO.println(_: String)),
+    //   )
+    // )
+    .flatMap { client =>
+      AwsEnvironment
+        .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
+        .memoize
+        .map { awsEnv =>
+          new CliService[IO] {
 
-      def run(
-        input: String,
-        baseUri: playground.cli.Url,
-        width: Option[Int],
-        context: Option[String],
-      ): IO[RunOutput] = runImpl(
-        file.Path(input),
-        Uri.unsafeFromString(baseUri.value),
-        width.getOrElse(80),
-        context.fold(file.Path("."))(file.Path(_)),
-      ).map(RunOutput.apply)
+            def run(
+              input: String,
+              baseUri: playground.cli.Url,
+              width: Option[Int],
+              context: Option[String],
+            ): IO[RunOutput] = runImpl(
+              file.Path(input),
+              Uri.unsafeFromString(baseUri.value),
+              width.getOrElse(80),
+              context.fold(file.Path("."))(file.Path(_)),
+            )(client, awsEnv).map(RunOutput.apply)
 
-      def format(
-        input: String,
-        width: Option[Int],
-      ): IO[FormatOutput] = loadAndParse(file.Path(input))
-        .map { parsed =>
-          FormatOutput(Formatter.format(parsed, width.getOrElse(80)))
+            def format(
+              input: String,
+              width: Option[Int],
+            ): IO[FormatOutput] = loadAndParse(file.Path(input))
+              .map { parsed =>
+                FormatOutput(Formatter.format(parsed, width.getOrElse(80)))
+              }
+
+            def compile(input: String, context: Option[String]): IO[CompileOutput] = compileImpl(
+              file.Path(input),
+              context.fold(file.Path("."))(file.Path(_)),
+            ).map(CompileOutput.apply)
+
+            def info(context: Option[String]): IO[InfoOutput] = readBuildConfig(
+              context.fold(file.Path("."))(file.Path(_))
+            )
+              .flatMap { bc =>
+                buildSchemaIndex(bc)
+                  .map { dsi =>
+                    InfoOutput(
+                      s"Build config:\n$bc\nDiscovered services:\n" + dsi
+                        .allServices
+                        .map(svc => s"${svc.service.id} (${svc.service.endpoints.size} operations)")
+                        .mkString("\n")
+                    )
+                  }
+              }
+
+          }
+
         }
-
-      def compile(input: String, context: Option[String]): IO[CompileOutput] = compileImpl(
-        file.Path(input),
-        context.fold(file.Path("."))(file.Path(_)),
-      ).map(CompileOutput.apply)
-
-      def info(context: Option[String]): IO[InfoOutput] = readBuildConfig(
-        context.fold(file.Path("."))(file.Path(_))
-      )
-        .flatMap { bc =>
-          buildSchemaIndex(bc)
-            .map { dsi =>
-              InfoOutput(
-                s"Build config:\n$bc\nDiscovered services:\n" + dsi
-                  .allServices
-                  .map(svc => s"${svc.service.id} (${svc.service.endpoints.size} operations)")
-                  .mkString("\n")
-              )
-            }
-        }
-
     }
 
   private def compileImpl(input: file.Path, ctx: file.Path) = loadAndParse(input)
@@ -103,70 +120,60 @@ object CommandLineRunner {
         }
     }
 
-  private def runImpl(filePath: file.Path, baseUri: Uri, width: Int, ctx: file.Path): IO[String] =
-    loadAndParse(
-      filePath
-    )
-      .flatMap { parsed =>
-        readBuildConfig(ctx)
-          .flatMap(buildSchemaIndex)
-          .flatMap { dsi =>
-            val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+  private def runImpl(
+    filePath: file.Path,
+    baseUri: Uri,
+    width: Int,
+    ctx: file.Path,
+  )(
+    client: Client[IO],
+    awsEnv: Resource[IO, AwsEnvironment[IO]],
+  ): IO[String] = loadAndParse(
+    filePath
+  )
+    .flatMap { parsed =>
+      readBuildConfig(ctx)
+        .flatMap(buildSchemaIndex)
+        .flatMap { dsi =>
+          val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
 
-            EmberClientBuilder
-              .default[IO]
-              .build
-              // .map(
-              //   middleware.Logger[IO](
-              //     logHeaders = true,
-              //     logBody = true,
-              //     logAction = Some(IO.println(_: String)),
-              //   )
-              // )
-              .use { client =>
-                AwsEnvironment
-                  .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
-                  .memoize
-                  .use { awsEnv =>
-                    Runner
-                      .forSchemaIndex[IO](dsi, client, baseUri.pure[IO], awsEnv)
-                      .get(parsed)
-                      .toEither
-                      .leftMap { issues =>
-                        new Throwable("Cannot build runner: " + issues)
-                      }
-                      .liftTo[IO]
-                      .flatMap { runner =>
-                        compiler.compile(parsed).flatMap { compiled =>
-                          runner
-                            .run(compiled)
-                            .map { result =>
-                              Formatter
-                                .writeAst(result.mapK(WithSource.liftId))
-                                .renderTrim(width)
-                            }
-                            .onError { e =>
-                              compiled
-                                .catchError(e)
-                                .flatMap(ee => compiled.writeError.map(_.toNode(ee)))
-                                .map { result =>
-                                  std
-                                    .Console[IO]
-                                    .errorln(
-                                      "ERROR: " + Formatter
-                                        .writeAst(result.mapK(WithSource.liftId))
-                                        .renderTrim(width)
-                                    )
-                                }
-                                .getOrElse(IO.raiseError(e))
-                            }
-
-                        }
-                      }
+          Runner
+            .forSchemaIndex[IO](dsi, client, baseUri.pure[IO], awsEnv)
+            .get(parsed)
+            .toEither
+            .leftMap { issues =>
+              new Throwable("Cannot build runner: " + issues)
+            }
+            .liftTo[IO]
+            .flatMap { runner =>
+              compiler.compile(parsed).flatMap { compiled =>
+                runner
+                  .run(compiled)
+                  .map { result =>
+                    Formatter
+                      .writeAst(result.mapK(WithSource.liftId))
+                      .renderTrim(width)
                   }
+                  .onError { e =>
+                    compiled
+                      .catchError(e)
+                      .flatMap(ee => compiled.writeError.map(_.toNode(ee)))
+                      .map { result =>
+                        std
+                          .Console[IO]
+                          .errorln(
+                            "ERROR: " + Formatter
+                              .writeAst(result.mapK(WithSource.liftId))
+                              .renderTrim(width)
+                          )
+                      }
+                      .getOrElse(IO.raiseError(e))
+                  }
+
               }
-          }
-      }
+            }
+        }
+    }
 
   private def loadAndParse(filePath: file.Path) = Files[IO]
     .readAll(filePath)
