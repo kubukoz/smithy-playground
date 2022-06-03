@@ -3,6 +3,8 @@ package playground.cli
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.implicits._
+import cats.effect.kernel.Resource
+import cats.effect.std
 import cats.implicits._
 import com.monovore.decline.Argument
 import com.monovore.decline.Opts
@@ -10,10 +12,15 @@ import com.monovore.decline.effect.CommandIOApp
 import fs2.io.file
 import fs2.io.file.Files
 import org.http4s.Uri
+import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.implicits._
 import playground.BuildConfig
+import playground.BuildConfigDecoder
 import playground.ModelReader
 import playground.Runner
+import playground.cli.CliService
 import playground.smithyql.Formatter
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
@@ -23,13 +30,10 @@ import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 import smithy4s.codegen.cli.DumpModel
 import smithy4s.codegen.cli.Smithy4sCommand
+import smithy4s.dynamic.DynamicSchemaIndex
+import smithy4s.http4s.SimpleRestJsonBuilder
 
 import java.nio.file.Path
-import smithy4s.dynamic.DynamicSchemaIndex
-import org.http4s.client.Client
-import cats.effect.kernel.Resource
-import cats.effect.std
-import playground.BuildConfigDecoder
 
 object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
@@ -40,8 +44,8 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
     file.Path.fromNioPath
   )
 
-  private def loadAndParse(filePath: Path) = Files[IO]
-    .readAll(file.Path.fromNioPath(filePath))
+  private def loadAndParse(filePath: file.Path) = Files[IO]
+    .readAll(filePath)
     .through(fs2.text.utf8.decode[IO])
     .compile
     .string
@@ -56,7 +60,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
   private val fmt =
     (
       Opts
-        .argument[Path]("input"),
+        .argument[file.Path]("input"),
       widthOpt,
     )
       .mapN { (filePath, width) =>
@@ -103,7 +107,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
   private val compile =
     (
-      Opts.argument[Path]("input"),
+      Opts.argument[file.Path]("input"),
       ctxOpt,
     ).mapN { (filePath, ctx) =>
       loadAndParse(filePath)
@@ -139,21 +143,81 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         .as(ExitCode.Success)
     }
 
+  private val serverOpt =
+    Opts
+      .flag("server", "Whether the query should use the local server or be executed directly")
+      .orFalse
+
   private val run =
     (
-      Opts.argument[Path]("input"),
+      Opts.argument[file.Path]("input"),
       Opts.argument[Uri]("base-uri"),
       widthOpt,
       ctxOpt,
-    ).mapN { (filePath, baseUri, width, ctx) =>
-      loadAndParse(filePath)
-        .flatMap { parsed =>
-          readBuildConfig(ctx)
-            .flatMap(buildSchemaIndex)
-            .flatMap { dsi =>
-              val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+      serverOpt,
+    ).mapN((input, baseUri, width, ctx, server) =>
+      {
+        if (server)
+          EmberClientBuilder
+            .default[IO]
+            .build
+            .flatMap { client =>
+              SimpleRestJsonBuilder(CliService).clientResource(client, uri"http://localhost:4200")
+            }
+        else
+          Resource.pure[IO, CliService[IO]](cli)
+      }
+        .use(_.run(input.toString, Url(baseUri.renderString), width.some, ctx.toString.some))
+        .map(_.response)
+        .flatMap(IO.println(_))
+        .as(ExitCode.Success)
+    )
 
-              EmberClientBuilder.default[IO].build.use { client =>
+  val cli: CliService[IO] =
+    new CliService[IO] {
+
+      def run(
+        input: String,
+        baseUri: playground.cli.Url,
+        width: Option[Int],
+        context: Option[String],
+      ): IO[RunOutput] = runImpl(
+        file.Path(input),
+        Uri.unsafeFromString(baseUri.value),
+        width.getOrElse(80),
+        context.fold(file.Path("."))(file.Path(_)),
+      ).map(RunOutput.apply)
+        .onError { case e => IO.println(e) *> IO(e.printStackTrace()) }
+
+      def format(input: String): IO[Unit] = IO.unit
+
+      def compile(): IO[Unit] = IO.unit
+
+      def info(): IO[Unit] = IO.unit
+
+    }
+
+  private def runImpl(filePath: file.Path, baseUri: Uri, width: Int, ctx: file.Path): IO[String] =
+    loadAndParse(
+      filePath
+    )
+      .flatMap { parsed =>
+        readBuildConfig(ctx)
+          .flatMap(buildSchemaIndex)
+          .flatMap { dsi =>
+            val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+
+            EmberClientBuilder
+              .default[IO]
+              .build
+              // .map(
+              //   middleware.Logger[IO](
+              //     logHeaders = true,
+              //     logBody = true,
+              //     logAction = Some(IO.println(_: String)),
+              //   )
+              // )
+              .use { client =>
                 AwsEnvironment
                   .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
                   .memoize
@@ -170,14 +234,12 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                         compiler.compile(parsed).flatMap { compiled =>
                           runner
                             .run(compiled)
-                            .flatMap { result =>
-                              IO.println(
-                                Formatter
-                                  .writeAst(result.mapK(WithSource.liftId))
-                                  .renderTrim(width)
-                              )
+                            .map { result =>
+                              Formatter
+                                .writeAst(result.mapK(WithSource.liftId))
+                                .renderTrim(width)
                             }
-                            .handleErrorWith { e =>
+                            .onError { e =>
                               compiled
                                 .catchError(e)
                                 .flatMap(ee => compiled.writeError.map(_.toNode(ee)))
@@ -197,10 +259,8 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                       }
                   }
               }
-            }
-        }
-        .as(ExitCode.Success)
-    }
+          }
+      }
 
   val info = ctxOpt.map { ctx =>
     readBuildConfig(ctx)
@@ -219,8 +279,34 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
       .as(ExitCode.Success)
   }
 
+  val serve: Opts[IO[ExitCode]] = Opts {
+    import com.comcast.ip4s._
+    SimpleRestJsonBuilder
+      .routes(cli)
+      .resource
+      .flatMap { routes =>
+        EmberServerBuilder
+          .default[IO]
+          .withHttpApp(
+            routes.orNotFound
+              // .pipe(
+              //   Logger.httpApp[IO](
+              //     logHeaders = true,
+              //     logBody = true,
+              //     logAction = Some(IO.println(_: String)),
+              //   )
+              // )
+          )
+          .withHost(host"0.0.0.0")
+          .withPort(port"4200")
+          .build
+      }
+      .useForever
+  }
+
   def main: Opts[IO[ExitCode]] =
-    Opts.subcommand("run", "Run query")(run) <+>
+    Opts.subcommand("serve", "Start server")(serve) <+>
+      Opts.subcommand("run", "Run query")(run) <+>
       Opts.subcommand("format", "Format query")(fmt) <+>
       Opts.subcommand("compile", "Compile query")(compile) <+>
       Opts.subcommand("info", "Show information about the current context")(info)

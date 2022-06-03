@@ -83,10 +83,12 @@ lazy val cli = projectMatrix
     commonSettings,
     libraryDependencies ++= Seq(
       "org.http4s" %%% "http4s-ember-client" % "0.23.12",
-      "com.monovore" %% "decline-effect" % "2.2.0",
+      "org.http4s" %%% "http4s-ember-server" % "0.23.12",
+      "com.monovore" %%% "decline-effect" % "2.2.0",
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
     ),
   )
+  .enablePlugins(Smithy4sCodegenPlugin)
   .dependsOn(core)
   .jvmPlatform(commonScalaVersions)
 
