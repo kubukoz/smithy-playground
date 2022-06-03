@@ -57,20 +57,6 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
     .option[Int]("width", "Max width of formatted output (not enforced)")
     .withDefault(80)
 
-  private val fmt =
-    (
-      Opts
-        .argument[file.Path]("input"),
-      widthOpt,
-    )
-      .mapN { (filePath, width) =>
-        loadAndParse(filePath)
-          .flatMap { parsed =>
-            IO.println(Formatter.format(parsed, width))
-          }
-          .as(ExitCode.Success)
-      }
-
   private def readBuildConfig(ctx: file.Path) = Files[IO]
     .readAll(ctx / "smithy-build.json")
     .compile
@@ -136,7 +122,10 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
   private val serverOpt =
     Opts
-      .flag("server", "Whether the query should use the local server or be executed directly")
+      .flag(
+        "server",
+        "Whether the program should use the local server or execute the command directly",
+      )
       .orFalse
 
   private def impl(server: Boolean) =
@@ -178,6 +167,21 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         .as(ExitCode.Success)
     }
 
+  private val fmt =
+    (
+      Opts
+        .argument[file.Path]("input"),
+      widthOpt,
+      serverOpt,
+    )
+      .mapN { (filePath, width, server) =>
+        impl(server)
+          .use(_.format(filePath.toString, width.some))
+          .map(_.response)
+          .flatMap(IO.println(_))
+          .as(ExitCode.Success)
+      }
+
   val cli: CliService[IO] =
     new CliService[IO] {
 
@@ -193,7 +197,13 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         context.fold(file.Path("."))(file.Path(_)),
       ).map(RunOutput.apply)
 
-      def format(input: String): IO[Unit] = IO.unit
+      def format(
+        input: String,
+        width: Option[Int],
+      ): IO[FormatOutput] = loadAndParse(file.Path(input))
+        .map { parsed =>
+          FormatOutput(Formatter.format(parsed, width.getOrElse(80)))
+        }
 
       def compile(input: String, context: Option[String]): IO[CompileOutput] = compileImpl(
         file.Path(input),

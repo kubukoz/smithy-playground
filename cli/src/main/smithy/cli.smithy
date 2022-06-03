@@ -38,12 +38,19 @@ string Url
 
 @http(method: "POST", uri: "/format")
 operation Format {
-  input: FormatInput
+  input: FormatInput,
+  output: FormatOutput
 }
 
 structure FormatInput {
   @required
-  input: String
+  input: String,
+  width: Integer
+}
+
+structure FormatOutput {
+  @required
+  response: String
 }
 
 @http(method: "POST", uri: "/compile")
