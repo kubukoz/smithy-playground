@@ -10,15 +10,15 @@ service CliService {
 operation Run {
   input: RunInput,
   output: RunOutput,
-  errors: [RunningError]
+  // errors: [RunningError]
 }
 
-@error("server")
-@httpError(500)
-structure RunningError {
-  @required
-  response: String
-}
+// @error("server")
+// @httpError(500)
+// structure RunningError {
+//   @required
+//   response: String
+// }
 
 structure RunOutput {
   @required
@@ -48,7 +48,19 @@ structure FormatInput {
 
 @http(method: "POST", uri: "/compile")
 operation Compile {
+  input: CompileInput,
+  output: CompileOutput
+}
 
+structure CompileInput {
+  @required
+  input: String,
+  context: String
+}
+
+structure CompileOutput {
+  @required
+  response: String
 }
 
 @http(method: "POST", uri: "/info")

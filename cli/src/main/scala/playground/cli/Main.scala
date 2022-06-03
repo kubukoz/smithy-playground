@@ -105,48 +105,50 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
     )
     .withDefault(file.Path("."))
 
-  private val compile =
-    (
-      Opts.argument[file.Path]("input"),
-      ctxOpt,
-    ).mapN { (filePath, ctx) =>
-      loadAndParse(filePath)
-        .flatMap { parsed =>
-          readBuildConfig(ctx)
-            .flatMap(buildSchemaIndex)
-            .flatMap { dsi =>
-              val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+  private def compileImpl(input: file.Path, ctx: file.Path) = loadAndParse(input)
+    .flatMap { parsed =>
+      readBuildConfig(ctx)
+        .flatMap(buildSchemaIndex)
+        .flatMap { dsi =>
+          val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
 
-              val runner = Runner
-                .forSchemaIndex[IO](dsi, Client(_ => Resource.never), IO.never, Resource.never)
-                .get(parsed)
+          val runner = Runner
+            .forSchemaIndex[IO](dsi, Client(_ => Resource.never), IO.never, Resource.never)
+            .get(parsed)
 
-              val runnerStatus = runner
-                .toEither
-                .fold(
-                  issues => s"unavailable ($issues)",
-                  _ => "available",
-                )
+          val runnerStatus = runner
+            .toEither
+            .fold(
+              issues => s"unavailable ($issues)",
+              _ => "available",
+            )
 
-              compiler.compile(parsed).flatMap { cin =>
-                val input = Document.Encoder.fromSchema(cin.endpoint.input).encode(cin.input)
+          compiler.compile(parsed).map { cin =>
+            val input = Document.Encoder.fromSchema(cin.endpoint.input).encode(cin.input)
 
-                IO.println(
-                  s"""Service: ${cin.serviceId.render}
+            s"""Service: ${cin.serviceId.render}
                    |Endpoint: ${cin.endpoint.id}
                    |Compiled input: $input
                    |Runner status: $runnerStatus""".stripMargin
-                )
-              }
-            }
+          }
         }
-        .as(ExitCode.Success)
     }
 
   private val serverOpt =
     Opts
       .flag("server", "Whether the query should use the local server or be executed directly")
       .orFalse
+
+  private def impl(server: Boolean) =
+    if (server)
+      EmberClientBuilder
+        .default[IO]
+        .build
+        .flatMap { client =>
+          SimpleRestJsonBuilder(CliService).clientResource(client, uri"http://localhost:4200")
+        }
+    else
+      Resource.pure[IO, CliService[IO]](cli)
 
   private val run =
     (
@@ -156,22 +158,25 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
       ctxOpt,
       serverOpt,
     ).mapN((input, baseUri, width, ctx, server) =>
-      {
-        if (server)
-          EmberClientBuilder
-            .default[IO]
-            .build
-            .flatMap { client =>
-              SimpleRestJsonBuilder(CliService).clientResource(client, uri"http://localhost:4200")
-            }
-        else
-          Resource.pure[IO, CliService[IO]](cli)
-      }
+      impl(server)
         .use(_.run(input.toString, Url(baseUri.renderString), width.some, ctx.toString.some))
         .map(_.response)
         .flatMap(IO.println(_))
         .as(ExitCode.Success)
     )
+
+  private val compile =
+    (
+      Opts.argument[file.Path]("input"),
+      ctxOpt,
+      serverOpt,
+    ).mapN { (input, ctx, server) =>
+      impl(server)
+        .use(_.compile(input.toString, ctx.toString.some))
+        .map(_.response)
+        .flatMap(IO.println(_))
+        .as(ExitCode.Success)
+    }
 
   val cli: CliService[IO] =
     new CliService[IO] {
@@ -187,11 +192,13 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         width.getOrElse(80),
         context.fold(file.Path("."))(file.Path(_)),
       ).map(RunOutput.apply)
-        .onError { case e => IO.println(e) *> IO(e.printStackTrace()) }
 
       def format(input: String): IO[Unit] = IO.unit
 
-      def compile(): IO[Unit] = IO.unit
+      def compile(input: String, context: Option[String]): IO[CompileOutput] = compileImpl(
+        file.Path(input),
+        context.fold(file.Path("."))(file.Path(_)),
+      ).map(CompileOutput.apply)
 
       def info(): IO[Unit] = IO.unit
 
