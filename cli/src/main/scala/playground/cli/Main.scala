@@ -210,7 +210,20 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
         context.fold(file.Path("."))(file.Path(_)),
       ).map(CompileOutput.apply)
 
-      def info(): IO[Unit] = IO.unit
+      def info(context: Option[String]): IO[InfoOutput] = readBuildConfig(
+        context.fold(file.Path("."))(file.Path(_))
+      )
+        .flatMap { bc =>
+          buildSchemaIndex(bc)
+            .map { dsi =>
+              InfoOutput(
+                s"Build config:\n$bc\nDiscovered services:\n" + dsi
+                  .allServices
+                  .map(svc => s"${svc.service.id} (${svc.service.endpoints.size} operations)")
+                  .mkString("\n")
+              )
+            }
+        }
 
     }
 
@@ -279,20 +292,11 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
           }
       }
 
-  val info = ctxOpt.map { ctx =>
-    readBuildConfig(ctx)
-      .flatMap { bc =>
-        IO.println(s"Build config:\n$bc\n") *>
-          buildSchemaIndex(bc)
-            .flatMap { dsi =>
-              IO.println(
-                "Discovered services:\n" + dsi
-                  .allServices
-                  .map(svc => s"${svc.service.id} (${svc.service.endpoints.size} operations)")
-                  .mkString("\n")
-              )
-            }
-      }
+  val info = (ctxOpt, serverOpt).mapN { (ctx, server) =>
+    impl(server)
+      .use(_.info(ctx.toString.some))
+      .map(_.response)
+      .flatMap(IO.println(_))
       .as(ExitCode.Success)
   }
 

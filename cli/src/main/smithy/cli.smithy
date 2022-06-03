@@ -72,5 +72,16 @@ structure CompileOutput {
 
 @http(method: "POST", uri: "/info")
 operation Info {
+  input: InfoInput,
+  output: InfoOutput
 }
 
+
+structure InfoInput {
+  context: String
+}
+
+structure InfoOutput {
+  @required
+  response: String
+}
