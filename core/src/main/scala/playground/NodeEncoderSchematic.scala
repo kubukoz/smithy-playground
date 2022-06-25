@@ -147,7 +147,7 @@ object NodeEncoderSchematic extends Schematic[NodeEncoder] {
     fromOrdinal: Map[Int, A],
   ): NodeEncoder[A] = v => string.toNode(to(v)._1)
 
-  def suspend[A](f: Lazy[NodeEncoder[A]]): NodeEncoder[A] = unsupported
+  def suspend[A](f: Lazy[NodeEncoder[A]]): NodeEncoder[A] = node => f.value.toNode(node)
 
   def bijection[A, B](
     f: NodeEncoder[A],
