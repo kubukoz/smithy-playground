@@ -55,7 +55,7 @@ lazy val vscode = projectMatrix
     crossScalaVersions := commonScalaVersions,
     moduleName := "smithy-playground-vscode",
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.12"
+      "org.http4s" %%% "http4s-ember-client" % "0.23.13"
     ),
     commonSettings,
   )
@@ -82,8 +82,8 @@ lazy val cli = projectMatrix
   .settings(
     commonSettings,
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.12",
-      "com.monovore" %% "decline-effect" % "2.2.0",
+      "org.http4s" %%% "http4s-ember-client" % "0.23.13",
+      "com.monovore" %% "decline-effect" % "2.3.0",
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
     ),
   )
