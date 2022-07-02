@@ -39,7 +39,7 @@ object vscodeutil {
       workspace
         .onDidSaveTextDocument
         .apply(
-          performHighlight,
+          performHighlight(_),
           (),
           (),
         ),

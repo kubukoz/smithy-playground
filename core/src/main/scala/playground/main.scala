@@ -340,7 +340,7 @@ object Runner {
           }
         )
 
-      val getInternal: IorNel[Issue, Runner[F]] = runners.reduce(
+      val getInternal: IorNel[Issue, Runner[F]] = runners.reduceLeft(
         IorUtils.orElseCombine[NonEmptyList[Issue], Runner[F]]
       )
 
