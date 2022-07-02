@@ -3,14 +3,15 @@ import scala.sys.process._
 def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
 
 val compilerPlugins = List(
-  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.15")
+  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.15"),
+  crossPlugin("org.typelevel" % "kind-projector" % "0.13.2"),
 )
 
 ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val commonScalaVersions = Seq("3.1.1")
+val commonScalaVersions = Seq("2.13.8")
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
@@ -24,7 +25,7 @@ val commonSettings = Seq(
   libraryDependencies ++= compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
-  scalacOptions += "-scalajs",
+  scalacOptions ++= Seq("-Xsource:3.0"),
 )
 
 lazy val core = projectMatrix
