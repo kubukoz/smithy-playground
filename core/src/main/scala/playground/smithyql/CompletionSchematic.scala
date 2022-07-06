@@ -16,6 +16,17 @@ import org.typelevel.paiges.Doc
 import cats.data.NonEmptyList
 import playground.smithyql.CompletionItem.InsertUseClause.Required
 import playground.smithyql.CompletionItem.InsertUseClause.NotRequired
+import smithy4s.schema.Schema
+import smithy4s.schema.Schema.EnumerationSchema
+import smithy4s.schema.Schema.BijectionSchema
+import smithy4s.schema.Schema.UnionSchema
+import smithy4s.schema.Schema.LazySchema
+import smithy4s.schema.Schema.SetSchema
+import smithy4s.schema.Schema.ListSchema
+import smithy4s.schema.Schema.MapSchema
+import smithy4s.schema.Schema.SurjectionSchema
+import smithy4s.schema.Schema.PrimitiveSchema
+import smithy4s.schema.Schema.StructSchema
 
 object CompletionSchematic {
   type ResultR[+A] = List[PathEntry] => List[CompletionItem]
@@ -67,18 +78,36 @@ object CompletionItem {
     label: String,
     insertText: InsertText,
     hints: Hints,
+    schema: Schema[_],
   ): CompletionItem = CompletionItem(
     kind = kind,
     label = label,
     insertText = insertText,
     deprecated = hints.get(smithy.api.Deprecated).isDefined,
-    detail = typeAnnotationShort(hints.get(ShapeId).get),
+    detail = typeAnnotationShort(schema),
     description = hints.get(ShapeId).get.namespace.some,
     docs = buildDocumentation(hints),
     extraTextEdits = Nil,
   )
 
-  def typeAnnotationShort(shapeId: ShapeId): String = s": ${shapeId.name}"
+  def describeType(tpe: Schema[_]): String =
+    tpe match {
+      case EnumerationSchema(shapeId, _, _, _) => s"enum ${shapeId.name}"
+      case BijectionSchema(underlying, _, _)   => describeType(underlying)
+      case UnionSchema(shapeId, _, _, _)       => s"union ${shapeId.name}"
+      case LazySchema(suspend)                 => describeType(suspend.value)
+      case SetSchema(shapeId, _, member) =>
+        s"set ${shapeId.name} { member: ${describeType(member)} }"
+      case ListSchema(shapeId, _, member) =>
+        s"list ${shapeId.name} { member: ${describeType(member)} }"
+      case MapSchema(shapeId, _, key, value) =>
+        s"map ${shapeId.name} { key: ${describeType(key)}, value: ${describeType(value)} }"
+      case SurjectionSchema(underlying, _, _) => describeType(underlying)
+      case PrimitiveSchema(shapeId, _, _)     => shapeId.name
+      case StructSchema(shapeId, _, _, _)     => s"struct ${shapeId.name}"
+    }
+
+  def typeAnnotationShort(schema: Schema[_]): String = s": ${describeType(schema)}"
 
   sealed trait InsertUseClause extends Product with Serializable
 
