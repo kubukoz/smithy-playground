@@ -225,12 +225,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     fs: Result[S]
   ): Result[List[S]] = Hinted.static[ResultR, List[S]] {
     case PathEntry.CollectionEntry :: rest => fs.get(rest)
-    case Nil                               =>
-      // todo: suggest completion based on item kind, e.g.
-      // for structs, offer an object literal {}
-      Nil
-
-    case _ =>
+    case _                                 =>
       // other contexts are invalid
       Nil
   }
