@@ -38,7 +38,13 @@ structure CreateHeroInput {
   @httpQuery("verbose")
   verbose: Boolean,
 
-  powers: Powers
+  powers: Powers,
+
+  friends: Friends
+}
+
+list Friends {
+  member: Hero
 }
 
 structure CreateHeroOutput {

@@ -36,6 +36,7 @@ object client {
             hero: Hero,
             verbose: Option[Boolean],
             powers: Option[List[Power]],
+            friends: Option[List[Hero]],
           ): F[CreateHeroOutput] =
             hero match {
               case BadCase(bad) if bad.evilName == "die" =>

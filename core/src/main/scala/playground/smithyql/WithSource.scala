@@ -9,6 +9,10 @@ import cats.implicits._
 import cats.kernel.Eq
 import cats.~>
 import cats.Show
+import playground.smithyql.WithSource.NodeContext.PathEntry.CollectionEntry
+import playground.smithyql.WithSource.NodeContext.PathEntry.StructValue
+import playground.smithyql.WithSource.NodeContext.InputContext
+import playground.smithyql.WithSource.NodeContext.OperationContext
 
 // todo: multiline
 final case class Comment(text: String) extends AnyVal
@@ -54,15 +58,28 @@ object WithSource {
   implicit def showWithSource[A]: Show[WithSource[A]] = Show.fromToString
 
   // The path to a position in the parsed source
-  sealed trait NodeContext extends Product with Serializable
+  sealed trait NodeContext extends Product with Serializable {
+    def render: String
+  }
 
   object NodeContext {
-    final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext
+
+    final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext {
+      def render: String = ".operationName"
+    }
 
     final case class InputContext(context: Chain[PathEntry]) extends NodeContext {
       def append(elem: PathEntry) = copy(context.append(elem))
 
       def toList = context.toList
+
+      def render: String = context
+        .map {
+          case CollectionEntry  => "[]"
+          case StructValue(key) => s".$key"
+        }
+        .mkString_(".input", "", "")
+
     }
 
     object InputContext {
@@ -81,8 +98,12 @@ object WithSource {
   def atPosition(q: Query[WithSource])(pos: Position): Option[NodeContext] = {
     val ctx = NodeContext.InputContext.root
 
-    findInOperationName(q.operationName, pos)
+    val result = findInOperationName(q.operationName, pos)
       .orElse(findInNode(q.input, pos, ctx))
+
+    println("result: " + result.map(_.render))
+
+    result
   }
 
   private def findInOperationName(
@@ -135,7 +156,13 @@ object WithSource {
     struct: WithSource[Struct[WithSource]],
     pos: Position,
     ctx: NodeContext.InputContext,
-  ): Option[NodeContext] =
+  ): Option[NodeContext] = {
+    // todo: if this is true, add new entry to ctx
+    // which will be required in struct completions (head of context).
+    // if it's missing and Nil is provided at the struct completion,
+    // we'll return a struct template (presumably empty).
+    println("struct.fields.range matches? " + struct.value.fields.range.contains(pos))
+
     // Struct fields that allow nesting in them
     struct
       .value
@@ -148,6 +175,7 @@ object WithSource {
       }
       .flatten
       .headOption
+  }
 
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
