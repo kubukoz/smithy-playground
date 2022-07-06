@@ -73,38 +73,51 @@ object WithSource {
 
     object PathEntry {
       final case class StructValue(key: String) extends PathEntry
+      case object CollectionEntry extends PathEntry
     }
 
   }
 
   def atPosition(q: Query[WithSource])(pos: Position): Option[NodeContext] = {
-    val op =
-      if (q.operationName.range.contains(pos))
-        NodeContext.OperationContext(q.operationName).some
-      else
-        None
+    val ctx = NodeContext.InputContext.root
 
-    val input = findInNode(q.input, pos, NodeContext.InputContext.root)
-
-    op.orElse(input)
+    findInOperationName(q.operationName, pos)
+      .orElse(findInNode(q.input, pos, ctx))
   }
+
+  private def findInOperationName(
+    operationName: WithSource[OperationName],
+    pos: Position,
+  ): Option[NodeContext.OperationContext] =
+    if (operationName.range.contains(pos))
+      NodeContext.OperationContext(operationName).some
+    else
+      None
 
   private def findInNode(
     node: WithSource[InputNode[WithSource]],
     pos: Position,
     ctx: NodeContext.InputContext,
   ): Option[NodeContext] = {
-    val entireNode = Option.when(node.range.contains(pos))(ctx)
+    def entireNode(ctx: NodeContext.InputContext) = Option.when(node.range.contains(pos))(ctx)
 
-    val inside =
-      node.value match {
-        case l @ Listed(_) => findInList(node.copy(value = l), pos, ctx)
-        case s @ Struct(_) => findInStruct(node.copy(value = s), pos, ctx)
-        case _             => None // not supported yet
-      }
+    node.value match {
+      case l @ Listed(_) =>
+        val newCtx = ctx.append(NodeContext.PathEntry.CollectionEntry)
 
-    inside
-      .orElse(entireNode)
+        findInList(node.copy(value = l), pos, newCtx)
+          .orElse(entireNode(newCtx))
+
+      case s @ Struct(_) =>
+        findInStruct(node.copy(value = s), pos, ctx)
+          .orElse(entireNode(ctx))
+
+      case _ =>
+        // Default case: can be triggered e.g. inside a string literal
+        // which would affect completions of enum values and timestamps.
+        entireNode(ctx)
+    }
+
   }
 
   private def findInList(

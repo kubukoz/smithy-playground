@@ -71,11 +71,13 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
 
+    val expected = WithSource
+      .NodeContext
+      .InputContext(Chain(StructValue("root"), CollectionEntry))
+
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
-          .InputContext(Chain(StructValue("root")))
+        expected
       )
     )
   }
@@ -85,7 +87,8 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
     )
 
-    assert(actual == Some(WithSource.NodeContext.InputContext(Chain(StructValue("root")))))
+    val expected = WithSource.NodeContext.InputContext(Chain(StructValue("root"), CollectionEntry))
+    assert(actual == Some(expected))
   }
 
   test("atPosition - on nested item in list") {
@@ -95,7 +98,9 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource.NodeContext.InputContext(Chain(StructValue("root"), StructValue("mid")))
+        WithSource
+          .NodeContext
+          .InputContext(Chain(StructValue("root"), CollectionEntry, StructValue("mid")))
       )
     )
   }

@@ -32,7 +32,11 @@ object client {
     val fakeClient = SimpleRestJsonBuilder
       .routes {
         new DemoService[F] {
-          def createHero(hero: Hero, verbose: Option[Boolean]): F[CreateHeroOutput] =
+          def createHero(
+            hero: Hero,
+            verbose: Option[Boolean],
+            powers: Option[List[Power]],
+          ): F[CreateHeroOutput] =
             hero match {
               case BadCase(bad) if bad.evilName == "die" =>
                 GenericServerError("generic error").raiseError[F, CreateHeroOutput]

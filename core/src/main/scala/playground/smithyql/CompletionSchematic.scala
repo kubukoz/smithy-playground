@@ -186,6 +186,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
         fromOrdinal.toList.sortBy(_._1).map(_._2).map { enumValue =>
           val label = to(enumValue)._1
 
+          // todo: add quotes if outside a string
           CompletionItem.fromHints(
             CompletionItemKind.EnumMember,
             label,
@@ -222,7 +223,17 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
 
   override def list[S](
     fs: Result[S]
-  ): Result[List[S]] = retag(fs)
+  ): Result[List[S]] = Hinted.static[ResultR, List[S]] {
+    case PathEntry.CollectionEntry :: rest => fs.get(rest)
+    case Nil                               =>
+      // todo: suggest completion based on item kind, e.g.
+      // for structs, offer an object literal {}
+      Nil
+
+    case _ =>
+      // other contexts are invalid
+      Nil
+  }
 
   override def struct[S](
     fields: Vector[Field[Result, S, _]]
