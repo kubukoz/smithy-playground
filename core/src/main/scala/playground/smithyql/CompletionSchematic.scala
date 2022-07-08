@@ -232,6 +232,8 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
       Nil
   }
 
+  override def set[S](fs: Result[S]): Result[Set[S]] = retag(list(fs))
+
   private def structLike[S](
     inBody: List[CompletionItem],
     inValue: (String, List[PathEntry]) => List[CompletionItem],
