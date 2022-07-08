@@ -106,7 +106,7 @@ list Powers {
 
 map PowerMap {
   key: Power,
-  value: Integer
+  value: Hero
 }
 
 @enum([{value: "Ice", name: "ICE"}, {value: "Fire", name: "FIRE"}, {value: "Lightning", name: "LIGHTNING"}, {value: "Wind", name: "WIND"}])

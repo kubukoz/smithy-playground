@@ -59,6 +59,8 @@ object CompletionItem {
   def fromHintedAlt[F[_]](alt: Alt[Hinted[F, *], _, _]): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
+    // todo: unions aren't only for structs: this makes an invalid assumption
+    // by inserting {} at all times
     insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
     hints = alt.instance.hints,
   )
