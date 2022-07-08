@@ -81,10 +81,10 @@ object WithSource {
         import PathEntry._
         context
           .map {
-            case CollectionEntry  => ".[]"
-            case StructValue(key) => s".$key"
-            case StructBody       => ".{}"
-            case Quotes           => ".\"\""
+            case CollectionEntry(i) => s".[${i.getOrElse("")}]"
+            case StructValue(key)   => s".$key"
+            case StructBody         => ".{}"
+            case Quotes             => ".\"\""
           }
           .mkString_(".input", "", "")
       }
@@ -99,8 +99,9 @@ object WithSource {
 
     object PathEntry {
       final case class StructValue(key: String) extends PathEntry
+      // no index if it's not in an entry - todo replace with CollectionBody?
+      final case class CollectionEntry(index: Option[Int]) extends PathEntry
       case object StructBody extends PathEntry
-      case object CollectionEntry extends PathEntry
       case object Quotes extends PathEntry
     }
 
@@ -131,7 +132,7 @@ object WithSource {
 
     node.value match {
       case l @ Listed(_) =>
-        findInList(l, pos, ctx.append(NodeContext.PathEntry.CollectionEntry))
+        findInList(l, pos, ctx)
           .orElse(entireNode(ctx))
 
       case s @ Struct(_) =>
@@ -166,15 +167,18 @@ object WithSource {
     val inItems = list
       .values
       .value
-      .find(_.range.contains(pos))
-      .flatMap(findInNode(_, pos, ctx))
+      .zipWithIndex
+      .find(_._1.range.contains(pos))
+      .flatMap { case (entry, index) =>
+        findInNode(entry, pos, ctx.append(NodeContext.PathEntry.CollectionEntry(index.some)))
+      }
 
     val inBody = list
       .values
       .range
       .contains(pos)
       .guard[Option]
-      .as(ctx)
+      .as(ctx.append(NodeContext.PathEntry.CollectionEntry(None)))
 
     inItems
       .orElse(inBody)

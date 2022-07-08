@@ -126,7 +126,7 @@ object AtPositionTests extends FunSuite {
         Chain(
           StructBody,
           StructValue("root"),
-          CollectionEntry,
+          CollectionEntry(None),
         )
       )
 
@@ -148,7 +148,7 @@ object AtPositionTests extends FunSuite {
         Chain(
           StructBody,
           StructValue("root"),
-          CollectionEntry,
+          CollectionEntry(Some(0)),
           StructBody,
         )
       )
@@ -157,7 +157,7 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - on nested item in list") {
     val actual = locateAtCursor(
-      s"""Operation { root = [ { mid = { ${CURSOR} inner = "hello", }, } ],  }"""
+      s"""Operation { root = [ {}, { mid = { ${CURSOR} inner = "hello", }, } ],  }"""
     )
 
     assert(
@@ -168,7 +168,7 @@ object AtPositionTests extends FunSuite {
             Chain(
               StructBody,
               StructValue("root"),
-              CollectionEntry,
+              CollectionEntry(Some(1)),
               StructBody,
               StructValue("mid"),
               StructBody,

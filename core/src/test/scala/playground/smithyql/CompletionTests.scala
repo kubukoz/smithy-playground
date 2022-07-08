@@ -94,7 +94,7 @@ object CompletionTests extends FunSuite {
       .get
       .apply(
         List(
-          CollectionEntry,
+          CollectionEntry(Some(0)),
           StructBody,
         )
       )

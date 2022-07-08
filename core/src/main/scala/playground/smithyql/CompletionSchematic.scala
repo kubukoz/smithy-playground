@@ -226,8 +226,8 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
   override def list[S](
     fs: Result[S]
   ): Result[List[S]] = Hinted.static[ResultR, List[S]] {
-    case PathEntry.CollectionEntry :: rest => fs.get(rest)
-    case _                                 =>
+    case PathEntry.CollectionEntry(_) :: rest => fs.get(rest)
+    case _                                    =>
       // other contexts are invalid
       Nil
   }
