@@ -144,5 +144,27 @@ object CompletionTests extends FunSuite {
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
     assert(inserts == expectedInserts)
   }
+
+  test("completions on map values (struct)") {
+    val completions = Schema
+      .map(
+        Schema.string,
+        Good.schema,
+      )
+      .compile(new CompletionSchematic)
+      .get
+      .apply(
+        List(
+          StructBody,
+          StructValue("anyKey"),
+          StructBody,
+        )
+      )
+
+    val fieldNames = completions.map(_.label)
+
+    assert(fieldNames == List("howGood")) &&
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
+  }
   // todo quoted/unquoted timestamps
 }

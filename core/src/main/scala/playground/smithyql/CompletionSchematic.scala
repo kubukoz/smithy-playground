@@ -210,22 +210,16 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
   override def map[K, V](
     fk: Result[K],
     fv: Result[V],
-  ): Result[Map[K, V]] = Hinted.static[ResultR, Map[K, V]] {
+  ): Result[Map[K, V]] = structLike(
+    inBody = fk.get(Nil).map { item =>
+      // adding " = " to underlying key's completion because it's not in the usual value position
+      item.copy(
+        insertText = InsertText.JustString(s"${item.label} = ")
+      )
 
-    case PathEntry.StructBody :: Nil =>
-      fk.get(Nil).map { item =>
-        // adding " = " to underlying key's completion because it's not in the usual value position
-        item.copy(
-          insertText = InsertText.JustString(s"${item.label} = ")
-        )
-
-      }
-
-    case _ =>
-      // completions in map items not supported yet
-      Nil
-
-  }
+    },
+    inValue = (_, t) => fv.get(t),
+  )
 
   override def list[S](
     fs: Result[S]
@@ -236,43 +230,41 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
       Nil
   }
 
+  private def structLike[S](
+    inBody: List[CompletionItem],
+    inValue: (String, List[PathEntry]) => List[CompletionItem],
+  ) = Hinted.static[ResultR, S] {
+    case PathEntry.StructBody :: Nil                              => inBody
+    case PathEntry.StructBody :: PathEntry.StructValue(h) :: rest => inValue(h, rest)
+    case _                                                        => Nil
+  }
+
   override def struct[S](
     fields: Vector[Field[Result, S, _]]
   )(
     const: Vector[Any] => S
-  ): Result[S] = Hinted.static[ResultR, S] {
-    case PathEntry.StructBody :: Nil =>
+  ): Result[S] = structLike(
+    inBody =
       fields
         // todo: filter out present fields
         .sortBy(field => (field.isRequired, field.label))
         .map(CompletionItem.fromHintedField(_))
-        .toList
-
-    case PathEntry.StructBody :: PathEntry.StructValue(h) :: rest =>
-      fields.find(_.label === h).toList.flatMap(_.instance.get(rest))
-
-    case _ =>
-      // Non-structvalue context, we can neither complete nor descend
-      Nil
-  }
+        .toList,
+    inValue = (h, rest) => fields.find(_.label === h).toList.flatMap(_.instance.get(rest)),
+  )
 
   override def union[S](
     first: Alt[Result, S, _],
     rest: Vector[Alt[Result, S, _]],
   )(
     total: S => Alt.WithValue[Result, S, _]
-  ): Result[S] = Hinted.static[ResultR, S] {
+  ): Result[S] = {
     val all = rest.prepended(first)
 
-    {
-      case PathEntry.StructBody :: Nil => all.map(CompletionItem.fromHintedAlt(_)).toList
-
-      case PathEntry.StructBody :: PathEntry.StructValue(head) :: tail =>
-        all.find(_.label === head).toList.flatMap(_.instance.get(tail))
-
-      case _ => Nil
-    }
-
+    structLike(
+      inBody = all.map(CompletionItem.fromHintedAlt(_)).toList,
+      inValue = (head, tail) => all.find(_.label === head).toList.flatMap(_.instance.get(tail)),
+    )
   }
 
   override def suspend[A](
