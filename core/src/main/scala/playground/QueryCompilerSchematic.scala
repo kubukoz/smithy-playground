@@ -17,7 +17,7 @@ import smithy4s.Timestamp
 import sourcecode.Enclosing
 
 import java.util.UUID
-
+import util.chaining._
 import PartialCompiler.WAST
 import smithy4s.Lazy
 import playground.CompilationErrorDetails._
@@ -76,6 +76,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case DuplicateItem => "Duplicate set item"
       case AmbiguousService(matching) =>
         s"""Multiple services are available. Add a use clause to specify the service you want to use.
            |Available services:""".stripMargin + matching
@@ -177,6 +178,8 @@ object CompilationErrorDetails {
   final case class RefinementFailure(msg: String) extends CompilationErrorDetails
 
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
+
+  case object DuplicateItem extends CompilationErrorDetails
 }
 
 object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
@@ -223,11 +226,33 @@ object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   val unit: PartialCompiler[Unit] = PartialCompiler.unit
 
-  def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = PartialCompiler
+  private def listWithPos[S](
+    fs: PartialCompiler[S]
+  ): PartialCompiler[List[(S, SourceRange)]] = PartialCompiler
     .typeCheck(NodeKind.Listed) { case l @ Listed(_) => l }
-    .emap(_.value.values.value.parTraverse(fs.compile))
+    .emap(
+      _.value
+        .values
+        .value
+        .parTraverse { item =>
+          (fs, PartialCompiler.pos).tupled.compile(item)
+        }
+    )
 
-  def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = unsupported
+  def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = listWithPos(fs).map(_.map(_._1))
+
+  def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = listWithPos(fs).emap { items =>
+    // todo: this is based on instance equality, so it's completely broken in Dynamic
+    items
+      .groupBy(_._1)
+      .map(_._2)
+      .filter(_.sizeIs > 1)
+      .flatMap(_.map(_._2))
+      .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
+      .toList
+      .pipe(NonEmptyChain.fromSeq(_))
+      .toLeftIor(items.map(_._1).toSet)
+  }
 
   def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] =
     PartialCompiler

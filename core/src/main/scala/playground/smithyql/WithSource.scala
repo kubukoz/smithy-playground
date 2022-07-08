@@ -35,6 +35,10 @@ final case class SourceRange(start: Position, end: Position) {
 
 }
 
+object SourceRange {
+  implicit val show: Show[SourceRange] = Show.fromToString
+}
+
 final case class WithSource[+A](
   commentsLeft: List[Comment],
   commentsRight: List[Comment],
@@ -43,6 +47,8 @@ final case class WithSource[+A](
 ) {
   def allComments(valueComments: A => List[Comment]): List[Comment] =
     commentsLeft ++ valueComments(value) ++ commentsRight
+
+  def withRange(range: SourceRange): WithSource[A] = copy(range = range)
 }
 
 object WithSource {
