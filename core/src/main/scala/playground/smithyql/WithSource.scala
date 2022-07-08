@@ -131,14 +131,11 @@ object WithSource {
 
     node.value match {
       case l @ Listed(_) =>
-        val newCtx = ctx.append(NodeContext.PathEntry.CollectionEntry)
-
-        findInList(node.copy(value = l), pos, newCtx)
-          .orElse(entireNode(newCtx))
+        findInList(l, pos, ctx.append(NodeContext.PathEntry.CollectionEntry))
+          .orElse(entireNode(ctx))
 
       case s @ Struct(_) =>
-        val newCtx = ctx.append(NodeContext.PathEntry.StructBody)
-        findInStruct(node.copy(value = s), pos, newCtx)
+        findInStruct(s, pos, ctx.append(NodeContext.PathEntry.StructBody))
           .orElse(entireNode(ctx))
 
       case StringLiteral(_) =>
@@ -162,18 +159,29 @@ object WithSource {
   }
 
   private def findInList(
-    list: WithSource[Listed[WithSource]],
+    list: Listed[WithSource],
     pos: Position,
     ctx: NodeContext.InputContext,
-  ): Option[NodeContext] = list
-    .value
-    .values
-    .value
-    .find(_.range.contains(pos))
-    .flatMap(findInNode(_, pos, ctx))
+  ): Option[NodeContext] = {
+    val inItems = list
+      .values
+      .value
+      .find(_.range.contains(pos))
+      .flatMap(findInNode(_, pos, ctx))
+
+    val inBody = list
+      .values
+      .range
+      .contains(pos)
+      .guard[Option]
+      .as(ctx)
+
+    inItems
+      .orElse(inBody)
+  }
 
   private def findInStruct(
-    struct: WithSource[Struct[WithSource]],
+    struct: Struct[WithSource],
     pos: Position,
     ctx: NodeContext.InputContext,
   ): Option[NodeContext] =
@@ -181,7 +189,6 @@ object WithSource {
     {
       val inFields =
         struct
-          .value
           .fields
           .value
           .value
@@ -192,7 +199,7 @@ object WithSource {
           .flatten
           .headOption
 
-      val inBody = struct.value.fields.range.contains(pos).guard[Option].as(ctx)
+      val inBody = struct.fields.range.contains(pos).guard[Option].as(ctx)
 
       inFields
         .orElse(inBody)

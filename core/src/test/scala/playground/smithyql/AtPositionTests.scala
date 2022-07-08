@@ -96,6 +96,27 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - on list") {
     val actual = locateAtCursor(
+      s"""Operation { root = ${CURSOR}[ { mid = { inner = "hello", }, } ],  }"""
+    )
+
+    val expected = WithSource
+      .NodeContext
+      .InputContext(
+        Chain(
+          StructBody,
+          StructValue("root"),
+        )
+      )
+
+    assert(
+      actual == Some(
+        expected
+      )
+    )
+  }
+
+  test("atPosition - inside list") {
+    val actual = locateAtCursor(
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
 

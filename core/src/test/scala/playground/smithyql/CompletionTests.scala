@@ -77,6 +77,16 @@ object CompletionTests extends FunSuite {
     assert(completionsOnAlt == completionsOnStruct)
   }
 
+  test("no completions on collection without entry") {
+    val completions = Schema
+      .list(Good.schema)
+      .compile(new CompletionSchematic)
+      .get
+      .apply(Nil)
+
+    assert(completions.isEmpty)
+  }
+
   test("completions on struct in list are available") {
     val completions = Schema
       .list(Good.schema)
