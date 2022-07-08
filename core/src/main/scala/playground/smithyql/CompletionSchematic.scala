@@ -16,6 +16,7 @@ import org.typelevel.paiges.Doc
 import cats.data.NonEmptyList
 import playground.smithyql.CompletionItem.InsertUseClause.Required
 import playground.smithyql.CompletionItem.InsertUseClause.NotRequired
+import playground.TextUtils
 
 object CompletionSchematic {
   type ResultR[+A] = List[PathEntry] => List[CompletionItem]
@@ -181,19 +182,24 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     fromName: Map[String, A],
     fromOrdinal: Map[Int, A],
   ): Result[A] = Hinted[ResultR].from { hints =>
-    {
-      case Nil =>
-        fromOrdinal.toList.sortBy(_._1).map(_._2).map { enumValue =>
-          val label = to(enumValue)._1
+    def completeEnum(transformString: String => String) = fromOrdinal
+      .toList
+      .sortBy(_._1)
+      .map(_._2)
+      .map { enumValue =>
+        val label = to(enumValue)._1
 
-          // todo: add quotes if outside a string
-          CompletionItem.fromHints(
-            CompletionItemKind.EnumMember,
-            label,
-            InsertText.JustString(label),
-            hints,
-          )
-        }
+        CompletionItem.fromHints(
+          CompletionItemKind.EnumMember,
+          label,
+          InsertText.JustString(transformString(label)),
+          hints,
+        )
+      }
+
+    {
+      case PathEntry.Quotes :: Nil => completeEnum(identity)
+      case Nil                     => completeEnum(TextUtils.quote)
 
       case _ =>
         // todo: this seems impossible tbh
@@ -206,7 +212,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     fv: Result[V],
   ): Result[Map[K, V]] = Hinted.static[ResultR, Map[K, V]] {
 
-    case Nil =>
+    case PathEntry.StructBody :: Nil =>
       fk.get(Nil).map { item =>
         // adding " = " to underlying key's completion because it's not in the usual value position
         item.copy(

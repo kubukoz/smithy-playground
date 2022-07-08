@@ -40,7 +40,9 @@ structure CreateHeroInput {
 
   powers: Powers,
 
-  friends: Friends
+  powerMap: PowerMap,
+
+  friends: Friends,
 }
 
 list Friends {
@@ -100,6 +102,11 @@ structure GetPowersOutput {
 
 list Powers {
   member: Power
+}
+
+map PowerMap {
+  key: Power,
+  value: Integer
 }
 
 @enum([{value: "Ice", name: "ICE"}, {value: "Fire", name: "FIRE"}, {value: "Lightning", name: "LIGHTNING"}, {value: "Wind", name: "WIND"}])

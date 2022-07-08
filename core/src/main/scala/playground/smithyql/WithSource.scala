@@ -25,6 +25,14 @@ object Position {
 
 final case class SourceRange(start: Position, end: Position) {
   def contains(pos: Position): Boolean = pos.index >= start.index && pos.index <= end.index
+
+  // Assuming this range corresponds to a bracket/brace/quote etc.,
+  // shrink it by one character on each side.
+  def shrink1: SourceRange = copy(
+    start = start.copy(index = start.index + 1),
+    end = end.copy(index = end.index - 1),
+  )
+
 }
 
 final case class WithSource[+A](
@@ -73,9 +81,10 @@ object WithSource {
         import PathEntry._
         context
           .map {
-            case CollectionEntry  => "[]"
+            case CollectionEntry  => ".[]"
             case StructValue(key) => s".$key"
-            case StructBody       => "{}"
+            case StructBody       => ".{}"
+            case Quotes           => ".\"\""
           }
           .mkString_(".input", "", "")
       }
@@ -92,6 +101,7 @@ object WithSource {
       final case class StructValue(key: String) extends PathEntry
       case object StructBody extends PathEntry
       case object CollectionEntry extends PathEntry
+      case object Quotes extends PathEntry
     }
 
   }
@@ -99,12 +109,8 @@ object WithSource {
   def atPosition(q: Query[WithSource])(pos: Position): Option[NodeContext] = {
     val ctx = NodeContext.InputContext.root
 
-    val result = findInOperationName(q.operationName, pos)
+    findInOperationName(q.operationName, pos)
       .orElse(findInNode(q.input, pos, ctx))
-
-    println("result: " + result.map(_.render))
-
-    result
   }
 
   private def findInOperationName(
@@ -134,6 +140,18 @@ object WithSource {
         val newCtx = ctx.append(NodeContext.PathEntry.StructBody)
         findInStruct(node.copy(value = s), pos, newCtx)
           .orElse(entireNode(ctx))
+
+      case StringLiteral(_) =>
+        val inQuotes = node
+          .range
+          .shrink1
+          .contains(pos)
+          .guard[Option]
+          .as(
+            ctx.append(NodeContext.PathEntry.Quotes)
+          )
+
+        inQuotes.orElse(entireNode(ctx))
 
       case _ =>
         // Default case: can be triggered e.g. inside a string literal

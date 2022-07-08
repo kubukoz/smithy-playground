@@ -36,6 +36,7 @@ object client {
             hero: Hero,
             verbose: Option[Boolean],
             powers: Option[List[Power]],
+            powerMap: Option[Map[Power, Int]],
             friends: Option[List[Hero]],
           ): F[CreateHeroOutput] =
             hero match {

@@ -5,6 +5,7 @@ import demo.smithy.Good
 import smithy4s.schema.Schema
 import playground.smithyql.WithSource.NodeContext.PathEntry._
 import demo.smithy.Hero
+import demo.smithy.Power
 
 object CompletionTests extends FunSuite {
   test("completions on struct are empty without StructBody") {
@@ -92,4 +93,56 @@ object CompletionTests extends FunSuite {
 
     assert(fieldNames == List("howGood"))
   }
+
+  test("completions on enum without quotes have quotes") {
+    val completions = Power
+      .schema
+      .compile(new CompletionSchematic)
+      .get
+      .apply(Nil)
+
+    val inserts = completions.map(_.insertText)
+    val expectedInserts = List("Ice", "Fire", "Lightning", "Wind")
+      .map(s => s"\"$s\"")
+      .map(InsertText.JustString(_))
+
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
+    assert(inserts == expectedInserts)
+  }
+
+  test("completions on enum in quotes don't have quotes") {
+    val completions = Power
+      .schema
+      .compile(new CompletionSchematic)
+      .get
+      .apply(List(Quotes))
+
+    val inserts = completions.map(_.insertText)
+    val expectedInserts = List("Ice", "Fire", "Lightning", "Wind")
+      .map(InsertText.JustString(_))
+
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
+    assert(inserts == expectedInserts)
+  }
+
+  test("completions on map keys that are enums") {
+    val completions = Schema
+      .map(
+        Power.schema,
+        Schema.unit,
+      )
+      .compile(new CompletionSchematic)
+      .get
+      .apply(List(StructBody))
+
+    val inserts = completions.map(_.insertText)
+
+    val expectedInserts = List("Ice", "Fire", "Lightning", "Wind")
+      .map(_ + " = ")
+      .map(InsertText.JustString(_))
+
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
+    assert(inserts == expectedInserts)
+  }
+  // todo quoted/unquoted timestamps
 }

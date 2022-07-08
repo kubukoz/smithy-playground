@@ -22,6 +22,7 @@ import PartialCompiler.WAST
 import smithy4s.Lazy
 import playground.CompilationErrorDetails._
 import smithy4s.Refinement
+import cats.Id
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -238,7 +239,7 @@ object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
           .parTraverse { case (k, v) =>
             (
               fk.compile(k.map { key =>
-                StringLiteral[WithSource](key.text)
+                StringLiteral[Id](key.text).mapK(WithSource.liftId)
               }),
               fv.compile(v),
             ).parTupled

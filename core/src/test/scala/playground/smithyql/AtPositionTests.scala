@@ -25,6 +25,10 @@ object AtPositionTests extends FunSuite {
     WithSource.atPosition(parsed)(position)
   }
 
+  def assertFound(actual: Option[WithSource.NodeContext], expected: WithSource.NodeContext) =
+    assert(actual == Some(expected)) &&
+      assert.eql(actual.map(_.render), Some(expected.render))
+
   test("atPosition - 1 level deep") {
     val actual = locateAtCursor(
       s"""Operation { root = { ${CURSOR}mid = { child = "hello", }, }, }"""
@@ -192,9 +196,28 @@ object AtPositionTests extends FunSuite {
     )
   }
 
-  test("atPosition - on string field") {
+  test("atPosition - on field outside quotes") {
     val actual = locateAtCursor(
-      s"""Operation { root = { mid = { child = "${CURSOR}", }, }, }"""
+      s"""Operation { field = $CURSOR"", }"""
+    )
+
+    assertFound(
+      actual,
+      WithSource
+        .NodeContext
+        .InputContext(
+          Chain(
+            StructBody,
+            StructValue("field"),
+          )
+        ),
+    )
+
+  }
+
+  test("atPosition - on string field in quotes") {
+    val actual = locateAtCursor(
+      s"""Operation { field = "$CURSOR", }"""
     )
 
     assert(
@@ -204,11 +227,8 @@ object AtPositionTests extends FunSuite {
           .InputContext(
             Chain(
               StructBody,
-              StructValue("root"),
-              StructBody,
-              StructValue("mid"),
-              StructBody,
-              StructValue("child"),
+              StructValue("field"),
+              Quotes,
             )
           )
       )
