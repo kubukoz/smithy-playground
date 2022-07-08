@@ -235,14 +235,14 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
   )(
     const: Vector[Any] => S
   ): Result[S] = Hinted.static[ResultR, S] {
-    case Nil =>
+    case PathEntry.StructBody :: Nil =>
       fields
         // todo: filter out present fields
         .sortBy(field => (field.isRequired, field.label))
         .map(CompletionItem.fromHintedField(_))
         .toList
 
-    case PathEntry.StructValue(h) :: rest =>
+    case PathEntry.StructBody :: PathEntry.StructValue(h) :: rest =>
       fields.find(_.label === h).toList.flatMap(_.instance.get(rest))
 
     case _ =>
@@ -259,9 +259,9 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     val all = rest.prepended(first)
 
     {
-      case Nil => all.map(CompletionItem.fromHintedAlt(_)).toList
+      case PathEntry.StructBody :: Nil => all.map(CompletionItem.fromHintedAlt(_)).toList
 
-      case PathEntry.StructValue(head) :: tail =>
+      case PathEntry.StructBody :: PathEntry.StructValue(head) :: tail =>
         all.find(_.label === head).toList.flatMap(_.instance.get(tail))
 
       case _ => Nil

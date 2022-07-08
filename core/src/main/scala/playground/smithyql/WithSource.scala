@@ -9,10 +9,6 @@ import cats.implicits._
 import cats.kernel.Eq
 import cats.~>
 import cats.Show
-import playground.smithyql.WithSource.NodeContext.PathEntry.CollectionEntry
-import playground.smithyql.WithSource.NodeContext.PathEntry.StructValue
-import playground.smithyql.WithSource.NodeContext.InputContext
-import playground.smithyql.WithSource.NodeContext.OperationContext
 
 // todo: multiline
 final case class Comment(text: String) extends AnyVal
@@ -73,12 +69,16 @@ object WithSource {
 
       def toList = context.toList
 
-      def render: String = context
-        .map {
-          case CollectionEntry  => "[]"
-          case StructValue(key) => s".$key"
-        }
-        .mkString_(".input", "", "")
+      def render: String = {
+        import PathEntry._
+        context
+          .map {
+            case CollectionEntry  => "[]"
+            case StructValue(key) => s".$key"
+            case StructBody       => "{}"
+          }
+          .mkString_(".input", "", "")
+      }
 
     }
 
@@ -90,6 +90,7 @@ object WithSource {
 
     object PathEntry {
       final case class StructValue(key: String) extends PathEntry
+      case object StructBody extends PathEntry
       case object CollectionEntry extends PathEntry
     }
 
@@ -130,7 +131,8 @@ object WithSource {
           .orElse(entireNode(newCtx))
 
       case s @ Struct(_) =>
-        findInStruct(node.copy(value = s), pos, ctx)
+        val newCtx = ctx.append(NodeContext.PathEntry.StructBody)
+        findInStruct(node.copy(value = s), pos, newCtx)
           .orElse(entireNode(ctx))
 
       case _ =>
@@ -156,26 +158,27 @@ object WithSource {
     struct: WithSource[Struct[WithSource]],
     pos: Position,
     ctx: NodeContext.InputContext,
-  ): Option[NodeContext] = {
-    // todo: if this is true, add new entry to ctx
-    // which will be required in struct completions (head of context).
-    // if it's missing and Nil is provided at the struct completion,
-    // we'll return a struct template (presumably empty).
-    println("struct.fields.range matches? " + struct.value.fields.range.contains(pos))
-
+  ): Option[NodeContext] =
     // Struct fields that allow nesting in them
-    struct
-      .value
-      .fields
-      .value
-      .value
-      .view
-      .map { case (k, v) =>
-        findInNode(v, pos, ctx.append(NodeContext.PathEntry.StructValue(k.value.text)))
-      }
-      .flatten
-      .headOption
-  }
+    {
+      val inFields =
+        struct
+          .value
+          .fields
+          .value
+          .value
+          .view
+          .map { case (k, v) =>
+            findInNode(v, pos, ctx.append(NodeContext.PathEntry.StructValue(k.value.text)))
+          }
+          .flatten
+          .headOption
+
+      val inBody = struct.value.fields.range.contains(pos).guard[Option].as(ctx)
+
+      inFields
+        .orElse(inBody)
+    }
 
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 

@@ -30,7 +30,19 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = { ${CURSOR}mid = { child = "hello", }, }, }"""
     )
 
-    assert(actual == Some(WithSource.NodeContext.InputContext(Chain(StructValue("root")))))
+    assert(
+      actual == Some(
+        WithSource
+          .NodeContext
+          .InputContext(
+            Chain(
+              StructBody,
+              StructValue("root"),
+              StructBody,
+            )
+          )
+      )
+    )
   }
 
   test("atPosition - 2 levels deep") {
@@ -40,7 +52,17 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource.NodeContext.InputContext(Chain(StructValue("root"), StructValue("mid")))
+        WithSource
+          .NodeContext
+          .InputContext(
+            Chain(
+              StructBody,
+              StructValue("root"),
+              StructBody,
+              StructValue("mid"),
+              StructBody,
+            )
+          )
       )
     )
   }
@@ -50,17 +72,19 @@ object AtPositionTests extends FunSuite {
       s"""Operat${CURSOR}ion { root = { mid = { child = "hello", }, }, }"""
     )
 
+    val op = WithSource(
+      commentsLeft = Nil,
+      commentsRight = Nil,
+      range = SourceRange(Position(0), Position("Operation".length)),
+      value = OperationName("Operation"),
+    )
+
     assert(
       actual == Some(
         WithSource
           .NodeContext
           .OperationContext(
-            WithSource(
-              commentsLeft = Nil,
-              commentsRight = Nil,
-              range = SourceRange(Position(0), Position("Operation".length)),
-              value = OperationName("Operation"),
-            )
+            op
           )
       )
     )
@@ -73,7 +97,13 @@ object AtPositionTests extends FunSuite {
 
     val expected = WithSource
       .NodeContext
-      .InputContext(Chain(StructValue("root"), CollectionEntry))
+      .InputContext(
+        Chain(
+          StructBody,
+          StructValue("root"),
+          CollectionEntry,
+        )
+      )
 
     assert(
       actual == Some(
@@ -87,7 +117,16 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = WithSource.NodeContext.InputContext(Chain(StructValue("root"), CollectionEntry))
+    val expected = WithSource
+      .NodeContext
+      .InputContext(
+        Chain(
+          StructBody,
+          StructValue("root"),
+          CollectionEntry,
+          StructBody,
+        )
+      )
     assert(actual == Some(expected))
   }
 
@@ -100,7 +139,55 @@ object AtPositionTests extends FunSuite {
       actual == Some(
         WithSource
           .NodeContext
-          .InputContext(Chain(StructValue("root"), CollectionEntry, StructValue("mid")))
+          .InputContext(
+            Chain(
+              StructBody,
+              StructValue("root"),
+              CollectionEntry,
+              StructBody,
+              StructValue("mid"),
+              StructBody,
+            )
+          )
+      )
+    )
+  }
+
+  test("atPosition - around struct ") {
+    val actual = locateAtCursor(
+      s"""Operation { root = $CURSOR{ }, }"""
+    )
+
+    assert(
+      actual == Some(
+        WithSource
+          .NodeContext
+          .InputContext(
+            Chain(
+              StructBody,
+              StructValue("root"),
+            )
+          )
+      )
+    )
+  }
+
+  test("atPosition - in struct") {
+    val actual = locateAtCursor(
+      s"""Operation { root = {$CURSOR}, }"""
+    )
+
+    assert(
+      actual == Some(
+        WithSource
+          .NodeContext
+          .InputContext(
+            Chain(
+              StructBody,
+              StructValue("root"),
+              StructBody,
+            )
+          )
       )
     )
   }
@@ -114,7 +201,16 @@ object AtPositionTests extends FunSuite {
       actual == Some(
         WithSource
           .NodeContext
-          .InputContext(Chain(StructValue("root"), StructValue("mid"), StructValue("child")))
+          .InputContext(
+            Chain(
+              StructBody,
+              StructValue("root"),
+              StructBody,
+              StructValue("mid"),
+              StructBody,
+              StructValue("child"),
+            )
+          )
       )
     )
   }
