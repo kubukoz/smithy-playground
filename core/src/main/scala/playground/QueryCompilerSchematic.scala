@@ -1,28 +1,49 @@
 package playground
 
 import cats.Apply
+import cats.Id
 import cats.data.Ior
 import cats.data.IorNec
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
 import cats.implicits._
+import playground.CompilationErrorDetails._
 import playground.smithyql._
-import smithy4s.schema.Alt
-import smithy4s.ByteArray
-import smithy4s.schema.Field
 import smithy.api.TimestampFormat
 import smithy4s.Document
-import smithy4s.Hints
 import smithy4s.Timestamp
-import sourcecode.Enclosing
+import smithy4s.schema.Alt
+import smithy4s.schema.Field
+import smithy4s.schema.Primitive.PBigDecimal
+import smithy4s.schema.Primitive.PBigInt
+import smithy4s.schema.Primitive.PBlob
+import smithy4s.schema.Primitive.PBoolean
+import smithy4s.schema.Primitive.PByte
+import smithy4s.schema.Primitive.PDocument
+import smithy4s.schema.Primitive.PDouble
+import smithy4s.schema.Primitive.PFloat
+import smithy4s.schema.Primitive.PInt
+import smithy4s.schema.Primitive.PLong
+import smithy4s.schema.Primitive.PShort
+import smithy4s.schema.Primitive.PString
+import smithy4s.schema.Primitive.PTimestamp
+import smithy4s.schema.Primitive.PUUID
+import smithy4s.schema.Primitive.PUnit
+import smithy4s.schema.Schema
+import smithy4s.schema.Schema.BijectionSchema
+import smithy4s.schema.Schema.EnumerationSchema
+import smithy4s.schema.Schema.LazySchema
+import smithy4s.schema.Schema.ListSchema
+import smithy4s.schema.Schema.MapSchema
+import smithy4s.schema.Schema.PrimitiveSchema
+import smithy4s.schema.Schema.SetSchema
+import smithy4s.schema.Schema.StructSchema
+import smithy4s.schema.Schema.SurjectionSchema
+import smithy4s.schema.Schema.UnionSchema
 
-import java.util.UUID
-
+import util.chaining._
 import PartialCompiler.WAST
-import smithy4s.Lazy
-import playground.CompilationErrorDetails._
-import smithy4s.Refinement
-import cats.Id
+import smithy4s.schema.EnumValue
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -76,6 +97,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case DuplicateItem => "Duplicate set item"
       case AmbiguousService(matching) =>
         s"""Multiple services are available. Add a use clause to specify the service you want to use.
            |Available services:""".stripMargin + matching
@@ -177,75 +199,148 @@ object CompilationErrorDetails {
   final case class RefinementFailure(msg: String) extends CompilationErrorDetails
 
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
+
+  case object DuplicateItem extends CompilationErrorDetails
 }
 
-object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
+import smithy4s.~>
 
-  def unsupported[A](implicit sc: Enclosing): PartialCompiler[A] =
+object QueryCompilerSchematic extends (Schema ~> PartialCompiler) {
+
+  def apply[A](fa: Schema[A]): PartialCompiler[A] =
+    fa match {
+      case PrimitiveSchema(_, _, tag) =>
+        tag match {
+          case PString => string
+          case PBoolean =>
+            PartialCompiler
+              .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
+              .map(_.value.value)
+          case PUnit => _ => ().rightIor
+          case PInt =>
+            PartialCompiler
+              .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
+              .map(_.value.value)
+          case PDocument   => document
+          case PShort      => unsupported("short")
+          case PBlob       => unsupported("blob")
+          case PByte       => unsupported("byte")
+          case PBigDecimal => unsupported("bigDecimal")
+          case PDouble     => unsupported("double")
+          case PBigInt     => unsupported("bigint")
+          case PUUID       => unsupported("uuid")
+          case PLong       => unsupported("long")
+          case PFloat      => unsupported("float")
+          case PTimestamp =>
+            stringLiteral.emap { s =>
+              // todo unhardcode format
+              val format = TimestampFormat.DATE_TIME
+              Timestamp
+                // todo: also, this keeps throwing in an uncatchable way in JS
+                .parse(s.value, format)
+                .toRightIor(
+                  CompilationError(
+                    InvalidTimestampFormat(format),
+                    s.range,
+                  )
+                )
+                .toIorNec
+            }
+        }
+      case EnumerationSchema(_, _, values, _) => enumeration(values)
+      case ListSchema(_, _, member)           => listWithPos(member.compile(this)).map(_.map(_._1))
+      case BijectionSchema(underlying, to, _) => underlying.compile(this).map(to)
+      case StructSchema(_, _, fields, make)   => struct(fields.map(f => f.mapK(this)))(make)
+      case SetSchema(_, _, member) =>
+        val memberToDoc = Document.Encoder.fromSchema(member)
+
+        listWithPos(member.compile(this)).emap { items =>
+          items
+            .groupBy { case (v, _) => memberToDoc.encode(v) }
+            .map(_._2)
+            .filter(_.sizeIs > 1)
+            .flatMap(_.map(_._2))
+            .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
+            .toList
+            .pipe(NonEmptyChain.fromSeq(_))
+            .toLeftIor(items.map(_._1).toSet)
+        }
+      case SurjectionSchema(underlying, refinement, _) =>
+        (underlying.compile(this), PartialCompiler.pos).tupled.emap { case (a, pos) =>
+          refinement(a)
+            .toIor
+            .leftMap { msg =>
+              CompilationError(
+                CompilationErrorDetails.RefinementFailure(msg),
+                pos,
+              )
+            }
+            .toIorNec
+        }
+      case MapSchema(_, _, key, value) => map(key.compile(this), value.compile(this))
+      case LazySchema(suspend) =>
+        val it = suspend.map(_.compile(this))
+
+        it.value.compile(_)
+
+      case u @ UnionSchema(_, _, _, _) => compileUnion(u)
+    }
+
+  def unsupported[A](ctx: String): PartialCompiler[A] =
     ast =>
       Ior.leftNec(
         CompilationError(
-          UnsupportedNode(sc.value),
+          UnsupportedNode(ctx),
           ast.range,
         )
       )
 
-  def short: PartialCompiler[Short] = unsupported
-
-  val int: PartialCompiler[Int] = PartialCompiler
-    .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
-    .map(_.value.value)
-
-  def long: PartialCompiler[Long] = unsupported
-
-  def double: PartialCompiler[Double] = unsupported
-
-  def float: PartialCompiler[Float] = unsupported
-
-  def bigint: PartialCompiler[BigInt] = unsupported
-
-  def bigdecimal: PartialCompiler[BigDecimal] = unsupported
-
   val stringLiteral =
     PartialCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
 
-  val string: PartialCompiler[String] = stringLiteral.map(_.value)
-
-  def boolean: PartialCompiler[Boolean] = PartialCompiler
-    .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
-    .map(_.value.value)
-
-  def uuid: PartialCompiler[UUID] = unsupported
-
-  def byte: PartialCompiler[Byte] = unsupported
-
-  def bytes: PartialCompiler[ByteArray] = unsupported
-
-  val unit: PartialCompiler[Unit] = PartialCompiler.unit
-
-  def list[S](fs: PartialCompiler[S]): PartialCompiler[List[S]] = PartialCompiler
-    .typeCheck(NodeKind.Listed) { case l @ Listed(_) => l }
-    .emap(_.value.values.value.parTraverse(fs.compile))
-
-  def set[S](fs: PartialCompiler[S]): PartialCompiler[Set[S]] = unsupported
-
-  def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] =
-    PartialCompiler
-      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
-      .emap { struct =>
-        val fields = struct.value.fields.value.value
-
+  val document: PartialCompiler[Document] =
+    _.value match {
+      case BooleanLiteral(value) => Document.fromBoolean(value).pure[PartialCompiler.Result]
+      case IntLiteral(value)     => Document.fromInt(value).pure[PartialCompiler.Result]
+      case StringLiteral(value)  => Document.fromString(value).pure[PartialCompiler.Result]
+      case Listed(values) => values.value.parTraverse(document.compile(_)).map(Document.array(_))
+      case Struct(fields) =>
         fields
-          .parTraverse { case (k, v) =>
-            (
-              fk.compile(k.map { key =>
-                StringLiteral[Id](key.text).mapK(WithSource.liftId)
-              }),
-              fv.compile(v),
-            ).parTupled
-          }
-          .map(_.toMap)
-      }
+          .value
+          .value
+          .parTraverse { case (key, value) => document.compile(value).tupleLeft(key.value.text) }
+          .map(Document.obj(_: _*))
+    }
+
+  val string = stringLiteral.map(_.value)
+
+  def enumeration[E](
+    values: List[EnumValue[E]]
+  ) = (string, PartialCompiler.pos).tupled.emap { case (name, range) =>
+    values
+      .find(_.stringValue == name)
+      .map(_.value)
+      .toRightIor(
+        CompilationError(
+          UnknownEnumValue(name, values.map(_.stringValue)),
+          range,
+        )
+      )
+      .toIorNec
+  }
+
+  private def listWithPos[S](
+    fs: PartialCompiler[S]
+  ): PartialCompiler[List[(S, SourceRange)]] = PartialCompiler
+    .typeCheck(NodeKind.Listed) { case l @ Listed(_) => l }
+    .emap(
+      _.value
+        .values
+        .value
+        .parTraverse { item =>
+          (fs, PartialCompiler.pos).tupled.compile(item)
+        }
+    )
 
   def struct[S](
     fields: Vector[Field[PartialCompiler, S, _]]
@@ -309,11 +404,27 @@ object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
 
   }
 
+  def map[K, V](fk: PartialCompiler[K], fv: PartialCompiler[V]): PartialCompiler[Map[K, V]] =
+    PartialCompiler
+      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
+      .emap { struct =>
+        val fields = struct.value.fields.value.value
+
+        fields
+          .parTraverse { case (k, v) =>
+            (
+              fk.compile(k.map { key =>
+                StringLiteral[Id](key.text).mapK(WithSource.liftId)
+              }),
+              fv.compile(v),
+            ).parTupled
+          }
+          .map(_.toMap)
+      }
+
   def union[S](
     first: Alt[PartialCompiler, S, _],
     rest: Vector[Alt[PartialCompiler, S, _]],
-  )(
-    total: S => Alt.WithValue[PartialCompiler, S, _]
   ): PartialCompiler[S] = {
     val opts = NonEmptyList(first, rest.toList)
 
@@ -364,75 +475,17 @@ object QueryCompilerSchematic extends smithy4s.Schematic[PartialCompiler] {
       }
   }
 
-  def enumeration[A](
-    to: A => (String, Int),
-    fromName: Map[String, A],
-    fromOrdinal: Map[Int, A],
-  ): PartialCompiler[A] = (string, PartialCompiler.pos).tupled.emap { case (name, range) =>
-    fromName
-      .get(name)
-      .toRightIor(
-        CompilationError(
-          UnknownEnumValue(name, fromName.keys.toList),
-          range,
-        )
-      )
-      .toIorNec
+  // Stolen from Schematic code
+  private def compileUnion[U](schema: UnionSchema[U]): PartialCompiler[U] = {
+    val alts: Vector[Alt[Schema, U, _]] = schema.alternatives
+    val head = alts.head
+    val tail = alts.tail
+    // Pre-compiles the schemas associated to each alternative. This is important
+    // because we need to avoid compiling the schemas to codecs upon every dispatch
+    val precompiledAlts = (Alt.shiftHintsK[U] andThen Alt.liftK[Schema, PartialCompiler, U](this))
+      .unsafeCache(alts.map(smithy4s.Existential.wrap(_)))
+
+    union(precompiledAlts(head), tail.map(precompiledAlts(_)))
   }
-
-  def suspend[A](f: Lazy[PartialCompiler[A]]): PartialCompiler[A] = f.value.compile(_)
-
-  def surjection[A, B](
-    f: PartialCompiler[A],
-    to: Refinement[A, B],
-    from: B => A,
-  ): PartialCompiler[B] = (f, PartialCompiler.pos).tupled.emap { case (a, pos) =>
-    to(a)
-      .toIor
-      .leftMap { msg =>
-        CompilationError(
-          CompilationErrorDetails.RefinementFailure(msg),
-          pos,
-        )
-      }
-      .toIorNec
-  }
-
-  def bijection[A, B](
-    f: PartialCompiler[A],
-    to: A => B,
-    from: B => A,
-  ): PartialCompiler[B] = f.map(to)
-
-  val timestamp: PartialCompiler[Timestamp] = stringLiteral.emap { s =>
-    // todo unhardcode format
-    val format = TimestampFormat.DATE_TIME
-    Timestamp
-      // todo: also, this keeps throwing in an uncatchable way in JS
-      .parse(s.value, format)
-      .toRightIor(
-        CompilationError(
-          InvalidTimestampFormat(format),
-          s.range,
-        )
-      )
-      .toIorNec
-  }
-
-  def withHints[A](fa: PartialCompiler[A], hints: Hints): PartialCompiler[A] = fa // todo
-
-  val document: PartialCompiler[Document] =
-    _.value match {
-      case BooleanLiteral(value) => Document.fromBoolean(value).pure[PartialCompiler.Result]
-      case IntLiteral(value)     => Document.fromInt(value).pure[PartialCompiler.Result]
-      case StringLiteral(value)  => Document.fromString(value).pure[PartialCompiler.Result]
-      case Listed(values) => values.value.parTraverse(document.compile(_)).map(Document.array(_))
-      case Struct(fields) =>
-        fields
-          .value
-          .value
-          .parTraverse { case (key, value) => document.compile(value).tupleLeft(key.value.text) }
-          .map(Document.obj(_: _*))
-    }
 
 }

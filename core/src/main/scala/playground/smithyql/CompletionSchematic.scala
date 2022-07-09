@@ -232,6 +232,7 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
       Nil
   }
 
+  // todo in the future: exclude items already present (equal by AST)
   override def set[S](fs: Result[S]): Result[Set[S]] = retag(list(fs))
 
   private def structLike[S](

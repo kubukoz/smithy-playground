@@ -43,6 +43,13 @@ structure CreateHeroInput {
   powerMap: PowerMap,
 
   friends: Friends,
+
+  intSet: IntSet,
+  friendSet: FriendSet
+}
+
+set FriendSet {
+  member: Hero
 }
 
 list Friends {
@@ -161,6 +168,10 @@ structure Sku {
 string SubscriptionStatus
 
 list Ints {
+  member: Integer
+}
+
+set IntSet {
   member: Integer
 }
 

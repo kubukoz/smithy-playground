@@ -13,11 +13,21 @@ import weaver._
 import smithy4s.schema.Schema
 import playground.CompilationErrorDetails
 import demo.smithy.Ints
+import demo.smithy.IntSet
+import demo.smithy.FriendSet
 import weaver.scalacheck.Checkers
 import smithy4s.Document
 import Arbitraries._
 import org.scalacheck.Arbitrary
 import cats.Show
+import smithy4s.dynamic.DynamicSchemaIndex
+import smithy4s.dynamic.model.Model
+import smithy4s.api.SimpleRestJson
+import smithy4s.ShapeId
+import smithy4s.dynamic.model.Shape
+import smithy4s.dynamic.model.StructureShape
+import smithy4s.dynamic.model.MemberShape
+import smithy4s.dynamic.model.IdRef
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -26,6 +36,40 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   def compile[A: smithy4s.Schema](
     in: PartialCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerSchematic).compile(in)
+
+  val dynamicPersonSchema = {
+    val model = Model(
+      smithy = Some("1.0"),
+      shapes = Map(
+        IdRef("test#Person") ->
+          Shape.StructureCase(
+            StructureShape(
+              members = Some(
+                Map(
+                  "name" -> MemberShape(
+                    target = IdRef("smithy.api#String"),
+                    traits = Some(Map(IdRef("smithy.api#required") -> Document.obj())),
+                  ),
+                  "age" -> MemberShape(
+                    target = IdRef("smithy.api#Integer")
+                  ),
+                )
+              )
+            )
+          )
+      ),
+    )
+
+    DynamicSchemaIndex
+      .load(model, SimpleRestJson.protocol.schemas)
+      .getSchema(ShapeId("test", "Person"))
+      .get
+  }
+
+  val dynamicPersonToDocument = Document
+    .Encoder
+    .fromSchema(dynamicPersonSchema)
+    .asInstanceOf[Document.Encoder[Any]]
 
   pureTest("string") {
     assert(
@@ -58,6 +102,14 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(Schema.int) == Ior.right(42)
+    )
+  }
+
+  pureTest("boolean") {
+    assert(
+      compile {
+        WithSource.liftId(true.mapK(WithSource.liftId))
+      }(Schema.boolean) == Ior.right(true)
     )
   }
 
@@ -147,6 +199,111 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile[Ints](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
         Ints(List(1, 2, 3))
+      )
+    )
+  }
+
+  pureTest("set of ints") {
+    assert(
+      compile[IntSet](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
+        IntSet(Set(1, 2, 3))
+      )
+    )
+  }
+
+  test("set of ints fails when duplicates are found") {
+    forall { (range1: SourceRange, range2: SourceRange, range3: SourceRange) =>
+      assert(
+        compile[IntSet](
+          WithSource.liftId(
+            Listed[WithSource](
+              WithSource.liftId(
+                List(
+                  WithSource.liftId(IntLiteral[WithSource](1)).withRange(range1),
+                  WithSource.liftId(IntLiteral[WithSource](2)).withRange(range2),
+                  WithSource.liftId(IntLiteral[WithSource](2)).withRange(range3),
+                )
+              )
+            )
+          )
+        ) == Ior.left(
+          NonEmptyChain(
+            CompilationError(
+              CompilationErrorDetails.DuplicateItem,
+              range2,
+            ),
+            CompilationError(
+              CompilationErrorDetails.DuplicateItem,
+              range3,
+            ),
+          )
+        )
+      )
+    }
+  }
+
+  pureTest("set of struct fails when duplicates are found") {
+
+    val item = struct("good" -> struct("howGood" -> 42))
+    val compiledFailures = compile[FriendSet](
+      WithSource.liftId(
+        List(
+          item,
+          item,
+        ).mapK(WithSource.liftId)
+      )
+    )
+      .leftMap(_.map(_.err))
+
+    assert(
+      compiledFailures == Ior.left(
+        NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem)
+      )
+    )
+  }
+
+  // todo
+  pureTest("set of struct fails when duplicates are found - dynamic") {
+    val compiledFailures = compile(
+      WithSource.liftId(
+        List(
+          struct("name" -> "Hello"),
+          struct("name" -> "Hello"),
+        ).mapK(WithSource.liftId)
+      )
+    )(Schema.set(dynamicPersonSchema))
+      .leftMap(_.map(_.err))
+
+    assert(
+      compiledFailures == Ior.left(
+        NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem)
+      )
+    )
+  }
+
+  pureTest("set of struct is OK when optional fields differ - dynamic") {
+    val compiledCount = compile(
+      WithSource.liftId(
+        List(
+          struct("name" -> "Hello", "age" -> 42),
+          struct("name" -> "Hello"),
+        ).mapK(WithSource.liftId)
+      )
+    )(Schema.set(dynamicPersonSchema)).map(_.map(dynamicPersonToDocument.encode(_)))
+
+    val expected = Set(
+      Document.obj(
+        "name" -> Document.fromString("Hello"),
+        "age" -> Document.fromInt(42),
+      ),
+      Document.obj(
+        "name" -> Document.fromString("Hello")
+      ),
+    )
+
+    assert(
+      compiledCount == Ior.right(
+        expected
       )
     )
   }
