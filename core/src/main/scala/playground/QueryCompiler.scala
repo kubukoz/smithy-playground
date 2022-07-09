@@ -205,7 +205,7 @@ object CompilationErrorDetails {
 
 import smithy4s.~>
 
-object QueryCompilerSchematic extends (Schema ~> PartialCompiler) {
+object QueryCompiler extends (Schema ~> PartialCompiler) {
 
   def apply[A](fa: Schema[A]): PartialCompiler[A] =
     fa match {

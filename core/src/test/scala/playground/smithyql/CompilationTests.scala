@@ -8,7 +8,7 @@ import demo.smithy.Hero
 import demo.smithy.Power
 import playground.CompilationError
 import playground.PartialCompiler
-import playground.QueryCompilerSchematic
+import playground.QueryCompiler
 import weaver._
 import smithy4s.schema.Schema
 import playground.CompilationErrorDetails
@@ -35,7 +35,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   def compile[A: smithy4s.Schema](
     in: PartialCompiler.WAST
-  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerSchematic).compile(in)
+  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompiler).compile(in)
 
   val dynamicPersonSchema = {
     val model = Model(
