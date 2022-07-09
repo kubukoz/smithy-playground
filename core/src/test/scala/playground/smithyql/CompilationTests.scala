@@ -22,7 +22,6 @@ import org.scalacheck.Arbitrary
 import cats.Show
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.dynamic.model.Model
-import playground.ModelReader
 import smithy4s.api.SimpleRestJson
 import smithy4s.ShapeId
 import smithy4s.dynamic.model.Shape
@@ -103,6 +102,14 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(Schema.int) == Ior.right(42)
+    )
+  }
+
+  pureTest("boolean") {
+    assert(
+      compile {
+        WithSource.liftId(true.mapK(WithSource.liftId))
+      }(Schema.boolean) == Ior.right(true)
     )
   }
 
