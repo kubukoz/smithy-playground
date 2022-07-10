@@ -6,7 +6,7 @@ import playground.smithyql.Position
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
 import cats.implicits._
-import smithyql.CompletionSchematic
+import smithyql.CompletionVisitor
 import smithyql.CompletionResolver
 import smithy4s.dynamic.DynamicSchemaIndex
 import playground.smithyql.QualifiedIdentifier
@@ -75,7 +75,7 @@ object CompletionProvider {
           .service
           .endpoints
           .map { endpoint =>
-            OperationName(endpoint.name) -> endpoint.input.compile(new CompletionSchematic)
+            OperationName(endpoint.name) -> endpoint.input.compile(CompletionVisitor)
           }
           .toMap
       }

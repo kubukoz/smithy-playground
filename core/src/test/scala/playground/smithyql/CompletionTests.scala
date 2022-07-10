@@ -12,7 +12,7 @@ object CompletionTests extends FunSuite {
 
     val completions = Good
       .schema
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(Nil)
 
     assert(completions.isEmpty)
@@ -22,7 +22,7 @@ object CompletionTests extends FunSuite {
 
     val completions = Good
       .schema
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(List(StructBody))
 
     val fieldNames = completions.map(_.label)
@@ -35,7 +35,7 @@ object CompletionTests extends FunSuite {
 
     val completions = Hero
       .schema
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(Nil)
 
     assert(completions.isEmpty)
@@ -45,7 +45,7 @@ object CompletionTests extends FunSuite {
 
     val completions = Hero
       .schema
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(List(StructBody))
 
     val fieldNames = completions.map(_.label)
@@ -58,13 +58,13 @@ object CompletionTests extends FunSuite {
 
     val completionsOnAlt = Hero
       .schema
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(List(StructBody, StructValue("good"), StructBody))
       .map(_.label)
 
     val completionsOnStruct = Good
       .schema
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(List(StructBody))
       .map(_.label)
 
@@ -74,7 +74,7 @@ object CompletionTests extends FunSuite {
   test("no completions on collection without entry") {
     val completions = Schema
       .list(Good.schema)
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(Nil)
 
     assert(completions.isEmpty)
@@ -83,7 +83,7 @@ object CompletionTests extends FunSuite {
   test("completions on struct in list are available") {
     val completions = Schema
       .list(Good.schema)
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(
         List(
           CollectionEntry(Some(0)),
@@ -99,7 +99,7 @@ object CompletionTests extends FunSuite {
   test("completions on enum without quotes have quotes") {
     val completions = Power
       .schema
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(Nil)
 
     val inserts = completions.map(_.insertText)
@@ -114,7 +114,7 @@ object CompletionTests extends FunSuite {
   test("completions on enum in quotes don't have quotes") {
     val completions = Power
       .schema
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(List(Quotes))
 
     val inserts = completions.map(_.insertText)
@@ -131,7 +131,7 @@ object CompletionTests extends FunSuite {
         Power.schema,
         Schema.unit,
       )
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(List(StructBody))
 
     val inserts = completions.map(_.insertText)
@@ -150,7 +150,7 @@ object CompletionTests extends FunSuite {
         Schema.string,
         Good.schema,
       )
-      .compile(new CompletionSchematic)
+      .compile(CompletionVisitor)
       .getCompletions(
         List(
           StructBody,

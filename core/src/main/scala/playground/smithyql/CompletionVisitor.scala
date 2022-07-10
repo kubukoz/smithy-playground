@@ -12,7 +12,6 @@ import smithy4s.Lazy
 import smithy4s.Refinement
 import smithy4s.ShapeId
 import smithy4s.Timestamp
-import smithy4s.internals.Hinted
 import smithy4s.schema.Alt
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
@@ -28,11 +27,6 @@ import WithSource.NodeContext.PathEntry
 trait CompletionResolver[+A] {
   def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
   def retag[B]: CompletionResolver[B] = getCompletions(_)
-}
-
-object CompletionSchematic {
-  type ResultR[+A] = List[PathEntry] => List[CompletionItem]
-  type Result[A] = Hinted[ResultR, A]
 }
 
 final case class CompletionItem(
@@ -172,7 +166,7 @@ object CompletionItemKind {
   case object Function extends CompletionItemKind
 }
 
-final class CompletionSchematic extends SchemaVisitor[CompletionResolver] {
+object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
   override def primitive[P](
     shapeId: ShapeId,
