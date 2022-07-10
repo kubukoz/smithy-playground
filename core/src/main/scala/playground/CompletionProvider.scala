@@ -7,6 +7,7 @@ import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
 import cats.implicits._
 import smithyql.CompletionSchematic
+import smithyql.CompletionResolver
 import smithy4s.dynamic.DynamicSchemaIndex
 import playground.smithyql.QualifiedIdentifier
 import cats.data.NonEmptyList
@@ -68,17 +69,16 @@ object CompletionProvider {
       }
 
     val completionsByEndpoint
-      : Map[QualifiedIdentifier, Map[OperationName, CompletionSchematic.ResultR[Any]]] =
-      servicesById
-        .fmap { service =>
-          service
-            .service
-            .endpoints
-            .map { endpoint =>
-              OperationName(endpoint.name) -> endpoint.input.compile(new CompletionSchematic).get
-            }
-            .toMap
-        }
+      : Map[QualifiedIdentifier, Map[OperationName, CompletionResolver[Any]]] = servicesById
+      .fmap { service =>
+        service
+          .service
+          .endpoints
+          .map { endpoint =>
+            OperationName(endpoint.name) -> endpoint.input.compile(new CompletionSchematic)
+          }
+          .toMap
+      }
 
     (doc, pos) =>
       SmithyQLParser.parseFull(doc) match {
@@ -113,7 +113,7 @@ object CompletionProvider {
 
                   case WithSource.NodeContext.InputContext(ctx) =>
                     val opts = completionsByEndpoint(serviceId)(q.operationName.value)
-                      .apply(ctx.toList)
+                      .getCompletions(ctx.toList)
                     println(opts)
                     opts
                 }

@@ -1,22 +1,34 @@
 package playground.smithyql
 
-import smithy4s.schema.Alt
-import smithy4s.schema.Field
-import smithy4s.Hints
-import smithy4s.schema.StubSchematic
-import smithy4s.internals.Hinted
-import smithy4s.ShapeId
-import smithy4s.Lazy
-import smithy4s.Endpoint
-import cats.implicits._
-import WithSource.NodeContext.PathEntry
-import smithy4s.Timestamp
-import smithy4s.Refinement
-import org.typelevel.paiges.Doc
 import cats.data.NonEmptyList
-import playground.smithyql.CompletionItem.InsertUseClause.Required
-import playground.smithyql.CompletionItem.InsertUseClause.NotRequired
+import cats.implicits._
+import org.typelevel.paiges.Doc
 import playground.TextUtils
+import playground.smithyql.CompletionItem.InsertUseClause.NotRequired
+import playground.smithyql.CompletionItem.InsertUseClause.Required
+import smithy4s.Endpoint
+import smithy4s.Hints
+import smithy4s.Lazy
+import smithy4s.Refinement
+import smithy4s.ShapeId
+import smithy4s.Timestamp
+import smithy4s.internals.Hinted
+import smithy4s.schema.Alt
+import smithy4s.schema.EnumValue
+import smithy4s.schema.Field
+import smithy4s.schema.Primitive
+import smithy4s.schema.Primitive.PTimestamp
+import smithy4s.schema.Schema
+import smithy4s.schema.SchemaAlt
+import smithy4s.schema.SchemaField
+import smithy4s.schema.SchemaVisitor
+
+import WithSource.NodeContext.PathEntry
+
+trait CompletionResolver[+A] {
+  def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
+  def retag[B]: CompletionResolver[B] = getCompletions(_)
+}
 
 object CompletionSchematic {
   type ResultR[+A] = List[PathEntry] => List[CompletionItem]
@@ -49,34 +61,38 @@ object InsertText {
 
 object CompletionItem {
 
-  def fromHintedField[F[_]](field: Field[Hinted[F, *], _, _]): CompletionItem = fromHints(
-    kind = CompletionItemKind.Field,
-    label = field.label,
-    insertText = InsertText.JustString(s"${field.label} = "),
-    hints = field.instance.hints,
-  )
+  def fromField(field: Field[CompletionResolver, _, _], shapeId: ShapeId): CompletionItem =
+    fromHints(
+      kind = CompletionItemKind.Field,
+      label = field.label,
+      insertText = InsertText.JustString(s"${field.label} = "),
+      hints = field.hints,
+      shapeId = shapeId,
+    )
 
-  def fromHintedAlt[F[_]](alt: Alt[Hinted[F, *], _, _]): CompletionItem = fromHints(
+  def fromAlt(alt: Alt[CompletionResolver, _, _], shapeId: ShapeId): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
     // todo: unions aren't only for structs: this makes an invalid assumption
     // by inserting {} at all times
     insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
-    hints = alt.instance.hints,
+    hints = alt.hints,
+    shapeId = shapeId,
   )
 
-  def fromHints[F[_]](
+  def fromHints(
     kind: CompletionItemKind,
     label: String,
     insertText: InsertText,
     hints: Hints,
+    shapeId: ShapeId,
   ): CompletionItem = CompletionItem(
     kind = kind,
     label = label,
     insertText = insertText,
     deprecated = hints.get(smithy.api.Deprecated).isDefined,
-    detail = typeAnnotationShort(hints.get(ShapeId).get),
-    description = hints.get(ShapeId).get.namespace.some,
+    detail = typeAnnotationShort(shapeId),
+    description = shapeId.namespace.some,
     docs = buildDocumentation(hints),
     extraTextEdits = Nil,
   )
@@ -156,52 +172,97 @@ object CompletionItemKind {
   case object Function extends CompletionItemKind
 }
 
-final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result] {
-  import CompletionSchematic.Result
-  import CompletionSchematic.ResultR
+final class CompletionSchematic extends SchemaVisitor[CompletionResolver] {
 
-  def default[A]: Result[A] = Hinted.static[ResultR, A](_ => Nil)
+  override def primitive[P](
+    shapeId: ShapeId,
+    hints: Hints,
+    tag: Primitive[P],
+  ): CompletionResolver[P] =
+    tag match {
+      case PTimestamp => {
+        case Nil =>
+          val example = Timestamp.nowUTC().toString()
 
-  override val timestamp: Result[Timestamp] = Hinted[ResultR].from { hints =>
+          CompletionItem.fromHints(
+            CompletionItemKind.Constant,
+            s"$example (now)",
+            InsertText.JustString(example),
+            hints,
+            shapeId,
+          ) :: Nil
+        case _ => Nil
+      }
+
+      case _ => _ => Nil
+    }
+
+  override def list[A](
+    shapeId: ShapeId,
+    hints: Hints,
+    member: Schema[A],
+  ): CompletionResolver[List[A]] = {
+    val memberInstance = member.compile(this)
+
     {
-      case Nil =>
-        val example = Timestamp.nowUTC().toString()
-
-        CompletionItem.fromHints(
-          CompletionItemKind.Constant,
-          s"$example (now)",
-          InsertText.JustString(example),
-          hints,
-        ) :: Nil
-      case _ => Nil
+      case PathEntry.CollectionEntry(_) :: rest => memberInstance.getCompletions(rest)
+      case _                                    =>
+        // other contexts are invalid
+        Nil
     }
   }
 
-  private def retag[A, B](fs: Result[A]): Result[B] = fs.transform(identity(_): ResultR[B])
+  // todo in the future: exclude items already present (equal by AST)
+  override def set[A](
+    shapeId: ShapeId,
+    hints: Hints,
+    member: Schema[A],
+  ): CompletionResolver[Set[A]] = list(shapeId, hints, member).retag
 
-  override def enumeration[A](
-    to: A => (String, Int),
-    fromName: Map[String, A],
-    fromOrdinal: Map[Int, A],
-  ): Result[A] = Hinted[ResultR].from { hints =>
-    def completeEnum(transformString: String => String) = fromOrdinal
-      .toList
-      .sortBy(_._1)
-      .map(_._2)
+  override def map[K, V](
+    shapeId: ShapeId,
+    hints: Hints,
+    key: Schema[K],
+    value: Schema[V],
+  ): CompletionResolver[Map[K, V]] = {
+    val fk = key.compile(this)
+    val fv = value.compile(this)
+
+    structLike(
+      inBody = fk.getCompletions(Nil).map { item =>
+        // adding " = " to underlying key's completion because it's not in the usual value position
+        item.copy(
+          insertText = InsertText.JustString(s"${item.label} = ")
+        )
+
+      },
+      inValue = (_, t) => fv.getCompletions(t),
+    )
+  }
+
+  override def enumeration[E](
+    shapeId: ShapeId,
+    hints: Hints,
+    values: List[EnumValue[E]],
+    total: E => EnumValue[E],
+  ): CompletionResolver[E] = {
+    def completeEnum(transformString: String => String) = values
       .map { enumValue =>
-        val label = to(enumValue)._1
-
         CompletionItem.fromHints(
           CompletionItemKind.EnumMember,
-          label,
-          InsertText.JustString(transformString(label)),
+          enumValue.stringValue,
+          InsertText.JustString(transformString(enumValue.stringValue)),
           hints,
+          shapeId,
         )
       }
 
+    val inQuotesCompletions = completeEnum(identity)
+    val noQuotesCompletions = completeEnum(TextUtils.quote)
+
     {
-      case PathEntry.Quotes :: Nil => completeEnum(identity)
-      case Nil                     => completeEnum(TextUtils.quote)
+      case PathEntry.Quotes :: Nil => inQuotesCompletions
+      case Nil                     => noQuotesCompletions
 
       case _ =>
         // todo: this seems impossible tbh
@@ -209,80 +270,72 @@ final class CompletionSchematic extends StubSchematic[CompletionSchematic.Result
     }
   }
 
-  override def map[K, V](
-    fk: Result[K],
-    fv: Result[V],
-  ): Result[Map[K, V]] = structLike(
-    inBody = fk.get(Nil).map { item =>
-      // adding " = " to underlying key's completion because it's not in the usual value position
-      item.copy(
-        insertText = InsertText.JustString(s"${item.label} = ")
-      )
-
-    },
-    inValue = (_, t) => fv.get(t),
-  )
-
-  override def list[S](
-    fs: Result[S]
-  ): Result[List[S]] = Hinted.static[ResultR, List[S]] {
-    case PathEntry.CollectionEntry(_) :: rest => fs.get(rest)
-    case _                                    =>
-      // other contexts are invalid
-      Nil
-  }
-
-  // todo in the future: exclude items already present (equal by AST)
-  override def set[S](fs: Result[S]): Result[Set[S]] = retag(list(fs))
-
   private def structLike[S](
     inBody: List[CompletionItem],
     inValue: (String, List[PathEntry]) => List[CompletionItem],
-  ) = Hinted.static[ResultR, S] {
+  ): CompletionResolver[S] = {
     case PathEntry.StructBody :: Nil                              => inBody
     case PathEntry.StructBody :: PathEntry.StructValue(h) :: rest => inValue(h, rest)
     case _                                                        => Nil
   }
 
   override def struct[S](
-    fields: Vector[Field[Result, S, _]]
-  )(
-    const: Vector[Any] => S
-  ): Result[S] = structLike(
-    inBody =
-      fields
-        // todo: filter out present fields
-        .sortBy(field => (field.isRequired, field.label))
-        .map(CompletionItem.fromHintedField(_))
-        .toList,
-    inValue = (h, rest) => fields.find(_.label === h).toList.flatMap(_.instance.get(rest)),
-  )
-
-  override def union[S](
-    first: Alt[Result, S, _],
-    rest: Vector[Alt[Result, S, _]],
-  )(
-    total: S => Alt.WithValue[Result, S, _]
-  ): Result[S] = {
-    val all = rest.prepended(first)
+    shapeId: ShapeId,
+    hints: Hints,
+    fields: Vector[SchemaField[S, _]],
+    make: IndexedSeq[Any] => S,
+  ): CompletionResolver[S] = {
+    val compiledFields = fields.map(field => (field.mapK(this), field.instance.shapeId))
 
     structLike(
-      inBody = all.map(CompletionItem.fromHintedAlt(_)).toList,
-      inValue = (head, tail) => all.find(_.label === head).toList.flatMap(_.instance.get(tail)),
+      inBody =
+        compiledFields
+          // todo: filter out present fields
+          .sortBy { case (field, _) => (field.isRequired, field.label) }
+          .map(CompletionItem.fromField.tupled)
+          .toList,
+      inValue =
+        (h, rest) =>
+          compiledFields
+            .collectFirst {
+              case (field, _) if field.label === h => field
+            }
+            .foldMap(_.instance.getCompletions(rest)),
     )
   }
 
-  override def suspend[A](
-    f: Lazy[Result[A]]
-  ): Result[A] = Hinted.static[ResultR, A](in => f.value.get(in))
+  override def union[U](
+    shapeId: ShapeId,
+    hints: Hints,
+    alternatives: Vector[SchemaAlt[U, _]],
+    dispatch: U => Alt.SchemaAndValue[U, _],
+  ): CompletionResolver[U] = {
+    val allWithIds = alternatives.map { alt =>
+      (alt.mapK(this), alt.instance.shapeId)
+    }
 
-  override def bijection[A, B](f: Result[A], to: A => B, from: B => A): Result[B] = retag(f)
+    structLike(
+      inBody = allWithIds.map(CompletionItem.fromAlt.tupled).toList,
+      inValue =
+        (head, tail) =>
+          allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
+    )
+  }
 
-  override def surjection[A, B](
-    f: Result[A],
-    refinement: Refinement[A, B],
+  override def biject[A, B](schema: Schema[A], to: A => B, from: B => A): CompletionResolver[B] =
+    schema.compile(this).retag
+
+  override def surject[A, B](
+    schema: Schema[A],
+    to: Refinement[A, B],
     from: B => A,
-  ): Result[B] = retag(f)
+  ): CompletionResolver[B] = schema.compile(this).retag
 
-  override def withHints[A](fa: Result[A], hints: Hints): Result[A] = fa.addHints(hints)
+  // might need some testing
+  override def lazily[A](suspend: Lazy[Schema[A]]): CompletionResolver[A] = {
+    val underlying = suspend.map(_.compile(this))
+
+    underlying.value.getCompletions(_)
+  }
+
 }

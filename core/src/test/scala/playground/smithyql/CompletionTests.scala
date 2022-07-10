@@ -13,8 +13,7 @@ object CompletionTests extends FunSuite {
     val completions = Good
       .schema
       .compile(new CompletionSchematic)
-      .get
-      .apply(Nil)
+      .getCompletions(Nil)
 
     assert(completions.isEmpty)
   }
@@ -24,8 +23,7 @@ object CompletionTests extends FunSuite {
     val completions = Good
       .schema
       .compile(new CompletionSchematic)
-      .get
-      .apply(List(StructBody))
+      .getCompletions(List(StructBody))
 
     val fieldNames = completions.map(_.label)
 
@@ -38,8 +36,7 @@ object CompletionTests extends FunSuite {
     val completions = Hero
       .schema
       .compile(new CompletionSchematic)
-      .get
-      .apply(Nil)
+      .getCompletions(Nil)
 
     assert(completions.isEmpty)
   }
@@ -49,8 +46,7 @@ object CompletionTests extends FunSuite {
     val completions = Hero
       .schema
       .compile(new CompletionSchematic)
-      .get
-      .apply(List(StructBody))
+      .getCompletions(List(StructBody))
 
     val fieldNames = completions.map(_.label)
 
@@ -63,15 +59,13 @@ object CompletionTests extends FunSuite {
     val completionsOnAlt = Hero
       .schema
       .compile(new CompletionSchematic)
-      .get
-      .apply(List(StructBody, StructValue("good"), StructBody))
+      .getCompletions(List(StructBody, StructValue("good"), StructBody))
       .map(_.label)
 
     val completionsOnStruct = Good
       .schema
       .compile(new CompletionSchematic)
-      .get
-      .apply(List(StructBody))
+      .getCompletions(List(StructBody))
       .map(_.label)
 
     assert(completionsOnAlt == completionsOnStruct)
@@ -81,8 +75,7 @@ object CompletionTests extends FunSuite {
     val completions = Schema
       .list(Good.schema)
       .compile(new CompletionSchematic)
-      .get
-      .apply(Nil)
+      .getCompletions(Nil)
 
     assert(completions.isEmpty)
   }
@@ -91,8 +84,7 @@ object CompletionTests extends FunSuite {
     val completions = Schema
       .list(Good.schema)
       .compile(new CompletionSchematic)
-      .get
-      .apply(
+      .getCompletions(
         List(
           CollectionEntry(Some(0)),
           StructBody,
@@ -108,8 +100,7 @@ object CompletionTests extends FunSuite {
     val completions = Power
       .schema
       .compile(new CompletionSchematic)
-      .get
-      .apply(Nil)
+      .getCompletions(Nil)
 
     val inserts = completions.map(_.insertText)
     val expectedInserts = List("Ice", "Fire", "Lightning", "Wind")
@@ -124,8 +115,7 @@ object CompletionTests extends FunSuite {
     val completions = Power
       .schema
       .compile(new CompletionSchematic)
-      .get
-      .apply(List(Quotes))
+      .getCompletions(List(Quotes))
 
     val inserts = completions.map(_.insertText)
     val expectedInserts = List("Ice", "Fire", "Lightning", "Wind")
@@ -142,8 +132,7 @@ object CompletionTests extends FunSuite {
         Schema.unit,
       )
       .compile(new CompletionSchematic)
-      .get
-      .apply(List(StructBody))
+      .getCompletions(List(StructBody))
 
     val inserts = completions.map(_.insertText)
 
@@ -162,8 +151,7 @@ object CompletionTests extends FunSuite {
         Good.schema,
       )
       .compile(new CompletionSchematic)
-      .get
-      .apply(
+      .getCompletions(
         List(
           StructBody,
           StructValue("anyKey"),
