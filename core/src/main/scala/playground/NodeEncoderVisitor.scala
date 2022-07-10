@@ -73,7 +73,9 @@ object NodeEncoderVisitor extends (Schema ~> NodeEncoder) {
       case BijectionSchema(underlying, _, from)  => underlying.compile(this).contramap(from)
       case EnumerationSchema(_, _, _, total)     => string.contramap(total(_).stringValue)
       case UnionSchema(_, _, alternatives, dispatch) =>
-        val altsCompiled = alternatives.map(_.mapK(this))
+        val altsCompiled = alternatives
+          .map(_.mapK(this))
+          .groupBy(_.label)
 
         s => {
           def go[X](r: Alt.WithValue[NodeEncoder, A, X]) = Struct.one[Id](
@@ -85,9 +87,7 @@ object NodeEncoderVisitor extends (Schema ~> NodeEncoder) {
             dispatch
               .andThen { result =>
                 result.copy[NodeEncoder, A, Any](alt =
-                  altsCompiled
-                    .find(_.label == result.alt.label)
-                    .get
+                  altsCompiled(result.alt.label)
                     .asInstanceOf[Alt[NodeEncoder, A, Any]]
                 )
               }
