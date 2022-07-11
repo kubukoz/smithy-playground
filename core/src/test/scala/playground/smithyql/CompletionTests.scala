@@ -10,6 +10,7 @@ import smithy4s.Timestamp
 import playground.smithyql.InsertText.JustString
 import smithy.api.TimestampFormat
 import cats.implicits._
+import demo.smithy.HasNewtypes
 
 object CompletionTests extends FunSuite {
   test("completions on struct are empty without StructBody") {
@@ -33,6 +34,44 @@ object CompletionTests extends FunSuite {
 
     assert(fieldNames == List("howGood")) &&
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
+  }
+
+  test("completions on struct describe the field types") {
+
+    val completions = Good
+      .schema
+      .compile(CompletionVisitor)
+      .getCompletions(List(StructBody))
+
+    val results = completions.map { field =>
+      (field.label, field.detail)
+    }
+
+    assert(results == List("howGood" -> ": integer Integer"))
+  }
+
+  test("newtyped fields should be described as newtypes") {
+
+    val completions = HasNewtypes
+      .schema
+      .compile(CompletionVisitor)
+      .getCompletions(List(StructBody))
+
+    val results =
+      completions.map { field =>
+        (field.label, field.detail)
+      }.toMap
+
+    assert.eql(
+      results,
+      Map(
+        "intSet" -> ": set IntSet { member: integer Integer }",
+        "myInt" -> ": integer MyInt",
+        "str" -> ": string MyString",
+        "power" -> ": enum Power",
+        "powerMap" -> ": map PowerMap { key: Power, value: Hero }",
+      ),
+    )
   }
 
   test("completions on union are empty without StructBody") {

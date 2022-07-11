@@ -175,3 +175,15 @@ set IntSet {
   member: Integer
 }
 
+
+structure HasNewtypes {
+  intSet: IntSet,
+  myInt: MyInt,
+  str: MyString,
+  power: Power,
+  powerMap: PowerMap
+}
+
+integer MyInt
+
+string MyString
