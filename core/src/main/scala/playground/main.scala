@@ -35,6 +35,8 @@ import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy.api.ProtocolDefinition
 import smithy4s.schema.Schema
+import smithy4s.Hints.Binding.DynamicBinding
+import smithy4s.Hints.Binding.StaticBinding
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -306,8 +308,8 @@ object Runner {
         .all
         .toList
         .flatMap { binding =>
-          unsafeGetSchema(binding.key.id).flatMap { schemaOfHint =>
-            schemaOfHint.hints.get(ProtocolDefinition).as(binding.key.id)
+          unsafeGetSchema(binding.keyId).flatMap { schemaOfHint =>
+            schemaOfHint.hints.get(ProtocolDefinition).as(binding.keyId)
           }
         }
 
