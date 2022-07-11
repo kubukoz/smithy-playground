@@ -105,9 +105,9 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
   private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
   ): WithSource[InputNode[WithSource]] => F[CompiledInput] = {
-    val inputCompiler = e.input.compile(QueryCompilerSchematic)
-    val outputEncoder = e.output.compile(NodeEncoderSchematic)
-    val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
+    val inputCompiler = e.input.compile(QueryCompiler)
+    val outputEncoder = NodeEncoder.derive(e.output)
+    val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
 
     ast =>
       inputCompiler

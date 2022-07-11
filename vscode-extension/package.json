@@ -66,8 +66,8 @@
   ],
   "main": "./out/extension",
   "dependencies": {
-    "@types/vscode": "^1.66.0",
-    "@types/node": "^14.14.31"
+    "@types/node": "^14.14.31",
+    "@types/vscode": "^1.66.0"
   },
   "devDependencies": {
     "typescript": "4.5.2",

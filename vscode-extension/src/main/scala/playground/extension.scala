@@ -41,7 +41,7 @@ object extension {
   def activate(
     context: ExtensionContext
   ): Unit = client
-    .make[IO](useNetwork = false, chan)
+    .make[IO](chan)
     .flatMap(activateR(context, _))
     .pipe(timedResource("activateR"))
     .allocated

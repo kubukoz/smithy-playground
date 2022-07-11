@@ -32,12 +32,28 @@ operation CreateHero {
 }
 
 structure CreateHeroInput {
-  @httpPayload
   @required
   hero: Hero,
 
   @httpQuery("verbose")
-  verbose: Boolean
+  verbose: Boolean,
+
+  powers: Powers,
+
+  powerMap: PowerMap,
+
+  friends: Friends,
+
+  intSet: IntSet,
+  friendSet: FriendSet
+}
+
+set FriendSet {
+  member: Hero
+}
+
+list Friends {
+  member: Hero
 }
 
 structure CreateHeroOutput {
@@ -95,6 +111,11 @@ list Powers {
   member: Power
 }
 
+map PowerMap {
+  key: Power,
+  value: Hero
+}
+
 @enum([{value: "Ice", name: "ICE"}, {value: "Fire", name: "FIRE"}, {value: "Lightning", name: "LIGHTNING"}, {value: "Wind", name: "WIND"}])
 string Power
 
@@ -147,6 +168,10 @@ structure Sku {
 string SubscriptionStatus
 
 list Ints {
+  member: Integer
+}
+
+set IntSet {
   member: Integer
 }
 

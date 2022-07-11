@@ -16,10 +16,10 @@ val commonScalaVersions = Seq("2.13.8")
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %%% "cats-effect" % "3.3.12",
-    "com.disneystreaming" %%% "weaver-cats" % "0.7.12" % Test,
-    "com.disneystreaming" %%% "weaver-discipline" % "0.7.12" % Test,
-    "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.12" % Test,
+    "org.typelevel" %%% "cats-effect" % "3.3.13",
+    "com.disneystreaming" %%% "weaver-cats" % "0.7.13" % Test,
+    "com.disneystreaming" %%% "weaver-discipline" % "0.7.13" % Test,
+    "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.13" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   libraryDependencies ++= compilerPlugins,
@@ -55,7 +55,7 @@ lazy val vscode = projectMatrix
     crossScalaVersions := commonScalaVersions,
     moduleName := "smithy-playground-vscode",
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.12"
+      "org.http4s" %%% "http4s-ember-client" % "0.23.13"
     ),
     commonSettings,
   )
@@ -82,8 +82,8 @@ lazy val cli = projectMatrix
   .settings(
     commonSettings,
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.12",
-      "com.monovore" %% "decline-effect" % "2.2.0",
+      "org.http4s" %%% "http4s-ember-client" % "0.23.13",
+      "com.monovore" %% "decline-effect" % "2.3.0",
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
     ),
   )
