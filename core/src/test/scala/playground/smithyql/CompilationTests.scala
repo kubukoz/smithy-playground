@@ -22,7 +22,6 @@ import org.scalacheck.Arbitrary
 import cats.Show
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.dynamic.model.Model
-import smithy4s.api.SimpleRestJson
 import smithy4s.ShapeId
 import smithy4s.dynamic.model.Shape
 import smithy4s.dynamic.model.StructureShape
@@ -61,7 +60,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
 
     DynamicSchemaIndex
-      .load(model, SimpleRestJson.protocol.schemas)
+      .load(model)
       .getSchema(ShapeId("test", "Person"))
       .get
   }

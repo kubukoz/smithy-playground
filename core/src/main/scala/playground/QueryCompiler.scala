@@ -41,6 +41,12 @@ import smithy4s.schema.SchemaVisitor
 
 import util.chaining._
 import PartialCompiler.WAST
+import smithy4s.schema.CollectionTag
+import smithy4s.schema.CollectionTag.IndexedSeqTag
+import smithy4s.schema.CollectionTag.ListTag
+import smithy4s.schema.CollectionTag.SetTag
+import smithy4s.schema.CollectionTag.VectorTag
+import smithy4s.capability.EncoderK
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -241,24 +247,33 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
         }
     }
 
-  def list[A](shapeId: ShapeId, hints: Hints, member: Schema[A]): PartialCompiler[List[A]] =
-    listWithPos(member.compile(this)).map(_.map(_._1))
+  def collection[C[_], A](
+    shapeId: ShapeId,
+    hints: Hints,
+    tag: CollectionTag[C],
+    member: Schema[A],
+  ): PartialCompiler[C[A]] =
+    tag match {
+      case SetTag =>
+        val memberToDoc = Document.Encoder.fromSchema(member)
 
-  def set[A](shapeId: ShapeId, hints: Hints, member: Schema[A]): PartialCompiler[Set[A]] = {
-    val memberToDoc = Document.Encoder.fromSchema(member)
-
-    listWithPos(member.compile(this)).emap { items =>
-      items
-        .groupBy { case (v, _) => memberToDoc.encode(v) }
-        .map(_._2)
-        .filter(_.sizeIs > 1)
-        .flatMap(_.map(_._2))
-        .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
-        .toList
-        .pipe(NonEmptyChain.fromSeq(_))
-        .toLeftIor(items.map(_._1).toSet)
+        listWithPos(member.compile(this)).emap { items =>
+          items
+            .groupBy { case (v, _) => memberToDoc.encode(v) }
+            .map(_._2)
+            .filter(_.sizeIs > 1)
+            .flatMap(_.map(_._2))
+            .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
+            .toList
+            .pipe(NonEmptyChain.fromSeq(_))
+            .toLeftIor(items.map(_._1).toSet)
+        }
+      case ListTag       => listOf(member)
+      case IndexedSeqTag => listOf(member).map(_.toIndexedSeq)
+      case VectorTag     => listOf(member).map(_.toVector)
     }
-  }
+
+  private def listOf[A](member: Schema[A]) = listWithPos(member.compile(this)).map(_.map(_._1))
 
   def map[K, V](
     shapeId: ShapeId,
@@ -355,8 +370,8 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[SchemaAlt[U, _]],
-    dispatch: U => Alt.SchemaAndValue[U, _],
+    alternatives: Vector[Alt[Schema, U, _]],
+    dispatcher: Alt.Dispatcher[Schema, U],
   ): PartialCompiler[U] = {
     val alternativesCompiled = alternatives.map(_.mapK(this)).groupBy(_.label).map(_.map(_.head))
     val labels = NonEmptyList.fromListUnsafe(alternatives.toList).map(_.label)

@@ -40,18 +40,40 @@ import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
-import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
+import smithy4s.schema.CollectionTag
+import smithy4s.capability.EncoderK
+import smithy4s.schema.CollectionTag.IndexedSeqTag
+import smithy4s.schema.CollectionTag.ListTag
+import smithy4s.schema.CollectionTag.SetTag
+import smithy4s.schema.CollectionTag.VectorTag
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
+  def transform(f: InputNode[Id] => InputNode[Id]): NodeEncoder[A] = toNode.andThen(f).apply(_)
   def listed: NodeEncoder[List[A]] = as => Listed[Id](as.map(this.toNode))
+
+  def atKey(key: String): NodeEncoder[A] = transform { result =>
+    Struct.one[Id](
+      key = Struct.Key(key),
+      value = result,
+    )
+  }
+
 }
 
 object NodeEncoder {
 
-  implicit val contravariant: Contravariant[NodeEncoder] =
+  implicit val encoderK: EncoderK[NodeEncoder, InputNode[Id]] =
+    new EncoderK[NodeEncoder, InputNode[Id]] {
+      def apply[A](fa: NodeEncoder[A], a: A): InputNode[Id] = fa.toNode(a)
+
+      def absorb[A](f: A => InputNode[Id]): NodeEncoder[A] = f(_)
+
+    }
+
+  implicit val catsContravariant: Contravariant[NodeEncoder] =
     new Contravariant[NodeEncoder] {
       def contramap[A, B](fa: NodeEncoder[A])(f: B => A): NodeEncoder[B] = b => fa.toNode(f(b))
     }
@@ -60,7 +82,7 @@ object NodeEncoder {
 
 }
 
-object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] {
+object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
 
   def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): NodeEncoder[P] =
     tag match {
@@ -85,14 +107,18 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] {
         string.contramap(_.toString)
     }
 
-  def list[A](shapeId: ShapeId, hints: Hints, member: Schema[A]): NodeEncoder[List[A]] =
-    member.compile(this).listed
+  def collection[C[_], A](
+    shapeId: ShapeId,
+    hints: Hints,
+    tag: CollectionTag[C],
+    member: Schema[A],
+  ): NodeEncoder[C[A]] =
+    tag match {
+      case ListTag                            => listOf(member)
+      case IndexedSeqTag | SetTag | VectorTag => listOf(member).contramap(_.toList)
+    }
 
-  def set[A](shapeId: ShapeId, hints: Hints, member: Schema[A]): NodeEncoder[Set[A]] = list(
-    shapeId,
-    hints,
-    member,
-  ).contramap(_.toList)
+  private def listOf[A](member: Schema[A]): NodeEncoder[List[A]] = member.compile(this).listed
 
   def map[K, V](
     shapeId: ShapeId,
@@ -155,32 +181,16 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] {
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[SchemaAlt[U, _]],
-    dispatch: U => Alt.SchemaAndValue[U, _],
-  ): NodeEncoder[U] = {
-    val altsCompiled = alternatives
-      .map(_.mapK(this))
-      .groupBy(_.label)
-      .map(_.map(_.head))
+    alternatives: Vector[Alt[Schema, U, _]],
+    dispatcher: Alt.Dispatcher[Schema, U],
+  ): NodeEncoder[U] = dispatcher.compile(new Alt.Precompiler[Schema, NodeEncoder] {
 
-    s => {
-      def go[X](r: Alt.WithValue[NodeEncoder, U, X]) = Struct.one[Id](
-        key = Struct.Key(r.alt.label),
-        value = r.alt.instance.toNode(r.value),
-      )
+    def apply[A](
+      label: String,
+      instance: Schema[A],
+    ): NodeEncoder[A] = instance.compile(self).atKey(label)
 
-      go {
-        dispatch
-          .andThen { result =>
-            result.copy[NodeEncoder, U, Any](alt =
-              altsCompiled(result.alt.label)
-                .asInstanceOf[Alt[NodeEncoder, U, Any]]
-            )
-          }
-          .apply(s)
-      }
-    }
-  }
+  })
 
   def biject[A, B](
     schema: Schema[A],

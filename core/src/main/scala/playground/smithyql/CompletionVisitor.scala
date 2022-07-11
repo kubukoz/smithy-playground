@@ -23,6 +23,11 @@ import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import WithSource.NodeContext.PathEntry
+import smithy4s.schema.CollectionTag
+import smithy4s.schema.CollectionTag.IndexedSeqTag
+import smithy4s.schema.CollectionTag.ListTag
+import smithy4s.schema.CollectionTag.SetTag
+import smithy4s.schema.CollectionTag.VectorTag
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
@@ -55,23 +60,23 @@ object InsertText {
 
 object CompletionItem {
 
-  def fromField(field: Field[CompletionResolver, _, _], shapeId: ShapeId): CompletionItem =
+  def fromField(field: Field[CompletionResolver, _, _], schema: Schema[_]): CompletionItem =
     fromHints(
       kind = CompletionItemKind.Field,
       label = field.label,
       insertText = InsertText.JustString(s"${field.label} = "),
-      hints = field.hints,
-      shapeId = shapeId,
+      hints = schema.hints,
+      shapeId = schema.shapeId,
     )
 
-  def fromAlt(alt: Alt[CompletionResolver, _, _], shapeId: ShapeId): CompletionItem = fromHints(
+  def fromAlt(alt: Alt[CompletionResolver, _, _], schema: Schema[_]): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
     // todo: unions aren't only for structs: this makes an invalid assumption
     // by inserting {} at all times
     insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
-    hints = alt.hints,
-    shapeId = shapeId,
+    hints = schema.hints,
+    shapeId = schema.shapeId,
   )
 
   def fromHints(
@@ -191,10 +196,17 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       case _ => _ => Nil
     }
 
-  override def list[A](
+  def collection[C[_], A](
     shapeId: ShapeId,
     hints: Hints,
+    tag: CollectionTag[C],
     member: Schema[A],
+  ): CompletionResolver[C[A]] =
+    // todo in the future: for sets, exclude items already present (equal by AST)
+    list(member).retag
+
+  private def list[A](
+    member: Schema[A]
   ): CompletionResolver[List[A]] = {
     val memberInstance = member.compile(this)
 
@@ -205,13 +217,6 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
         Nil
     }
   }
-
-  // todo in the future: exclude items already present (equal by AST)
-  override def set[A](
-    shapeId: ShapeId,
-    hints: Hints,
-    member: Schema[A],
-  ): CompletionResolver[Set[A]] = list(shapeId, hints, member).retag
 
   override def map[K, V](
     shapeId: ShapeId,
@@ -279,7 +284,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     fields: Vector[SchemaField[S, _]],
     make: IndexedSeq[Any] => S,
   ): CompletionResolver[S] = {
-    val compiledFields = fields.map(field => (field.mapK(this), field.instance.shapeId))
+    val compiledFields = fields.map(field => (field.mapK(this), field.instance))
 
     structLike(
       inBody =
@@ -302,10 +307,10 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     shapeId: ShapeId,
     hints: Hints,
     alternatives: Vector[SchemaAlt[U, _]],
-    dispatch: U => Alt.SchemaAndValue[U, _],
+    dispatcher: Alt.Dispatcher[Schema, U],
   ): CompletionResolver[U] = {
     val allWithIds = alternatives.map { alt =>
-      (alt.mapK(this), alt.instance.shapeId)
+      (alt.mapK(this), alt.instance)
     }
 
     structLike(
