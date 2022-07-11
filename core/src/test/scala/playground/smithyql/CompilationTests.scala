@@ -210,14 +210,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     // todo: timestamp parsing always passes on JS but does something weird.
     // this is fixed in smithy4s 0.14.0
-    if (Platform.isJVM)
-      assert(
-        result == Ior.leftNec(
-          CompilationErrorDetails.InvalidTimestampFormat(TimestampFormat.DATE_TIME)
-        )
+    assert(
+      result == Ior.leftNec(
+        CompilationErrorDetails.InvalidTimestampFormat(TimestampFormat.DATE_TIME)
       )
-    else
-      assert(result.toEither.isRight)
+    )
   }
 
   pureTest("uuid - OK") {

@@ -243,8 +243,11 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           // the actual serialization format will be used by the client when we eventually use it in the Runner.
           val format = TimestampFormat.DATE_TIME
 
-          Timestamp
-            .parse(s.value, format)
+          TimestampPlatform
+            .fixupTimestamp(
+              Timestamp
+                .parse(s.value, format)
+            )
             .toRightIor(
               CompilationError(
                 InvalidTimestampFormat(format),
