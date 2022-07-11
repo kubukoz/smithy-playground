@@ -142,7 +142,15 @@ object extension {
                     case Left(protocols) =>
                       IO(
                         window.showErrorMessage(
-                          s"The service uses an unsupported protocol. Available protocols: ${protocols.map(_.show).mkString_(", ")}"
+                          s"""The service uses an unsupported protocol.
+                             |Supported protocols: ${protocols
+                              .supported
+                              .map(_.show)
+                              .mkString_(", ")}
+                             |Found protocols: ${protocols
+                              .found
+                              .map(_.show)
+                              .mkString(", ")}""".stripMargin
                         )
                       ).void
 

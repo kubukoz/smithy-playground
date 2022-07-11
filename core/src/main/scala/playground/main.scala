@@ -33,6 +33,8 @@ import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
+import smithy.api.ProtocolDefinition
+import smithy4s.schema.Schema
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -192,24 +194,36 @@ object Runner {
   sealed trait Issue extends Product with Serializable
 
   object Issue {
-    final case class InvalidProtocol(supported: ShapeId) extends Issue
+    final case class InvalidProtocol(supported: ShapeId, found: List[ShapeId]) extends Issue
     final case class Other(e: Throwable) extends Issue
+
+    final case class ProtocolIssues(supported: NonEmptyList[ShapeId], found: List[ShapeId])
 
     // Either remove all protocol errors, or only keep those.
     // If there are any non-protocol errors, they'll be returned in Right.
     // If there are only protocol errors, they'll be returned in Left
+    // todo: this needs a cleanup
     def squash(
       issues: NonEmptyList[Issue]
-    ): Either[NonEmptyList[ShapeId], NonEmptyList[Throwable]] = {
+    ): Either[ProtocolIssues, NonEmptyList[Throwable]] = {
       val (protocols, others) = issues.toList.partitionMap {
-        case InvalidProtocol(p) => Left(p)
-        case Other(e)           => Right(e)
+        case InvalidProtocol(p, _) => Left(p)
+        case Other(e)              => Right(e)
       }
 
       others.toNel match {
         case None =>
           // must be nonempty at this point
-          NonEmptyList.fromListUnsafe(protocols).asLeft
+          ProtocolIssues(
+            NonEmptyList.fromListUnsafe(protocols),
+            issues
+              .collectFirst { case InvalidProtocol(_, found) => found }
+              .getOrElse(
+                sys.error(
+                  "Impossible - no protocol issues found, can't extract available protocols"
+                )
+              ),
+          ).asLeft
         case Some(otherErrors) => otherErrors.asRight
       }
     }
@@ -246,7 +260,13 @@ object Runner {
         .allServices
         .map { svc =>
           QualifiedIdentifier.fromShapeId(svc.service.id) ->
-            Runner.forService[svc.Alg, svc.Op, F](svc.service, client, baseUri, awsEnv)
+            Runner.forService[svc.Alg, svc.Op, F](
+              svc.service,
+              client,
+              baseUri,
+              awsEnv,
+              dsi.getSchema,
+            )
         }
         .toMap
 
@@ -276,8 +296,20 @@ object Runner {
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
+    // TODO: remove this after smithy4s 0.14.0 lands and Schema is available on ShapeTag.
+    unsafeGetSchema: ShapeId => Option[Schema[_]],
   ): Optional[F] =
     new Optional[F] {
+
+      val serviceProtocols = service
+        .hints
+        .all
+        .toList
+        .flatMap { binding =>
+          unsafeGetSchema(binding.key.id).flatMap { schemaOfHint =>
+            schemaOfHint.hints.get(ProtocolDefinition).as(binding.key.id)
+          }
+        }
 
       private def simpleFromBuilder(
         builder: SimpleProtocolBuilder[_]
@@ -296,7 +328,7 @@ object Runner {
           }
           .leftMap(Issue.Other(_))
           .flatMap {
-            _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id))
+            _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
           }
           .map(service.asTransformation)
           .toIor
@@ -315,7 +347,7 @@ object Runner {
         .leftMap(_ =>
           NonEmptyList
             .of(AwsJson1_0.id, AwsJson1_1.id)
-            .map(Issue.InvalidProtocol(_))
+            .map(Issue.InvalidProtocol(_, serviceProtocols))
         )
 
       private def perform[I, E, O](

@@ -6,6 +6,7 @@ import smithy4s.api.SimpleRestJson
 import smithy4s.SchemaIndex
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
+import aws.protocols.RestJson1
 
 object ModelReader {
 
@@ -24,6 +25,7 @@ object ModelReader {
         // todo: should be included
         SchemaIndex(
           SimpleRestJson,
+          smithy.api.ProtocolDefinition,
           smithy.api.Error,
           smithy.api.Documentation,
           smithy.api.ExternalDocumentation,
@@ -34,6 +36,7 @@ object ModelReader {
         SchemaIndex(
           AwsJson1_0,
           AwsJson1_1,
+          RestJson1,
           aws.api.Arn,
           aws.api.ArnNamespace,
           aws.api.ArnReference,
