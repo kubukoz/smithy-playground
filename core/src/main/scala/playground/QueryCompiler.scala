@@ -358,7 +358,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     alternatives: Vector[SchemaAlt[U, _]],
     dispatch: U => Alt.SchemaAndValue[U, _],
   ): PartialCompiler[U] = {
-    val alternativesCompiled = alternatives.map(_.mapK(this)).map(alt => (alt.label, alt)).toMap
+    val alternativesCompiled = alternatives.map(_.mapK(this)).groupBy(_.label).map(_.map(_.head))
     val labels = NonEmptyList.fromListUnsafe(alternatives.toList).map(_.label)
 
     PartialCompiler
