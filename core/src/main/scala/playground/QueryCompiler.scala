@@ -17,6 +17,11 @@ import smithy4s.Refinement
 import smithy4s.ShapeId
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
+import smithy4s.schema.CollectionTag
+import smithy4s.schema.CollectionTag.IndexedSeqTag
+import smithy4s.schema.CollectionTag.ListTag
+import smithy4s.schema.CollectionTag.SetTag
+import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Primitive
 import smithy4s.schema.Primitive.PBigDecimal
@@ -35,18 +40,11 @@ import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
-import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import util.chaining._
 import PartialCompiler.WAST
-import smithy4s.schema.CollectionTag
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
-import smithy4s.capability.EncoderK
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =

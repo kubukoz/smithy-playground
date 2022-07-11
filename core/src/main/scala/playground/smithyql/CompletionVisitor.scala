@@ -13,6 +13,7 @@ import smithy4s.Refinement
 import smithy4s.ShapeId
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
+import smithy4s.schema.CollectionTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -23,11 +24,6 @@ import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import WithSource.NodeContext.PathEntry
-import smithy4s.schema.CollectionTag
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: List[PathEntry]): List[CompletionItem]

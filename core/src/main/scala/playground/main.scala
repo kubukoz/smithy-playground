@@ -35,8 +35,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
-import smithy4s.Hints.Binding.DynamicBinding
-import smithy4s.Hints.Binding.StaticBinding
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
