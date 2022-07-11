@@ -28,6 +28,9 @@ import smithy4s.dynamic.model.Shape
 import smithy4s.dynamic.model.StructureShape
 import smithy4s.dynamic.model.MemberShape
 import smithy4s.dynamic.model.IdRef
+import smithy4s.Timestamp
+import smithy.api.TimestampFormat
+import java.util.UUID
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -170,6 +173,19 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           ).mapK(WithSource.liftId)
         }
       } == Ior.right(Hero.GoodCase(Good(200)))
+    )
+  }
+
+  pureTest("uuid - OK") {
+    // random uuid
+    val result =
+      compile(
+        WithSource.liftId("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f".mapK(WithSource.liftId))
+      )(
+        Schema.uuid
+      )
+    assert(
+      result == Ior.right(UUID.fromString("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f"))
     )
   }
 

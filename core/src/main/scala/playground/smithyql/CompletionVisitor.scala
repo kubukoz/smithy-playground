@@ -31,6 +31,7 @@ import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import WithSource.NodeContext.PathEntry
+import java.util.UUID
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
@@ -228,6 +229,14 @@ object CompletionItemKind {
 
 object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
+  private def quoteAware[A](
+    makeCompletion: (String => String) => List[CompletionItem]
+  ): CompletionResolver[A] = {
+    case PathEntry.Quotes :: Nil => makeCompletion(identity)
+    case Nil                     => makeCompletion(TextUtils.quote)
+    case _                       => Nil
+  }
+
   override def primitive[P](
     shapeId: ShapeId,
     hints: Hints,
@@ -235,7 +244,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   ): CompletionResolver[P] =
     tag match {
       case Primitive.PTimestamp =>
-        def completeTimestamp(transformString: String => String) = {
+        quoteAware { transformString =>
           val example = Timestamp.nowUTC().toString()
 
           CompletionItem.fromHints(
@@ -246,10 +255,16 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
           ) :: Nil
         }
 
-        {
-          case PathEntry.Quotes :: Nil => completeTimestamp(identity)
-          case Nil                     => completeTimestamp(TextUtils.quote)
-          case _                       => Nil
+      case Primitive.PUUID =>
+        quoteAware { transformString =>
+          val example = UUID.randomUUID().toString()
+
+          CompletionItem.fromHints(
+            CompletionItemKind.Constant,
+            s"$example (random uuid)",
+            InsertText.JustString(transformString(example)),
+            Schema.timestamp.addHints(hints).withId(shapeId),
+          ) :: Nil
         }
 
       case _ => _ => Nil
@@ -303,8 +318,8 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     hints: Hints,
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
-  ): CompletionResolver[E] = {
-    def completeEnum(transformString: String => String) = values
+  ): CompletionResolver[E] = quoteAware { transformString =>
+    values
       .map { enumValue =>
         CompletionItem.fromHints(
           CompletionItemKind.EnumMember,
@@ -313,18 +328,6 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
           Schema.enumeration(total, values).addHints(hints).withId(shapeId),
         )
       }
-
-    val inQuotesCompletions = completeEnum(identity)
-    val noQuotesCompletions = completeEnum(TextUtils.quote)
-
-    {
-      case PathEntry.Quotes :: Nil => inQuotesCompletions
-      case Nil                     => noQuotesCompletions
-
-      case _ =>
-        // todo: this seems impossible tbh
-        Nil
-    }
   }
 
   private def structLike[S](

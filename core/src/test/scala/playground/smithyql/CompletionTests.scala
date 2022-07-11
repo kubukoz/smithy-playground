@@ -11,6 +11,7 @@ import playground.smithyql.InsertText.JustString
 import smithy.api.TimestampFormat
 import cats.implicits._
 import demo.smithy.HasNewtypes
+import java.util.UUID
 
 object CompletionTests extends FunSuite {
   test("completions on struct are empty without StructBody") {
@@ -70,6 +71,7 @@ object CompletionTests extends FunSuite {
         "str" -> ": string MyString",
         "power" -> ": enum Power",
         "powerMap" -> ": map PowerMap { key: Power, value: Hero }",
+        "anUUID" -> ": uuid UUID",
       ),
     )
   }
@@ -222,8 +224,9 @@ object CompletionTests extends FunSuite {
       case s => failure("unexpected insert text: " + s)
     }
 
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant))
-    && inserts
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
+    assert.eql(completions.size, 1) &&
+    inserts
   }
 
   test("completions on timestamp in quotes don't have quotes") {
@@ -237,8 +240,28 @@ object CompletionTests extends FunSuite {
       case s                 => failure("unexpected insert text: " + s)
     }
 
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant))
-    && inserts
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
+    assert.eql(completions.size, 1) &&
+    inserts
+  }
+
+  test("completions on uuid include a random uuid") {
+    val completions = Schema
+      .uuid
+      .compile(CompletionVisitor)
+      .getCompletions(List(Quotes))
+
+    val inserts = completions.map(_.insertText).foldMap {
+      case JustString(value) =>
+        val parsed = Either.catchNonFatal(UUID.fromString(value))
+        assert(parsed.isRight)
+
+      case s => failure("unexpected insert text: " + s)
+    }
+
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
+    assert.eql(completions.size, 1) &&
+    inserts
   }
 
 }

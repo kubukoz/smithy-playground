@@ -45,7 +45,9 @@ structure CreateHeroInput {
   friends: Friends,
 
   intSet: IntSet,
-  friendSet: FriendSet
+  friendSet: FriendSet,
+
+  hasNewtypes: HasNewtypes
 }
 
 set FriendSet {
@@ -181,7 +183,8 @@ structure HasNewtypes {
   myInt: MyInt,
   str: MyString,
   power: Power,
-  powerMap: PowerMap
+  powerMap: PowerMap,
+  anUUID: smithy4s.api#UUID
 }
 
 integer MyInt
