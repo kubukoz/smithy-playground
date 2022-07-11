@@ -16,8 +16,14 @@ import smithy4s.Document.DNull
 import smithy4s.Document.DNumber
 import smithy4s.Document.DObject
 import smithy4s.Document.DString
+import smithy4s.Hints
+import smithy4s.Lazy
+import smithy4s.Refinement
+import smithy4s.ShapeId
 import smithy4s.schema.Alt
+import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
+import smithy4s.schema.Primitive
 import smithy4s.schema.Primitive.PBigDecimal
 import smithy4s.schema.Primitive.PBigInt
 import smithy4s.schema.Primitive.PBlob
@@ -34,20 +40,13 @@ import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema.BijectionSchema
-import smithy4s.schema.Schema.EnumerationSchema
-import smithy4s.schema.Schema.LazySchema
-import smithy4s.schema.Schema.ListSchema
-import smithy4s.schema.Schema.MapSchema
-import smithy4s.schema.Schema.PrimitiveSchema
-import smithy4s.schema.Schema.SetSchema
-import smithy4s.schema.Schema.StructSchema
-import smithy4s.schema.Schema.SurjectionSchema
-import smithy4s.schema.Schema.UnionSchema
-import smithy4s.~>
+import smithy4s.schema.SchemaAlt
+import smithy4s.schema.SchemaField
+import smithy4s.schema.SchemaVisitor
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
+  def listed: NodeEncoder[List[A]] = as => Listed[Id](as.map(this.toNode))
 }
 
 object NodeEncoder {
@@ -61,82 +60,49 @@ object NodeEncoder {
 
 }
 
-object NodeEncoderVisitor extends (Schema ~> NodeEncoder) {
+object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] {
 
-  def apply[A](fa: Schema[A]): NodeEncoder[A] =
-    fa match {
-      case LazySchema(suspend) =>
-        val mapped = suspend.map(_.compile(this))
-        value => mapped.value.toNode(value)
-
-      case SurjectionSchema(underlying, _, from) => underlying.compile(this).contramap(from)
-      case BijectionSchema(underlying, _, from)  => underlying.compile(this).contramap(from)
-      case EnumerationSchema(_, _, _, total)     => string.contramap(total(_).stringValue)
-      case UnionSchema(_, _, alternatives, dispatch) =>
-        val altsCompiled = alternatives
-          .map(_.mapK(this))
-          .groupBy(_.label)
-
-        s => {
-          def go[X](r: Alt.WithValue[NodeEncoder, A, X]) = Struct.one[Id](
-            key = Struct.Key(r.alt.label),
-            value = r.alt.instance.toNode(r.value),
-          )
-
-          go {
-            dispatch
-              .andThen { result =>
-                result.copy[NodeEncoder, A, Any](alt =
-                  altsCompiled(result.alt.label)
-                    .asInstanceOf[Alt[NodeEncoder, A, Any]]
-                )
-              }
-              .apply(s)
-          }
-        }
-      case MapSchema(_, _, key, value)   => map(key.compile(this), value.compile(this))
-      case ListSchema(_, _, member)      => list(member.compile(this))
-      case SetSchema(_, _, member)       => list(member.compile(this)).contramap(_.toList)
-      case StructSchema(_, _, fields, _) => struct(fields.map(_.mapK(this)))
-      case PrimitiveSchema(_, _, tag) =>
-        tag match {
-          case PInt        => int
-          case PShort      => unsupported("short")
-          case PLong       => int.contramap(_.toInt) // todo: wraps
-          case PString     => string
-          case PBigInt     => unsupported("bigint")
-          case PBoolean    => boolean
-          case PBigDecimal => bigdecimal
-          case PBlob       => string.contramap(_.toString) // todo this only works for UTF-8 text
-          case PDouble     => unsupported("double")
-          case PDocument   => document
-          case PFloat      => unsupported("float")
-          case PUnit       =>
-            // todo: inconsistent with decoder (takes everything)
-            struct(Vector())
-          case PUUID      => unsupported("uuid")
-          case PByte      => unsupported("byte")
-          case PTimestamp =>
-            // todo support formats
-            string.contramap(_.toString)
-        }
+  def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): NodeEncoder[P] =
+    tag match {
+      case PInt        => int
+      case PShort      => unsupported("short")
+      case PLong       => int.contramap(_.toInt) // todo: wraps
+      case PString     => string
+      case PBigInt     => unsupported("bigint")
+      case PBoolean    => boolean
+      case PBigDecimal => bigdecimal
+      case PBlob       => string.contramap(_.toString) // todo this only works for UTF-8 text
+      case PDouble     => unsupported("double")
+      case PDocument   => document
+      case PFloat      => unsupported("float")
+      case PUnit       =>
+        // todo: inconsistent with decoder (takes everything)
+        _ => obj(Nil)
+      case PUUID      => unsupported("uuid")
+      case PByte      => unsupported("byte")
+      case PTimestamp =>
+        // todo support formats
+        string.contramap(_.toString)
     }
 
-  def unsupported[A](tag: String): NodeEncoder[A] =
-    v => throw new Exception(s"Unsupported operation: $tag for value $v")
+  def list[A](shapeId: ShapeId, hints: Hints, member: Schema[A]): NodeEncoder[List[A]] =
+    member.compile(this).listed
 
-  val bigdecimal: NodeEncoder[BigDecimal] = unsupported("bigdecimal")
-  val int: NodeEncoder[Int] = IntLiteral(_)
+  def set[A](shapeId: ShapeId, hints: Hints, member: Schema[A]): NodeEncoder[Set[A]] = list(
+    shapeId,
+    hints,
+    member,
+  ).contramap(_.toList)
 
-  val string: NodeEncoder[String] = StringLiteral(_)
+  def map[K, V](
+    shapeId: ShapeId,
+    hints: Hints,
+    key: Schema[K],
+    value: Schema[V],
+  ): NodeEncoder[Map[K, V]] = {
+    val fk = key.compile(this)
+    val fv = value.compile(this)
 
-  val boolean: NodeEncoder[Boolean] = BooleanLiteral(_)
-
-  def list[S](fs: NodeEncoder[S]): NodeEncoder[List[S]] = elems => Listed[Id](elems.map(fs.toNode))
-
-  def set[S](fs: NodeEncoder[S]): NodeEncoder[Set[S]] = list(fs).contramap(_.toList)
-
-  def map[K, V](fk: NodeEncoder[K], fv: NodeEncoder[V]): NodeEncoder[Map[K, V]] =
     _.toList
       .parTraverse { case (k, v) =>
         fk.toNode(k) match {
@@ -149,6 +115,99 @@ object NodeEncoderVisitor extends (Schema ~> NodeEncoder) {
         throw new Exception("Map encoding failed: " + errors.toList.mkString(", "))
       )
       .merge
+  }
+
+  def enumeration[E](
+    shapeId: ShapeId,
+    hints: Hints,
+    values: List[EnumValue[E]],
+    total: E => EnumValue[E],
+  ): NodeEncoder[E] = string.contramap(total(_).stringValue)
+
+  def struct[S](
+    shapeId: ShapeId,
+    hints: Hints,
+    fieldsRaw: Vector[SchemaField[S, _]],
+    make: IndexedSeq[Any] => S,
+  ): NodeEncoder[S] = {
+    val fields = fieldsRaw.map(_.mapK(this))
+
+    def go[A](
+      f: Field[NodeEncoder, S, A],
+      s: S,
+    ) = f.fold(new Field.Folder[NodeEncoder, S, Option[(String, InputNode[Id])]] {
+      def onRequired[F](
+        label: String,
+        instance: NodeEncoder[F],
+        get: S => F,
+      ): Option[(String, InputNode[Id])] = Some(label -> instance.toNode(get(s)))
+
+      def onOptional[F](
+        label: String,
+        instance: NodeEncoder[F],
+        get: S => Option[F],
+      ): Option[(String, InputNode[Id])] = get(s).map(f => label -> instance.toNode(f))
+    })
+
+    s => obj(fields.flatMap(go(_, s)).toList)
+  }
+
+  def union[U](
+    shapeId: ShapeId,
+    hints: Hints,
+    alternatives: Vector[SchemaAlt[U, _]],
+    dispatch: U => Alt.SchemaAndValue[U, _],
+  ): NodeEncoder[U] = {
+    val altsCompiled = alternatives
+      .map(_.mapK(this))
+      .groupBy(_.label)
+      .map(_.map(_.head))
+
+    s => {
+      def go[X](r: Alt.WithValue[NodeEncoder, U, X]) = Struct.one[Id](
+        key = Struct.Key(r.alt.label),
+        value = r.alt.instance.toNode(r.value),
+      )
+
+      go {
+        dispatch
+          .andThen { result =>
+            result.copy[NodeEncoder, U, Any](alt =
+              altsCompiled(result.alt.label)
+                .asInstanceOf[Alt[NodeEncoder, U, Any]]
+            )
+          }
+          .apply(s)
+      }
+    }
+  }
+
+  def biject[A, B](
+    schema: Schema[A],
+    to: A => B,
+    from: B => A,
+  ): NodeEncoder[B] = schema.compile(this).contramap(from)
+
+  def surject[A, B](
+    schema: Schema[A],
+    to: Refinement[A, B],
+    from: B => A,
+  ): NodeEncoder[B] = schema.compile(this).contramap(from)
+
+  def lazily[A](suspend: Lazy[Schema[A]]): NodeEncoder[A] = {
+    val mapped = suspend.map(_.compile(this))
+    value => mapped.value.toNode(value)
+  }
+
+  def unsupported[A](tag: String): NodeEncoder[A] =
+    v => throw new Exception(s"Unsupported operation: $tag for value $v")
+
+  val bigdecimal: NodeEncoder[BigDecimal] = unsupported("bigdecimal")
+  val int: NodeEncoder[Int] = IntLiteral(_)
+
+  val string: NodeEncoder[String] = StringLiteral(_)
+
+  val boolean: NodeEncoder[Boolean] = BooleanLiteral(_)
 
   private def obj(
     values: List[(String, InputNode[Id])]
@@ -157,30 +216,6 @@ object NodeEncoderVisitor extends (Schema ~> NodeEncoder) {
       .Fields
       .fromSeq[Id](values.map(_.leftMap(Struct.Key(_))))
   )
-
-  def struct[S](
-    fields: Vector[Field[NodeEncoder, S, _]]
-  ): NodeEncoder[S] =
-    s => {
-
-      def go[A](
-        f: Field[NodeEncoder, S, A]
-      ) = f.fold(new Field.Folder[NodeEncoder, S, Option[(String, InputNode[Id])]] {
-        def onRequired[F](
-          label: String,
-          instance: NodeEncoder[F],
-          get: S => F,
-        ): Option[(String, InputNode[Id])] = Some(label -> instance.toNode(get(s)))
-
-        def onOptional[F](
-          label: String,
-          instance: NodeEncoder[F],
-          get: S => Option[F],
-        ): Option[(String, InputNode[Id])] = get(s).map(f => label -> instance.toNode(f))
-      })
-
-      obj(fields.flatMap(go(_)).toList)
-    }
 
   def union[S](
     total: S => Alt.WithValue[NodeEncoder, S, _]
@@ -197,7 +232,7 @@ object NodeEncoderVisitor extends (Schema ~> NodeEncoder) {
   val document: NodeEncoder[Document] =
     doc =>
       doc match {
-        case DArray(value)   => list(document).toNode(value.toList)
+        case DArray(value)   => document.listed.toNode(value.toList)
         case DBoolean(value) => boolean.toNode(value)
         case DNumber(value) =>
           if (value.isValidInt)
