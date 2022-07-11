@@ -219,11 +219,15 @@ object WithSource {
 
     def comments(node: InputNode[WithSource]): List[Comment] = node.fold(
       struct =
-        _.fields.allComments(_.value.flatMap { case (k, v) =>
-          k.allComments(_ => Nil) ++ v.allComments(
-            _.fold(comments, comments, comments, comments, comments)
-          )
-        }.toList),
+        _.fields.allComments(
+          _.value
+            .flatMap { case (k, v) =>
+              k.allComments(_ => Nil) ++ v.allComments(
+                _.fold(comments, comments, comments, comments, comments)
+              )
+            }
+            .toList
+        ),
       string = _ => Nil,
       int = _ => Nil,
       bool = _ => Nil,
