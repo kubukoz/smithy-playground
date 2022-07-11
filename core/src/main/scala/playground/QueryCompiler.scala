@@ -238,10 +238,12 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
       case PFloat => unsupported("float")
       case PTimestamp =>
         stringLiteral.emap { s =>
-          // todo unhardcode format
+          // We don't support other formats for the simple reason that it's not necessary:
+          // this is just like multiple union encodings - it doesn't matter how you write your queries,
+          // the actual serialization format will be used by the client when we eventually use it in the Runner.
           val format = TimestampFormat.DATE_TIME
+
           Timestamp
-            // todo: also, this keeps throwing in an uncatchable way in JS
             .parse(s.value, format)
             .toRightIor(
               CompilationError(

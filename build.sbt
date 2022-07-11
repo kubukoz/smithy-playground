@@ -44,7 +44,12 @@ lazy val core = projectMatrix
     ),
   )
   .jvmPlatform(commonScalaVersions)
-  .jsPlatform(commonScalaVersions)
+  .jsPlatform(
+    commonScalaVersions,
+    Seq(
+      libraryDependencies += "org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0"
+    ),
+  )
   .enablePlugins(Smithy4sCodegenPlugin)
   .enablePlugins(BuildInfoPlugin)
 
