@@ -296,8 +296,7 @@ object Runner {
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
-    // TODO: remove this after smithy4s 0.14.0 lands and Schema is available on ShapeTag.
-    unsafeGetSchema: ShapeId => Option[Schema[_]],
+    schemaIndex: ShapeId => Option[Schema[_]],
   ): Optional[F] =
     new Optional[F] {
 
@@ -306,7 +305,7 @@ object Runner {
         .all
         .toList
         .flatMap { binding =>
-          unsafeGetSchema(binding.key.id).flatMap { schemaOfHint =>
+          schemaIndex(binding.key.id).flatMap { schemaOfHint =>
             schemaOfHint.hints.get(ProtocolDefinition).as(binding.key.id)
           }
         }
