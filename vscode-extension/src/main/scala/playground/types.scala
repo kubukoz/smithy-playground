@@ -3,14 +3,19 @@ package playground
 import cats.~>
 import cats.effect.IO
 import cats.implicits._
+import cats.data.Ior
 
 object types {
 
-  type EitherThrow[+A] = Either[Throwable, A]
+  type IorThrow[+A] = Ior[Throwable, A]
 
-  val eitherToIO: EitherThrow ~> IO =
-    new (EitherThrow ~> IO) {
-      override def apply[A](fa: EitherThrow[A]): IO[A] = fa.liftTo[IO]
+  val iorToIO: IorThrow ~> IO =
+    new (IorThrow ~> IO) {
+
+      override def apply[A](
+        fa: IorThrow[A]
+      ): IO[A] = fa.toEither.liftTo[IO]
+
     }
 
 }

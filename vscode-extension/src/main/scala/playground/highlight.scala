@@ -13,12 +13,13 @@ import typings.vscode.mod.DiagnosticSeverity
 
 import types._
 import cats.data.Ior
+import playground.CompilationErrorDetails.DuplicateItem
 
 object highlight {
 
   def getHighlights[F[_]](
     doc: mod.TextDocument,
-    c: Compiler[EitherThrow],
+    c: Compiler[IorThrow],
     runner: Runner.Optional[F],
   ): List[Diagnostic] = compilationErrors(doc, c).fold(
     _.toList,
@@ -66,7 +67,7 @@ object highlight {
 
   def compilationErrors[Op[_, _, _, _, _], F[_]](
     doc: mod.TextDocument,
-    c: Compiler[EitherThrow],
+    c: Compiler[IorThrow],
   ): IorNel[Diagnostic, Query[WithSource]] = {
 
     val base: Ior[Throwable, Query[WithSource]] = SmithyQLParser
@@ -76,11 +77,7 @@ object highlight {
         Ior.left(_),
         q =>
           // If compilation fails, pass the errors but keep the parsing result
-          c.compile(q)
-            .fold(
-              Ior.both(_, q),
-              _ => Ior.right(q),
-            ),
+          c.compile(q).as(q),
       )
 
     base
@@ -116,10 +113,21 @@ object highlight {
           e match {
             case CompilationFailed(errors) =>
               errors.map { ee => // dźwig
-                error(
-                  ee.err.render,
-                  adapters.toVscodeRange(doc, ee.range),
-                )
+
+                ee.err match {
+                  // todo: support warnings in "CompilationFailed"
+                  // todo2: rename CompilationFailed cause it makes no sense with warnings
+                  case DuplicateItem =>
+                    warn(
+                      ee.err.render,
+                      adapters.toVscodeRange(doc, ee.range),
+                    )
+                  case _ =>
+                    error(
+                      ee.err.render,
+                      adapters.toVscodeRange(doc, ee.range),
+                    )
+                }
               }
 
             case _ =>
@@ -136,6 +144,9 @@ object highlight {
 
   private def error(msg: String, range: mod.Range) =
     new Diagnostic(range, msg, DiagnosticSeverity.Error)
+
+  private def warn(msg: String, range: mod.Range) =
+    new Diagnostic(range, msg, DiagnosticSeverity.Warning)
 
   private def info(msg: String, range: mod.Range) =
     new Diagnostic(range, msg, DiagnosticSeverity.Information)

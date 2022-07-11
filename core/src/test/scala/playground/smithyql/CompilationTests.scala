@@ -210,22 +210,24 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
-  test("set of ints fails when duplicates are found") {
+  test("set of ints has warnings when duplicates are found") {
     forall { (range1: SourceRange, range2: SourceRange, range3: SourceRange) =>
-      assert(
-        compile[IntSet](
-          WithSource.liftId(
-            Listed[WithSource](
-              WithSource.liftId(
-                List(
-                  WithSource.liftId(IntLiteral[WithSource](1)).withRange(range1),
-                  WithSource.liftId(IntLiteral[WithSource](2)).withRange(range2),
-                  WithSource.liftId(IntLiteral[WithSource](2)).withRange(range3),
-                )
+      val actual = compile[IntSet](
+        WithSource.liftId(
+          Listed[WithSource](
+            WithSource.liftId(
+              List(
+                WithSource.liftId(IntLiteral[WithSource](1)).withRange(range1),
+                WithSource.liftId(IntLiteral[WithSource](2)).withRange(range2),
+                WithSource.liftId(IntLiteral[WithSource](2)).withRange(range3),
               )
             )
           )
-        ) == Ior.left(
+        )
+      )
+
+      assert(
+        actual == Ior.both(
           NonEmptyChain(
             CompilationError(
               CompilationErrorDetails.DuplicateItem,
@@ -235,7 +237,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
               CompilationErrorDetails.DuplicateItem,
               range3,
             ),
-          )
+          ),
+          Set(1, 2),
         )
       )
     }
@@ -255,14 +258,14 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       .leftMap(_.map(_.err))
 
     assert(
-      compiledFailures == Ior.left(
-        NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem)
+      compiledFailures == Ior.both(
+        NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem),
+        Set(Hero.GoodCase(Good(42))),
       )
     )
   }
 
-  // todo
-  pureTest("set of struct fails when duplicates are found - dynamic") {
+  pureTest("set of struct has warnings when duplicates are found - dynamic") {
     val compiledFailures = compile(
       WithSource.liftId(
         List(
@@ -271,11 +274,19 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         ).mapK(WithSource.liftId)
       )
     )(Schema.set(dynamicPersonSchema))
+      .map(_.map(dynamicPersonToDocument.encode(_)))
       .leftMap(_.map(_.err))
 
+    val expected = Set(
+      Document.obj(
+        "name" -> Document.fromString("Hello")
+      )
+    )
+
     assert(
-      compiledFailures == Ior.left(
-        NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem)
+      compiledFailures == Ior.both(
+        NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem),
+        expected,
       )
     )
   }

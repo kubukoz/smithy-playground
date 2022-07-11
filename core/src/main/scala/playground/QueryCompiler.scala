@@ -100,13 +100,13 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case DuplicateItem => "Duplicate set item"
+      case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
       case AmbiguousService(matching) =>
         s"""Multiple services are available. Add a use clause to specify the service you want to use.
            |Available services:""".stripMargin + matching
           .map(UseClause(_))
           .map(Formatter.renderUseClause(_).render(Int.MaxValue))
-          .mkString_("\n", "\n", "")
+          .mkString_("\n", "\n", ".")
 
       case UnknownService(id, known) =>
         s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
@@ -258,7 +258,9 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
         val memberToDoc = Document.Encoder.fromSchema(member)
 
         listWithPos(member.compile(this)).emap { items =>
-          items
+          val success = items.map(_._1).toSet
+
+          val duplications = items
             .groupBy { case (v, _) => memberToDoc.encode(v) }
             .map(_._2)
             .filter(_.sizeIs > 1)
@@ -266,8 +268,13 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
             .toList
             .pipe(NonEmptyChain.fromSeq(_))
-            .toLeftIor(items.map(_._1).toSet)
+
+          duplications match {
+            case None         => success.rightIor
+            case Some(errors) => Ior.both(errors, success)
+          }
         }
+
       case ListTag       => listOf(member)
       case IndexedSeqTag => listOf(member).map(_.toIndexedSeq)
       case VectorTag     => listOf(member).map(_.toVector)

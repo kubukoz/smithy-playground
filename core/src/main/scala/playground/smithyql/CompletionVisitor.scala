@@ -179,19 +179,24 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     tag: Primitive[P],
   ): CompletionResolver[P] =
     tag match {
-      case PTimestamp => {
-        case Nil =>
+      case PTimestamp =>
+        def completeTimestamp(transformString: String => String) = {
           val example = Timestamp.nowUTC().toString()
 
           CompletionItem.fromHints(
             CompletionItemKind.Constant,
             s"$example (now)",
-            InsertText.JustString(example),
+            InsertText.JustString(transformString(example)),
             hints,
             shapeId,
           ) :: Nil
-        case _ => Nil
-      }
+        }
+
+        {
+          case PathEntry.Quotes :: Nil => completeTimestamp(identity)
+          case Nil                     => completeTimestamp(TextUtils.quote)
+          case _                       => Nil
+        }
 
       case _ => _ => Nil
     }
