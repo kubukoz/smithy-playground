@@ -111,7 +111,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
           readBuildConfig(ctx)
             .flatMap(buildSchemaIndex)
             .flatMap { dsi =>
-              val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+              val compiler = playground.Compiler.fromSchemaIndex(dsi)
 
               val runner = Runner
                 .forSchemaIndex[IO](dsi, Client(_ => Resource.never), IO.never, Resource.never)
@@ -124,7 +124,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                   _ => "available",
                 )
 
-              compiler.compile(parsed).flatMap { cin =>
+              compiler.compile(parsed).toEither.liftTo[IO].flatMap { cin =>
                 val input = Document.Encoder.fromSchema(cin.endpoint.input).encode(cin.input)
 
                 IO.println(
@@ -151,7 +151,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
           readBuildConfig(ctx)
             .flatMap(buildSchemaIndex)
             .flatMap { dsi =>
-              val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+              val compiler = playground.Compiler.fromSchemaIndex(dsi)
 
               EmberClientBuilder.default[IO].build.use { client =>
                 AwsEnvironment
@@ -167,7 +167,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                       }
                       .liftTo[IO]
                       .flatMap { runner =>
-                        compiler.compile(parsed).flatMap { compiled =>
+                        compiler.compile(parsed).toEither.liftTo[IO].flatMap { compiled =>
                           runner
                             .run(compiled)
                             .flatMap { result =>

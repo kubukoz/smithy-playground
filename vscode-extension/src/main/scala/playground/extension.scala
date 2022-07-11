@@ -88,7 +88,7 @@ object extension {
               )
           }
           .flatMap { runner =>
-            val compiler: Compiler[EitherThrow] =
+            val compiler: Compiler[IorThrow] =
               debug.timed("compiler setup") {
                 Compiler.fromSchemaIndex(dsi)
               }
@@ -111,7 +111,7 @@ object extension {
 
   private def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     context: ExtensionContext,
-    compiler: Compiler[EitherThrow],
+    compiler: Compiler[IorThrow],
     completionProvider: CompletionProvider,
     runner: Runner.Optional[IO],
   ): List[mod.Disposable] = {
@@ -162,7 +162,7 @@ object extension {
                       ).void
                   }
                   .map { runner =>
-                    run.perform[IO, Op](ted, compiler.mapK(eitherToIO), runner, chan)
+                    run.perform[IO, Op](ted, compiler.mapK(iorToIO), runner, chan)
                   }
                   .merge
               }

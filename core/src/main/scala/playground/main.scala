@@ -4,7 +4,7 @@ import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 import cats.Defer
 import cats.Id
-import cats.MonadThrow
+import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
@@ -23,6 +23,7 @@ import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.WithSource
+import smithy.api.ProtocolDefinition
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.ShapeId
@@ -33,7 +34,6 @@ import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
-import smithy.api.ProtocolDefinition
 import smithy4s.schema.Schema
 
 trait CompiledInput {
@@ -73,24 +73,24 @@ trait Compiler[F[_]] { self =>
 
 object Compiler {
 
-  def fromSchemaIndex[F[_]: MonadThrow](
+  def fromSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): Compiler[F] = {
-    val services: Map[QualifiedIdentifier, Compiler[F]] =
+  ): Compiler[Ior[Throwable, *]] = {
+    val services: Map[QualifiedIdentifier, Compiler[Ior[Throwable, *]]] =
       dsi
         .allServices
         .map { svc =>
           QualifiedIdentifier
-            .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op, F](svc.service)
+            .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op](svc.service)
         }
         .toMap
 
     new MultiServiceCompiler(services)
   }
 
-  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op]
-  ): Compiler[F] = new ServiceCompiler(service)
+  ): Compiler[Ior[Throwable, *]] = new ServiceCompiler(service)
 
 }
 
@@ -100,13 +100,13 @@ object CompilationFailed {
   def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
 }
 
-private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   service: Service[Alg, Op]
-) extends Compiler[F] {
+) extends Compiler[Ior[Throwable, *]] {
 
   private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
-  ): WithSource[InputNode[WithSource]] => F[CompiledInput] = {
+  ): WithSource[InputNode[WithSource]] => Ior[Throwable, CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompiler)
     val outputEncoder = NodeEncoder.derive(e.output)
     val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
@@ -114,10 +114,8 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
     ast =>
       inputCompiler
         .compile(ast)
-        .toEither
         .leftMap(_.toNonEmptyList)
         .leftMap(CompilationFailed(_))
-        .liftTo[F]
         .map { compiled =>
           new CompiledInput {
             type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
@@ -139,9 +137,9 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
     .groupByNel(_.name)
     .map(_.map(_.head).map(compileEndpoint(_)))
 
-  def compile(q: Query[WithSource]): F[CompiledInput] = endpoints
+  def compile(q: Query[WithSource]): Ior[Throwable, CompiledInput] = endpoints
     .get(q.operationName.value.text)
-    .liftTo[F](
+    .toRight(
       CompilationFailed.one(
         CompilationError(
           CompilationErrorDetails
@@ -153,17 +151,17 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
         )
       )
     )
-    .flatMap(_.apply(q.input))
+    .fold(_.leftIor, _.apply(q.input))
 
 }
 
-private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
-  services: Map[QualifiedIdentifier, Compiler[F]]
-) extends Compiler[F] {
+private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+  services: Map[QualifiedIdentifier, Compiler[Ior[Throwable, *]]]
+) extends Compiler[Ior[Throwable, *]] {
 
   private def getService(
     q: Query[WithSource]
-  ): F[Compiler[F]] = MultiServiceResolver
+  ): Either[Throwable, Compiler[Ior[Throwable, *]]] = MultiServiceResolver
     .resolveService(q.useClause.map(_.value.identifier), services)
     .leftMap { rf =>
       CompilationFailed.one(
@@ -173,11 +171,10 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_
         )
       )
     }
-    .liftTo[F]
 
   def compile(
     q: Query[WithSource]
-  ): F[CompiledInput] = getService(q).flatMap(_.compile(q))
+  ): Ior[Throwable, CompiledInput] = getService(q).fold(Ior.left(_), _.compile(q))
 
 }
 
