@@ -6,6 +6,10 @@ import smithy4s.schema.Schema
 import playground.smithyql.WithSource.NodeContext.PathEntry._
 import demo.smithy.Hero
 import demo.smithy.Power
+import smithy4s.Timestamp
+import playground.smithyql.InsertText.JustString
+import smithy.api.TimestampFormat
+import cats.implicits._
 
 object CompletionTests extends FunSuite {
   test("completions on struct are empty without StructBody") {
@@ -164,5 +168,38 @@ object CompletionTests extends FunSuite {
     assert(fieldNames == List("howGood")) &&
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
   }
-  // todo quoted/unquoted timestamps
+
+  test("completions on timestamp without quotes have quotes") {
+    val completions = Schema
+      .timestamp
+      .compile(CompletionVisitor)
+      .getCompletions(Nil)
+
+    val extractQuote = """\"(.*)\"""".r
+
+    val inserts = completions.map(_.insertText).foldMap {
+      case JustString(extractQuote(value)) =>
+        assert(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
+      case s => failure("unexpected insert text: " + s)
+    }
+
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant))
+    && inserts
+  }
+
+  test("completions on timestamp in quotes don't have quotes") {
+    val completions = Schema
+      .timestamp
+      .compile(CompletionVisitor)
+      .getCompletions(List(Quotes))
+
+    val inserts = completions.map(_.insertText).foldMap {
+      case JustString(value) => assert(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
+      case s                 => failure("unexpected insert text: " + s)
+    }
+
+    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant))
+    && inserts
+  }
+
 }
