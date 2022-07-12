@@ -67,7 +67,7 @@ structure CreateHeroOutput {
 union Hero {
   good: Good,
   bad: Bad,
-  @deprecated(reason:"No reason")
+  @deprecated(message: "No reason")
   badder: Bad
 }
 
