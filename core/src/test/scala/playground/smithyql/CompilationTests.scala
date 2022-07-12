@@ -208,8 +208,6 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       Schema.timestamp
     ).leftMap(_.map(_.err))
 
-    // todo: timestamp parsing always passes on JS but does something weird.
-    // this is fixed in smithy4s 0.14.0
     assert(
       result == Ior.leftNec(
         CompilationErrorDetails.InvalidTimestampFormat(TimestampFormat.DATE_TIME)
