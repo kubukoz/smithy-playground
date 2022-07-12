@@ -252,7 +252,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("list of ints") {
     assert(
       compile[Ints](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
-        Ints(List(1, 2, 3))
+        Ints(IndexedSeq(1, 2, 3))
       )
     )
   }

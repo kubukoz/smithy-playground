@@ -127,8 +127,10 @@ object CompletionItem {
     import smithy4s.schema.CollectionTag._
 
     {
-      case ListTag => "list"
-      case SetTag  => "set"
+      case ListTag       => "list"
+      case SetTag        => "set"
+      case IndexedSeqTag => "@indexedSeq list"
+      case VectorTag     => "@vector list"
     }
   }
 
