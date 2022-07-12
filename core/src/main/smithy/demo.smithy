@@ -45,7 +45,9 @@ structure CreateHeroInput {
   friends: Friends,
 
   intSet: IntSet,
-  friendSet: FriendSet
+  friendSet: FriendSet,
+
+  hasNewtypes: HasNewtypes
 }
 
 set FriendSet {
@@ -65,7 +67,7 @@ structure CreateHeroOutput {
 union Hero {
   good: Good,
   bad: Bad,
-  @deprecated(reason:"No reason")
+  @deprecated(message: "No reason")
   badder: Bad
 }
 
@@ -175,3 +177,16 @@ set IntSet {
   member: Integer
 }
 
+
+structure HasNewtypes {
+  intSet: IntSet,
+  myInt: MyInt,
+  str: MyString,
+  power: Power,
+  powerMap: PowerMap,
+  anUUID: smithy4s.api#UUID
+}
+
+integer MyInt
+
+string MyString

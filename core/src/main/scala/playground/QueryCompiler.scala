@@ -45,6 +45,7 @@ import smithy4s.schema.SchemaVisitor
 
 import util.chaining._
 import PartialCompiler.WAST
+import java.util.UUID
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -98,6 +99,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case InvalidUUID   => "Invalid UUID"
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
       case AmbiguousService(matching) =>
         s"""Multiple services are available. Add a use clause to specify the service you want to use.
@@ -178,6 +180,8 @@ object CompilationErrorDetails {
 
   final case class MissingField(label: String) extends CompilationErrorDetails
 
+  case object InvalidUUID extends CompilationErrorDetails
+
   final case class InvalidTimestampFormat(expected: TimestampFormat) extends CompilationErrorDetails
 
   final case class MissingDiscriminator(possibleValues: NonEmptyList[String])
@@ -225,16 +229,29 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
       case PBigDecimal => unsupported("bigDecimal")
       case PDouble     => unsupported("double")
       case PBigInt     => unsupported("bigint")
-      case PUUID       => unsupported("uuid")
-      case PLong       => unsupported("long")
-      case PFloat      => unsupported("float")
+      case PUUID =>
+        stringLiteral.emap { s =>
+          Either
+            .catchOnly[IllegalArgumentException](UUID.fromString(s.value))
+            .toIor
+            .leftMap(_ => CompilationError(InvalidUUID, s.range))
+            .toIorNec
+        }
+
+      case PLong  => unsupported("long")
+      case PFloat => unsupported("float")
       case PTimestamp =>
         stringLiteral.emap { s =>
-          // todo unhardcode format
+          // We don't support other formats for the simple reason that it's not necessary:
+          // this is just like multiple union encodings - it doesn't matter how you write your queries,
+          // the actual serialization format will be used by the client when we eventually use it in the Runner.
           val format = TimestampFormat.DATE_TIME
-          Timestamp
-            // todo: also, this keeps throwing in an uncatchable way in JS
-            .parse(s.value, format)
+
+          TimestampPlatform
+            .fixupTimestamp(
+              Timestamp
+                .parse(s.value, format)
+            )
             .toRightIor(
               CompilationError(
                 InvalidTimestampFormat(format),

@@ -17,13 +17,20 @@ import smithy4s.schema.CollectionTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
-import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Schema
+import smithy4s.schema.Schema.BijectionSchema
+import smithy4s.schema.Schema.EnumerationSchema
+import smithy4s.schema.Schema.LazySchema
+import smithy4s.schema.Schema.MapSchema
+import smithy4s.schema.Schema.PrimitiveSchema
+import smithy4s.schema.Schema.StructSchema
+import smithy4s.schema.Schema.UnionSchema
 import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import WithSource.NodeContext.PathEntry
+import java.util.UUID
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
@@ -56,43 +63,101 @@ object InsertText {
 
 object CompletionItem {
 
-  def fromField(field: Field[CompletionResolver, _, _], schema: Schema[_]): CompletionItem =
-    fromHints(
-      kind = CompletionItemKind.Field,
-      label = field.label,
-      insertText = InsertText.JustString(s"${field.label} = "),
-      hints = schema.hints,
-      shapeId = schema.shapeId,
-    )
+  def fromField(
+    field: Field[CompletionResolver, _, _],
+    schema: Schema[_],
+  ): CompletionItem = fromHints(
+    kind = CompletionItemKind.Field,
+    label = field.label,
+    insertText = InsertText.JustString(s"${field.label} = "),
+    schema = schema,
+  )
 
-  def fromAlt(alt: Alt[CompletionResolver, _, _], schema: Schema[_]): CompletionItem = fromHints(
+  def fromAlt(
+    alt: Alt[CompletionResolver, _, _],
+    schema: Schema[_],
+  ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
     // todo: unions aren't only for structs: this makes an invalid assumption
     // by inserting {} at all times
     insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
-    hints = schema.hints,
-    shapeId = schema.shapeId,
+    schema = schema,
   )
 
   def fromHints(
     kind: CompletionItemKind,
     label: String,
     insertText: InsertText,
-    hints: Hints,
-    shapeId: ShapeId,
+    schema: Schema[_],
   ): CompletionItem = CompletionItem(
     kind = kind,
     label = label,
     insertText = insertText,
-    deprecated = hints.get(smithy.api.Deprecated).isDefined,
-    detail = typeAnnotationShort(shapeId),
-    description = shapeId.namespace.some,
-    docs = buildDocumentation(hints),
+    deprecated = schema.hints.get(smithy.api.Deprecated).isDefined,
+    detail = show": ${describeSchema(schema)()}",
+    description = schema.shapeId.namespace.some,
+    docs = buildDocumentation(schema.hints),
     extraTextEdits = Nil,
   )
 
-  def typeAnnotationShort(shapeId: ShapeId): String = s": ${shapeId.name}"
+  private val describePrimitive: Primitive[_] => String = {
+    import smithy4s.schema.Primitive._
+
+    {
+      case PString     => "string"
+      case PByte       => "byte"
+      case PDouble     => "double"
+      case PShort      => "short"
+      case PUnit       => "unit"
+      case PBigInt     => "bigInteger"
+      case PInt        => "integer"
+      case PUUID       => "uuid"
+      case PLong       => "long"
+      case PBoolean    => "boolean"
+      case PFloat      => "float"
+      case PBigDecimal => "bigDecimal"
+      case PDocument   => "document"
+      case PTimestamp  => "timestamp"
+      case PBlob       => "blob"
+    }
+  }
+
+  private def describeCollection[C[_]]: CollectionTag[C] => String = {
+    import smithy4s.schema.CollectionTag._
+
+    {
+      case ListTag => "list"
+      case SetTag  => "set"
+    }
+  }
+
+  def describeSchema(schema: Schema[_]): () => String =
+    schema match {
+      case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
+
+      case Schema.CollectionSchema(shapeId, _, tag, member) =>
+        now(s"${describeCollection(tag)} ${shapeId.name} { member: ${describeSchema(member)()} }")
+
+      case EnumerationSchema(shapeId, _, _, _) => now(s"enum ${shapeId.name}")
+
+      case MapSchema(shapeId, _, key, value) =>
+        now(s"map ${shapeId.name} { key: ${key.shapeId.name}, value: ${value.shapeId.name} }")
+
+      case StructSchema(shapeId, _, _, _) => now(s"structure ${shapeId.name}")
+
+      case UnionSchema(shapeId, _, _, _) => now(s"union ${shapeId.name}")
+
+      case LazySchema(suspend) =>
+        val desc = suspend.map(describeSchema)
+        () => desc.value()
+
+      case BijectionSchema(underlying, _, _) => describeSchema(underlying)
+
+      case s => now(s.shapeId.name)
+    }
+
+  private def now(s: String): () => String = () => s
 
   sealed trait InsertUseClause extends Product with Serializable
 
@@ -169,29 +234,42 @@ object CompletionItemKind {
 
 object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
+  private def quoteAware[A](
+    makeCompletion: (String => String) => List[CompletionItem]
+  ): CompletionResolver[A] = {
+    case PathEntry.Quotes :: Nil => makeCompletion(identity)
+    case Nil                     => makeCompletion(TextUtils.quote)
+    case _                       => Nil
+  }
+
   override def primitive[P](
     shapeId: ShapeId,
     hints: Hints,
     tag: Primitive[P],
   ): CompletionResolver[P] =
     tag match {
-      case PTimestamp =>
-        def completeTimestamp(transformString: String => String) = {
+      case Primitive.PTimestamp =>
+        quoteAware { transformString =>
           val example = Timestamp.nowUTC().toString()
 
           CompletionItem.fromHints(
             CompletionItemKind.Constant,
             s"$example (now)",
             InsertText.JustString(transformString(example)),
-            hints,
-            shapeId,
+            Schema.timestamp.addHints(hints).withId(shapeId),
           ) :: Nil
         }
 
-        {
-          case PathEntry.Quotes :: Nil => completeTimestamp(identity)
-          case Nil                     => completeTimestamp(TextUtils.quote)
-          case _                       => Nil
+      case Primitive.PUUID =>
+        quoteAware { transformString =>
+          val example = UUID.randomUUID().toString()
+
+          CompletionItem.fromHints(
+            CompletionItemKind.Constant,
+            s"$example (random uuid)",
+            InsertText.JustString(transformString(example)),
+            Schema.timestamp.addHints(hints).withId(shapeId),
+          ) :: Nil
         }
 
       case _ => _ => Nil
@@ -245,29 +323,16 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     hints: Hints,
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
-  ): CompletionResolver[E] = {
-    def completeEnum(transformString: String => String) = values
+  ): CompletionResolver[E] = quoteAware { transformString =>
+    values
       .map { enumValue =>
         CompletionItem.fromHints(
           CompletionItemKind.EnumMember,
           enumValue.stringValue,
           InsertText.JustString(transformString(enumValue.stringValue)),
-          hints,
-          shapeId,
+          Schema.enumeration(total, values).addHints(hints).withId(shapeId),
         )
       }
-
-    val inQuotesCompletions = completeEnum(identity)
-    val noQuotesCompletions = completeEnum(TextUtils.quote)
-
-    {
-      case PathEntry.Quotes :: Nil => inQuotesCompletions
-      case Nil                     => noQuotesCompletions
-
-      case _ =>
-        // todo: this seems impossible tbh
-        Nil
-    }
   }
 
   private def structLike[S](

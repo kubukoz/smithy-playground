@@ -34,9 +34,8 @@ lazy val core = projectMatrix
       "com.disneystreaming.smithy4s" %%% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %%% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "org.typelevel" %%% "cats-parse" % "0.3.7",
+      "org.typelevel" %%% "cats-parse" % "0.3.8",
       "org.typelevel" %%% "paiges-cats" % "0.4.2",
-      "com.lihaoyi" %%% "sourcecode" % "0.2.8",
     ),
     commonSettings,
     buildInfoPackage := "playground.buildinfo",
@@ -45,7 +44,12 @@ lazy val core = projectMatrix
     ),
   )
   .jvmPlatform(commonScalaVersions)
-  .jsPlatform(commonScalaVersions)
+  .jsPlatform(
+    commonScalaVersions,
+    Seq(
+      libraryDependencies += "org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0"
+    ),
+  )
   .enablePlugins(Smithy4sCodegenPlugin)
   .enablePlugins(BuildInfoPlugin)
 

@@ -227,18 +227,6 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       .fromSeq[Id](values.map(_.leftMap(Struct.Key(_))))
   )
 
-  def union[S](
-    total: S => Alt.WithValue[NodeEncoder, S, _]
-  ): NodeEncoder[S] =
-    s => {
-      def go[A](r: Alt.WithValue[NodeEncoder, S, A]) = Struct.one[Id](
-        key = Struct.Key(r.alt.label),
-        value = r.alt.instance.toNode(r.value),
-      )
-
-      go(total(s))
-    }
-
   val document: NodeEncoder[Document] =
     doc =>
       doc match {

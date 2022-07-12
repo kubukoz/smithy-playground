@@ -1,32 +1,38 @@
 package playground.smithyql
 
+import cats.Show
 import cats.data.Ior
 import cats.data.NonEmptyChain
+import cats.implicits._
 import demo.smithy.Bad
+import demo.smithy.FriendSet
 import demo.smithy.Good
 import demo.smithy.Hero
+import demo.smithy.IntSet
+import demo.smithy.Ints
 import demo.smithy.Power
+import org.scalacheck.Arbitrary
 import playground.CompilationError
+import playground.CompilationErrorDetails
 import playground.PartialCompiler
 import playground.QueryCompiler
-import weaver._
-import smithy4s.schema.Schema
-import playground.CompilationErrorDetails
-import demo.smithy.Ints
-import demo.smithy.IntSet
-import demo.smithy.FriendSet
-import weaver.scalacheck.Checkers
+import smithy.api.TimestampFormat
 import smithy4s.Document
-import Arbitraries._
-import org.scalacheck.Arbitrary
-import cats.Show
-import smithy4s.dynamic.DynamicSchemaIndex
-import smithy4s.dynamic.model.Model
 import smithy4s.ShapeId
+import smithy4s.Timestamp
+import smithy4s.dynamic.DynamicSchemaIndex
+import smithy4s.dynamic.model.IdRef
+import smithy4s.dynamic.model.MemberShape
+import smithy4s.dynamic.model.Model
 import smithy4s.dynamic.model.Shape
 import smithy4s.dynamic.model.StructureShape
-import smithy4s.dynamic.model.MemberShape
-import smithy4s.dynamic.model.IdRef
+import smithy4s.schema.Schema
+import weaver._
+import weaver.scalacheck.Checkers
+
+import java.util.UUID
+
+import Arbitraries._
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -169,6 +175,57 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           ).mapK(WithSource.liftId)
         }
       } == Ior.right(Hero.GoodCase(Good(200)))
+    )
+  }
+
+  pureTest("timestamp - OK") {
+    val result =
+      compile(WithSource.liftId("2022-07-11T17:42:28.000Z".mapK(WithSource.liftId)))(
+        Schema.timestamp
+      )
+    val expected = Timestamp.parse("2022-07-11T17:42:28.000Z", TimestampFormat.DATE_TIME).get
+
+    assert(
+      result == Ior.right(expected)
+    )
+  }
+
+  pureTest("timestamp - ignores format") {
+    val result =
+      compile(WithSource.liftId("2022-07-11T17:42:28.000Z".mapK(WithSource.liftId)))(
+        Schema.timestamp.addHints(TimestampFormat.EPOCH_SECONDS: TimestampFormat)
+      )
+
+    val expected = Timestamp.parse("2022-07-11T17:42:28.000Z", TimestampFormat.DATE_TIME).get
+
+    assert(
+      result == Ior.right(expected)
+    )
+  }
+
+  pureTest("timestamp - fails when the format is invalid") {
+    val result = compile(WithSource.liftId("not-a-timestamp".mapK(WithSource.liftId)))(
+      Schema.timestamp
+    ).leftMap(_.map(_.err))
+
+    // todo: timestamp parsing always passes on JS but does something weird.
+    // this is fixed in smithy4s 0.14.0
+    assert(
+      result == Ior.leftNec(
+        CompilationErrorDetails.InvalidTimestampFormat(TimestampFormat.DATE_TIME)
+      )
+    )
+  }
+
+  pureTest("uuid - OK") {
+    val result =
+      compile(
+        WithSource.liftId("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f".mapK(WithSource.liftId))
+      )(
+        Schema.uuid
+      )
+    assert(
+      result == Ior.right(UUID.fromString("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f"))
     )
   }
 
