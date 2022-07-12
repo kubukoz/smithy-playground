@@ -192,3 +192,16 @@ structure HasNewtypes {
 integer MyInt
 
 string MyString
+
+
+structure HasDeprecations {
+  @deprecated(message: "Made-up reason")
+  @required
+  hasMessage: Boolean,
+  @deprecated(since: "0.1.0")
+  @required
+  hasSince: Boolean,
+  @deprecated(message: "Another reason", since: "1.0.0")
+  @required
+  hasBoth: Boolean,
+}

@@ -17,6 +17,7 @@ import demo.smithy.MyInt
 import demo.smithy.MyString
 import demo.smithy.PowerMap
 import demo.smithy.HasNewtypes
+import demo.smithy.HasDeprecations
 
 object CompletionTests extends FunSuite {
 
@@ -38,7 +39,7 @@ object CompletionTests extends FunSuite {
 
     val fieldNames = completions.map(_.label)
 
-    assert(fieldNames == List("howGood")) &&
+    assert.eql(fieldNames, List("howGood")) &&
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
   }
 
@@ -50,16 +51,20 @@ object CompletionTests extends FunSuite {
       (field.label, field.detail)
     }
 
-    assert(results == List("howGood" -> ": integer Integer"))
+    assert.eql(results, List("howGood" -> ": integer Integer"))
   }
 
-  test("completions on struct add prefix for optional fields") {
+  test("completions on struct add prefix/docs for optional fields") {
+    val AnOptionalFieldLabel = "str"
 
     val completions = getCompletions(HasNewtypes.schema, List(StructBody))
+      .filter(_.label == AnOptionalFieldLabel)
 
-    val results = completions.filter(_.label == "str").map(_.detail)
+    val details = completions.map(_.detail)
+    val docs = completions.map(_.docs)
 
-    assert(results == List("?: string MyString"))
+    assert.eql(details, List("?: string MyString")) &&
+    assert.eql(docs, List("**Optional**".some))
   }
 
   test("completions on union are empty without StructBody") {
@@ -75,7 +80,7 @@ object CompletionTests extends FunSuite {
 
     val fieldNames = completions.map(_.label)
 
-    assert(fieldNames == List("good", "bad", "badder")) &&
+    assert.eql(fieldNames, List("good", "bad", "badder")) &&
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.UnionMember))
   }
 
@@ -92,7 +97,7 @@ object CompletionTests extends FunSuite {
       StructBody :: Nil,
     ).map(_.label)
 
-    assert(completionsOnAlt == completionsOnStruct)
+    assert.eql(completionsOnAlt, completionsOnStruct)
   }
 
   test("no completions on collection without entry") {
@@ -112,7 +117,7 @@ object CompletionTests extends FunSuite {
 
     val fieldNames = completions.map(_.label)
 
-    assert(fieldNames == List("howGood"))
+    assert.eql(fieldNames, List("howGood"))
   }
 
   test("completions on enum without quotes have quotes") {
@@ -137,6 +142,14 @@ object CompletionTests extends FunSuite {
 
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
     assert(inserts == expectedInserts)
+  }
+
+  test("completions on enum don't have Optional docs") {
+    val completions = getCompletions(Power.schema, List(Quotes))
+
+    val docs = completions.flatMap(_.docs)
+
+    assert(docs.isEmpty)
   }
 
   test("completions on map keys that are enums") {
@@ -168,7 +181,7 @@ object CompletionTests extends FunSuite {
 
     val fieldNames = completions.map(_.label)
 
-    assert(fieldNames == List("howGood")) &&
+    assert.eql(fieldNames, List("howGood")) &&
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
   }
 
@@ -218,6 +231,21 @@ object CompletionTests extends FunSuite {
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
     assert.eql(completions.size, 1) &&
     inserts
+  }
+
+  test("completions on deprecated fields have proper hints in docs") {
+    val completions = getCompletions(HasDeprecations.schema, List(StructBody)).filter(_.deprecated)
+
+    val results = completions.map(c => (c.label, c.docs)).toMap
+
+    assert.eql(
+      results,
+      Map(
+        "hasBoth" -> Some("**Deprecated** (since 1.0.0): Another reason"),
+        "hasMessage" -> Some("**Deprecated**: Made-up reason"),
+        "hasSince" -> Some("**Deprecated** (since 0.1.0)"),
+      ),
+    )
   }
 
   test("describe indexed seq") {

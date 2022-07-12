@@ -71,7 +71,6 @@ object CompletionItem {
     label = field.label,
     insertText = InsertText.JustString(s"${field.label} = "),
     schema = schema,
-    isOptional = field.isOptional,
   )
 
   def fromAlt(
@@ -84,7 +83,6 @@ object CompletionItem {
     // by inserting {} at all times
     insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
     schema = schema,
-    isOptional = false,
   )
 
   def fromHints(
@@ -92,15 +90,20 @@ object CompletionItem {
     label: String,
     insertText: InsertText,
     schema: Schema[_],
-    isOptional: Boolean,
   ): CompletionItem = CompletionItem(
     kind = kind,
     label = label,
     insertText = insertText,
     deprecated = schema.hints.get(smithy.api.Deprecated).isDefined,
-    detail = describeType(isOptional, schema),
+    detail = describeType(
+      isOptional = schema.hints.get(smithy.api.Required).isEmpty,
+      schema = schema,
+    ),
     description = schema.shapeId.namespace.some,
-    docs = buildDocumentation(schema.hints),
+    docs = buildDocumentation(
+      schema.hints,
+      isField = kind == CompletionItemKind.Field,
+    ),
     extraTextEdits = Nil,
   )
 
@@ -219,20 +222,40 @@ object CompletionItem {
         s"$fromServiceHint: ${endpoint.input.shapeId.name} => ${endpoint.output.shapeId.name}",
       description = none,
       deprecated = hints.get(smithy.api.Deprecated).isDefined,
-      docs = buildDocumentation(hints),
+      docs = buildDocumentation(hints, isField = false),
       extraTextEdits = useClauseOpt.toList,
     )
   }
 
-  def buildDocumentation(hints: Hints): Option[String] = List(
-    hints.get(smithy.api.Http).map { http =>
-      show"HTTP ${http.method.value} ${http.uri.value} "
-    },
-    hints.get(smithy.api.Documentation).map(_.value),
-    hints.get(smithy.api.ExternalDocumentation).map(_.value).map {
-      _.map { case (k, v) => show"""${k.value}: ${v.value}""" }.mkString("\n")
-    },
-  ).flatten.mkString("\n\n").some.filterNot(_.isEmpty)
+  def buildDocumentation(
+    hints: Hints,
+    isField: Boolean,
+  ): Option[String] = {
+    val optionalNote =
+      hints.get(smithy.api.Required) match {
+        case None if isField => "**Optional**".some
+        case _               => none
+      }
+
+    val deprecatedNote = hints.get(smithy.api.Deprecated).map { info =>
+      val reasonString = info.message.foldMap(": " + _)
+      val sinceString = info.since.foldMap(" (since " + _ + ")")
+
+      s"**Deprecated**$sinceString$reasonString"
+    }
+
+    List(
+      optionalNote,
+      deprecatedNote,
+      hints.get(smithy.api.Http).map { http =>
+        show"HTTP ${http.method.value} ${http.uri.value} "
+      },
+      hints.get(smithy.api.Documentation).map(_.value),
+      hints.get(smithy.api.ExternalDocumentation).map(_.value).map {
+        _.map { case (k, v) => show"""${k.value}: ${v.value}""" }.mkString("\n")
+      },
+    ).flatten.mkString("\n\n").some.filterNot(_.isEmpty)
+  }
 
 }
 
@@ -271,7 +294,6 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
             s"$example (now)",
             InsertText.JustString(transformString(example)),
             Schema.timestamp.addHints(hints).withId(shapeId),
-            isOptional = false,
           ) :: Nil
         }
 
@@ -284,7 +306,6 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
             s"$example (random uuid)",
             InsertText.JustString(transformString(example)),
             Schema.timestamp.addHints(hints).withId(shapeId),
-            isOptional = false,
           ) :: Nil
         }
 
@@ -347,7 +368,6 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
           enumValue.stringValue,
           InsertText.JustString(transformString(enumValue.stringValue)),
           Schema.enumeration(total, values).addHints(hints).withId(shapeId),
-          isOptional = false,
         )
       }
   }
