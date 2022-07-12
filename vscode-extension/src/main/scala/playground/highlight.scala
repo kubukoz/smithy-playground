@@ -14,6 +14,7 @@ import typings.vscode.mod.DiagnosticSeverity
 import types._
 import cats.data.Ior
 import playground.CompilationErrorDetails.DuplicateItem
+import playground.CompilationErrorDetails.EnumFallback
 
 object highlight {
 
@@ -117,7 +118,7 @@ object highlight {
                 ee.err match {
                   // todo: support warnings in "CompilationFailed"
                   // todo2: rename CompilationFailed cause it makes no sense with warnings
-                  case DuplicateItem =>
+                  case DuplicateItem | _: EnumFallback =>
                     warn(
                       ee.err.render,
                       adapters.toVscodeRange(doc, ee.range),
