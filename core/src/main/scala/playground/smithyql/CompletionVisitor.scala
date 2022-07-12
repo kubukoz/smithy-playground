@@ -90,24 +90,30 @@ object CompletionItem {
     label: String,
     insertText: InsertText,
     schema: Schema[_],
-  ): CompletionItem = CompletionItem(
-    kind = kind,
-    label = label,
-    insertText = insertText,
-    deprecated = schema.hints.get(smithy.api.Deprecated).isDefined,
-    detail = describeType(
-      isOptional = schema.hints.get(smithy.api.Required).isEmpty,
-      schema = schema,
-    ),
-    description = schema.shapeId.namespace.some,
-    docs = buildDocumentation(
-      schema.hints,
-      isField = kind == CompletionItemKind.Field,
-    ),
-    extraTextEdits = Nil,
-  )
+  ): CompletionItem = {
+    val isField = kind == CompletionItemKind.Field
 
-  private def describeType(isOptional: Boolean, schema: Schema[_]): String = {
+    CompletionItem(
+      kind = kind,
+      label = label,
+      insertText = insertText,
+      deprecated = schema.hints.get(smithy.api.Deprecated).isDefined,
+      detail = describeType(
+        isField = isField,
+        schema = schema,
+      ),
+      description = schema.shapeId.namespace.some,
+      docs = buildDocumentation(
+        schema.hints,
+        isField,
+      ),
+      extraTextEdits = Nil,
+    )
+  }
+
+  def describeType(isField: Boolean, schema: Schema[_]): String = {
+    val isOptional = isField && schema.hints.get(smithy.api.Required).isEmpty
+
     val optionalPrefix =
       if (isOptional)
         "?"

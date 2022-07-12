@@ -74,14 +74,17 @@ object CompletionTests extends FunSuite {
     assert(completions.isEmpty)
   }
 
-  test("completions on union include all alt names") {
+  test("completions on union") {
 
     val completions = getCompletions(Hero.schema, List(StructBody))
 
     val fieldNames = completions.map(_.label)
+    val details = completions.map(_.detail)
+    val kinds = completions.map(_.kind)
 
     assert.eql(fieldNames, List("good", "bad", "badder")) &&
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.UnionMember))
+    assert(details == List(": structure Good", ": structure Bad", ": structure Bad")) &&
+    assert(kinds.forall(_ == CompletionItemKind.UnionMember))
   }
 
   test("completions on union case are the same as completions on the underlying structure") {
@@ -294,6 +297,27 @@ object CompletionTests extends FunSuite {
     assert.eql(
       CompletionItem.describeSchema(Schema.uuid)(),
       "uuid UUID",
+    )
+  }
+
+  test("describe non-field: no optionality sign") {
+    assert.eql(
+      CompletionItem.describeType(isField = false, Schema.string),
+      ": string String",
+    )
+  }
+
+  test("describe required field: no optionality sign") {
+    assert.eql(
+      CompletionItem.describeType(isField = true, Schema.string.addHints(smithy.api.Required())),
+      ": string String",
+    )
+  }
+
+  test("describe optional field: optionality sign present") {
+    assert.eql(
+      CompletionItem.describeType(isField = true, Schema.string),
+      "?: string String",
     )
   }
 
