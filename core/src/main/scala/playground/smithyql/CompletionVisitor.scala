@@ -237,11 +237,6 @@ object CompletionItem {
     hints: Hints,
     isField: Boolean,
   ): Option[String] = {
-    val optionalNote =
-      hints.get(smithy.api.Required) match {
-        case None if isField => "**Optional**".some
-        case _               => none
-      }
 
     val deprecatedNote = hints.get(smithy.api.Deprecated).map { info =>
       val reasonString = info.message.foldMap(": " + _)
@@ -250,9 +245,15 @@ object CompletionItem {
       s"**Deprecated**$sinceString$reasonString"
     }
 
+    val optionalNote =
+      hints.get(smithy.api.Required) match {
+        case None if isField => "**Optional**".some
+        case _               => none
+      }
+
     List(
-      optionalNote,
       deprecatedNote,
+      optionalNote,
       hints.get(smithy.api.Http).map { http =>
         show"HTTP ${http.method.value} ${http.uri.value} "
       },

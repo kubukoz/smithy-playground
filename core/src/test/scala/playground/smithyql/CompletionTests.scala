@@ -18,6 +18,7 @@ import demo.smithy.MyString
 import demo.smithy.PowerMap
 import demo.smithy.HasNewtypes
 import demo.smithy.HasDeprecations
+import smithy4s.Hints
 
 object CompletionTests extends FunSuite {
 
@@ -318,6 +319,20 @@ object CompletionTests extends FunSuite {
     assert.eql(
       CompletionItem.describeType(isField = true, Schema.string),
       "?: string String",
+    )
+  }
+
+  test("buildDocumentation: deprecation note goes before optionality note") {
+    val doc = CompletionItem.buildDocumentation(
+      isField = true,
+      hints = Hints(smithy.api.Deprecated()),
+    )
+
+    assert.eql(
+      doc,
+      """**Deprecated**
+        |
+        |**Optional**""".stripMargin.some,
     )
   }
 
