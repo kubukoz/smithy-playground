@@ -90,16 +90,37 @@ object CompletionItem {
     label: String,
     insertText: InsertText,
     schema: Schema[_],
-  ): CompletionItem = CompletionItem(
-    kind = kind,
-    label = label,
-    insertText = insertText,
-    deprecated = schema.hints.get(smithy.api.Deprecated).isDefined,
-    detail = show": ${describeSchema(schema)()}",
-    description = schema.shapeId.namespace.some,
-    docs = buildDocumentation(schema.hints),
-    extraTextEdits = Nil,
-  )
+  ): CompletionItem = {
+    val isField = kind == CompletionItemKind.Field
+
+    CompletionItem(
+      kind = kind,
+      label = label,
+      insertText = insertText,
+      deprecated = schema.hints.get(smithy.api.Deprecated).isDefined,
+      detail = describeType(
+        isField = isField,
+        schema = schema,
+      ),
+      description = schema.shapeId.namespace.some,
+      docs = buildDocumentation(
+        schema.hints,
+        isField,
+      ),
+      extraTextEdits = Nil,
+    )
+  }
+
+  def describeType(isField: Boolean, schema: Schema[_]): String = {
+    val isOptional = isField && schema.hints.get(smithy.api.Required).isEmpty
+
+    val optionalPrefix =
+      if (isOptional)
+        "?"
+      else
+        ""
+    show"$optionalPrefix: ${describeSchema(schema)()}"
+  }
 
   private val describePrimitive: Primitive[_] => String = {
     import smithy4s.schema.Primitive._
@@ -207,20 +228,41 @@ object CompletionItem {
         s"$fromServiceHint: ${endpoint.input.shapeId.name} => ${endpoint.output.shapeId.name}",
       description = none,
       deprecated = hints.get(smithy.api.Deprecated).isDefined,
-      docs = buildDocumentation(hints),
+      docs = buildDocumentation(hints, isField = false),
       extraTextEdits = useClauseOpt.toList,
     )
   }
 
-  def buildDocumentation(hints: Hints): Option[String] = List(
-    hints.get(smithy.api.Http).map { http =>
-      show"HTTP ${http.method.value} ${http.uri.value} "
-    },
-    hints.get(smithy.api.Documentation).map(_.value),
-    hints.get(smithy.api.ExternalDocumentation).map(_.value).map {
-      _.map { case (k, v) => show"""${k.value}: ${v.value}""" }.mkString("\n")
-    },
-  ).flatten.mkString("\n\n").some.filterNot(_.isEmpty)
+  def buildDocumentation(
+    hints: Hints,
+    isField: Boolean,
+  ): Option[String] = {
+
+    val deprecatedNote = hints.get(smithy.api.Deprecated).map { info =>
+      val reasonString = info.message.foldMap(": " + _)
+      val sinceString = info.since.foldMap(" (since " + _ + ")")
+
+      s"**Deprecated**$sinceString$reasonString"
+    }
+
+    val optionalNote =
+      hints.get(smithy.api.Required) match {
+        case None if isField => "**Optional**".some
+        case _               => none
+      }
+
+    List(
+      deprecatedNote,
+      optionalNote,
+      hints.get(smithy.api.Http).map { http =>
+        show"HTTP ${http.method.value} ${http.uri.value} "
+      },
+      hints.get(smithy.api.Documentation).map(_.value),
+      hints.get(smithy.api.ExternalDocumentation).map(_.value).map {
+        _.map { case (k, v) => show"""${k.value}: ${v.value}""" }.mkString("\n")
+      },
+    ).flatten.mkString("\n\n").some.filterNot(_.isEmpty)
+  }
 
 }
 

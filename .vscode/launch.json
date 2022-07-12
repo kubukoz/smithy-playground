@@ -13,7 +13,7 @@
       ],
       "preLaunchTask": "fastOptJS",
       "request": "launch",
-      "type": "pwa-extensionHost",
+      "type": "extensionHost",
       "sourceMaps": true
     }
   ]
