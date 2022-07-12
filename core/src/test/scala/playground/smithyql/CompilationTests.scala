@@ -228,19 +228,41 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("enum - OK") {
+    val result = compile[Power](WithSource.liftId("WIND".mapK(WithSource.liftId)))
+
     assert(
-      compile[Power](WithSource.liftId("Wind".mapK(WithSource.liftId))) == Ior.right(Power.WIND)
+      result == Ior.right(Power.WIND)
+    )
+  }
+
+  pureTest("enum - fallback to string value") {
+    val aRange = SourceRange(Position(10), Position(20))
+
+    val result = compile[Power](WithSource.liftId("Wind".mapK(WithSource.liftId)).withRange(aRange))
+
+    val expected: PartialCompiler.Result[Power] = Ior.both(
+      NonEmptyChain.one(
+        CompilationError(
+          CompilationErrorDetails.EnumFallback("WIND"),
+          aRange,
+        )
+      ),
+      Power.WIND,
+    )
+
+    assert(
+      result == expected
     )
   }
 
   pureTest("enum - failure") {
     assert(
-      compile[Power](WithSource.liftId("Poison".mapK(WithSource.liftId))) == Ior.left(
+      compile[Power](WithSource.liftId("POISON".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
           CompilationError(
             CompilationErrorDetails.UnknownEnumValue(
-              "Poison",
-              List("Ice", "Fire", "Lightning", "Wind"),
+              "POISON",
+              List("ICE", "FIRE", "LIGHTNING", "WIND"),
             ),
             SourceRange(Position(0), Position(0)),
           )

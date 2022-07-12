@@ -99,7 +99,9 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case InvalidUUID   => "Invalid UUID"
+      case InvalidUUID => "Invalid UUID"
+      case EnumFallback(enumName) =>
+        s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
       case AmbiguousService(matching) =>
         s"""Multiple services are available. Add a use clause to specify the service you want to use.
@@ -206,6 +208,7 @@ object CompilationErrorDetails {
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 
   case object DuplicateItem extends CompilationErrorDetails
+  final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }
 
 object QueryCompiler extends SchemaVisitor[PartialCompiler] {
@@ -499,16 +502,21 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): PartialCompiler[E] = (string, PartialCompiler.pos).tupled.emap { case (name, range) =>
-    values
+    val byValue = values
       .find(_.stringValue == name)
-      .map(_.value)
-      .toRightIor(
-        CompilationError(
-          UnknownEnumValue(name, values.map(_.stringValue)),
-          range,
-        )
-      )
-      .toIorNec
+
+    val byName = values
+      .find(_.name == name)
+
+    (byName, byValue) match {
+      case (Some(v), _) => v.value.pure[PartialCompiler.Result]
+
+      case (None, Some(v)) => Ior.bothNec(CompilationError(EnumFallback(v.name), range), v.value)
+
+      case (None, None) =>
+        Ior.leftNec(CompilationError(UnknownEnumValue(name, values.map(_.name)), range))
+    }
+
   }
 
   private def listWithPos[S](

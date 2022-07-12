@@ -372,8 +372,8 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       .map { enumValue =>
         CompletionItem.fromHints(
           CompletionItemKind.EnumMember,
-          enumValue.stringValue,
-          InsertText.JustString(transformString(enumValue.stringValue)),
+          enumValue.name,
+          InsertText.JustString(transformString(enumValue.name)),
           Schema.enumeration(total, values).addHints(hints).withId(shapeId),
         )
       }
