@@ -84,6 +84,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
           repositories = bc.mavenRepositories.combineAll,
           dependencies = bc.mavenDependencies.combineAll,
           transformers = Nil,
+          localJars = Nil,
         )
       )
     }

@@ -3,6 +3,7 @@ package playground.smithyql
 import cats.Show
 import cats.data.Ior
 import cats.data.NonEmptyChain
+import cats.implicits._
 import demo.smithy.Bad
 import demo.smithy.FriendSet
 import demo.smithy.Good
@@ -19,7 +20,6 @@ import smithy.api.TimestampFormat
 import smithy4s.Document
 import smithy4s.ShapeId
 import smithy4s.Timestamp
-import smithy4s.api.SimpleRestJson
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.dynamic.model.IdRef
 import smithy4s.dynamic.model.MemberShape
@@ -29,7 +29,7 @@ import smithy4s.dynamic.model.StructureShape
 import smithy4s.schema.Schema
 import weaver._
 import weaver.scalacheck.Checkers
-import cats.implicits._
+
 import java.util.UUID
 
 import Arbitraries._
@@ -66,7 +66,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
 
     DynamicSchemaIndex
-      .load(model, SimpleRestJson.protocol.schemas)
+      .load(model)
       .getSchema(ShapeId("test", "Person"))
       .get
   }
@@ -208,8 +208,6 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       Schema.timestamp
     ).leftMap(_.map(_.err))
 
-    // todo: timestamp parsing always passes on JS but does something weird.
-    // this is fixed in smithy4s 0.14.0
     assert(
       result == Ior.leftNec(
         CompilationErrorDetails.InvalidTimestampFormat(TimestampFormat.DATE_TIME)
@@ -254,7 +252,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("list of ints") {
     assert(
       compile[Ints](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
-        Ints(List(1, 2, 3))
+        Ints(IndexedSeq(1, 2, 3))
       )
     )
   }

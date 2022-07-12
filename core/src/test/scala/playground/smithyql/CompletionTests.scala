@@ -12,6 +12,7 @@ import smithy.api.TimestampFormat
 import cats.implicits._
 import demo.smithy.HasNewtypes
 import java.util.UUID
+import demo.smithy.Ints
 
 object CompletionTests extends FunSuite {
   test("completions on struct are empty without StructBody") {
@@ -264,4 +265,10 @@ object CompletionTests extends FunSuite {
     inserts
   }
 
+  test("describe indexed seq") {
+    assert.eql(
+      CompletionItem.describeSchema(Ints.schema)(),
+      "@indexedSeq list Ints { member: integer Integer }",
+    )
+  }
 }

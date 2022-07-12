@@ -17,6 +17,11 @@ import smithy4s.Refinement
 import smithy4s.ShapeId
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
+import smithy4s.schema.CollectionTag
+import smithy4s.schema.CollectionTag.IndexedSeqTag
+import smithy4s.schema.CollectionTag.ListTag
+import smithy4s.schema.CollectionTag.SetTag
+import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Primitive
 import smithy4s.schema.Primitive.PBigDecimal
@@ -35,7 +40,6 @@ import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
-import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
@@ -243,11 +247,8 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           // the actual serialization format will be used by the client when we eventually use it in the Runner.
           val format = TimestampFormat.DATE_TIME
 
-          TimestampPlatform
-            .fixupTimestamp(
-              Timestamp
-                .parse(s.value, format)
-            )
+          Timestamp
+            .parse(s.value, format)
             .toRightIor(
               CompilationError(
                 InvalidTimestampFormat(format),
@@ -258,30 +259,40 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
         }
     }
 
-  def list[A](shapeId: ShapeId, hints: Hints, member: Schema[A]): PartialCompiler[List[A]] =
-    listWithPos(member.compile(this)).map(_.map(_._1))
+  def collection[C[_], A](
+    shapeId: ShapeId,
+    hints: Hints,
+    tag: CollectionTag[C],
+    member: Schema[A],
+  ): PartialCompiler[C[A]] =
+    tag match {
+      case SetTag =>
+        val memberToDoc = Document.Encoder.fromSchema(member)
 
-  def set[A](shapeId: ShapeId, hints: Hints, member: Schema[A]): PartialCompiler[Set[A]] = {
-    val memberToDoc = Document.Encoder.fromSchema(member)
+        listWithPos(member.compile(this)).emap { items =>
+          val success = items.map(_._1).toSet
 
-    listWithPos(member.compile(this)).emap { items =>
-      val success = items.map(_._1).toSet
+          val duplications = items
+            .groupBy { case (v, _) => memberToDoc.encode(v) }
+            .map(_._2)
+            .filter(_.sizeIs > 1)
+            .flatMap(_.map(_._2))
+            .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
+            .toList
+            .pipe(NonEmptyChain.fromSeq(_))
 
-      val duplications = items
-        .groupBy { case (v, _) => memberToDoc.encode(v) }
-        .map(_._2)
-        .filter(_.sizeIs > 1)
-        .flatMap(_.map(_._2))
-        .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
-        .toList
-        .pipe(NonEmptyChain.fromSeq(_))
+          duplications match {
+            case None         => success.rightIor
+            case Some(errors) => Ior.both(errors, success)
+          }
+        }
 
-      duplications match {
-        case None         => success.rightIor
-        case Some(errors) => Ior.both(errors, success)
-      }
+      case ListTag       => listOf(member)
+      case IndexedSeqTag => listOf(member).map(_.toIndexedSeq)
+      case VectorTag     => listOf(member).map(_.toVector)
     }
-  }
+
+  private def listOf[A](member: Schema[A]) = listWithPos(member.compile(this)).map(_.map(_._1))
 
   def map[K, V](
     shapeId: ShapeId,
@@ -378,8 +389,8 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[SchemaAlt[U, _]],
-    dispatch: U => Alt.SchemaAndValue[U, _],
+    alternatives: Vector[Alt[Schema, U, _]],
+    dispatcher: Alt.Dispatcher[Schema, U],
   ): PartialCompiler[U] = {
     val alternativesCompiled = alternatives.map(_.mapK(this)).groupBy(_.label).map(_.map(_.head))
     val labels = NonEmptyList.fromListUnsafe(alternatives.toList).map(_.label)

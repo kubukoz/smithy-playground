@@ -112,10 +112,8 @@ object CompletionProvider {
                     )
 
                   case WithSource.NodeContext.InputContext(ctx) =>
-                    val opts = completionsByEndpoint(serviceId)(q.operationName.value)
+                    completionsByEndpoint(serviceId)(q.operationName.value)
                       .getCompletions(ctx.toList)
-                    println(opts)
-                    opts
                 }
 
             case None =>

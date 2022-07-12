@@ -302,8 +302,8 @@ object Runner {
         .all
         .toList
         .flatMap { binding =>
-          schemaIndex(binding.key.id).flatMap { schemaOfHint =>
-            schemaOfHint.hints.get(ProtocolDefinition).as(binding.key.id)
+          schemaIndex(binding.keyId).flatMap { schemaOfHint =>
+            schemaOfHint.hints.get(ProtocolDefinition).as(binding.keyId)
           }
         }
 

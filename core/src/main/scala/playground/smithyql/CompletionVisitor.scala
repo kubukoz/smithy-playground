@@ -13,6 +13,7 @@ import smithy4s.Refinement
 import smithy4s.ShapeId
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
+import smithy4s.schema.CollectionTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -20,10 +21,8 @@ import smithy4s.schema.Schema
 import smithy4s.schema.Schema.BijectionSchema
 import smithy4s.schema.Schema.EnumerationSchema
 import smithy4s.schema.Schema.LazySchema
-import smithy4s.schema.Schema.ListSchema
 import smithy4s.schema.Schema.MapSchema
 import smithy4s.schema.Schema.PrimitiveSchema
-import smithy4s.schema.Schema.SetSchema
 import smithy4s.schema.Schema.StructSchema
 import smithy4s.schema.Schema.UnionSchema
 import smithy4s.schema.SchemaAlt
@@ -71,7 +70,7 @@ object CompletionItem {
     kind = CompletionItemKind.Field,
     label = field.label,
     insertText = InsertText.JustString(s"${field.label} = "),
-    schema = schema.addHints(field.hints),
+    schema = schema,
   )
 
   def fromAlt(
@@ -83,7 +82,7 @@ object CompletionItem {
     // todo: unions aren't only for structs: this makes an invalid assumption
     // by inserting {} at all times
     insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
-    schema = schema.addHints(alt.hints),
+    schema = schema,
   )
 
   def fromHints(
@@ -124,15 +123,23 @@ object CompletionItem {
     }
   }
 
+  private def describeCollection[C[_]]: CollectionTag[C] => String = {
+    import smithy4s.schema.CollectionTag._
+
+    {
+      case ListTag       => "list"
+      case SetTag        => "set"
+      case IndexedSeqTag => "@indexedSeq list"
+      case VectorTag     => "@vector list"
+    }
+  }
+
   def describeSchema(schema: Schema[_]): () => String =
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
 
-      case SetSchema(shapeId, _, member) =>
-        now(s"set ${shapeId.name} { member: ${describeSchema(member)()} }")
-
-      case ListSchema(shapeId, _, member) =>
-        now(s"list ${shapeId.name} { member: ${describeSchema(member)()} }")
+      case Schema.CollectionSchema(shapeId, _, tag, member) =>
+        now(s"${describeCollection(tag)} ${shapeId.name} { member: ${describeSchema(member)()} }")
 
       case EnumerationSchema(shapeId, _, _, _) => now(s"enum ${shapeId.name}")
 
@@ -270,10 +277,17 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       case _ => _ => Nil
     }
 
-  override def list[A](
+  def collection[C[_], A](
     shapeId: ShapeId,
     hints: Hints,
+    tag: CollectionTag[C],
     member: Schema[A],
+  ): CompletionResolver[C[A]] =
+    // todo in the future: for sets, exclude items already present (equal by AST)
+    list(member).retag
+
+  private def list[A](
+    member: Schema[A]
   ): CompletionResolver[List[A]] = {
     val memberInstance = member.compile(this)
 
@@ -284,13 +298,6 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
         Nil
     }
   }
-
-  // todo in the future: exclude items already present (equal by AST)
-  override def set[A](
-    shapeId: ShapeId,
-    hints: Hints,
-    member: Schema[A],
-  ): CompletionResolver[Set[A]] = list(shapeId, hints, member).retag
 
   override def map[K, V](
     shapeId: ShapeId,
@@ -368,7 +375,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     shapeId: ShapeId,
     hints: Hints,
     alternatives: Vector[SchemaAlt[U, _]],
-    dispatch: U => Alt.SchemaAndValue[U, _],
+    dispatcher: Alt.Dispatcher[Schema, U],
   ): CompletionResolver[U] = {
     val allWithIds = alternatives.map { alt =>
       (alt.mapK(this), alt.instance)

@@ -1,6 +1,7 @@
 namespace demo.smithy
 
 use smithy4s.api#simpleRestJson
+use smithy4s.meta#indexedSeq
 
 @simpleRestJson
 service DemoService {
@@ -169,6 +170,7 @@ structure Sku {
 @enum([{name: "ACTIVE", value: "ACTIVE"}, {name: "INACTIVE", value: "INACTIVE"}])
 string SubscriptionStatus
 
+@indexedSeq
 list Ints {
   member: Integer
 }
