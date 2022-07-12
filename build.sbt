@@ -42,6 +42,19 @@ lazy val core = projectMatrix
     buildInfoKeys ++= Seq(
       smithy4sVersion
     ),
+    // todo: upstream should provide this
+    Test / smithy4sInputDir := (Test / sourceDirectory).value / "smithy",
+    Test / smithy4sOutputDir := (Test / sourceManaged).value,
+    Test / smithy4sOpenapiDir := (Test / resourceManaged).value,
+    Test / smithy4sCodegen := Smithy4sCodegenPlugin.cachedSmithyCodegen(Test).value,
+    Test / sourceGenerators += (Test / smithy4sCodegen).map(
+      _.filter(_.ext == "scala")
+    ),
+    Test / resourceGenerators += (Test / smithy4sCodegen).map(
+      _.filter(_.ext != "scala")
+    ),
+    cleanFiles += (Test / smithy4sOutputDir).value,
+    Test / smithy4sModelTransformers := List.empty,
   )
   .jvmPlatform(commonScalaVersions)
   .jsPlatform(
