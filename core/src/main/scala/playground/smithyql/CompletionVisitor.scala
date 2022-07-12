@@ -71,6 +71,7 @@ object CompletionItem {
     label = field.label,
     insertText = InsertText.JustString(s"${field.label} = "),
     schema = schema,
+    isOptional = field.isOptional,
   )
 
   def fromAlt(
@@ -83,6 +84,7 @@ object CompletionItem {
     // by inserting {} at all times
     insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
     schema = schema,
+    isOptional = false,
   )
 
   def fromHints(
@@ -90,16 +92,26 @@ object CompletionItem {
     label: String,
     insertText: InsertText,
     schema: Schema[_],
+    isOptional: Boolean,
   ): CompletionItem = CompletionItem(
     kind = kind,
     label = label,
     insertText = insertText,
     deprecated = schema.hints.get(smithy.api.Deprecated).isDefined,
-    detail = show": ${describeSchema(schema)()}",
+    detail = describeType(isOptional, schema),
     description = schema.shapeId.namespace.some,
     docs = buildDocumentation(schema.hints),
     extraTextEdits = Nil,
   )
+
+  private def describeType(isOptional: Boolean, schema: Schema[_]): String = {
+    val optionalPrefix =
+      if (isOptional)
+        "?"
+      else
+        ""
+    show"$optionalPrefix: ${describeSchema(schema)()}"
+  }
 
   private val describePrimitive: Primitive[_] => String = {
     import smithy4s.schema.Primitive._
@@ -259,6 +271,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
             s"$example (now)",
             InsertText.JustString(transformString(example)),
             Schema.timestamp.addHints(hints).withId(shapeId),
+            isOptional = false,
           ) :: Nil
         }
 
@@ -271,6 +284,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
             s"$example (random uuid)",
             InsertText.JustString(transformString(example)),
             Schema.timestamp.addHints(hints).withId(shapeId),
+            isOptional = false,
           ) :: Nil
         }
 
@@ -333,6 +347,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
           enumValue.stringValue,
           InsertText.JustString(transformString(enumValue.stringValue)),
           Schema.enumeration(total, values).addHints(hints).withId(shapeId),
+          isOptional = false,
         )
       }
   }

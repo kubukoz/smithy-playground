@@ -10,27 +10,31 @@ import smithy4s.Timestamp
 import playground.smithyql.InsertText.JustString
 import smithy.api.TimestampFormat
 import cats.implicits._
-import demo.smithy.HasNewtypes
 import java.util.UUID
 import demo.smithy.Ints
+import demo.smithy.IntSet
+import demo.smithy.MyInt
+import demo.smithy.MyString
+import demo.smithy.PowerMap
+import demo.smithy.HasNewtypes
 
 object CompletionTests extends FunSuite {
+
+  def getCompletions(
+    schema: Schema[_],
+    ctx: List[WithSource.NodeContext.PathEntry],
+  ): List[CompletionItem] = schema.compile(CompletionVisitor).getCompletions(ctx)
+
   test("completions on struct are empty without StructBody") {
 
-    val completions = Good
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(Nil)
+    val completions = getCompletions(Good.schema, Nil)
 
     assert(completions.isEmpty)
   }
 
   test("completions on struct include all field names") {
 
-    val completions = Good
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(List(StructBody))
+    val completions = getCompletions(Good.schema, List(StructBody))
 
     val fieldNames = completions.map(_.label)
 
@@ -40,10 +44,7 @@ object CompletionTests extends FunSuite {
 
   test("completions on struct describe the field types") {
 
-    val completions = Good
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(List(StructBody))
+    val completions = getCompletions(Good.schema, List(StructBody))
 
     val results = completions.map { field =>
       (field.label, field.detail)
@@ -52,47 +53,25 @@ object CompletionTests extends FunSuite {
     assert(results == List("howGood" -> ": integer Integer"))
   }
 
-  test("newtyped fields should be described as newtypes") {
+  test("completions on struct add prefix for optional fields") {
 
-    val completions = HasNewtypes
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(List(StructBody))
+    val completions = getCompletions(HasNewtypes.schema, List(StructBody))
 
-    val results =
-      completions.map { field =>
-        (field.label, field.detail)
-      }.toMap
+    val results = completions.filter(_.label == "str").map(_.detail)
 
-    assert.eql(
-      results,
-      Map(
-        "intSet" -> ": set IntSet { member: integer Integer }",
-        "myInt" -> ": integer MyInt",
-        "str" -> ": string MyString",
-        "power" -> ": enum Power",
-        "powerMap" -> ": map PowerMap { key: Power, value: Hero }",
-        "anUUID" -> ": uuid UUID",
-      ),
-    )
+    assert(results == List("?: string MyString"))
   }
 
   test("completions on union are empty without StructBody") {
 
-    val completions = Hero
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(Nil)
+    val completions = getCompletions(Hero.schema, Nil)
 
     assert(completions.isEmpty)
   }
 
   test("completions on union include all alt names") {
 
-    val completions = Hero
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(List(StructBody))
+    val completions = getCompletions(Hero.schema, List(StructBody))
 
     val fieldNames = completions.map(_.label)
 
@@ -101,41 +80,35 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on union case are the same as completions on the underlying structure") {
+    val pathToField = List(StructValue("good"), StructBody)
 
-    val completionsOnAlt = Hero
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(List(StructBody, StructValue("good"), StructBody))
-      .map(_.label)
+    val completionsOnAlt = getCompletions(
+      Hero.schema,
+      StructBody :: pathToField,
+    ).map(_.label)
 
-    val completionsOnStruct = Good
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(List(StructBody))
-      .map(_.label)
+    val completionsOnStruct = getCompletions(
+      Good.schema,
+      StructBody :: Nil,
+    ).map(_.label)
 
     assert(completionsOnAlt == completionsOnStruct)
   }
 
   test("no completions on collection without entry") {
-    val completions = Schema
-      .list(Good.schema)
-      .compile(CompletionVisitor)
-      .getCompletions(Nil)
+    val completions = getCompletions(
+      Schema.list(Good.schema),
+      Nil,
+    )
 
     assert(completions.isEmpty)
   }
 
   test("completions on struct in list are available") {
-    val completions = Schema
-      .list(Good.schema)
-      .compile(CompletionVisitor)
-      .getCompletions(
-        List(
-          CollectionEntry(Some(0)),
-          StructBody,
-        )
-      )
+    val completions = getCompletions(
+      Schema.list(Good.schema),
+      List(CollectionEntry(Some(0)), StructBody),
+    )
 
     val fieldNames = completions.map(_.label)
 
@@ -143,10 +116,8 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on enum without quotes have quotes") {
-    val completions = Power
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(Nil)
+
+    val completions = getCompletions(Power.schema, Nil)
 
     val inserts = completions.map(_.insertText)
     val expectedInserts = List("Ice", "Fire", "Lightning", "Wind")
@@ -158,10 +129,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on enum in quotes don't have quotes") {
-    val completions = Power
-      .schema
-      .compile(CompletionVisitor)
-      .getCompletions(List(Quotes))
+    val completions = getCompletions(Power.schema, List(Quotes))
 
     val inserts = completions.map(_.insertText)
     val expectedInserts = List("Ice", "Fire", "Lightning", "Wind")
@@ -172,13 +140,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on map keys that are enums") {
-    val completions = Schema
-      .map(
-        Power.schema,
-        Schema.unit,
-      )
-      .compile(CompletionVisitor)
-      .getCompletions(List(StructBody))
+    val completions = getCompletions(PowerMap.schema, List(StructBody))
 
     val inserts = completions.map(_.insertText)
 
@@ -191,19 +153,18 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on map values (struct)") {
-    val completions = Schema
-      .map(
-        Schema.string,
-        Good.schema,
-      )
-      .compile(CompletionVisitor)
-      .getCompletions(
-        List(
-          StructBody,
-          StructValue("anyKey"),
-          StructBody,
-        )
-      )
+    val completions = getCompletions(
+      Schema
+        .map(
+          Schema.string,
+          Good.schema,
+        ),
+      List(
+        StructBody,
+        StructValue("anyKey"),
+        StructBody,
+      ),
+    )
 
     val fieldNames = completions.map(_.label)
 
@@ -212,10 +173,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on timestamp without quotes have quotes") {
-    val completions = Schema
-      .timestamp
-      .compile(CompletionVisitor)
-      .getCompletions(Nil)
+    val completions = getCompletions(Schema.timestamp, Nil)
 
     val extractQuote = """\"(.*)\"""".r
 
@@ -231,10 +189,10 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on timestamp in quotes don't have quotes") {
-    val completions = Schema
-      .timestamp
-      .compile(CompletionVisitor)
-      .getCompletions(List(Quotes))
+    val completions = getCompletions(
+      Schema.timestamp,
+      List(Quotes),
+    )
 
     val inserts = completions.map(_.insertText).foldMap {
       case JustString(value) => assert(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
@@ -247,10 +205,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on uuid include a random uuid") {
-    val completions = Schema
-      .uuid
-      .compile(CompletionVisitor)
-      .getCompletions(List(Quotes))
+    val completions = getCompletions(Schema.uuid, List(Quotes))
 
     val inserts = completions.map(_.insertText).foldMap {
       case JustString(value) =>
@@ -271,4 +226,47 @@ object CompletionTests extends FunSuite {
       "@indexedSeq list Ints { member: integer Integer }",
     )
   }
+
+  test("describe set of ints") {
+    assert.eql(
+      CompletionItem.describeSchema(IntSet.schema)(),
+      "set IntSet { member: integer Integer }",
+    )
+  }
+
+  test("describe int newtype") {
+    assert.eql(
+      CompletionItem.describeSchema(MyInt.schema)(),
+      "integer MyInt",
+    )
+  }
+
+  test("describe string newtype") {
+    assert.eql(
+      CompletionItem.describeSchema(MyString.schema)(),
+      "string MyString",
+    )
+  }
+
+  test("describe enum") {
+    assert.eql(
+      CompletionItem.describeSchema(Power.schema)(),
+      "enum Power",
+    )
+  }
+
+  test("describe map") {
+    assert.eql(
+      CompletionItem.describeSchema(PowerMap.schema)(),
+      "map PowerMap { key: Power, value: Hero }",
+    )
+  }
+
+  test("describe uuid") {
+    assert.eql(
+      CompletionItem.describeSchema(Schema.uuid)(),
+      "uuid UUID",
+    )
+  }
+
 }
