@@ -42,6 +42,20 @@ lazy val core = projectMatrix
     buildInfoKeys ++= Seq(
       smithy4sVersion
     ),
+    // todo: remove after https://github.com/disneystreaming/smithy4s/pull/310 is released
+    Test / smithy4sInputDir := (Test / sourceDirectory).value / "smithy",
+    Test / smithy4sOutputDir := (Test / sourceManaged).value,
+    Test / smithy4sOpenapiDir := (Test / resourceManaged).value,
+    Test / smithy4sCodegen := Smithy4sCodegenPlugin.cachedSmithyCodegen(Test).value,
+    Test / sourceGenerators += (Test / smithy4sCodegen).map(
+      _.filter(_.ext == "scala")
+    ),
+    Test / resourceGenerators += (Test / smithy4sCodegen).map(
+      _.filter(_.ext != "scala")
+    ),
+    cleanFiles += (Test / smithy4sOutputDir).value,
+    Test / smithy4sModelTransformers := List.empty,
+    // end todo
   )
   .jvmPlatform(commonScalaVersions)
   .jsPlatform(
