@@ -42,7 +42,7 @@ lazy val core = projectMatrix
     buildInfoKeys ++= Seq(
       smithy4sVersion
     ),
-    // todo: upstream should provide this
+    // todo: remove after https://github.com/disneystreaming/smithy4s/pull/310 is released
     Test / smithy4sInputDir := (Test / sourceDirectory).value / "smithy",
     Test / smithy4sOutputDir := (Test / sourceManaged).value,
     Test / smithy4sOpenapiDir := (Test / resourceManaged).value,
@@ -55,6 +55,7 @@ lazy val core = projectMatrix
     ),
     cleanFiles += (Test / smithy4sOutputDir).value,
     Test / smithy4sModelTransformers := List.empty,
+    // end todo
   )
   .jvmPlatform(commonScalaVersions)
   .jsPlatform(
