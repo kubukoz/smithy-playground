@@ -48,7 +48,9 @@ structure CreateHeroInput {
   intSet: IntSet,
   friendSet: FriendSet,
 
-  hasNewtypes: HasNewtypes
+  hasNewtypes: HasNewtypes,
+
+  hasDeprecations: HasDeprecations
 }
 
 set FriendSet {
@@ -68,7 +70,7 @@ structure CreateHeroOutput {
 union Hero {
   good: Good,
   bad: Bad,
-  @deprecated(message: "No reason")
+  @deprecated(message: "No reason", since: "0.0.1")
   badder: Bad
 }
 
@@ -196,7 +198,6 @@ string MyString
 
 structure HasDeprecations {
   @deprecated(message: "Made-up reason")
-  @required
   hasMessage: Boolean,
   @deprecated(since: "0.1.0")
   @required

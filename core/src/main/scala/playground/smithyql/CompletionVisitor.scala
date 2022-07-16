@@ -31,6 +31,7 @@ import smithy4s.schema.SchemaVisitor
 
 import WithSource.NodeContext.PathEntry
 import java.util.UUID
+import smithy.api
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
@@ -233,16 +234,20 @@ object CompletionItem {
     )
   }
 
+  def deprecationString(info: api.Deprecated): String = {
+    val reasonString = info.message.foldMap(": " + _)
+    val sinceString = info.since.foldMap(" (since " + _ + ")")
+
+    sinceString ++ reasonString
+  }
+
   def buildDocumentation(
     hints: Hints,
     isField: Boolean,
   ): Option[String] = {
 
     val deprecatedNote = hints.get(smithy.api.Deprecated).map { info =>
-      val reasonString = info.message.foldMap(": " + _)
-      val sinceString = info.since.foldMap(" (since " + _ + ")")
-
-      s"**Deprecated**$sinceString$reasonString"
+      s"**Deprecated**${deprecationString(info)}"
     }
 
     val optionalNote =

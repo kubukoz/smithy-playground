@@ -242,11 +242,12 @@ object CompletionTests extends FunSuite {
 
     val results = completions.map(c => (c.label, c.docs)).toMap
 
+    assert.eql(results.keySet, Set("hasBoth", "hasMessage", "hasSince")) &&
     assert.eql(
       results,
       Map(
         "hasBoth" -> Some("**Deprecated** (since 1.0.0): Another reason"),
-        "hasMessage" -> Some("**Deprecated**: Made-up reason"),
+        "hasMessage" -> Some("**Deprecated**: Made-up reason\n\n**Optional**"),
         "hasSince" -> Some("**Deprecated** (since 0.1.0)"),
       ),
     )

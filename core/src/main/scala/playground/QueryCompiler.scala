@@ -46,6 +46,7 @@ import smithy4s.schema.SchemaVisitor
 import util.chaining._
 import PartialCompiler.WAST
 import java.util.UUID
+import smithy.api
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -114,6 +115,8 @@ final case class CompilationError(
   tags: Set[DiagnosticTag],
 ) {
   def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
+
+  def isWarning: Boolean = severity == DiagnosticSeverity.Warning
 }
 
 object CompilationError {
@@ -145,7 +148,10 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case InvalidUUID => "Invalid UUID"
+      case DeprecatedMember(info) =>
+        s"Deprecated union member${CompletionItem.deprecationString(info)}"
+      case DeprecatedField(info) => s"Deprecated field${CompletionItem.deprecationString(info)}"
+      case InvalidUUID           => "Invalid UUID"
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
@@ -254,6 +260,9 @@ object CompilationErrorDetails {
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 
   case object DuplicateItem extends CompilationErrorDetails
+  case class DeprecatedField(info: api.Deprecated) extends CompilationErrorDetails
+  case class DeprecatedMember(info: api.Deprecated) extends CompilationErrorDetails
+
   final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }
 
@@ -380,6 +389,10 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     val fields = fieldsRaw.map(_.mapK(this))
 
     val validFields = fields.map(_.label)
+    val deprecatedFields =
+      fieldsRaw.flatMap { f =>
+        f.hints.get(api.Deprecated).tupleLeft(f.label)
+      }.toMap
 
     PartialCompiler
       .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
@@ -392,17 +405,28 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             )
             .toList
 
-        val extraFieldErrors: PartialCompiler.Result[Unit] = struct
-          .value
-          .fields
-          .value
-          .keys
+        val presentKeys = struct.value.fields.value.keys
+
+        val extraFieldErrors: PartialCompiler.Result[Unit] = presentKeys
           .filterNot(field => validFields.contains(field.value.text))
           .map { unexpectedKey =>
             CompilationError.error(
               UnexpectedField(remainingValidFields),
               unexpectedKey.range,
             )
+          }
+          .toList
+          .toNel
+          .map(NonEmptyChain.fromNonEmptyList)
+          .toLeftIor(())
+
+        val deprecatedFieldWarnings: PartialCompiler.Result[Unit] = presentKeys
+          .flatMap { key =>
+            deprecatedFields.get(key.value.text).map { info =>
+              CompilationError
+                .warning(CompilationErrorDetails.DeprecatedField(info), key.range)
+                .deprecated
+            }
           }
           .toList
           .toNel
@@ -431,8 +455,17 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
               }
           }
 
-        buildStruct.map(make) <& extraFieldErrors
+        buildStruct.map(make) <&& extraFieldErrors <&& deprecatedFieldWarnings
       }
+
+  }
+
+  implicit class ResultOps[A](result: PartialCompiler.Result[A]) {
+
+    // like <&, but returns Both if LHS=right, RHS=left/both
+    // seems to be equivalent to `combine`, but discards RHS success
+    def <&&(another: PartialCompiler.Result[Any]): PartialCompiler.Result[A] =
+      another.left.fold(result)(result.addLeft(_))
 
   }
 
@@ -443,6 +476,9 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     dispatcher: Alt.Dispatcher[Schema, U],
   ): PartialCompiler[U] = {
     val alternativesCompiled = alternatives.map(_.mapK(this)).groupBy(_.label).map(_.map(_.head))
+    val deprecatedAlternativeLabels =
+      alternatives.flatMap(alt => alt.hints.get(api.Deprecated).tupleLeft(alt.label)).toMap
+
     val labels = NonEmptyList.fromListUnsafe(alternatives.toList).map(_.label)
 
     PartialCompiler
@@ -467,7 +503,19 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
               )
               .toIorNec
 
-          op.flatMap(go(_).compile(v))
+          val deprecationWarning: PartialCompiler.Result[Unit] = deprecatedAlternativeLabels
+            .get(k.value.text)
+            .map { info =>
+              CompilationError
+                .warning(CompilationErrorDetails.DeprecatedMember(info), k.range)
+                .deprecated
+            }
+            .toList
+            .toNel
+            .map(NonEmptyChain.fromNonEmptyList)
+            .toLeftIor(())
+
+          op.flatMap(go(_).compile(v)) <&& deprecationWarning
 
         case s if s.value.fields.value.isEmpty =>
           CompilationError
@@ -534,6 +582,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
       case BooleanLiteral(value) => Document.fromBoolean(value).pure[PartialCompiler.Result]
       case IntLiteral(value)     => Document.fromInt(value).pure[PartialCompiler.Result]
       case StringLiteral(value)  => Document.fromString(value).pure[PartialCompiler.Result]
+      // parTraverse in this file isn't going to work like you think it will
       case Listed(values) => values.value.parTraverse(document.compile(_)).map(Document.array(_))
       case Struct(fields) =>
         fields
@@ -557,6 +606,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     val byName = values
       .find(_.name == name)
 
+    // todo: handle deprecations of enum values
     (byName, byValue) match {
       case (Some(v), _) => v.value.pure[PartialCompiler.Result]
 

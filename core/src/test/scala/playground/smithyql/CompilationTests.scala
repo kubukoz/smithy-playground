@@ -33,6 +33,10 @@ import weaver.scalacheck.Checkers
 import java.util.UUID
 
 import Arbitraries._
+import demo.smithy.HasDeprecations
+import smithy.api
+import cats.data.Chain
+import playground.DiagnosticTag
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -128,6 +132,35 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("Using deprecated field in struct adds a warning with deprecation tags") {
+
+    val result = compile[HasDeprecations](
+      WithSource.liftId {
+        struct(
+          "hasMessage" -> true
+        ).mapK(WithSource.liftId)
+      }
+    )
+      .void
+      .leftMap(_.filter(_.isWarning).map(err => (err.err, err.tags)))
+
+    assert(
+      result == Ior.left(
+        Chain(
+          (
+            CompilationErrorDetails.DeprecatedField(
+              info = api.Deprecated(
+                message = "Made-up reason".some,
+                since = None,
+              )
+            ),
+            Set(DiagnosticTag.Deprecated),
+          )
+        )
+      )
+    )
+  }
+
   pureTest("Missing fields in struct") {
     assert(
       compile[Bad] {
@@ -175,6 +208,36 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           ).mapK(WithSource.liftId)
         }
       } == Ior.right(Hero.GoodCase(Good(200)))
+    )
+  }
+
+  pureTest("deprecated union member has warning but succeeds") {
+    val result = compile[Hero] {
+      WithSource.liftId {
+        struct(
+          "badder" -> struct("evilName" -> "Vader", "powerLevel" -> 9001)
+        ).mapK(WithSource.liftId)
+      }
+    }
+
+    val warning =
+      CompilationError
+        .warning(
+          CompilationErrorDetails.DeprecatedMember(
+            info = api.Deprecated(
+              message = "No reason".some,
+              since = "0.0.1".some,
+            )
+          ),
+          SourceRange(Position(0), Position(0)),
+        )
+        .deprecated
+
+    assert(
+      result == Ior.bothNec(
+        warning,
+        Hero.BadderCase(Bad("Vader", 9001)),
+      )
     )
   }
 
