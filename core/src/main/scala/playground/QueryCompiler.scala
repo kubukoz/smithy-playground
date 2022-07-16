@@ -54,6 +54,21 @@ trait PartialCompiler[A] {
 
   // TODO: Actually use the powers of Ior. Maybe a custom monad for errors / warnings? Diagnosed[A]? Either+Writer composition?
   def compile(ast: WAST): PartialCompiler.Result[A]
+
+  /** Makes all error-level diagnostics fatal on the top level of this compiler instance.
+    */
+  def seal: PartialCompiler[A] =
+    ast =>
+      compile(ast).fold(
+        Ior.left(_),
+        Ior.right(_),
+        (e, a) =>
+          if (e.exists(_.isError))
+            Ior.left(e)
+          else
+            Ior.both(e, a),
+      )
+
 }
 
 object PartialCompiler {
@@ -116,6 +131,7 @@ final case class CompilationError(
 ) {
   def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
 
+  def isError: Boolean = severity == DiagnosticSeverity.Error
   def isWarning: Boolean = severity == DiagnosticSeverity.Warning
 }
 
@@ -419,6 +435,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
           .toLeftIor(())
+          .combine(Ior.right(()))
 
         val deprecatedFieldWarnings: PartialCompiler.Result[Unit] = presentKeys
           .flatMap { key =>
@@ -432,6 +449,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
           .toLeftIor(())
+          .combine(Ior.right(()))
 
         val buildStruct = fields
           .parTraverse { field =>
@@ -455,17 +473,8 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
               }
           }
 
-        buildStruct.map(make) <&& extraFieldErrors <&& deprecatedFieldWarnings
+        buildStruct.map(make) <& extraFieldErrors <& deprecatedFieldWarnings
       }
-
-  }
-
-  implicit class ResultOps[A](result: PartialCompiler.Result[A]) {
-
-    // like <&, but returns Both if LHS=right, RHS=left/both
-    // seems to be equivalent to `combine`, but discards RHS success
-    def <&&(another: PartialCompiler.Result[Any]): PartialCompiler.Result[A] =
-      another.left.fold(result)(result.addLeft(_))
 
   }
 
@@ -514,8 +523,9 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             .toNel
             .map(NonEmptyChain.fromNonEmptyList)
             .toLeftIor(())
+            .combine(Ior.right(()))
 
-          op.flatMap(go(_).compile(v)) <&& deprecationWarning
+          op.flatMap(go(_).compile(v)) <& deprecationWarning
 
         case s if s.value.fields.value.isEmpty =>
           CompilationError

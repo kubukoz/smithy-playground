@@ -107,7 +107,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
   ): WithSource[InputNode[WithSource]] => Ior[Throwable, CompiledInput] = {
-    val inputCompiler = e.input.compile(QueryCompiler)
+    val inputCompiler = e.input.compile(QueryCompiler).seal
     val outputEncoder = NodeEncoder.derive(e.output)
     val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
 

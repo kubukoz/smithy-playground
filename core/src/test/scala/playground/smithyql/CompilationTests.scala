@@ -80,6 +80,26 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     .fromSchema(dynamicPersonSchema)
     .asInstanceOf[Document.Encoder[Any]]
 
+  pureTest("seal - converts Both to Left when an error is present") {
+    val e = CompilationError.error(
+      CompilationErrorDetails.DuplicateItem,
+      SourceRange(Position.origin, Position.origin),
+    )
+
+    val result = PartialCompiler
+      .unit
+      .emap(_ =>
+        Ior.bothNec(
+          e,
+          (),
+        )
+      )
+      .seal
+      .compile(WithSource.liftId("test".mapK(WithSource.liftId)))
+
+    assert(result == Ior.leftNec(e))
+  }
+
   pureTest("string") {
     assert(
       compile {
