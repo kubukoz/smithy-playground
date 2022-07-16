@@ -81,7 +81,7 @@ object PartialCompiler {
         .traverse(f.lift)
         .toRightIor(
           NonEmptyChain(
-            CompilationError(
+            CompilationError.error(
               TypeMismatch(
                 expected,
                 ast.value.kind,
@@ -93,7 +93,53 @@ object PartialCompiler {
 
 }
 
-final case class CompilationError(err: CompilationErrorDetails, range: SourceRange)
+sealed trait DiagnosticSeverity extends Product with Serializable
+
+object DiagnosticSeverity {
+  case object Warning extends DiagnosticSeverity
+  case object Error extends DiagnosticSeverity
+}
+
+sealed trait DiagnosticTag extends Product with Serializable
+
+object DiagnosticTag {
+  case object Deprecated extends DiagnosticTag
+  case object Unused extends DiagnosticTag
+}
+
+final case class CompilationError(
+  err: CompilationErrorDetails,
+  range: SourceRange,
+  severity: DiagnosticSeverity,
+  tags: Set[DiagnosticTag],
+) {
+  def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
+}
+
+object CompilationError {
+
+  def error(
+    err: CompilationErrorDetails,
+    range: SourceRange,
+  ): CompilationError = default(err, range, DiagnosticSeverity.Error)
+
+  def warning(
+    err: CompilationErrorDetails,
+    range: SourceRange,
+  ): CompilationError = default(err, range, DiagnosticSeverity.Warning)
+
+  def default(
+    err: CompilationErrorDetails,
+    range: SourceRange,
+    severity: DiagnosticSeverity,
+  ): CompilationError = CompilationError(
+    err = err,
+    range = range,
+    severity = severity,
+    tags = Set.empty,
+  )
+
+}
 
 sealed trait CompilationErrorDetails extends Product with Serializable {
 
@@ -237,7 +283,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           Either
             .catchOnly[IllegalArgumentException](UUID.fromString(s.value))
             .toIor
-            .leftMap(_ => CompilationError(InvalidUUID, s.range))
+            .leftMap(_ => CompilationError.error(InvalidUUID, s.range))
             .toIorNec
         }
 
@@ -253,7 +299,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           Timestamp
             .parse(s.value, format)
             .toRightIor(
-              CompilationError(
+              CompilationError.error(
                 InvalidTimestampFormat(format),
                 s.range,
               )
@@ -280,7 +326,8 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             .map(_._2)
             .filter(_.sizeIs > 1)
             .flatMap(_.map(_._2))
-            .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
+            // todo: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
+            .map(CompilationError.warning(CompilationErrorDetails.DuplicateItem, _))
             .toList
             .pipe(NonEmptyChain.fromSeq(_))
 
@@ -352,7 +399,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           .keys
           .filterNot(field => validFields.contains(field.value.text))
           .map { unexpectedKey =>
-            CompilationError(
+            CompilationError.error(
               UnexpectedField(remainingValidFields),
               unexpectedKey.range,
             )
@@ -376,7 +423,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             else
               fieldOpt.flatMap {
                 _.toRightIor(
-                  CompilationError(
+                  CompilationError.error(
                     MissingField(field.label),
                     struct.value.fields.range,
                   )
@@ -413,7 +460,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             alternativesCompiled
               .get(k.value.text)
               .toRightIor(
-                CompilationError(
+                CompilationError.error(
                   MissingDiscriminator(labels),
                   s.range,
                 )
@@ -423,21 +470,23 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           op.flatMap(go(_).compile(v))
 
         case s if s.value.fields.value.isEmpty =>
-          CompilationError(
-            EmptyStruct(labels),
-            s.range,
-          )
+          CompilationError
+            .error(
+              EmptyStruct(labels),
+              s.range,
+            )
             .leftIor
             .toIorNec
 
         case s =>
-          CompilationError(
-            StructMismatch(
-              s.value.fields.value.keys.map(_.value.text).toList,
-              labels,
-            ),
-            s.range,
-          )
+          CompilationError
+            .error(
+              StructMismatch(
+                s.value.fields.value.keys.map(_.value.text).toList,
+                labels,
+              ),
+              s.range,
+            )
             .leftIor
             .toIorNec
       }
@@ -454,7 +503,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
       to(a)
         .toIor
         .leftMap { msg =>
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.RefinementFailure(msg),
             pos,
           )
@@ -471,7 +520,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
   def unsupported[A](ctx: String): PartialCompiler[A] =
     ast =>
       Ior.leftNec(
-        CompilationError(
+        CompilationError.error(
           UnsupportedNode(ctx),
           ast.range,
         )
@@ -511,10 +560,11 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     (byName, byValue) match {
       case (Some(v), _) => v.value.pure[PartialCompiler.Result]
 
-      case (None, Some(v)) => Ior.bothNec(CompilationError(EnumFallback(v.name), range), v.value)
+      case (None, Some(v)) =>
+        Ior.bothNec(CompilationError.warning(EnumFallback(v.name), range).deprecated, v.value)
 
       case (None, None) =>
-        Ior.leftNec(CompilationError(UnknownEnumValue(name, values.map(_.name)), range))
+        Ior.leftNec(CompilationError.error(UnknownEnumValue(name, values.map(_.name)), range))
     }
 
   }

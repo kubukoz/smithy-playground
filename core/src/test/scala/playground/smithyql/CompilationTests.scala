@@ -90,7 +90,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(Schema.string) == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.TypeMismatch(
               NodeKind.StringLiteral,
               NodeKind.IntLiteral,
@@ -136,12 +136,12 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         }
       } == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails
               .MissingField("evilName"),
             SourceRange(Position(0), Position(0)),
           ),
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.MissingField("powerLevel"),
             SourceRange(Position(0), Position(0)),
           ),
@@ -158,7 +158,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         }
       } == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.MissingField("powerLevel"),
             SourceRange(Position(0), Position(0)),
           )
@@ -242,10 +242,12 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     val expected: PartialCompiler.Result[Power] = Ior.both(
       NonEmptyChain.one(
-        CompilationError(
-          CompilationErrorDetails.EnumFallback("WIND"),
-          aRange,
-        )
+        CompilationError
+          .warning(
+            CompilationErrorDetails.EnumFallback("WIND"),
+            aRange,
+          )
+          .deprecated
       ),
       Power.WIND,
     )
@@ -259,7 +261,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile[Power](WithSource.liftId("POISON".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.UnknownEnumValue(
               "POISON",
               List("ICE", "FIRE", "LIGHTNING", "WIND"),
@@ -306,11 +308,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       assert(
         actual == Ior.both(
           NonEmptyChain(
-            CompilationError(
+            CompilationError.warning(
               CompilationErrorDetails.DuplicateItem,
               range2,
             ),
-            CompilationError(
+            CompilationError.warning(
               CompilationErrorDetails.DuplicateItem,
               range3,
             ),
@@ -399,11 +401,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile[Ints](WithSource.liftId(List("hello", "world").mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
             SourceRange(Position(0), Position(0)),
           ),
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
             SourceRange(Position(0), Position(0)),
           ),

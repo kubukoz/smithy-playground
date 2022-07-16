@@ -141,7 +141,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     .get(q.operationName.value.text)
     .toRight(
       CompilationFailed.one(
-        CompilationError(
+        CompilationError.error(
           CompilationErrorDetails
             .OperationNotFound(
               q.operationName.value,
@@ -165,7 +165,7 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     .resolveService(q.useClause.map(_.value.identifier), services)
     .leftMap { rf =>
       CompilationFailed.one(
-        CompilationError(
+        CompilationError.error(
           CompilationErrorDetails.fromResolutionFailure(rf),
           ResolutionFailure.diagnosticRange(q),
         )
@@ -275,7 +275,7 @@ object Runner {
         )
         .leftMap(rf =>
           CompilationFailed.one(
-            CompilationError(
+            CompilationError.error(
               CompilationErrorDetails.fromResolutionFailure(rf),
               q.useClause.fold(q.operationName.range)(_.range),
             )
