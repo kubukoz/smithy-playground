@@ -80,6 +80,7 @@ object Compiler {
       dsi
         .allServices
         .map { svc =>
+          // todo: deprecated services (here / in completions)
           QualifiedIdentifier
             .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op](svc.service)
         }
@@ -137,6 +138,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     .groupByNel(_.name)
     .map(_.map(_.head).map(compileEndpoint(_)))
 
+  // todo: deprecated operations (here / in completions)
   def compile(q: Query[WithSource]): Ior[Throwable, CompiledInput] = endpoints
     .get(q.operationName.value.text)
     .toRight(
