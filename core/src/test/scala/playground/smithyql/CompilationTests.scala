@@ -33,6 +33,10 @@ import weaver.scalacheck.Checkers
 import java.util.UUID
 
 import Arbitraries._
+import demo.smithy.HasDeprecations
+import smithy.api
+import cats.data.Chain
+import playground.DiagnosticTag
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -76,6 +80,26 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     .fromSchema(dynamicPersonSchema)
     .asInstanceOf[Document.Encoder[Any]]
 
+  pureTest("seal - converts Both to Left when an error is present") {
+    val e = CompilationError.error(
+      CompilationErrorDetails.DuplicateItem,
+      SourceRange(Position.origin, Position.origin),
+    )
+
+    val result = PartialCompiler
+      .unit
+      .emap(_ =>
+        Ior.bothNec(
+          e,
+          (),
+        )
+      )
+      .seal
+      .compile(WithSource.liftId("test".mapK(WithSource.liftId)))
+
+    assert(result == Ior.leftNec(e))
+  }
+
   pureTest("string") {
     assert(
       compile {
@@ -90,7 +114,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(Schema.string) == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.TypeMismatch(
               NodeKind.StringLiteral,
               NodeKind.IntLiteral,
@@ -128,6 +152,35 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("Using deprecated field in struct adds a warning with deprecation tags") {
+
+    val result = compile[HasDeprecations](
+      WithSource.liftId {
+        struct(
+          "hasMessage" -> true
+        ).mapK(WithSource.liftId)
+      }
+    )
+      .void
+      .leftMap(_.filter(_.isWarning).map(err => (err.err, err.tags)))
+
+    assert(
+      result == Ior.left(
+        Chain(
+          (
+            CompilationErrorDetails.DeprecatedField(
+              info = api.Deprecated(
+                message = "Made-up reason".some,
+                since = None,
+              )
+            ),
+            Set(DiagnosticTag.Deprecated),
+          )
+        )
+      )
+    )
+  }
+
   pureTest("Missing fields in struct") {
     assert(
       compile[Bad] {
@@ -136,12 +189,12 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         }
       } == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails
               .MissingField("evilName"),
             SourceRange(Position(0), Position(0)),
           ),
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.MissingField("powerLevel"),
             SourceRange(Position(0), Position(0)),
           ),
@@ -158,7 +211,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         }
       } == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.MissingField("powerLevel"),
             SourceRange(Position(0), Position(0)),
           )
@@ -175,6 +228,36 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           ).mapK(WithSource.liftId)
         }
       } == Ior.right(Hero.GoodCase(Good(200)))
+    )
+  }
+
+  pureTest("deprecated union member has warning but succeeds") {
+    val result = compile[Hero] {
+      WithSource.liftId {
+        struct(
+          "badder" -> struct("evilName" -> "Vader", "powerLevel" -> 9001)
+        ).mapK(WithSource.liftId)
+      }
+    }
+
+    val warning =
+      CompilationError
+        .warning(
+          CompilationErrorDetails.DeprecatedMember(
+            info = api.Deprecated(
+              message = "No reason".some,
+              since = "0.0.1".some,
+            )
+          ),
+          SourceRange(Position(0), Position(0)),
+        )
+        .deprecated
+
+    assert(
+      result == Ior.bothNec(
+        warning,
+        Hero.BadderCase(Bad("Vader", 9001)),
+      )
     )
   }
 
@@ -242,10 +325,12 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     val expected: PartialCompiler.Result[Power] = Ior.both(
       NonEmptyChain.one(
-        CompilationError(
-          CompilationErrorDetails.EnumFallback("WIND"),
-          aRange,
-        )
+        CompilationError
+          .warning(
+            CompilationErrorDetails.EnumFallback("WIND"),
+            aRange,
+          )
+          .deprecated
       ),
       Power.WIND,
     )
@@ -259,7 +344,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile[Power](WithSource.liftId("POISON".mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.UnknownEnumValue(
               "POISON",
               List("ICE", "FIRE", "LIGHTNING", "WIND"),
@@ -306,11 +391,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       assert(
         actual == Ior.both(
           NonEmptyChain(
-            CompilationError(
+            CompilationError.warning(
               CompilationErrorDetails.DuplicateItem,
               range2,
             ),
-            CompilationError(
+            CompilationError.warning(
               CompilationErrorDetails.DuplicateItem,
               range3,
             ),
@@ -399,11 +484,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile[Ints](WithSource.liftId(List("hello", "world").mapK(WithSource.liftId))) == Ior.left(
         NonEmptyChain.of(
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
             SourceRange(Position(0), Position(0)),
           ),
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
             SourceRange(Position(0), Position(0)),
           ),

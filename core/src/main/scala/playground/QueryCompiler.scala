@@ -46,6 +46,7 @@ import smithy4s.schema.SchemaVisitor
 import util.chaining._
 import PartialCompiler.WAST
 import java.util.UUID
+import smithy.api
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -53,6 +54,21 @@ trait PartialCompiler[A] {
 
   // TODO: Actually use the powers of Ior. Maybe a custom monad for errors / warnings? Diagnosed[A]? Either+Writer composition?
   def compile(ast: WAST): PartialCompiler.Result[A]
+
+  /** Makes all error-level diagnostics fatal on the top level of this compiler instance.
+    */
+  def seal: PartialCompiler[A] =
+    ast =>
+      compile(ast).fold(
+        Ior.left(_),
+        Ior.right(_),
+        (e, a) =>
+          if (e.exists(_.isError))
+            Ior.left(e)
+          else
+            Ior.both(e, a),
+      )
+
 }
 
 object PartialCompiler {
@@ -81,7 +97,7 @@ object PartialCompiler {
         .traverse(f.lift)
         .toRightIor(
           NonEmptyChain(
-            CompilationError(
+            CompilationError.error(
               TypeMismatch(
                 expected,
                 ast.value.kind,
@@ -93,13 +109,65 @@ object PartialCompiler {
 
 }
 
-final case class CompilationError(err: CompilationErrorDetails, range: SourceRange)
+sealed trait DiagnosticSeverity extends Product with Serializable
+
+object DiagnosticSeverity {
+  case object Warning extends DiagnosticSeverity
+  case object Error extends DiagnosticSeverity
+}
+
+sealed trait DiagnosticTag extends Product with Serializable
+
+object DiagnosticTag {
+  case object Deprecated extends DiagnosticTag
+  case object Unused extends DiagnosticTag
+}
+
+final case class CompilationError(
+  err: CompilationErrorDetails,
+  range: SourceRange,
+  severity: DiagnosticSeverity,
+  tags: Set[DiagnosticTag],
+) {
+  def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
+
+  def isError: Boolean = severity == DiagnosticSeverity.Error
+  def isWarning: Boolean = severity == DiagnosticSeverity.Warning
+}
+
+object CompilationError {
+
+  def error(
+    err: CompilationErrorDetails,
+    range: SourceRange,
+  ): CompilationError = default(err, range, DiagnosticSeverity.Error)
+
+  def warning(
+    err: CompilationErrorDetails,
+    range: SourceRange,
+  ): CompilationError = default(err, range, DiagnosticSeverity.Warning)
+
+  def default(
+    err: CompilationErrorDetails,
+    range: SourceRange,
+    severity: DiagnosticSeverity,
+  ): CompilationError = CompilationError(
+    err = err,
+    range = range,
+    severity = severity,
+    tags = Set.empty,
+  )
+
+}
 
 sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case InvalidUUID => "Invalid UUID"
+      case DeprecatedMember(info) =>
+        s"Deprecated union member${CompletionItem.deprecationString(info)}"
+      case DeprecatedField(info) => s"Deprecated field${CompletionItem.deprecationString(info)}"
+      case InvalidUUID           => "Invalid UUID"
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
@@ -208,6 +276,9 @@ object CompilationErrorDetails {
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 
   case object DuplicateItem extends CompilationErrorDetails
+  case class DeprecatedField(info: api.Deprecated) extends CompilationErrorDetails
+  case class DeprecatedMember(info: api.Deprecated) extends CompilationErrorDetails
+
   final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }
 
@@ -237,7 +308,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           Either
             .catchOnly[IllegalArgumentException](UUID.fromString(s.value))
             .toIor
-            .leftMap(_ => CompilationError(InvalidUUID, s.range))
+            .leftMap(_ => CompilationError.error(InvalidUUID, s.range))
             .toIorNec
         }
 
@@ -253,7 +324,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           Timestamp
             .parse(s.value, format)
             .toRightIor(
-              CompilationError(
+              CompilationError.error(
                 InvalidTimestampFormat(format),
                 s.range,
               )
@@ -280,7 +351,8 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             .map(_._2)
             .filter(_.sizeIs > 1)
             .flatMap(_.map(_._2))
-            .map(CompilationError(CompilationErrorDetails.DuplicateItem, _))
+            // todo: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
+            .map(CompilationError.warning(CompilationErrorDetails.DuplicateItem, _))
             .toList
             .pipe(NonEmptyChain.fromSeq(_))
 
@@ -333,6 +405,10 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     val fields = fieldsRaw.map(_.mapK(this))
 
     val validFields = fields.map(_.label)
+    val deprecatedFields =
+      fieldsRaw.flatMap { f =>
+        f.hints.get(api.Deprecated).tupleLeft(f.label)
+      }.toMap
 
     PartialCompiler
       .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
@@ -345,14 +421,12 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             )
             .toList
 
-        val extraFieldErrors: PartialCompiler.Result[Unit] = struct
-          .value
-          .fields
-          .value
-          .keys
+        val presentKeys = struct.value.fields.value.keys
+
+        val extraFieldErrors: PartialCompiler.Result[Unit] = presentKeys
           .filterNot(field => validFields.contains(field.value.text))
           .map { unexpectedKey =>
-            CompilationError(
+            CompilationError.error(
               UnexpectedField(remainingValidFields),
               unexpectedKey.range,
             )
@@ -361,6 +435,21 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
           .toLeftIor(())
+          .combine(Ior.right(()))
+
+        val deprecatedFieldWarnings: PartialCompiler.Result[Unit] = presentKeys
+          .flatMap { key =>
+            deprecatedFields.get(key.value.text).map { info =>
+              CompilationError
+                .warning(CompilationErrorDetails.DeprecatedField(info), key.range)
+                .deprecated
+            }
+          }
+          .toList
+          .toNel
+          .map(NonEmptyChain.fromNonEmptyList)
+          .toLeftIor(())
+          .combine(Ior.right(()))
 
         val buildStruct = fields
           .parTraverse { field =>
@@ -376,7 +465,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             else
               fieldOpt.flatMap {
                 _.toRightIor(
-                  CompilationError(
+                  CompilationError.error(
                     MissingField(field.label),
                     struct.value.fields.range,
                   )
@@ -384,7 +473,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
               }
           }
 
-        buildStruct.map(make) <& extraFieldErrors
+        buildStruct.map(make) <& extraFieldErrors <& deprecatedFieldWarnings
       }
 
   }
@@ -396,6 +485,9 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     dispatcher: Alt.Dispatcher[Schema, U],
   ): PartialCompiler[U] = {
     val alternativesCompiled = alternatives.map(_.mapK(this)).groupBy(_.label).map(_.map(_.head))
+    val deprecatedAlternativeLabels =
+      alternatives.flatMap(alt => alt.hints.get(api.Deprecated).tupleLeft(alt.label)).toMap
+
     val labels = NonEmptyList.fromListUnsafe(alternatives.toList).map(_.label)
 
     PartialCompiler
@@ -413,31 +505,46 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             alternativesCompiled
               .get(k.value.text)
               .toRightIor(
-                CompilationError(
+                CompilationError.error(
                   MissingDiscriminator(labels),
                   s.range,
                 )
               )
               .toIorNec
 
-          op.flatMap(go(_).compile(v))
+          val deprecationWarning: PartialCompiler.Result[Unit] = deprecatedAlternativeLabels
+            .get(k.value.text)
+            .map { info =>
+              CompilationError
+                .warning(CompilationErrorDetails.DeprecatedMember(info), k.range)
+                .deprecated
+            }
+            .toList
+            .toNel
+            .map(NonEmptyChain.fromNonEmptyList)
+            .toLeftIor(())
+            .combine(Ior.right(()))
+
+          op.flatMap(go(_).compile(v)) <& deprecationWarning
 
         case s if s.value.fields.value.isEmpty =>
-          CompilationError(
-            EmptyStruct(labels),
-            s.range,
-          )
+          CompilationError
+            .error(
+              EmptyStruct(labels),
+              s.range,
+            )
             .leftIor
             .toIorNec
 
         case s =>
-          CompilationError(
-            StructMismatch(
-              s.value.fields.value.keys.map(_.value.text).toList,
-              labels,
-            ),
-            s.range,
-          )
+          CompilationError
+            .error(
+              StructMismatch(
+                s.value.fields.value.keys.map(_.value.text).toList,
+                labels,
+              ),
+              s.range,
+            )
             .leftIor
             .toIorNec
       }
@@ -454,7 +561,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
       to(a)
         .toIor
         .leftMap { msg =>
-          CompilationError(
+          CompilationError.error(
             CompilationErrorDetails.RefinementFailure(msg),
             pos,
           )
@@ -471,7 +578,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
   def unsupported[A](ctx: String): PartialCompiler[A] =
     ast =>
       Ior.leftNec(
-        CompilationError(
+        CompilationError.error(
           UnsupportedNode(ctx),
           ast.range,
         )
@@ -485,6 +592,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
       case BooleanLiteral(value) => Document.fromBoolean(value).pure[PartialCompiler.Result]
       case IntLiteral(value)     => Document.fromInt(value).pure[PartialCompiler.Result]
       case StringLiteral(value)  => Document.fromString(value).pure[PartialCompiler.Result]
+      // parTraverse in this file isn't going to work like you think it will
       case Listed(values) => values.value.parTraverse(document.compile(_)).map(Document.array(_))
       case Struct(fields) =>
         fields
@@ -511,10 +619,11 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     (byName, byValue) match {
       case (Some(v), _) => v.value.pure[PartialCompiler.Result]
 
-      case (None, Some(v)) => Ior.bothNec(CompilationError(EnumFallback(v.name), range), v.value)
+      case (None, Some(v)) =>
+        Ior.bothNec(CompilationError.warning(EnumFallback(v.name), range).deprecated, v.value)
 
       case (None, None) =>
-        Ior.leftNec(CompilationError(UnknownEnumValue(name, values.map(_.name)), range))
+        Ior.leftNec(CompilationError.error(UnknownEnumValue(name, values.map(_.name)), range))
     }
 
   }

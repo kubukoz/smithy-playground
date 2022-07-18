@@ -80,6 +80,7 @@ object Compiler {
       dsi
         .allServices
         .map { svc =>
+          // todo: deprecated services (here / in completions)
           QualifiedIdentifier
             .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op](svc.service)
         }
@@ -107,7 +108,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
   ): WithSource[InputNode[WithSource]] => Ior[Throwable, CompiledInput] = {
-    val inputCompiler = e.input.compile(QueryCompiler)
+    val inputCompiler = e.input.compile(QueryCompiler).seal
     val outputEncoder = NodeEncoder.derive(e.output)
     val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
 
@@ -137,11 +138,12 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     .groupByNel(_.name)
     .map(_.map(_.head).map(compileEndpoint(_)))
 
+  // todo: deprecated operations (here / in completions)
   def compile(q: Query[WithSource]): Ior[Throwable, CompiledInput] = endpoints
     .get(q.operationName.value.text)
     .toRight(
       CompilationFailed.one(
-        CompilationError(
+        CompilationError.error(
           CompilationErrorDetails
             .OperationNotFound(
               q.operationName.value,
@@ -165,7 +167,7 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     .resolveService(q.useClause.map(_.value.identifier), services)
     .leftMap { rf =>
       CompilationFailed.one(
-        CompilationError(
+        CompilationError.error(
           CompilationErrorDetails.fromResolutionFailure(rf),
           ResolutionFailure.diagnosticRange(q),
         )
@@ -275,7 +277,7 @@ object Runner {
         )
         .leftMap(rf =>
           CompilationFailed.one(
-            CompilationError(
+            CompilationError.error(
               CompilationErrorDetails.fromResolutionFailure(rf),
               q.useClause.fold(q.operationName.range)(_.range),
             )

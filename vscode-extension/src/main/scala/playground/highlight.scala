@@ -1,5 +1,6 @@
 package playground
 
+import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
@@ -8,13 +9,9 @@ import playground.smithyql.Query
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
 import typings.vscode.mod
-import typings.vscode.mod.Diagnostic
-import typings.vscode.mod.DiagnosticSeverity
-
+import scala.util.chaining._
 import types._
-import cats.data.Ior
-import playground.CompilationErrorDetails.DuplicateItem
-import playground.CompilationErrorDetails.EnumFallback
+import scala.scalajs.js.JSConverters._
 
 object highlight {
 
@@ -22,7 +19,7 @@ object highlight {
     doc: mod.TextDocument,
     c: Compiler[IorThrow],
     runner: Runner.Optional[F],
-  ): List[Diagnostic] = compilationErrors(doc, c).fold(
+  ): List[mod.Diagnostic] = compilationErrors(doc, c).fold(
     _.toList,
     parsed => runnerErrors(doc, parsed, runner),
     (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed, runner),
@@ -32,7 +29,7 @@ object highlight {
     doc: mod.TextDocument,
     parsed: Query[WithSource],
     runner: Runner.Optional[F],
-  ): List[Diagnostic] =
+  ): List[mod.Diagnostic] =
     runner.get(parsed).toEither match {
       case Left(e) =>
         val pos = adapters.toVscodeRange(doc, parsed.operationName.range)
@@ -69,7 +66,7 @@ object highlight {
   def compilationErrors[Op[_, _, _, _, _], F[_]](
     doc: mod.TextDocument,
     c: Compiler[IorThrow],
-  ): IorNel[Diagnostic, Query[WithSource]] = {
+  ): IorNel[mod.Diagnostic, Query[WithSource]] = {
 
     val base: Ior[Throwable, Query[WithSource]] = SmithyQLParser
       .parseFull(doc.getText())
@@ -114,21 +111,7 @@ object highlight {
           e match {
             case CompilationFailed(errors) =>
               errors.map { ee => // dźwig
-
-                ee.err match {
-                  // todo: support warnings in "CompilationFailed"
-                  // todo2: rename CompilationFailed cause it makes no sense with warnings
-                  case DuplicateItem | _: EnumFallback =>
-                    warn(
-                      ee.err.render,
-                      adapters.toVscodeRange(doc, ee.range),
-                    )
-                  case _ =>
-                    error(
-                      ee.err.render,
-                      adapters.toVscodeRange(doc, ee.range),
-                    )
-                }
+                translateDiagnostic(doc, ee)
               }
 
             case _ =>
@@ -143,13 +126,28 @@ object highlight {
       }
   }
 
-  private def error(msg: String, range: mod.Range) =
-    new Diagnostic(range, msg, DiagnosticSeverity.Error)
+  private def translateDiagnostic(doc: mod.TextDocument, diag: CompilationError): mod.Diagnostic =
+    new mod.Diagnostic(
+      adapters.toVscodeRange(doc, diag.range),
+      diag.err.render,
+      diag.severity match {
+        case DiagnosticSeverity.Error   => mod.DiagnosticSeverity.Error
+        case DiagnosticSeverity.Warning => mod.DiagnosticSeverity.Warning
+      },
+    ).tap(_.tags =
+      diag
+        .tags
+        .map[mod.DiagnosticTag] {
+          case DiagnosticTag.Deprecated => mod.DiagnosticTag.Deprecated
+          case DiagnosticTag.Unused     => mod.DiagnosticTag.Unnecessary
+        }
+        .toJSArray
+    )
 
-  private def warn(msg: String, range: mod.Range) =
-    new Diagnostic(range, msg, DiagnosticSeverity.Warning)
+  private def error(msg: String, range: mod.Range) =
+    new mod.Diagnostic(range, msg, mod.DiagnosticSeverity.Error)
 
   private def info(msg: String, range: mod.Range) =
-    new Diagnostic(range, msg, DiagnosticSeverity.Information)
+    new mod.Diagnostic(range, msg, mod.DiagnosticSeverity.Information)
 
 }
