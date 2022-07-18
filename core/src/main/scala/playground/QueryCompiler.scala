@@ -616,7 +616,6 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     val byName = values
       .find(_.name == name)
 
-    // todo: handle deprecations of enum values
     (byName, byValue) match {
       case (Some(v), _) => v.value.pure[PartialCompiler.Result]
 

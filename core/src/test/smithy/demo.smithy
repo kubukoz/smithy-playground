@@ -181,7 +181,6 @@ set IntSet {
   member: Integer
 }
 
-
 structure HasNewtypes {
   intSet: IntSet,
   myInt: MyInt,
@@ -194,7 +193,6 @@ structure HasNewtypes {
 integer MyInt
 
 string MyString
-
 
 structure HasDeprecations {
   @deprecated(message: "Made-up reason")
