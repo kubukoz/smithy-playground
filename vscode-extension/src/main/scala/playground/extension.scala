@@ -28,9 +28,31 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 import types._
 import util.chaining._
 import fs2.io.file.Path
+import java.nio.charset.Charset
+import cats.Show
+import debug.UnsafeLog
 
 object extension {
-  private val chan: OutputChannel = window.createOutputChannel("Smithy Playground")
+  private val chan: OutputChannel = window.createOutputChannel("Smithy Playground", "smithyql")
+
+  implicit val ioConsole: std.Console[IO] =
+    new std.Console[IO] {
+
+      def readLineWithCharset(
+        charset: Charset
+      ): IO[String] = IO.consoleForIO.readLineWithCharset(charset)
+
+      def print[A](a: A)(implicit S: Show[A]): IO[Unit] = IO(chan.append("// " + a.show))
+
+      def println[A](a: A)(implicit S: Show[A]): IO[Unit] = IO(chan.appendLine("// " + a.show))
+
+      def error[A](a: A)(implicit S: Show[A]): IO[Unit] = print("ERROR: " + a)
+
+      def errorln[A](a: A)(implicit S: Show[A]): IO[Unit] = println("ERROR: " + a)
+    }
+
+  private implicit val unsafeLog: UnsafeLog = s => chan.appendLine("// " + s)
+
   private var shutdownHook: IO[Unit] = IO.unit
 
   private def timedResource[A](tag: String)(res: Resource[IO, A]): Resource[IO, A] = res
@@ -41,7 +63,7 @@ object extension {
   def activate(
     context: ExtensionContext
   ): Unit = client
-    .make[IO](chan)
+    .make[IO]
     .flatMap(activateR(context, _))
     .pipe(timedResource("activateR"))
     .allocated
@@ -57,17 +79,16 @@ object extension {
     client: Client[IO],
   ): Resource[IO, Unit] =
     build
-      .buildFile[IO](chan)
+      .buildFile[IO]
       .toResource
       .pipe(timedResource("buildFile"))
-      .map { case (buildConfig, buildConfigUri) =>
+      .evalMap { case (buildConfig, buildConfigUri) =>
         build.getServices(
           Path(buildConfigUri.fsPath)
             .parent
             .getOrElse(sys.error("Couldn't find parent of " + buildConfigUri))
             .toString,
           buildConfig,
-          chan,
         )
       }
       .flatMap { dsi =>
@@ -93,18 +114,22 @@ object extension {
                 Compiler.fromSchemaIndex(dsi)
               }
 
-            Resource.make {
-              IO {
-                debug.timed("activateInternal") {
-                  activateInternal(
-                    context,
-                    compiler,
-                    CompletionProvider.forSchemaIndex(dsi),
-                    runner,
-                  )
+            Resource
+              .make {
+                IO {
+                  debug.timed("activateInternal") {
+                    activateInternal(
+                      context,
+                      compiler,
+                      CompletionProvider.forSchemaIndex(dsi),
+                      runner,
+                    )
+                  }
                 }
+              }(subs => IO(subs.foreach(_.dispose())))
+              .evalTap { _ =>
+                std.Console[IO].println("Smithy Playground activated!")
               }
-            }(subs => IO(subs.foreach(_.dispose())))
           }
       }
       .void
@@ -122,8 +147,6 @@ object extension {
       debug.timed("vscodeCompletionProvider setup")(
         completions.complete(completionProvider)
       )
-
-    chan.appendLine("Smithy Playground activated!")
 
     val subs = List(
       commands

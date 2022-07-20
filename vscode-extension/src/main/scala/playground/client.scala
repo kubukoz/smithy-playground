@@ -8,14 +8,11 @@ import org.http4s.ember.client.EmberClientBuilder
 import fs2.io.net.tls.TLSContext
 import fs2.io.net.tls.SecureContext
 import org.http4s.client.middleware.Logger
-import typings.vscode.mod.OutputChannel
-import cats.effect.kernel.Sync
+import cats.effect.std
 
 object client {
 
-  def make[F[_]: Async](
-    chan: OutputChannel
-  ): Resource[F, Client[F]] = Async[F]
+  def make[F[_]: Async: std.Console]: Resource[F, Client[F]] = Async[F]
     .delay(
       // todo: use facade
       TLSContext
@@ -60,7 +57,7 @@ object client {
       Logger[F](
         logHeaders = true,
         logBody = true,
-        logAction = Some(s => Sync[F].delay(chan.appendLine(s))),
+        logAction = Some(std.Console[F].println(_: String)),
       )
     )
 

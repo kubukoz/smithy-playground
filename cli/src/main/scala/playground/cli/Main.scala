@@ -89,8 +89,8 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
       )
     }
     .flatMap { modelText =>
-      Either
-        .catchNonFatal(ModelReader.modelParser(modelText))
+      ModelReader
+        .modelParser(modelText)
         .liftTo[IO]
         .map(ModelReader.buildSchemaIndex(_))
     }

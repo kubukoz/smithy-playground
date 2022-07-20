@@ -19,11 +19,16 @@ object highlight {
     doc: mod.TextDocument,
     c: Compiler[IorThrow],
     runner: Runner.Optional[F],
-  ): List[mod.Diagnostic] = compilationErrors(doc, c).fold(
-    _.toList,
-    parsed => runnerErrors(doc, parsed, runner),
-    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed, runner),
-  )
+  ): List[mod.Diagnostic] =
+    // Not showing any diagnostics in output panels
+    if (doc.fileName.startsWith("extension-output"))
+      Nil
+    else
+      compilationErrors(doc, c).fold(
+        _.toList,
+        parsed => runnerErrors(doc, parsed, runner),
+        (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed, runner),
+      )
 
   def runnerErrors[F[_]](
     doc: mod.TextDocument,

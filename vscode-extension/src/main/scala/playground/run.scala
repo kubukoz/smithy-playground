@@ -8,8 +8,13 @@ import typings.vscode.mod.TextEditor
 import playground.smithyql.Formatter
 import playground.smithyql.WithSource
 import playground.smithyql.InputNode
+import cats.effect.std
+import java.util.concurrent.atomic.AtomicInteger
+import cats.effect.kernel.Ref
+import cats.effect.IO
 
 object run {
+  private val requestCount = new AtomicInteger(0)
 
   def perform[F[_]: Sync, Op[_, _, _, _, _]](
     ted: TextEditor,
@@ -23,10 +28,12 @@ object run {
       compiler
         .compile(parsed)
         .flatMap { compiled =>
-          Sync[F].delay {
-            channel.show(true)
-            channel.appendLine(s"Calling ${parsed.operationName.value.text}")
-          } *>
+          val requestId = requestCount.addAndGet(1)
+
+          Sync[F].delay(channel.show(true)) *>
+            Sync[F].delay(
+              channel.appendLine(s"// Calling ${parsed.operationName.value.text} ($requestId)")
+            ) *>
             runner
               .run(compiled)
               .onError { case e =>
@@ -38,11 +45,13 @@ object run {
                     case None    => e.toString
                   }
 
-                Sync[F].delay(channel.appendLine("ERROR " + rendered))
+                Sync[F].delay(channel.appendLine(s"// ERROR ($requestId)\n$rendered"))
               }
               .flatMap { out =>
                 Sync[F].delay {
-                  channel.appendLine(s"Succeeded ${parsed.operationName.value.text}, response:\n")
+                  channel.appendLine(
+                    s"// Succeeded ${parsed.operationName.value.text} ($requestId), response:\n"
+                  )
                   channel.appendLine(writeOutput(out))
                 }
               }
