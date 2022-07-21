@@ -45,7 +45,7 @@ object run {
                     case None    => e.toString
                   }
 
-                Sync[F].delay(channel.appendLine(s"// ERROR ($requestId)\n$rendered"))
+                Sync[F].delay(channel.appendLine(s"// ERROR ($requestId) $rendered"))
               }
               .flatMap { out =>
                 Sync[F].delay {
