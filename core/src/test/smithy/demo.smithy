@@ -1,6 +1,7 @@
 namespace demo.smithy
 
 use smithy4s.api#simpleRestJson
+use smithy4s.meta#indexedSeq
 
 @simpleRestJson
 service DemoService {
@@ -32,12 +33,32 @@ operation CreateHero {
 }
 
 structure CreateHeroInput {
-  @httpPayload
   @required
   hero: Hero,
 
   @httpQuery("verbose")
-  verbose: Boolean
+  verbose: Boolean,
+
+  powers: Powers,
+
+  powerMap: PowerMap,
+
+  friends: Friends,
+
+  intSet: IntSet,
+  friendSet: FriendSet,
+
+  hasNewtypes: HasNewtypes,
+
+  hasDeprecations: HasDeprecations
+}
+
+set FriendSet {
+  member: Hero
+}
+
+list Friends {
+  member: Hero
 }
 
 structure CreateHeroOutput {
@@ -49,7 +70,7 @@ structure CreateHeroOutput {
 union Hero {
   good: Good,
   bad: Bad,
-  @deprecated(reason:"No reason")
+  @deprecated(message: "No reason", since: "0.0.1")
   badder: Bad
 }
 
@@ -93,6 +114,11 @@ structure GetPowersOutput {
 
 list Powers {
   member: Power
+}
+
+map PowerMap {
+  key: Power,
+  value: Hero
 }
 
 @enum([{value: "Ice", name: "ICE"}, {value: "Fire", name: "FIRE"}, {value: "Lightning", name: "LIGHTNING"}, {value: "Wind", name: "WIND"}])
@@ -146,7 +172,35 @@ structure Sku {
 @enum([{name: "ACTIVE", value: "ACTIVE"}, {name: "INACTIVE", value: "INACTIVE"}])
 string SubscriptionStatus
 
+@indexedSeq
 list Ints {
   member: Integer
 }
 
+set IntSet {
+  member: Integer
+}
+
+structure HasNewtypes {
+  intSet: IntSet,
+  myInt: MyInt,
+  str: MyString,
+  power: Power,
+  powerMap: PowerMap,
+  anUUID: smithy4s.api#UUID
+}
+
+integer MyInt
+
+string MyString
+
+structure HasDeprecations {
+  @deprecated(message: "Made-up reason")
+  hasMessage: Boolean,
+  @deprecated(since: "0.1.0")
+  @required
+  hasSince: Boolean,
+  @deprecated(message: "Another reason", since: "1.0.0")
+  @required
+  hasBoth: Boolean,
+}

@@ -10,17 +10,17 @@ import typings.node.nodeChildProcessMod
 import typings.vscode.mod
 
 import scalajs.js
+import typings.node.childProcessMod.ExecSyncOptions
+import cats.effect.std
 
 object build {
 
   val configFiles = List("build/smithy-dependencies.json", ".smithy.json", "smithy-build.json")
 
-  def buildFile[F[_]: Async](
-    chan: mod.OutputChannel
-  ): F[BuildConfig] = fs2
+  def buildFile[F[_]: Async: std.Console]: F[(BuildConfig, mod.Uri)] = fs2
     .Stream
     .exec(
-      Sync[F].delay(chan.appendLine(s"Loading config from ${configFiles.mkString(", ")}..."))
+      std.Console[F].println(s"Loading config from ${configFiles.mkString(", ")}...")
     )
     .append(fs2.Stream.emits(configFiles))
     .evalMap { template =>
@@ -38,83 +38,95 @@ object build {
     }
     .flatMap(fs2.Stream.emits(_))
     .evalMap { uri =>
-      Async[F].fromFuture {
-        Sync[F].delay {
-          mod
-            .workspace
-            .openTextDocument(uri)
-            .asInstanceOf[js.Thenable[mod.TextDocument]]
-            .toFuture
+      Async[F]
+        .fromFuture {
+          Sync[F].delay {
+            mod
+              .workspace
+              .openTextDocument(uri)
+              .asInstanceOf[js.Thenable[mod.TextDocument]]
+              .toFuture
+          }
         }
-      }
+        .tupleRight(uri)
     }
-    .map(_.getText())
     .head
     .compile
     .lastOrError
     .flatTap { _ =>
-      Sync[F].delay(chan.appendLine("Parsing config..."))
+      std.Console[F].println("Parsing config...")
     }
-    .flatMap { s =>
-      BuildConfig.decode(s.getBytes()).liftTo[F]
+    .flatMap { case (doc, uri) =>
+      BuildConfigDecoder.decode(doc.getText().getBytes()).liftTo[F].tupleRight(uri)
     }
 
-  def getServices(
+  def getServices[F[_]: std.Console: Async](
+    cwd: String,
     buildFile: BuildConfig,
-    chan: mod.OutputChannel,
-  ): DynamicSchemaIndex =
-    debug.timed("getService") {
-      chan.appendLine("Dumping model...")
+  ): F[DynamicSchemaIndex] =
+    debug.timedF("getService") {
 
-      val repos = buildFile
-        .mavenRepositories
-        .combineAll
-        .toNel
-        .foldMap(repos => "--repositories" :: repos.mkString_(",") :: Nil)
-      val deps = buildFile
-        .mavenDependencies
-        .combineAll
-        .toNel
-        .foldMap(deps => "--dependencies" :: deps.mkString_(",") :: Nil)
+      std.Console[F].println("Dumping model...") *>
+        runDump(buildFile, cwd)
+          .flatMap { modelText =>
+            std.Console[F].println("Parsing model...") *>
+              debug.timedF("parse-model")(ModelReader.modelParser(modelText).liftTo[F])
+          }
+          .flatMap { decodedModel =>
+            std.Console[F].println("Loading schemas...") *>
+              debug
+                .timedF("DSI.load") {
+                  Sync[F].delay(ModelReader.buildSchemaIndex(decodedModel))
+                }
+          }
+          .flatTap { services =>
+            std
+              .Console[F]
+              .println(
+                "Loaded services: " + services
+                  .allServices
+                  .map(_.service.id.show)
+                  .mkString(", ") + "\n\n"
+              )
+          }
+    }
 
-      val args =
-        "dump-model" ::
-          buildFile.imports.combineAll :::
-          repos :::
-          deps
+  private def runDump[F[_]: std.Console: Async](buildFile: BuildConfig, cwd: String): F[String] = {
+    val repos = buildFile
+      .mavenRepositories
+      .combineAll
+      .toNel
+      .foldMap(repos => "--repositories" :: repos.mkString_(",") :: Nil)
+    val deps = buildFile
+      .mavenDependencies
+      .combineAll
+      .toNel
+      .foldMap(deps => "--dependencies" :: deps.mkString_(",") :: Nil)
 
-      val process =
-        debug.timed("dump-model") {
+    val args =
+      "dump-model" ::
+        buildFile.imports.combineAll :::
+        repos :::
+        deps
+
+    debug
+      .timedF("dump-model") {
+        Sync[F].delay {
           nodeChildProcessMod.execSync(
             // todo: pass version from workspace config, default from sbt-buildinfo
             ("cs" :: "launch" :: s"com.disneystreaming.smithy4s:smithy4s-codegen-cli_2.13:${BuildInfo.smithy4sVersion}" :: "--" :: args)
-              .mkString(" ")
+              .mkString(" "),
+            ExecSyncOptions().setCwd(cwd),
           )
         }
-
-      val modelText =
+      }
+      .map { process =>
         (process: Any @unchecked) match {
           case s: String => s
           case b         => b.asInstanceOf[typings.node.Buffer].toString(BufferEncoding.utf8)
         }
+      }
 
-      chan.appendLine("Parsing model...")
-
-      val decodedModel = debug.timed("parse-model")(ModelReader.modelParser(modelText))
-
-      chan.appendLine("Loading schemas...")
-
-      val services =
-        debug
-          .timed("DSI.load") {
-            ModelReader.buildSchemaIndex(decodedModel)
-          }
-
-      chan.appendLine(
-        "Loaded services: " + services.allServices.map(_.service.id.show).mkString(", ") + "\n\n"
-      )
-
-      services
-    }
+  }
 
 }

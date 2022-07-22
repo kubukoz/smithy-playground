@@ -6,7 +6,8 @@ import playground.smithyql.Position
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
 import cats.implicits._
-import smithyql.CompletionSchematic
+import smithyql.CompletionVisitor
+import smithyql.CompletionResolver
 import smithy4s.dynamic.DynamicSchemaIndex
 import playground.smithyql.QualifiedIdentifier
 import cats.data.NonEmptyList
@@ -68,17 +69,16 @@ object CompletionProvider {
       }
 
     val completionsByEndpoint
-      : Map[QualifiedIdentifier, Map[OperationName, CompletionSchematic.ResultR[Any]]] =
-      servicesById
-        .fmap { service =>
-          service
-            .service
-            .endpoints
-            .map { endpoint =>
-              OperationName(endpoint.name) -> endpoint.input.compile(new CompletionSchematic).get
-            }
-            .toMap
-        }
+      : Map[QualifiedIdentifier, Map[OperationName, CompletionResolver[Any]]] = servicesById
+      .fmap { service =>
+        service
+          .service
+          .endpoints
+          .map { endpoint =>
+            OperationName(endpoint.name) -> endpoint.input.compile(CompletionVisitor)
+          }
+          .toMap
+      }
 
     (doc, pos) =>
       SmithyQLParser.parseFull(doc) match {
@@ -91,8 +91,7 @@ object CompletionProvider {
 
         case Right(q) =>
           val matchingNode = WithSource.atPosition(q)(pos)
-
-          println("ctx at position: " + matchingNode)
+          println("matchingNode: " + matchingNode.map(_.render))
 
           val serviceIdOpt =
             MultiServiceResolver
@@ -114,7 +113,7 @@ object CompletionProvider {
 
                   case WithSource.NodeContext.InputContext(ctx) =>
                     completionsByEndpoint(serviceId)(q.operationName.value)
-                      .apply(ctx.toList)
+                      .getCompletions(ctx.toList)
                 }
 
             case None =>

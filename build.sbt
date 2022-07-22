@@ -16,10 +16,10 @@ val commonScalaVersions = Seq("2.13.8")
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %%% "cats-effect" % "3.3.11",
-    "com.disneystreaming" %%% "weaver-cats" % "0.7.11" % Test,
-    "com.disneystreaming" %%% "weaver-discipline" % "0.7.11" % Test,
-    "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.11" % Test,
+    "org.typelevel" %%% "cats-effect" % "3.3.14",
+    "com.disneystreaming" %%% "weaver-cats" % "0.7.13" % Test,
+    "com.disneystreaming" %%% "weaver-discipline" % "0.7.13" % Test,
+    "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.13" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   libraryDependencies ++= compilerPlugins,
@@ -34,18 +34,23 @@ lazy val core = projectMatrix
       "com.disneystreaming.smithy4s" %%% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %%% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "org.typelevel" %%% "cats-parse" % "0.3.7",
+      "org.typelevel" %%% "cats-parse" % "0.3.8",
       "org.typelevel" %%% "paiges-cats" % "0.4.2",
-      "com.lihaoyi" %%% "sourcecode" % "0.2.8",
     ),
     commonSettings,
     buildInfoPackage := "playground.buildinfo",
     buildInfoKeys ++= Seq(
       smithy4sVersion
     ),
+    Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .jvmPlatform(commonScalaVersions)
-  .jsPlatform(commonScalaVersions)
+  .jsPlatform(
+    commonScalaVersions,
+    Seq(
+      libraryDependencies += "org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0"
+    ),
+  )
   .enablePlugins(Smithy4sCodegenPlugin)
   .enablePlugins(BuildInfoPlugin)
 
@@ -67,7 +72,7 @@ lazy val vscode = projectMatrix
     crossScalaVersions := commonScalaVersions,
     moduleName := "smithy-playground-vscode",
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.11"
+      "org.http4s" %%% "http4s-ember-client" % "0.23.13"
     ),
     commonSettings,
   )
@@ -94,8 +99,8 @@ lazy val cli = projectMatrix
   .settings(
     commonSettings,
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.11",
-      "com.monovore" %% "decline-effect" % "2.2.0",
+      "org.http4s" %%% "http4s-ember-client" % "0.23.13",
+      "com.monovore" %% "decline-effect" % "2.3.0",
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
     ),
   )

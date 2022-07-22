@@ -29,6 +29,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import org.http4s.client.Client
 import cats.effect.kernel.Resource
 import cats.effect.std
+import playground.BuildConfigDecoder
 
 object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
@@ -72,7 +73,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
     .toVector
     .map(_.toArray)
     .flatMap {
-      BuildConfig.decode(_).liftTo[IO]
+      BuildConfigDecoder.decode(_).liftTo[IO]
     }
 
   private def buildSchemaIndex(bc: BuildConfig): IO[DynamicSchemaIndex] = IO
@@ -83,12 +84,13 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
           repositories = bc.mavenRepositories.combineAll,
           dependencies = bc.mavenDependencies.combineAll,
           transformers = Nil,
+          localJars = Nil,
         )
       )
     }
     .flatMap { modelText =>
-      Either
-        .catchNonFatal(ModelReader.modelParser(modelText))
+      ModelReader
+        .modelParser(modelText)
         .liftTo[IO]
         .map(ModelReader.buildSchemaIndex(_))
     }
@@ -110,7 +112,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
           readBuildConfig(ctx)
             .flatMap(buildSchemaIndex)
             .flatMap { dsi =>
-              val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+              val compiler = playground.Compiler.fromSchemaIndex(dsi)
 
               val runner = Runner
                 .forSchemaIndex[IO](dsi, Client(_ => Resource.never), IO.never, Resource.never)
@@ -123,7 +125,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                   _ => "available",
                 )
 
-              compiler.compile(parsed).flatMap { cin =>
+              compiler.compile(parsed).toEither.liftTo[IO].flatMap { cin =>
                 val input = Document.Encoder.fromSchema(cin.endpoint.input).encode(cin.input)
 
                 IO.println(
@@ -150,7 +152,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
           readBuildConfig(ctx)
             .flatMap(buildSchemaIndex)
             .flatMap { dsi =>
-              val compiler = playground.Compiler.fromSchemaIndex[IO](dsi)
+              val compiler = playground.Compiler.fromSchemaIndex(dsi)
 
               EmberClientBuilder.default[IO].build.use { client =>
                 AwsEnvironment
@@ -166,7 +168,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                       }
                       .liftTo[IO]
                       .flatMap { runner =>
-                        compiler.compile(parsed).flatMap { compiled =>
+                        compiler.compile(parsed).toEither.liftTo[IO].flatMap { compiled =>
                           runner
                             .run(compiled)
                             .flatMap { result =>

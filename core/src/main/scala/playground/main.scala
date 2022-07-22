@@ -4,7 +4,7 @@ import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 import cats.Defer
 import cats.Id
-import cats.MonadThrow
+import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
@@ -23,6 +23,7 @@ import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.WithSource
+import smithy.api.ProtocolDefinition
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.ShapeId
@@ -33,6 +34,7 @@ import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
+import smithy4s.schema.Schema
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -71,24 +73,25 @@ trait Compiler[F[_]] { self =>
 
 object Compiler {
 
-  def fromSchemaIndex[F[_]: MonadThrow](
+  def fromSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): Compiler[F] = {
-    val services: Map[QualifiedIdentifier, Compiler[F]] =
+  ): Compiler[Ior[Throwable, *]] = {
+    val services: Map[QualifiedIdentifier, Compiler[Ior[Throwable, *]]] =
       dsi
         .allServices
         .map { svc =>
+          // todo: deprecated services (here / in completions)
           QualifiedIdentifier
-            .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op, F](svc.service)
+            .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op](svc.service)
         }
         .toMap
 
     new MultiServiceCompiler(services)
   }
 
-  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op]
-  ): Compiler[F] = new ServiceCompiler(service)
+  ): Compiler[Ior[Throwable, *]] = new ServiceCompiler(service)
 
 }
 
@@ -98,24 +101,22 @@ object CompilationFailed {
   def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
 }
 
-private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
+private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   service: Service[Alg, Op]
-) extends Compiler[F] {
+) extends Compiler[Ior[Throwable, *]] {
 
   private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
-  ): WithSource[InputNode[WithSource]] => F[CompiledInput] = {
-    val inputCompiler = e.input.compile(QueryCompilerSchematic)
-    val outputEncoder = e.output.compile(NodeEncoderSchematic)
-    val errorEncoder = e.errorable.map(e => e.error.compile(NodeEncoderSchematic))
+  ): WithSource[InputNode[WithSource]] => Ior[Throwable, CompiledInput] = {
+    val inputCompiler = e.input.compile(QueryCompiler).seal
+    val outputEncoder = NodeEncoder.derive(e.output)
+    val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
 
     ast =>
       inputCompiler
         .compile(ast)
-        .toEither
         .leftMap(_.toNonEmptyList)
         .leftMap(CompilationFailed(_))
-        .liftTo[F]
         .map { compiled =>
           new CompiledInput {
             type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
@@ -137,11 +138,12 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
     .groupByNel(_.name)
     .map(_.map(_.head).map(compileEndpoint(_)))
 
-  def compile(q: Query[WithSource]): F[CompiledInput] = endpoints
+  // todo: deprecated operations (here / in completions)
+  def compile(q: Query[WithSource]): Ior[Throwable, CompiledInput] = endpoints
     .get(q.operationName.value.text)
-    .liftTo[F](
+    .toRight(
       CompilationFailed.one(
-        CompilationError(
+        CompilationError.error(
           CompilationErrorDetails
             .OperationNotFound(
               q.operationName.value,
@@ -151,31 +153,30 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Mo
         )
       )
     )
-    .flatMap(_.apply(q.input))
+    .fold(_.leftIor, _.apply(q.input))
 
 }
 
-private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: MonadThrow](
-  services: Map[QualifiedIdentifier, Compiler[F]]
-) extends Compiler[F] {
+private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+  services: Map[QualifiedIdentifier, Compiler[Ior[Throwable, *]]]
+) extends Compiler[Ior[Throwable, *]] {
 
   private def getService(
     q: Query[WithSource]
-  ): F[Compiler[F]] = MultiServiceResolver
+  ): Either[Throwable, Compiler[Ior[Throwable, *]]] = MultiServiceResolver
     .resolveService(q.useClause.map(_.value.identifier), services)
     .leftMap { rf =>
       CompilationFailed.one(
-        CompilationError(
+        CompilationError.error(
           CompilationErrorDetails.fromResolutionFailure(rf),
           ResolutionFailure.diagnosticRange(q),
         )
       )
     }
-    .liftTo[F]
 
   def compile(
     q: Query[WithSource]
-  ): F[CompiledInput] = getService(q).flatMap(_.compile(q))
+  ): Ior[Throwable, CompiledInput] = getService(q).fold(Ior.left(_), _.compile(q))
 
 }
 
@@ -192,24 +193,36 @@ object Runner {
   sealed trait Issue extends Product with Serializable
 
   object Issue {
-    final case class InvalidProtocol(supported: ShapeId) extends Issue
+    final case class InvalidProtocol(supported: ShapeId, found: List[ShapeId]) extends Issue
     final case class Other(e: Throwable) extends Issue
+
+    final case class ProtocolIssues(supported: NonEmptyList[ShapeId], found: List[ShapeId])
 
     // Either remove all protocol errors, or only keep those.
     // If there are any non-protocol errors, they'll be returned in Right.
     // If there are only protocol errors, they'll be returned in Left
+    // todo: this needs a cleanup
     def squash(
       issues: NonEmptyList[Issue]
-    ): Either[NonEmptyList[ShapeId], NonEmptyList[Throwable]] = {
+    ): Either[ProtocolIssues, NonEmptyList[Throwable]] = {
       val (protocols, others) = issues.toList.partitionMap {
-        case InvalidProtocol(p) => Left(p)
-        case Other(e)           => Right(e)
+        case InvalidProtocol(p, _) => Left(p)
+        case Other(e)              => Right(e)
       }
 
       others.toNel match {
         case None =>
           // must be nonempty at this point
-          NonEmptyList.fromListUnsafe(protocols).asLeft
+          ProtocolIssues(
+            NonEmptyList.fromListUnsafe(protocols),
+            issues
+              .collectFirst { case InvalidProtocol(_, found) => found }
+              .getOrElse(
+                sys.error(
+                  "Impossible - no protocol issues found, can't extract available protocols"
+                )
+              ),
+          ).asLeft
         case Some(otherErrors) => otherErrors.asRight
       }
     }
@@ -246,7 +259,13 @@ object Runner {
         .allServices
         .map { svc =>
           QualifiedIdentifier.fromShapeId(svc.service.id) ->
-            Runner.forService[svc.Alg, svc.Op, F](svc.service, client, baseUri, awsEnv)
+            Runner.forService[svc.Alg, svc.Op, F](
+              svc.service,
+              client,
+              baseUri,
+              awsEnv,
+              dsi.getSchema,
+            )
         }
         .toMap
 
@@ -258,7 +277,7 @@ object Runner {
         )
         .leftMap(rf =>
           CompilationFailed.one(
-            CompilationError(
+            CompilationError.error(
               CompilationErrorDetails.fromResolutionFailure(rf),
               q.useClause.fold(q.operationName.range)(_.range),
             )
@@ -276,8 +295,19 @@ object Runner {
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
+    schemaIndex: ShapeId => Option[Schema[_]],
   ): Optional[F] =
     new Optional[F] {
+
+      val serviceProtocols = service
+        .hints
+        .all
+        .toList
+        .flatMap { binding =>
+          schemaIndex(binding.keyId).flatMap { schemaOfHint =>
+            schemaOfHint.hints.get(ProtocolDefinition).as(binding.keyId)
+          }
+        }
 
       private def simpleFromBuilder(
         builder: SimpleProtocolBuilder[_]
@@ -296,7 +326,7 @@ object Runner {
           }
           .leftMap(Issue.Other(_))
           .flatMap {
-            _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id))
+            _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
           }
           .map(service.asTransformation)
           .toIor
@@ -315,7 +345,7 @@ object Runner {
         .leftMap(_ =>
           NonEmptyList
             .of(AwsJson1_0.id, AwsJson1_1.id)
-            .map(Issue.InvalidProtocol(_))
+            .map(Issue.InvalidProtocol(_, serviceProtocols))
         )
 
       private def perform[I, E, O](

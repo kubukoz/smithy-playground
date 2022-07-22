@@ -1,5 +1,6 @@
 package playground
 
+import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
@@ -8,29 +9,32 @@ import playground.smithyql.Query
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
 import typings.vscode.mod
-import typings.vscode.mod.Diagnostic
-import typings.vscode.mod.DiagnosticSeverity
-
+import scala.util.chaining._
 import types._
-import cats.data.Ior
+import scala.scalajs.js.JSConverters._
 
 object highlight {
 
   def getHighlights[F[_]](
     doc: mod.TextDocument,
-    c: Compiler[EitherThrow],
+    c: Compiler[IorThrow],
     runner: Runner.Optional[F],
-  ): List[Diagnostic] = compilationErrors(doc, c).fold(
-    _.toList,
-    parsed => runnerErrors(doc, parsed, runner),
-    (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed, runner),
-  )
+  ): List[mod.Diagnostic] =
+    // Not showing any diagnostics in output panels
+    if (doc.fileName.startsWith("extension-output"))
+      Nil
+    else
+      compilationErrors(doc, c).fold(
+        _.toList,
+        parsed => runnerErrors(doc, parsed, runner),
+        (errors, parsed) => errors.toList ++ runnerErrors(doc, parsed, runner),
+      )
 
   def runnerErrors[F[_]](
     doc: mod.TextDocument,
     parsed: Query[WithSource],
     runner: Runner.Optional[F],
-  ): List[Diagnostic] =
+  ): List[mod.Diagnostic] =
     runner.get(parsed).toEither match {
       case Left(e) =>
         val pos = adapters.toVscodeRange(doc, parsed.operationName.range)
@@ -40,8 +44,10 @@ object highlight {
             List(
               info(
                 s"""Service doesn't support any of the available protocols: ${ps
+                    .supported
                     .map(_.show)
                     .mkString_(", ")}.
+                   |Found protocols: ${ps.found.map(_.show).mkString(", ")}
                    |Running queries will not be possible.""".stripMargin,
                 pos,
               )
@@ -64,8 +70,8 @@ object highlight {
 
   def compilationErrors[Op[_, _, _, _, _], F[_]](
     doc: mod.TextDocument,
-    c: Compiler[EitherThrow],
-  ): IorNel[Diagnostic, Query[WithSource]] = {
+    c: Compiler[IorThrow],
+  ): IorNel[mod.Diagnostic, Query[WithSource]] = {
 
     val base: Ior[Throwable, Query[WithSource]] = SmithyQLParser
       .parseFull(doc.getText())
@@ -74,11 +80,7 @@ object highlight {
         Ior.left(_),
         q =>
           // If compilation fails, pass the errors but keep the parsing result
-          c.compile(q)
-            .fold(
-              Ior.both(_, q),
-              _ => Ior.right(q),
-            ),
+          c.compile(q).as(q),
       )
 
     base
@@ -114,10 +116,7 @@ object highlight {
           e match {
             case CompilationFailed(errors) =>
               errors.map { ee => // dźwig
-                error(
-                  ee.err.render,
-                  adapters.toVscodeRange(doc, ee.range),
-                )
+                translateDiagnostic(doc, ee)
               }
 
             case _ =>
@@ -132,10 +131,28 @@ object highlight {
       }
   }
 
+  private def translateDiagnostic(doc: mod.TextDocument, diag: CompilationError): mod.Diagnostic =
+    new mod.Diagnostic(
+      adapters.toVscodeRange(doc, diag.range),
+      diag.err.render,
+      diag.severity match {
+        case DiagnosticSeverity.Error   => mod.DiagnosticSeverity.Error
+        case DiagnosticSeverity.Warning => mod.DiagnosticSeverity.Warning
+      },
+    ).tap(_.tags =
+      diag
+        .tags
+        .map[mod.DiagnosticTag] {
+          case DiagnosticTag.Deprecated => mod.DiagnosticTag.Deprecated
+          case DiagnosticTag.Unused     => mod.DiagnosticTag.Unnecessary
+        }
+        .toJSArray
+    )
+
   private def error(msg: String, range: mod.Range) =
-    new Diagnostic(range, msg, DiagnosticSeverity.Error)
+    new mod.Diagnostic(range, msg, mod.DiagnosticSeverity.Error)
 
   private def info(msg: String, range: mod.Range) =
-    new Diagnostic(range, msg, DiagnosticSeverity.Information)
+    new mod.Diagnostic(range, msg, mod.DiagnosticSeverity.Information)
 
 }
