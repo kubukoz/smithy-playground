@@ -9,6 +9,10 @@ import fs2.io.net.tls.TLSContext
 import fs2.io.net.tls.SecureContext
 import org.http4s.client.middleware.Logger
 import cats.effect.std
+import cats.effect.kernel.Sync
+import cats.implicits._
+import org.http4s.headers.Authorization
+import scala.concurrent.duration._
 
 object client {
 
@@ -53,6 +57,7 @@ object client {
     .flatMap { tls =>
       EmberClientBuilder.default[F].withTLSContext(tls).build
     }
+    .map(AuthorizationHeader[F])
     .map(
       Logger[F](
         logHeaders = true,
@@ -60,5 +65,21 @@ object client {
         logAction = Some(std.Console[F].println(_: String)),
       )
     )
+
+  private def AuthorizationHeader[F[_]: Async]: Client[F] => Client[F] =
+    client =>
+      Client[F] { request =>
+        val updatedRequest =
+          vscodeutil
+            .getConfigF[F, String]("smithyql.http.authorizationHeader")
+            .flatMap {
+              case v if v.trim.isEmpty() => request.pure[F]
+              case v => Authorization.parse(v).liftTo[F].map(request.putHeaders(_))
+            }
+            .toResource
+
+        updatedRequest
+          .flatMap(client.run(_))
+      }
 
 }
