@@ -8,10 +8,7 @@ import typings.vscode.mod.TextEditor
 import playground.smithyql.Formatter
 import playground.smithyql.WithSource
 import playground.smithyql.InputNode
-import cats.effect.std
 import java.util.concurrent.atomic.AtomicInteger
-import cats.effect.kernel.Ref
-import cats.effect.IO
 
 object run {
   private val requestCount = new AtomicInteger(0)
@@ -41,7 +38,7 @@ object run {
                   compiled
                     .catchError(e)
                     .flatMap(err => compiled.writeError.map(_.toNode(err))) match {
-                    case Some(e) => writeOutput(e)
+                    case Some(e) => "\n" + writeOutput(e)
                     case None    => e.toString
                   }
 
