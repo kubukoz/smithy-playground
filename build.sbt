@@ -2,16 +2,22 @@ import scala.sys.process._
 
 def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
 
-val compilerPlugins = List(
-  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.15"),
-  crossPlugin("org.typelevel" % "kind-projector" % "0.13.2"),
-)
+val compilerPlugins =
+  libraryDependencies ++= List(
+    crossPlugin("org.polyvariant" % "better-tostring" % "0.3.15")
+  ) ++ (if (scalaVersion.value.startsWith("3"))
+          Nil
+        else
+          List(
+            crossPlugin("org.typelevel" % "kind-projector" % "0.13.2")
+          ))
 
 ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 val commonScalaVersions = Seq("2.13.8")
+val serverScalaVersions = commonScalaVersions
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
@@ -22,7 +28,7 @@ val commonSettings = Seq(
     "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.13" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
-  libraryDependencies ++= compilerPlugins,
+  compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
   scalacOptions ++= Seq("-Xsource:3.0"),
@@ -44,7 +50,7 @@ lazy val core = projectMatrix
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
-  .jvmPlatform(commonScalaVersions)
+  .jvmPlatform(serverScalaVersions)
   .jsPlatform(
     commonScalaVersions,
     Seq(
@@ -57,11 +63,12 @@ lazy val core = projectMatrix
 lazy val lsp = projectMatrix
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.12.0"
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.12.0",
+      "io.circe" %% "circe-core" % "0.14.2",
     ),
     commonSettings,
   )
-  .jvmPlatform(commonScalaVersions)
+  .jvmPlatform(serverScalaVersions)
   .enablePlugins(Smithy4sCodegenPlugin)
   .enablePlugins(JavaAppPackaging)
   .dependsOn(core)

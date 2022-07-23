@@ -9,10 +9,8 @@ import fs2.io.net.tls.TLSContext
 import fs2.io.net.tls.SecureContext
 import org.http4s.client.middleware.Logger
 import cats.effect.std
-import cats.effect.kernel.Sync
 import cats.implicits._
 import org.http4s.headers.Authorization
-import scala.concurrent.duration._
 
 object client {
 
