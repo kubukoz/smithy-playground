@@ -15,7 +15,6 @@ import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 import typings.vscode.anon.Dispose
 import typings.vscode.mod
-import typings.vscode.mod.DocumentFormattingEditProvider
 import typings.vscode.mod.ExtensionContext
 import typings.vscode.mod.OutputChannel
 import typings.vscode.mod.commands
@@ -64,7 +63,7 @@ object extension {
     .evalMap { case (fd, value) => IO.println(s"$tag took ${fd.toMillis}ms").as(value) }
 
   @JSExportTopLevel("activate")
-  def activateWithClient(
+  def activate(
     context: ExtensionContext
   ): Unit = {
     val lspClient =
@@ -86,10 +85,13 @@ object extension {
 
     context.subscriptions.push(lspClient.start())
     chan.appendLine("Connected client")
+    activateClient(context)
   }
 
-  @JSExportTopLevel("activate_old")
-  def activate(
+  @JSExportTopLevel("deactivate")
+  def deactivate(): Unit = shutdownHook.unsafeRunAndForget()
+
+  def activateClient(
     context: ExtensionContext
   ): Unit = client
     .make[IO]
