@@ -12,6 +12,10 @@ import playground.smithyql.SmithyQLParser
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.CompletionProvider
+import playground.smithyql.InsertText
+import playground.smithyql
+import cats.parse.LocationMap
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -20,13 +24,16 @@ trait LanguageServer[F[_]] {
   def didSave(params: DidSaveTextDocumentParams): F[Unit]
   def didClose(params: DidCloseTextDocumentParams): F[Unit]
   def formatting(params: DocumentFormattingParams): F[List[TextEdit]]
+  def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
   def shutdown(): F[Unit]
   def exit(): F[Unit]
 }
 
 object LanguageServer {
 
-  def instance[F[_]: Async: TextDocumentManager: LanguageClient]: LanguageServer[F] =
+  def instance[F[_]: Async: TextDocumentManager: LanguageClient](
+    completionProvider: CompletionProvider
+  ): LanguageServer[F] =
     new LanguageServer[F] {
 
       def initialize(
@@ -35,6 +42,7 @@ object LanguageServer {
         val capabilities = new ServerCapabilities()
           .tap(_.setTextDocumentSync(TextDocumentSyncKind.Full))
           .tap(_.setDocumentFormattingProvider(true))
+          .tap(_.setCompletionProvider(new CompletionOptions()))
 
         new InitializeResult(capabilities).pure[F]
       }
@@ -103,6 +111,20 @@ object LanguageServer {
                 .getOrElse(Nil)
             }
         }
+
+      def completion(
+        position: CompletionParams
+      ): F[Either[List[CompletionItem], CompletionList]] = TextDocumentManager[F]
+        .get(position.getTextDocument().getUri())
+        .map { documentText =>
+          completionProvider
+            .provide(
+              documentText,
+              converters.fromLSP.position(documentText, position.getPosition()),
+            )
+            .map(converters.toLSP.completionItem(documentText, _))
+        }
+        .map(Left(_))
 
       def exit(): F[Unit] = Applicative[F].unit
     }

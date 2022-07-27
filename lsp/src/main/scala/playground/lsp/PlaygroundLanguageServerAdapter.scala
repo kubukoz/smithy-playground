@@ -9,6 +9,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
+import org.eclipse.lsp4j.jsonrpc.messages
 
 final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   impl: LanguageServer[F]
@@ -51,6 +52,21 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   ): CompletableFuture[java.util.List[TextEdit]] = d.unsafeToCompletableFuture(
     impl.formatting(params).map(_.asJava)
   )
+
+  @JsonRequest("textDocument/completion")
+  def completion(
+    params: CompletionParams
+  ): CompletableFuture[messages.Either[java.util.List[CompletionItem], CompletionList]] = d
+    .unsafeToCompletableFuture(
+      impl
+        .completion(params)
+        .map {
+          _.leftMap(_.asJava).fold(
+            messages.Either.forLeft(_),
+            messages.Either.forRight(_),
+          )
+        }
+    )
 
   @JsonRequest("exit")
   def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit().as(null: Object))

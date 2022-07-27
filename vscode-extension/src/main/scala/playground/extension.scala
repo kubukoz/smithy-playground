@@ -1,11 +1,13 @@
 package playground
 
+import cats.Show
 import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.implicits._
 import cats.effect.std
 import cats.effect.unsafe.implicits._
 import cats.implicits._
+import fs2.io.file.Path
 import org.http4s.Uri
 import org.http4s.client.Client
 import playground.Runner
@@ -21,18 +23,14 @@ import typings.vscode.mod.commands
 import typings.vscode.mod.languages
 import typings.vscode.mod.window
 import typings.vscodeLanguageclient.clientMod.LanguageClientOptions
-import typings.vscodeLanguageclient.mod.LanguageClient
-import typings.vscodeLanguageclient.mod._ServerOptions
 import typings.vscodeLanguageserverProtocol.protocolMod
 
+import java.nio.charset.Charset
 import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
 import util.chaining._
-import fs2.io.file.Path
-import java.nio.charset.Charset
-import cats.Show
 import debug.UnsafeLog
 
 object extension {
@@ -70,7 +68,7 @@ object extension {
       new LanguageClient(
         "smithyPlayground",
         "Smithy Playground Client",
-        _ServerOptions.Executable(
+        ServerOptions(
           "/Users/kubukoz/projects/smithy-playground/lsp/target/jvm-2.13/universal/stage/bin/lsp"
         ),
         LanguageClientOptions().setDocumentSelectorVarargs(
@@ -80,8 +78,6 @@ object extension {
             .asInstanceOf[protocolMod.DocumentFilter]
         ),
       )
-
-    import vscodeutil._
 
     context.subscriptions.push(lspClient.start())
     chan.appendLine("Connected client")
@@ -219,15 +215,15 @@ object extension {
               }
               .unsafeRunAndForget(),
         ),
-      languages.registerCompletionItemProvider(
-        "smithyql",
-        mod
-          .CompletionItemProvider { (doc, pos, _, _) =>
-            vscodeCompletionProvider(doc, pos).toJSArray
-          },
-        // todo this might not be working properly
-        "\t",
-      ),
+      // languages.registerCompletionItemProvider(
+      //   "smithyql",
+      //   mod
+      //     .CompletionItemProvider { (doc, pos, _, _) =>
+      //       vscodeCompletionProvider(doc, pos).toJSArray
+      //     },
+      //   // todo this might not be working properly
+      //   "\t",
+      // ),
       languages.registerCodeLensProvider(
         "smithyql",
         mod.CodeLensProvider { (doc, _) =>

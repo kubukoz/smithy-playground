@@ -63,7 +63,8 @@ lazy val core = projectMatrix
 lazy val lsp = projectMatrix
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.12.0",
+      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.14.0",
       "io.circe" %% "circe-core" % "0.14.2",
     ),
     commonSettings,

@@ -13,6 +13,16 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintWriter
 import org.eclipse.lsp4j.services
+import playground.CompletionProvider
+import fs2.io.file.Files
+import fs2.io.file.Path
+import playground.BuildConfigDecoder
+import cats.implicits._
+import playground.ModelReader
+import smithy4s.codegen.cli.DumpModel
+import smithy4s.codegen.cli.Smithy4sCommand
+import playground.BuildConfig
+import smithy4s.dynamic.DynamicSchemaIndex
 
 object Main extends IOApp.Simple {
 
@@ -32,23 +42,58 @@ object Main extends IOApp.Simple {
   )(
     implicit d: Dispatcher[IO]
   ) = TextDocumentManager.instance[IO].flatMap { implicit tdm =>
-    Deferred[IO, services.LanguageClient].flatMap { clientPromise =>
-      implicit val client: LanguageClient[IO] = LanguageClient.adapt(clientPromise.get)
+    // todo: workspace root
+    readBuildConfig(Path("/Users/kubukoz/projects/smithy-playground-demo"))
+      .flatMap(buildSchemaIndex)
+      .flatMap { dsi =>
+        Deferred[IO, services.LanguageClient].flatMap { clientPromise =>
+          implicit val client: LanguageClient[IO] = LanguageClient.adapt(clientPromise.get)
+          val completionProvider = CompletionProvider.forSchemaIndex(dsi)
 
-      val server = new PlaygroundLanguageServerAdapter(LanguageServer.instance[IO])
+          val server =
+            new PlaygroundLanguageServerAdapter(LanguageServer.instance[IO](completionProvider))
 
-      val launcher = new LSPLauncher.Builder[services.LanguageClient]()
-        .setLocalService(server)
-        .setRemoteInterface(classOf[services.LanguageClient])
-        .setInput(in)
-        .setOutput(out)
-        .traceMessages(logWriter)
-        .create();
+          val launcher = new LSPLauncher.Builder[services.LanguageClient]()
+            .setLocalService(server)
+            .setRemoteInterface(classOf[services.LanguageClient])
+            .setInput(in)
+            .setOutput(out)
+            .traceMessages(logWriter)
+            .create();
 
-      connect(launcher.getRemoteProxy(), clientPromise) *>
-        IO.interruptibleMany(launcher.startListening().get())
-    }
+          connect(launcher.getRemoteProxy(), clientPromise) *>
+            IO.interruptibleMany(launcher.startListening().get())
+        }
+      }
   }
+
+  private def readBuildConfig(ctx: Path) = Files[IO]
+    .readAll(ctx / "smithy-build.json")
+    .compile
+    .toVector
+    .map(_.toArray)
+    .flatMap {
+      BuildConfigDecoder.decode(_).liftTo[IO]
+    }
+
+  private def buildSchemaIndex(bc: BuildConfig): IO[DynamicSchemaIndex] = IO
+    .interruptibleMany {
+      DumpModel.run(
+        Smithy4sCommand.DumpModelArgs(
+          specs = bc.imports.combineAll.map(os.Path(_)),
+          repositories = bc.mavenRepositories.combineAll,
+          dependencies = bc.mavenDependencies.combineAll,
+          transformers = Nil,
+          localJars = Nil,
+        )
+      )
+    }
+    .flatMap { modelText =>
+      ModelReader
+        .modelParser(modelText)
+        .liftTo[IO]
+        .map(ModelReader.buildSchemaIndex(_))
+    }
 
   private def connect(
     client: services.LanguageClient,
