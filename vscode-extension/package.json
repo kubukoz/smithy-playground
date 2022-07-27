@@ -71,7 +71,6 @@
   ],
   "main": "./out/extension",
   "dependencies": {
-    "@types/node": "^14.14.31",
     "@types/vscode": "^1.66.0",
     "vscode-languageclient": "8.0.2"
   },
