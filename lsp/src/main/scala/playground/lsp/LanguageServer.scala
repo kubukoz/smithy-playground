@@ -28,6 +28,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.TextDocumentProvider
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -140,7 +141,7 @@ object LanguageServer {
 
       def formatting(
         params: DocumentFormattingParams
-      ): F[List[TextEdit]] = TextDocumentManager[F]
+      ): F[List[TextEdit]] = TextDocumentProvider[F]
         .get(params.getTextDocument().getUri())
         .flatMap { text =>
           getFormatterWidth

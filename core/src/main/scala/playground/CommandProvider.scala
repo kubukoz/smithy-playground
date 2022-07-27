@@ -19,7 +19,7 @@ trait CommandProvider[F[_]] {
 
 object CommandProvider {
 
-  def instance[F[_]: MonadThrow: TextDocumentManager: std.Console](
+  def instance[F[_]: MonadThrow: TextDocumentProvider: std.Console](
     compiler: Compiler[F],
     runner: Runner.Optional[F],
   ): CommandProvider[F] =
@@ -27,7 +27,7 @@ object CommandProvider {
       // todo mutability
       private val requestCount = new AtomicInteger(0)
 
-      private def runQuery(documentUri: String): F[Unit] = TextDocumentManager[F]
+      private def runQuery(documentUri: String): F[Unit] = TextDocumentProvider[F]
         .get(documentUri)
         .flatMap { documentText =>
           SmithyQLParser

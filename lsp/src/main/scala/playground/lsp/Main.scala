@@ -36,6 +36,7 @@ import cats.effect.kernel.Async
 import org.http4s.client.Client
 import org.eclipse.lsp4j.ConfigurationItem
 import org.http4s.headers.Authorization
+import playground.TextDocumentManager
 
 object Main extends IOApp.Simple {
 
@@ -102,7 +103,7 @@ object Main extends IOApp.Simple {
         .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
         .memoize
         .flatMap { awsEnv =>
-          WorkspaceTextDocumentManager
+          TextDocumentManager
             .instance[IO]
             .flatMap { implicit tdm =>
               // todo: workspace root
