@@ -95,7 +95,7 @@ object DiagnosticProvider {
         base
           .leftMap {
             case SmithyQLParser.ParsingFailure(e, _) =>
-              val range = SourceRange(Position(e.failedAtOffset), Position(e.failedAtOffset + 1))
+              val range = SourceRange(Position(e.failedAtOffset), Position(e.failedAtOffset))
 
               val oneOfInfix =
                 if (e.expected.size > 1)
