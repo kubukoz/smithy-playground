@@ -78,16 +78,17 @@ object Main extends IOApp.Simple {
   )(
     implicit d: Dispatcher[IO]
   ) = Deferred[IO, services.LanguageClient].toResource.flatMap { clientPromise =>
-    makeServer(LanguageClient.adapt(clientPromise.get)).evalMap { server =>
-      val launcher = new LSPLauncher.Builder[services.LanguageClient]()
-        .setLocalService(new PlaygroundLanguageServerAdapter(server))
-        .setRemoteInterface(classOf[services.LanguageClient])
-        .setInput(in)
-        .setOutput(out)
-        .traceMessages(logWriter)
-        .create();
+    makeServer(LanguageClient.suspend(clientPromise.get.map(LanguageClient.adapt(_)))).evalMap {
+      server =>
+        val launcher = new LSPLauncher.Builder[services.LanguageClient]()
+          .setLocalService(new PlaygroundLanguageServerAdapter(server))
+          .setRemoteInterface(classOf[services.LanguageClient])
+          .setInput(in)
+          .setOutput(out)
+          .traceMessages(logWriter)
+          .create();
 
-      connect(launcher.getRemoteProxy(), clientPromise).as(launcher)
+        connect(launcher.getRemoteProxy(), clientPromise).as(launcher)
     }
 
   }

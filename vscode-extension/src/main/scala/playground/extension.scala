@@ -4,8 +4,6 @@ import org.scalablytyped.runtime.StObject
 import typings.vscode.anon.Dispose
 import typings.vscode.mod
 import typings.vscode.mod.ExtensionContext
-import typings.vscode.mod.OutputChannel
-import typings.vscode.mod.window
 import typings.vscodeLanguageclient.clientMod.LanguageClientOptions
 import typings.vscodeLanguageserverProtocol.protocolMod
 
@@ -44,7 +42,6 @@ class LanguageClient(
 }
 
 object extension {
-  private val chan: OutputChannel = window.createOutputChannel("Smithy Playground", "smithyql")
 
   @JSExportTopLevel("activate")
   def activate(
@@ -53,7 +50,7 @@ object extension {
     val lspClient =
       new LanguageClient(
         "smithyPlayground",
-        "Smithy Playground Client",
+        "Smithy Playground",
         ServerOptions(
           "/Users/kubukoz/projects/smithy-playground/lsp/target/jvm-2.13/universal/stage/bin/lsp"
         ),
@@ -66,7 +63,7 @@ object extension {
       )
 
     context.subscriptions.push(lspClient.start())
-    chan.appendLine("Connected client")
+    ()
   }
 
 }

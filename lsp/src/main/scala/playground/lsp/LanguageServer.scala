@@ -20,6 +20,7 @@ import playground.CompletionProvider
 import playground.DiagnosticProvider
 import playground.Runner
 import playground.TextDocumentManager
+import playground.TextDocumentProvider
 import playground.smithyql.Formatter
 import playground.smithyql.SmithyQLParser
 import playground.types._
@@ -28,7 +29,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.TextDocumentProvider
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
