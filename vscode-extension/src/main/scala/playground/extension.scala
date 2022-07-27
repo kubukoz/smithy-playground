@@ -52,14 +52,31 @@ object extension {
   def activate(
     context: ExtensionContext
   ): Unit = {
+    val serverArtifact =
+      mod
+        .workspace
+        .getConfiguration()
+        .get[String]("smithyql.server.artifact")
+        .orNull
+
+    val serverVersion =
+      mod
+        .workspace
+        .getConfiguration()
+        .get[String]("smithyql.server.version")
+        .orNull
+
     val lspClient =
       new LanguageClient(
         "smithyPlayground",
         "Smithy Playground",
         ServerOptions(
-          "/Users/kubukoz/projects/smithy-playground/lsp/target/jvm-2.13/universal/stage/bin/lsp",
+          "cs",
           List(
-            "-J-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,quiet=y,address=5005"
+            "launch",
+            s"${serverArtifact}:$serverVersion",
+            "--",
+            "-J-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,quiet=y,address=5005",
           ).toJSArray,
         ),
         LanguageClientOptions()

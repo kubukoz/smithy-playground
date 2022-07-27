@@ -3,13 +3,8 @@
   "tasks": [
     {
       "command": "sbtn",
-      "args": ["fastOptJS;stage"],
+      "args": ["fastOptJS;publishLocal"],
       "label": "fastOptJS"
-    },
-    {
-      "command": "sbtn",
-      "args": ["stage"],
-      "label": "stage"
     }
   ]
 }
