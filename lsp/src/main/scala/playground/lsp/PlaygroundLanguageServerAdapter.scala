@@ -11,6 +11,8 @@ import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import org.eclipse.lsp4j.jsonrpc.messages
 
+import scala.util.chaining._
+
 final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   impl: LanguageServer[F]
 )(
@@ -73,6 +75,13 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
     params: DocumentDiagnosticParams
   ): CompletableFuture[DocumentDiagnosticReport] = d.unsafeToCompletableFuture(
     impl.diagnostic(params)
+  )
+
+  @JsonRequest("textDocument/codeLens")
+  def codeLens(
+    params: CodeLensParams
+  ): CompletableFuture[java.util.List[CodeLens]] = d.unsafeToCompletableFuture(
+    impl.codeLens(params).map(_.asJava)
   )
 
   @JsonRequest("exit")

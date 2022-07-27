@@ -22,6 +22,7 @@ import io.circe.Decoder
 import cats.effect.kernel.Resource
 import smithy4s.aws.AwsEnvironment
 import playground.DiagnosticProvider
+import playground.CodeLensProvider
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -32,6 +33,7 @@ trait LanguageServer[F[_]] {
   def formatting(params: DocumentFormattingParams): F[List[TextEdit]]
   def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
   def diagnostic(params: DocumentDiagnosticParams): F[DocumentDiagnosticReport]
+  def codeLens(params: CodeLensParams): F[List[CodeLens]]
   def shutdown(): F[Unit]
   def exit(): F[Unit]
 }
@@ -46,11 +48,11 @@ object LanguageServer {
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
-      val compiler = playground.Compiler.fromSchemaIndex(dsi)
-
       private implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
         Uri.fromString(_).leftMap(_.message)
       )
+
+      val compiler = playground.Compiler.fromSchemaIndex(dsi)
 
       val runner = Runner
         .forSchemaIndex[F](
@@ -68,6 +70,7 @@ object LanguageServer {
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
       val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)
+      val lensProvider = CodeLensProvider.instance(compiler, runner)
 
       def initialize(
         params: InitializeParams
@@ -77,6 +80,7 @@ object LanguageServer {
           .tap(_.setDocumentFormattingProvider(true))
           .tap(_.setCompletionProvider(new CompletionOptions()))
           .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
+          .tap(_.setCodeLensProvider(new CodeLensOptions()))
 
         new InitializeResult(capabilities).pure[F]
       }
@@ -178,6 +182,15 @@ object LanguageServer {
             )
           )
         }
+
+      def codeLens(
+        params: CodeLensParams
+      ): F[List[CodeLens]] = TextDocumentManager[F].get(params.getTextDocument().getUri()).map {
+        documentText =>
+          lensProvider
+            .provide(documentText)
+            .map(converters.toLSP.codeLens(documentText, _))
+      }
 
       def exit(): F[Unit] = Applicative[F].unit
     }

@@ -14,18 +14,11 @@ import playground.smithyql.TextEdit
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.CodeLens
 
 object converters {
 
   object toLSP {
-
-    def position(
-      doc: String,
-      pos: Position,
-    ): lsp4j.Position = {
-      val caret = LocationMap(doc).toCaretUnsafe(pos.index)
-      new lsp4j.Position(caret.line, caret.col)
-    }
 
     def completionItem(
       doc: String,
@@ -116,10 +109,28 @@ object converters {
         )
       )
 
+    def codeLens(documentText: String, lens: CodeLens): lsp4j.CodeLens =
+      new lsp4j.CodeLens(range(documentText, lens.range))
+        .tap(
+          _.setCommand(
+            new lsp4j.Command()
+              .tap(_.setTitle(lens.command.title))
+              .tap(_.setCommand(lens.command.command))
+          )
+        )
+
     def range(
       doc: String,
       coreRange: SourceRange,
     ): lsp4j.Range = new lsp4j.Range(position(doc, coreRange.start), position(doc, coreRange.end))
+
+    def position(
+      doc: String,
+      pos: Position,
+    ): lsp4j.Position = {
+      val caret = LocationMap(doc).toCaretUnsafe(pos.index)
+      new lsp4j.Position(caret.line, caret.col)
+    }
 
   }
 

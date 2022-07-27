@@ -20,13 +20,11 @@ import typings.vscode.mod
 import typings.vscode.mod.ExtensionContext
 import typings.vscode.mod.OutputChannel
 import typings.vscode.mod.commands
-import typings.vscode.mod.languages
 import typings.vscode.mod.window
 import typings.vscodeLanguageclient.clientMod.LanguageClientOptions
 import typings.vscodeLanguageserverProtocol.protocolMod
 
 import java.nio.charset.Charset
-import scala.scalajs.js.JSConverters._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 import types._
@@ -207,27 +205,7 @@ object extension {
                   .merge
               }
               .unsafeRunAndForget(),
-        ),
-      languages.registerCodeLensProvider(
-        "smithyql",
-        mod.CodeLensProvider { (doc, _) =>
-          {
-            SmithyQLParser.parseFull(doc.getText()) match {
-              case Right(parsed) if runner.get(parsed).toEither.isRight =>
-                compiler
-                  .compile(parsed)
-                  .as {
-                    new mod.CodeLens(
-                      adapters.toVscodeRange(doc, parsed.operationName.range),
-                      mod.Command("smithyql.runQuery", "Run query"),
-                    )
-                  }
-                  .toList
-              case _ => Nil
-            }
-          }.toJSArray
-        },
-      ),
+        )
     )
 
     val _ = context

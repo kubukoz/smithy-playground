@@ -24,8 +24,6 @@ trait DiagnosticProvider[F[_]] {
 
 object DiagnosticProvider {
 
-  def apply[F[_]](implicit F: DiagnosticProvider[F]): DiagnosticProvider[F] = F
-
   def instance[F[_]](
     compiler: Compiler[IorThrow],
     runner: Runner.Optional[F],
