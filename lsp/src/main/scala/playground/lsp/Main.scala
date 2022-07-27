@@ -26,12 +26,16 @@ import smithy4s.aws.kernel.AwsRegion
 import smithy4s.codegen.cli.DumpModel
 import smithy4s.codegen.cli.Smithy4sCommand
 import smithy4s.dynamic.DynamicSchemaIndex
-
+import scala.util.chaining._
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintWriter
 import java.nio.charset.Charset
+import cats.effect.kernel.Async
+import org.http4s.client.Client
+import org.eclipse.lsp4j.ConfigurationItem
+import org.http4s.headers.Authorization
 
 object Main extends IOApp.Simple {
 
@@ -89,24 +93,28 @@ object Main extends IOApp.Simple {
 
   private def makeServer(
     implicit lc: LanguageClient[IO]
-  ): Resource[IO, LanguageServer[IO]] = EmberClientBuilder.default[IO].build.flatMap { client =>
-    AwsEnvironment
-      .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
-      .memoize
-      .flatMap { awsEnv =>
-        TextDocumentManager
-          .instance[IO]
-          .flatMap { implicit tdm =>
-            // todo: workspace root
-            readBuildConfig(Path("/Users/kubukoz/projects/smithy-playground-demo"))
-              .flatMap(buildSchemaIndex)
-              .map { dsi =>
-                LanguageServer.instance[IO](dsi, log, client, awsEnv)
-              }
-          }
-          .toResource
-      }
-  }
+  ): Resource[IO, LanguageServer[IO]] = EmberClientBuilder
+    .default[IO]
+    .build
+    .map(middleware.AuthorizationHeader[IO])
+    .flatMap { client =>
+      AwsEnvironment
+        .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
+        .memoize
+        .flatMap { awsEnv =>
+          TextDocumentManager
+            .instance[IO]
+            .flatMap { implicit tdm =>
+              // todo: workspace root
+              readBuildConfig(Path("/Users/kubukoz/projects/smithy-playground-demo"))
+                .flatMap(buildSchemaIndex)
+                .map { dsi =>
+                  LanguageServer.instance[IO](dsi, log, client, awsEnv)
+                }
+            }
+            .toResource
+        }
+    }
 
   private def readBuildConfig(ctx: Path) = Files[IO]
     .readAll(ctx / "smithy-build.json")
@@ -144,5 +152,29 @@ object Main extends IOApp.Simple {
       clientDeff.complete(client) *>
       IO(client.showMessage(new MessageParams(MessageType.Info, "hello from smithyql server"))) *>
       log("Server connected")
+
+  private object middleware {
+
+    def AuthorizationHeader[F[_]: Async: LanguageClient]: Client[F] => Client[F] =
+      client =>
+        Client[F] { request =>
+          val updatedRequest =
+            LanguageClient[F]
+              .configuration(
+                List(new ConfigurationItem().tap(_.setSection("smithyql.http.authorizationHeader")))
+              )
+              .flatMap(_.headOption.traverse(_.as[String].liftTo[F]))
+              .flatMap {
+                case Some(v) if v.trim.isEmpty() => request.pure[F]
+                case Some(v) => Authorization.parse(v).liftTo[F].map(request.putHeaders(_))
+                case None    => request.pure[F]
+              }
+              .toResource
+
+          updatedRequest
+            .flatMap(client.run(_))
+        }
+
+  }
 
 }

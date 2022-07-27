@@ -11,8 +11,6 @@ import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import org.eclipse.lsp4j.jsonrpc.messages
 
-import scala.util.chaining._
-
 final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   impl: LanguageServer[F]
 )(
