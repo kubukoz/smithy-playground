@@ -102,7 +102,7 @@ object Main extends IOApp.Simple {
         .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
         .memoize
         .flatMap { awsEnv =>
-          TextDocumentManager
+          WorkspaceTextDocumentManager
             .instance[IO]
             .flatMap { implicit tdm =>
               // todo: workspace root

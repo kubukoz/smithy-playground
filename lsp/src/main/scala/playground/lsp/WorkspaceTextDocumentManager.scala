@@ -1,23 +1,16 @@
 package playground.lsp
 
-import cats.effect.kernel.Ref
-import fs2.io.file.Files
-import cats.implicits._
-import cats.effect.Concurrent
 import cats.data.OptionT
+import cats.effect.Concurrent
+import cats.effect.kernel.Ref
+import cats.implicits._
+import fs2.io.file.Files
 import fs2.io.file.Path
-import java.nio.file.Paths
+import playground.TextDocumentManager
 import java.net.URI
+import java.nio.file.Paths
 
-trait TextDocumentManager[F[_]] {
-  def put(uri: String, text: String): F[Unit]
-  def get(uri: String): F[String]
-  def remove(uri: String): F[Unit]
-}
-
-object TextDocumentManager {
-
-  def apply[F[_]](implicit F: TextDocumentManager[F]): TextDocumentManager[F] = F
+object WorkspaceTextDocumentManager {
 
   def instance[
     F[_]: Files: Concurrent

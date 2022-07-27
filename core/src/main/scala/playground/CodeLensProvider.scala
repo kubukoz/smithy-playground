@@ -6,7 +6,7 @@ import cats.implicits._
 import types._
 
 trait CodeLensProvider[F[_]] {
-  def provide(documentText: String): List[CodeLens]
+  def provide(documentUri: String, documentText: String): List[CodeLens]
 }
 
 object CodeLensProvider {
@@ -17,7 +17,7 @@ object CodeLensProvider {
   ): CodeLensProvider[F] =
     new CodeLensProvider[F] {
 
-      def provide(documentText: String): List[CodeLens] =
+      def provide(documentUri: String, documentText: String): List[CodeLens] =
         SmithyQLParser.parseFull(documentText) match {
           case Right(parsed) if runner.get(parsed).toEither.isRight =>
             compiler
@@ -28,6 +28,7 @@ object CodeLensProvider {
                   Command(
                     title = "Run query",
                     command = "smithyql.runQuery",
+                    args = documentUri :: Nil,
                   ),
                 )
               }
@@ -40,4 +41,4 @@ object CodeLensProvider {
 }
 
 case class CodeLens(range: SourceRange, command: Command)
-case class Command(title: String, command: String)
+case class Command(title: String, command: String, args: List[String])

@@ -9,7 +9,6 @@ import cats.implicits._
 import com.google.gson.JsonElement
 
 import scala.jdk.CollectionConverters._
-import io.circe.JsonNumber
 import org.eclipse.lsp4j.ConfigurationItem
 
 trait LanguageClient[F[_]] {
@@ -31,39 +30,9 @@ object LanguageClient {
         params: List[ConfigurationItem]
       ): F[List[Json]] = withClientF(_.configuration(new ConfigurationParams(params.asJava)))
         .map(_.asScala.toList.map {
-          case e: JsonElement => gsonToCirce(e)
+          case e: JsonElement => converters.gsonToCirce(e)
           case e              => throw new RuntimeException(s"Unexpected configuration value: $e")
         })
-
-      private def gsonToCirce(gson: JsonElement): Json =
-        if (gson.isJsonPrimitive()) {
-          val prim = gson.getAsJsonPrimitive()
-
-          if (prim.isString())
-            Json.fromString(prim.getAsString())
-          else if (prim.isNumber())
-            Json.fromJsonNumber(JsonNumber.fromString(prim.getAsString()).get)
-          else if (prim.isBoolean())
-            Json.fromBoolean(prim.getAsBoolean())
-          else
-            throw new IllegalArgumentException(s"Unknown primitive: $prim")
-        } else if (gson.isJsonArray()) {
-          Json.fromValues(gson.getAsJsonArray().asScala.map(gsonToCirce).toList)
-        } else if (gson.isJsonObject()) {
-          Json.fromFields(
-            gson
-              .getAsJsonObject()
-              .entrySet()
-              .asScala
-              .map { case entry =>
-                val key = entry.getKey
-                val value = gsonToCirce(entry.getValue)
-                key -> value
-              }
-              .toList
-          )
-        } else
-          Json.Null
 
     }
 

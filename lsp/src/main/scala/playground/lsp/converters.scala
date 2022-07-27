@@ -11,10 +11,13 @@ import playground.smithyql.InsertText
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
 import playground.smithyql.TextEdit
-
+import cats.implicits._
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 import playground.CodeLens
+import io.circe.JsonNumber
+import com.google.gson.JsonElement
+import io.circe.Json
 
 object converters {
 
@@ -116,6 +119,7 @@ object converters {
             new lsp4j.Command()
               .tap(_.setTitle(lens.command.title))
               .tap(_.setCommand(lens.command.command))
+              .tap(_.setArguments(lens.command.args.widen[Object].asJava))
           )
         )
 
@@ -144,5 +148,35 @@ object converters {
     )
 
   }
+
+  def gsonToCirce(gson: JsonElement): Json =
+    if (gson.isJsonPrimitive()) {
+      val prim = gson.getAsJsonPrimitive()
+
+      if (prim.isString())
+        Json.fromString(prim.getAsString())
+      else if (prim.isNumber())
+        Json.fromJsonNumber(JsonNumber.fromString(prim.getAsString()).get)
+      else if (prim.isBoolean())
+        Json.fromBoolean(prim.getAsBoolean())
+      else
+        throw new IllegalArgumentException(s"Unknown primitive: $prim")
+    } else if (gson.isJsonArray()) {
+      Json.fromValues(gson.getAsJsonArray().asScala.map(gsonToCirce).toList)
+    } else if (gson.isJsonObject()) {
+      Json.fromFields(
+        gson
+          .getAsJsonObject()
+          .entrySet()
+          .asScala
+          .map { case entry =>
+            val key = entry.getKey
+            val value = gsonToCirce(entry.getValue)
+            key -> value
+          }
+          .toList
+      )
+    } else
+      Json.Null
 
 }

@@ -82,6 +82,14 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
     impl.codeLens(params).map(_.asJava)
   )
 
+  @JsonRequest("workspace/executeCommand")
+  def executeCommand(params: ExecuteCommandParams): CompletableFuture[Object] = d
+    .unsafeToCompletableFuture(
+      impl
+        .executeCommand(params)
+        .as(null: Object)
+    )
+
   @JsonRequest("exit")
   def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit().as(null: Object))
 }

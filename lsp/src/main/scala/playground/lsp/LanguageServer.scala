@@ -3,26 +3,31 @@ package playground.lsp
 import cats.Applicative
 import cats.MonadThrow
 import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
+import cats.effect.std
 import cats.implicits._
+import cats.~>
+import com.google.gson.JsonElement
+import io.circe.Decoder
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
+import org.http4s.Uri
+import org.http4s.client.Client
+import playground.CodeLensProvider
+import playground.CommandProvider
 import playground.CompletionProvider
+import playground.DiagnosticProvider
+import playground.Runner
+import playground.TextDocumentManager
 import playground.smithyql.Formatter
 import playground.smithyql.SmithyQLParser
+import playground.types._
+import smithy4s.aws.AwsEnvironment
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.Runner
-import cats.effect.std
-import org.http4s.client.Client
-import org.http4s.Uri
-import io.circe.Decoder
-import cats.effect.kernel.Resource
-import smithy4s.aws.AwsEnvironment
-import playground.DiagnosticProvider
-import playground.CodeLensProvider
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -34,6 +39,7 @@ trait LanguageServer[F[_]] {
   def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
   def diagnostic(params: DocumentDiagnosticParams): F[DocumentDiagnosticReport]
   def codeLens(params: CodeLensParams): F[List[CodeLens]]
+  def executeCommand(params: ExecuteCommandParams): F[Unit]
   def shutdown(): F[Unit]
   def exit(): F[Unit]
 }
@@ -47,6 +53,11 @@ object LanguageServer {
     awsEnv: Resource[F, AwsEnvironment[F]],
   ): LanguageServer[F] =
     new LanguageServer[F] {
+
+      private val iorToF: IorThrow ~> F =
+        new (IorThrow ~> F) {
+          def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
+        }
 
       private implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
         Uri.fromString(_).leftMap(_.message)
@@ -71,6 +82,7 @@ object LanguageServer {
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
       val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)
       val lensProvider = CodeLensProvider.instance(compiler, runner)
+      val commandProvider = CommandProvider.instance[F](compiler.mapK(iorToF), runner)
 
       def initialize(
         params: InitializeParams
@@ -81,6 +93,11 @@ object LanguageServer {
           .tap(_.setCompletionProvider(new CompletionOptions()))
           .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
+          .tap(
+            _.setExecuteCommandProvider(
+              new ExecuteCommandOptions(commandProvider.listAvailableCommands.asJava)
+            )
+          )
 
         new InitializeResult(capabilities).pure[F]
       }
@@ -188,9 +205,24 @@ object LanguageServer {
       ): F[List[CodeLens]] = TextDocumentManager[F].get(params.getTextDocument().getUri()).map {
         documentText =>
           lensProvider
-            .provide(documentText)
+            .provide(
+              documentUri = params.getTextDocument.getUri(),
+              documentText = documentText,
+            )
             .map(converters.toLSP.codeLens(documentText, _))
       }
+
+      def executeCommand(
+        params: ExecuteCommandParams
+      ): F[Unit] = params
+        .getArguments()
+        .asScala
+        .toList
+        .traverse {
+          case gson: JsonElement => converters.gsonToCirce(gson).as[String].liftTo[F]
+          case s                 => new Throwable("Unsupported arg: " + s).raiseError[F, String]
+        }
+        .flatMap(commandProvider.runCommand(params.getCommand(), _))
 
       def exit(): F[Unit] = Applicative[F].unit
     }
