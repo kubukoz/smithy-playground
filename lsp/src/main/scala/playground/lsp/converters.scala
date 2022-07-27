@@ -2,10 +2,14 @@ package playground.lsp
 
 import cats.parse.LocationMap
 import org.eclipse.lsp4j
+import playground.CompilationError
+import playground.DiagnosticSeverity
+import playground.DiagnosticTag
 import playground.smithyql.CompletionItem
 import playground.smithyql.CompletionItemKind
 import playground.smithyql.InsertText
 import playground.smithyql.Position
+import playground.smithyql.SourceRange
 import playground.smithyql.TextEdit
 
 import scala.jdk.CollectionConverters._
@@ -88,6 +92,34 @@ object converters {
             _.setDocumentation(new lsp4j.MarkupContent(lsp4j.MarkupKind.MARKDOWN, theDocs))
         })
     }
+
+    def diagnostic(doc: String, diag: CompilationError): lsp4j.Diagnostic = new lsp4j.Diagnostic()
+      .tap(_.setRange(toLSP.range(doc, diag.range)))
+      .tap(_.setMessage(diag.err.render))
+      .tap(_.setSeverity(diag.severity match {
+        case DiagnosticSeverity.Error       => lsp4j.DiagnosticSeverity.Error
+        case DiagnosticSeverity.Information => lsp4j.DiagnosticSeverity.Information
+        case DiagnosticSeverity.Warning     => lsp4j.DiagnosticSeverity.Warning
+      }))
+      .tap(
+        _.setTags(
+          diag
+            .tags
+            .map { tag =>
+              tag match {
+                case DiagnosticTag.Deprecated => lsp4j.DiagnosticTag.Deprecated
+                case DiagnosticTag.Unused     => lsp4j.DiagnosticTag.Unnecessary
+              }
+            }
+            .toList
+            .asJava
+        )
+      )
+
+    def range(
+      doc: String,
+      coreRange: SourceRange,
+    ): lsp4j.Range = new lsp4j.Range(position(doc, coreRange.start), position(doc, coreRange.end))
 
   }
 

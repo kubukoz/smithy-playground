@@ -4,8 +4,11 @@ import scalajs.js
 import org.scalablytyped.runtime.StObject
 import typings.vscodeLanguageclient.clientMod.LanguageClientOptions
 import typings.vscode.anon.Dispose
+import scala.annotation.nowarn
 
 @js.native
+// "dead code"
+@nowarn()
 trait ServerOptions extends StObject {
   var command: String = js.native
 }
@@ -22,6 +25,7 @@ object ServerOptions {
 
 @js.native
 @js.annotation.JSImport("vscode-languageclient/node", "LanguageClient")
+@nowarn("cat=unused")
 class LanguageClient(
   id: String,
   name: String,

@@ -165,6 +165,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case Message(text) => text
       case DeprecatedMember(info) =>
         s"Deprecated union member${CompletionItem.deprecationString(info)}"
       case DeprecatedField(info) => s"Deprecated field${CompletionItem.deprecationString(info)}"

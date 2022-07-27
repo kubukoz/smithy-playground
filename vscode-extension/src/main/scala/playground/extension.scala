@@ -228,10 +228,6 @@ object extension {
           }.toJSArray
         },
       ),
-      vscodeutil.registerDiagnosticProvider(
-        "smithyql",
-        highlight.getHighlights(_, compiler, runner),
-      ),
     )
 
     val _ = context

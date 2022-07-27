@@ -3,7 +3,6 @@ package playground.lsp
 import cats.Applicative
 import cats.MonadThrow
 import cats.effect.kernel.Async
-import cats.effect.implicits._
 import cats.implicits._
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
@@ -15,6 +14,14 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.Runner
+import cats.effect.std
+import org.http4s.client.Client
+import org.http4s.Uri
+import io.circe.Decoder
+import cats.effect.kernel.Resource
+import smithy4s.aws.AwsEnvironment
+import playground.DiagnosticProvider
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -31,13 +38,36 @@ trait LanguageServer[F[_]] {
 
 object LanguageServer {
 
-  def instance[F[_]: Async: TextDocumentManager: LanguageClient](
+  def instance[F[_]: Async: TextDocumentManager: LanguageClient: std.Console](
     dsi: DynamicSchemaIndex,
     log: String => F[Unit],
+    client: Client[F],
+    awsEnv: Resource[F, AwsEnvironment[F]],
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
+      val compiler = playground.Compiler.fromSchemaIndex(dsi)
+
+      private implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
+        Uri.fromString(_).leftMap(_.message)
+      )
+
+      val runner = Runner
+        .forSchemaIndex[F](
+          dsi,
+          client,
+          LanguageClient[F]
+            .configuration(List(new ConfigurationItem().tap(_.setSection("smithyql.http.baseUrl"))))
+            .flatMap(
+              _.headOption
+                .liftTo[F](new Throwable("InvalidConfigValueCount"))
+                .flatMap(_.as[Uri].liftTo[F])
+            ),
+          awsEnv,
+        )
+
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
+      val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)
 
       def initialize(
         params: InitializeParams
@@ -132,7 +162,22 @@ object LanguageServer {
 
       def diagnostic(
         params: DocumentDiagnosticParams
-      ): F[DocumentDiagnosticReport] = Async[F].never[DocumentDiagnosticReport]
+      ): F[DocumentDiagnosticReport] = TextDocumentManager[F]
+        .get(params.getTextDocument().getUri())
+        .map { documentText =>
+          val diags = diagnosticProvider.getDiagnostics(
+            params.getTextDocument().getUri(),
+            documentText,
+          )
+
+          new DocumentDiagnosticReport(
+            new RelatedFullDocumentDiagnosticReport(
+              diags
+                .map(converters.toLSP.diagnostic(documentText, _))
+                .asJava
+            )
+          )
+        }
 
       def exit(): F[Unit] = Applicative[F].unit
     }
