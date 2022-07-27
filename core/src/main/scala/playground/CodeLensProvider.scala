@@ -27,7 +27,7 @@ object CodeLensProvider {
                   range = parsed.operationName.range,
                   Command(
                     title = "Run query",
-                    command = "smithyql.runQuery",
+                    command = Command.RUN_QUERY,
                     args = documentUri :: Nil,
                   ),
                 )
@@ -42,3 +42,7 @@ object CodeLensProvider {
 
 case class CodeLens(range: SourceRange, command: Command)
 case class Command(title: String, command: String, args: List[String])
+
+object Command {
+  val RUN_QUERY: String = "smithyql.runQuery"
+}

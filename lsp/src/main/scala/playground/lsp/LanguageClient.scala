@@ -23,15 +23,15 @@ object LanguageClient {
 
   def apply[F[_]](implicit F: LanguageClient[F]): LanguageClient[F] = F
 
-  def adapt[F[_]: Async](client: services.LanguageClient): LanguageClient[F] =
+  def adapt[F[_]: Async](client: PlaygroundLanguageClient): LanguageClient[F] =
     new LanguageClient[F] {
 
       private def withClientF[A](
-        f: services.LanguageClient => CompletableFuture[A]
+        f: client.type => CompletableFuture[A]
       ): F[A] = Async[F].fromCompletableFuture(Async[F].delay(f(client)))
 
       private def withClientSync[A](
-        f: services.LanguageClient => A
+        f: client.type => A
       ): F[A] = Async[F].delay(f(client))
 
       def configuration[A: Decoder](
@@ -63,6 +63,8 @@ object LanguageClient {
         _.logMessage(new MessageParams().tap(_.setMessage(msg)))
       )
 
+      def showOutputPanel: F[Unit] = withClientSync(_.showOutputPanel())
+
     }
 
   def suspend[F[_]: Async](clientF: F[LanguageClient[F]]): LanguageClient[F] =
@@ -75,6 +77,8 @@ object LanguageClient {
       def configuration[A: Decoder](
         section: String
       ): F[A] = clientF.flatMap(_.configuration(section))
+
+      val showOutputPanel: F[Unit] = clientF.flatMap(_.showOutputPanel)
 
     }
 

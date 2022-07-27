@@ -10,6 +10,8 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import org.eclipse.lsp4j.jsonrpc.messages
+import scala.util.chaining._
+import com.google.gson.JsonPrimitive
 
 final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   impl: LanguageServer[F]
@@ -89,6 +91,13 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
         .executeCommand(params)
         .as(null: Object)
     )
+
+  @JsonRequest("smithyql/runQuery")
+  def runQuery(params: RunQueryParams): CompletableFuture[Object] = executeCommand(
+    new ExecuteCommandParams()
+      .tap(_.setCommand(playground.Command.RUN_QUERY))
+      .tap(_.setArguments(List(new JsonPrimitive(params.uri): Object).asJava))
+  )
 
   @JsonRequest("exit")
   def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit().as(null: Object))

@@ -48,7 +48,6 @@ object LanguageServer {
 
   def instance[F[_]: Async: TextDocumentManager: LanguageClient: std.Console](
     dsi: DynamicSchemaIndex,
-    log: String => F[Unit],
     client: Client[F],
     awsEnv: Resource[F, AwsEnvironment[F]],
   ): LanguageServer[F] =
@@ -88,11 +87,6 @@ object LanguageServer {
           .tap(_.setCompletionProvider(new CompletionOptions()))
           .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
-          .tap(
-            _.setExecuteCommandProvider(
-              new ExecuteCommandOptions(commandProvider.listAvailableCommands.asJava)
-            )
-          )
 
         new InitializeResult(capabilities).pure[F]
       }

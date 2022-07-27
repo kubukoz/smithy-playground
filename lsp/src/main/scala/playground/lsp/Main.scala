@@ -4,6 +4,7 @@ import cats.Show
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.implicits._
+import cats.effect.kernel.Async
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.DeferredSink
 import cats.effect.kernel.Resource
@@ -16,27 +17,25 @@ import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.launch.LSPLauncher
 import org.eclipse.lsp4j.services
+import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.headers.Authorization
 import playground.BuildConfig
 import playground.BuildConfigDecoder
 import playground.ModelReader
+import playground.TextDocumentManager
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 import smithy4s.codegen.cli.DumpModel
 import smithy4s.codegen.cli.Smithy4sCommand
 import smithy4s.dynamic.DynamicSchemaIndex
-import scala.util.chaining._
+
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintWriter
 import java.nio.charset.Charset
-import cats.effect.kernel.Async
-import org.http4s.client.Client
-import org.eclipse.lsp4j.ConfigurationItem
-import org.http4s.headers.Authorization
-import playground.TextDocumentManager
 
 object Main extends IOApp.Simple {
 
@@ -77,12 +76,12 @@ object Main extends IOApp.Simple {
     out: OutputStream,
   )(
     implicit d: Dispatcher[IO]
-  ) = Deferred[IO, services.LanguageClient].toResource.flatMap { clientPromise =>
+  ) = Deferred[IO, PlaygroundLanguageClient].toResource.flatMap { clientPromise =>
     makeServer(LanguageClient.suspend(clientPromise.get.map(LanguageClient.adapt(_)))).evalMap {
       server =>
-        val launcher = new LSPLauncher.Builder[services.LanguageClient]()
+        val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
           .setLocalService(new PlaygroundLanguageServerAdapter(server))
-          .setRemoteInterface(classOf[services.LanguageClient])
+          .setRemoteInterface(classOf[PlaygroundLanguageClient])
           .setInput(in)
           .setOutput(out)
           .traceMessages(logWriter)
@@ -111,7 +110,7 @@ object Main extends IOApp.Simple {
               readBuildConfig(Path("/Users/kubukoz/projects/smithy-playground-demo"))
                 .flatMap(buildSchemaIndex)
                 .map { dsi =>
-                  LanguageServer.instance[IO](dsi, log, client, awsEnv)
+                  LanguageServer.instance[IO](dsi, client, awsEnv)
                 }
             }
             .toResource
@@ -146,9 +145,9 @@ object Main extends IOApp.Simple {
         .map(ModelReader.buildSchemaIndex(_))
     }
 
-  private def connect(
-    client: services.LanguageClient,
-    clientDeff: DeferredSink[IO, services.LanguageClient],
+  private def connect[C <: services.LanguageClient](
+    client: C,
+    clientDeff: DeferredSink[IO, C],
   ) =
     log("connecting: " + client) *>
       clientDeff.complete(client) *>

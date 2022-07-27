@@ -12,6 +12,7 @@ import scala.collection.immutable.ListMap
 
 trait Feedback[F[_]] {
   def showErrorMessage(msg: String): F[Unit]
+  def showOutputPanel: F[Unit]
   def logOutput(msg: String): F[Unit]
 }
 
@@ -20,7 +21,6 @@ object Feedback {
 }
 
 trait CommandProvider[F[_]] {
-  def listAvailableCommands: List[String]
   def runCommand(name: String, args: List[String]): F[Unit]
 }
 
@@ -70,9 +70,10 @@ object CommandProvider {
                     .flatMap { compiled =>
                       val requestId = requestCount.addAndGet(1)
 
-                      Feedback[F].logOutput(
-                        s"// Calling ${parsed.operationName.value.text} ($requestId)"
-                      ) *>
+                      Feedback[F].showOutputPanel *>
+                        Feedback[F].logOutput(
+                          s"// Calling ${parsed.operationName.value.text} ($requestId)"
+                        ) *>
                         runner
                           .run(compiled)
                           .onError { case e =>
@@ -103,13 +104,11 @@ object CommandProvider {
       ) = Formatter.writeAst(node.mapK(WithSource.liftId)).renderTrim(80)
 
       private val commandMap: Map[String, List[String] => F[Unit]] = ListMap(
-        "smithyql.runQuery" -> {
+        Command.RUN_QUERY -> {
           case documentUri :: Nil => runQuery(documentUri)
           case s => new Throwable("Unsupported arguments: " + s).raiseError[F, Unit]
         }
       )
-
-      val listAvailableCommands: List[String] = commandMap.keys.toList
 
       def runCommand(
         name: String,
