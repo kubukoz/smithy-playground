@@ -16,16 +16,16 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val commonScalaVersions = Seq("2.13.8")
-val serverScalaVersions = commonScalaVersions
+ThisBuild / scalaVersion := "2.13.8"
+ThisBuild / crossScalaVersions := Seq("2.13.8")
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %%% "cats-effect" % "3.3.14",
-    "com.disneystreaming" %%% "weaver-cats" % "0.7.13" % Test,
-    "com.disneystreaming" %%% "weaver-discipline" % "0.7.13" % Test,
-    "com.disneystreaming" %%% "weaver-scalacheck" % "0.7.13" % Test,
+    "org.typelevel" %% "cats-effect" % "3.3.14",
+    "com.disneystreaming" %% "weaver-cats" % "0.7.13" % Test,
+    "com.disneystreaming" %% "weaver-discipline" % "0.7.13" % Test,
+    "com.disneystreaming" %% "weaver-scalacheck" % "0.7.13" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
@@ -34,14 +34,14 @@ val commonSettings = Seq(
   scalacOptions ++= Seq("-Xsource:3.0"),
 )
 
-lazy val core = projectMatrix
+lazy val core = project
   .settings(
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %%% "smithy4s-dynamic" % smithy4sVersion.value,
-      "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
-      "com.disneystreaming.smithy4s" %%% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "org.typelevel" %%% "cats-parse" % "0.3.8",
-      "org.typelevel" %%% "paiges-cats" % "0.4.2",
+      "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
+      "org.typelevel" %% "cats-parse" % "0.3.8",
+      "org.typelevel" %% "paiges-cats" % "0.4.2",
     ),
     commonSettings,
     buildInfoPackage := "playground.buildinfo",
@@ -50,17 +50,10 @@ lazy val core = projectMatrix
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
-  .jvmPlatform(serverScalaVersions)
-  .jsPlatform(
-    commonScalaVersions,
-    Seq(
-      libraryDependencies += "org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0"
-    ),
-  )
   .enablePlugins(Smithy4sCodegenPlugin)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val lsp = projectMatrix
+lazy val lsp = project
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
@@ -70,52 +63,21 @@ lazy val lsp = projectMatrix
     ),
     commonSettings,
   )
-  .jvmPlatform(serverScalaVersions)
-  .enablePlugins(Smithy4sCodegenPlugin)
   .enablePlugins(JavaAppPackaging)
   .dependsOn(core)
 
-lazy val vscode = projectMatrix
-  .in(file("vscode-extension"))
-  .settings(
-    crossScalaVersions := commonScalaVersions,
-    moduleName := "smithy-playground-vscode",
-    libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.13"
-    ),
-    commonSettings,
-  )
-  .enablePlugins(ScalablyTypedConverterExternalNpmPlugin)
-  .dependsOn(core)
-  .jsPlatform(
-    commonScalaVersions,
-    Seq(
-      externalNpm := {
-        Process(
-          List("yarn", "--cwd", ((ThisBuild / baseDirectory).value / "vscode-extension").toString)
-        ).!
-        (ThisBuild / baseDirectory).value / "vscode-extension"
-      },
-      Compile / fastOptJS / artifactPath := (ThisBuild / baseDirectory).value / "vscode-extension" / "out" / "extension.js",
-      Compile / fullOptJS / artifactPath := (ThisBuild / baseDirectory).value / "vscode-extension" / "out" / "extension.js",
-      test := {},
-      scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
-    ),
-  )
-
-lazy val cli = projectMatrix
+lazy val cli = project
   .in(file("cli"))
   .settings(
     commonSettings,
     libraryDependencies ++= Seq(
-      "org.http4s" %%% "http4s-ember-client" % "0.23.13",
+      "org.http4s" %% "http4s-ember-client" % "0.23.13",
       "com.monovore" %% "decline-effect" % "2.3.0",
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
     ),
   )
   .dependsOn(core)
-  .jvmPlatform(commonScalaVersions)
 
 lazy val root = project
   .in(file("."))
-  .aggregate(List(core, vscode, cli, lsp).flatMap(_.projectRefs): _*)
+  .aggregate(core, cli, lsp)

@@ -2,9 +2,12 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "command": "sbtn",
-      "args": ["fastOptJS;publishLocal"],
-      "label": "fastOptJS"
+      "command": "bash",
+      "args": [
+        "-c",
+        "(cd vscode-extension && yarn compile) && sbtn publishLocal"
+      ],
+      "label": "build"
     }
   ]
 }
