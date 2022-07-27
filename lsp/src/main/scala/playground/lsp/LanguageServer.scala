@@ -1,7 +1,6 @@
 package playground.lsp
 
 import cats.Applicative
-import cats.MonadThrow
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.std
@@ -71,12 +70,7 @@ object LanguageServer {
           dsi,
           client,
           LanguageClient[F]
-            .configuration(List(new ConfigurationItem().tap(_.setSection("smithyql.http.baseUrl"))))
-            .flatMap(
-              _.headOption
-                .liftTo[F](new Throwable("InvalidConfigValueCount"))
-                .flatMap(_.as[Uri].liftTo[F])
-            ),
+            .configuration[Uri]("smithyql.http.baseUrl"),
           awsEnv,
         )
 
@@ -131,13 +125,7 @@ object LanguageServer {
       ): F[Unit] = TextDocumentManager[F].remove(params.getTextDocument().getUri())
 
       private val getFormatterWidth: F[Int] = LanguageClient[F]
-        .configuration(
-          new ConfigurationItem().tap(_.setSection("smithyql.formatter.maxWidth")) :: Nil
-        )
-        .flatMap {
-          case width :: Nil => width.as[Int].liftTo[F]
-          case r            => MonadThrow[F].raiseError[Int](new Throwable("config error: " + r))
-        }
+        .configuration[Int]("smithyql.formatter.maxWidth")
 
       def formatting(
         params: DocumentFormattingParams

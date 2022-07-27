@@ -1,7 +1,6 @@
 package playground.lsp
 
 import org.eclipse.lsp4j.ConfigurationParams
-import io.circe.Json
 import org.eclipse.lsp4j.services
 import cats.effect.kernel.Async
 import java.util.concurrent.CompletableFuture
@@ -14,9 +13,10 @@ import playground.Feedback
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import scala.util.chaining._
+import io.circe.Decoder
 
 trait LanguageClient[F[_]] extends Feedback[F] {
-  def configuration(params: List[ConfigurationItem]): F[List[Json]]
+  def configuration[A: Decoder](section: String): F[A]
 }
 
 object LanguageClient {
@@ -34,13 +34,26 @@ object LanguageClient {
         f: services.LanguageClient => A
       ): F[A] = Async[F].delay(f(client))
 
-      def configuration(
-        params: List[ConfigurationItem]
-      ): F[List[Json]] = withClientF(_.configuration(new ConfigurationParams(params.asJava)))
-        .map(_.asScala.toList.map {
+      def configuration[A: Decoder](
+        section: String
+      ): F[A] = withClientF(
+        _.configuration(
+          new ConfigurationParams(
+            (new ConfigurationItem().tap(_.setSection(section)) :: Nil).asJava
+          )
+        )
+      )
+        .flatMap {
+          _.asScala
+            .toList
+            .headOption
+            .liftTo[F](new Throwable("missing entry in the response"))
+        }
+        .map {
           case e: JsonElement => converters.gsonToCirce(e)
           case e              => throw new RuntimeException(s"Unexpected configuration value: $e")
-        })
+        }
+        .flatMap(_.as[A].liftTo[F])
 
       def showErrorMessage(msg: String): F[Unit] = withClientSync(
         _.showMessage(new MessageParams(MessageType.Error, msg))
@@ -59,9 +72,9 @@ object LanguageClient {
 
       def logOutput(msg: String): F[Unit] = clientF.flatMap(_.logOutput(msg))
 
-      def configuration(
-        params: List[ConfigurationItem]
-      ): F[List[Json]] = clientF.flatMap(_.configuration(params))
+      def configuration[A: Decoder](
+        section: String
+      ): F[A] = clientF.flatMap(_.configuration(section))
 
     }
 

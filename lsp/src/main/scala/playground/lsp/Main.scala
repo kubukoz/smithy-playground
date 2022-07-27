@@ -162,14 +162,10 @@ object Main extends IOApp.Simple {
         Client[F] { request =>
           val updatedRequest =
             LanguageClient[F]
-              .configuration(
-                List(new ConfigurationItem().tap(_.setSection("smithyql.http.authorizationHeader")))
-              )
-              .flatMap(_.headOption.traverse(_.as[String].liftTo[F]))
+              .configuration[String]("smithyql.http.authorizationHeader")
               .flatMap {
-                case Some(v) if v.trim.isEmpty() => request.pure[F]
-                case Some(v) => Authorization.parse(v).liftTo[F].map(request.putHeaders(_))
-                case None    => request.pure[F]
+                case v if v.trim.isEmpty() => request.pure[F]
+                case v => Authorization.parse(v).liftTo[F].map(request.putHeaders(_))
               }
               .toResource
 
