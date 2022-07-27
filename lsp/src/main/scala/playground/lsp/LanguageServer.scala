@@ -3,6 +3,7 @@ package playground.lsp
 import cats.Applicative
 import cats.MonadThrow
 import cats.effect.kernel.Async
+import cats.effect.implicits._
 import cats.implicits._
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
@@ -23,6 +24,7 @@ trait LanguageServer[F[_]] {
   def didClose(params: DidCloseTextDocumentParams): F[Unit]
   def formatting(params: DocumentFormattingParams): F[List[TextEdit]]
   def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
+  def diagnostic(params: DocumentDiagnosticParams): F[DocumentDiagnosticReport]
   def shutdown(): F[Unit]
   def exit(): F[Unit]
 }
@@ -30,7 +32,8 @@ trait LanguageServer[F[_]] {
 object LanguageServer {
 
   def instance[F[_]: Async: TextDocumentManager: LanguageClient](
-    dsi: DynamicSchemaIndex
+    dsi: DynamicSchemaIndex,
+    log: String => F[Unit],
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
@@ -43,6 +46,7 @@ object LanguageServer {
           .tap(_.setTextDocumentSync(TextDocumentSyncKind.Full))
           .tap(_.setDocumentFormattingProvider(true))
           .tap(_.setCompletionProvider(new CompletionOptions()))
+          .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
 
         new InitializeResult(capabilities).pure[F]
       }
@@ -125,6 +129,10 @@ object LanguageServer {
             .map(converters.toLSP.completionItem(documentText, _))
         }
         .map(Left(_))
+
+      def diagnostic(
+        params: DocumentDiagnosticParams
+      ): F[DocumentDiagnosticReport] = Async[F].never[DocumentDiagnosticReport]
 
       def exit(): F[Unit] = Applicative[F].unit
     }

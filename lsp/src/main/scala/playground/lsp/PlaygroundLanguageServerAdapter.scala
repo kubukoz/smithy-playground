@@ -68,6 +68,13 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
         }
     )
 
+  @JsonRequest("textDocument/diagnostic")
+  def diagnostic(
+    params: DocumentDiagnosticParams
+  ): CompletableFuture[DocumentDiagnosticReport] = d.unsafeToCompletableFuture(
+    impl.diagnostic(params)
+  )
+
   @JsonRequest("exit")
   def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit().as(null: Object))
 }

@@ -114,6 +114,7 @@ sealed trait DiagnosticSeverity extends Product with Serializable
 object DiagnosticSeverity {
   case object Warning extends DiagnosticSeverity
   case object Error extends DiagnosticSeverity
+  case object Information extends DiagnosticSeverity
 }
 
 sealed trait DiagnosticTag extends Product with Serializable
@@ -231,6 +232,8 @@ object CompilationErrorDetails {
 
   }
 
+  // todo: remove
+  final case class Message(text: String) extends CompilationErrorDetails
   final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
     extends CompilationErrorDetails
 
