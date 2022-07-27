@@ -33,6 +33,17 @@ object TextDocumentManager {
           .string
       }
 
+      def getOpt(uri: String): F[Option[String]] = {
+        val path = Path.fromNioPath(Paths.get(new URI(uri)))
+
+        Files[F]
+          .exists(path)
+          .ifM(
+            ifTrue = get(uri).map(_.some),
+            ifFalse = none[String].pure[F],
+          )
+      }
+
       def remove(uri: String): F[Unit] = ref.update(_ - uri)
 
     }

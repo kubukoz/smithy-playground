@@ -2,17 +2,13 @@ package playground.lsp
 
 import cats.Applicative
 import cats.effect.kernel.Async
-import cats.effect.kernel.Resource
 import cats.effect.std
 import cats.implicits._
 import cats.~>
 import com.google.gson.JsonElement
-import io.circe.Decoder
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
-import org.http4s.Uri
-import org.http4s.client.Client
 import playground.CodeLensProvider
 import playground.CommandProvider
 import playground.CompletionProvider
@@ -23,7 +19,6 @@ import playground.TextDocumentProvider
 import playground.smithyql.Formatter
 import playground.smithyql.SmithyQLParser
 import playground.types._
-import smithy4s.aws.AwsEnvironment
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
@@ -48,8 +43,7 @@ object LanguageServer {
 
   def instance[F[_]: Async: TextDocumentManager: LanguageClient: std.Console](
     dsi: DynamicSchemaIndex,
-    client: Client[F],
-    awsEnv: Resource[F, AwsEnvironment[F]],
+    runner: Runner.Optional[F],
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
@@ -58,20 +52,7 @@ object LanguageServer {
           def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
         }
 
-      private implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
-        Uri.fromString(_).leftMap(_.message)
-      )
-
       val compiler = playground.Compiler.fromSchemaIndex(dsi)
-
-      val runner = Runner
-        .forSchemaIndex[F](
-          dsi,
-          client,
-          LanguageClient[F]
-            .configuration[Uri]("smithyql.http.baseUrl"),
-          awsEnv,
-        )
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
       val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)

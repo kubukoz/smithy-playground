@@ -1,19 +1,18 @@
 package playground.lsp
 
-import org.eclipse.lsp4j.ConfigurationParams
-import org.eclipse.lsp4j.services
 import cats.effect.kernel.Async
-import java.util.concurrent.CompletableFuture
 import cats.implicits._
 import com.google.gson.JsonElement
-
-import scala.jdk.CollectionConverters._
+import io.circe.Decoder
 import org.eclipse.lsp4j.ConfigurationItem
-import playground.Feedback
+import org.eclipse.lsp4j.ConfigurationParams
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
+import playground.Feedback
+
+import java.util.concurrent.CompletableFuture
+import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import io.circe.Decoder
 
 trait LanguageClient[F[_]] extends Feedback[F] {
   def configuration[A: Decoder](section: String): F[A]

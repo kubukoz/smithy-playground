@@ -2,6 +2,7 @@ package playground
 
 trait TextDocumentProvider[F[_]] {
   def get(uri: String): F[String]
+  def getOpt(uri: String): F[Option[String]]
 }
 
 object TextDocumentProvider {

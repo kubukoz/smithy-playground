@@ -8,10 +8,10 @@ import cats.effect.kernel.Async
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.DeferredSink
 import cats.effect.kernel.Resource
+import cats.effect.kernel.Sync
 import cats.effect.std
 import cats.effect.std.Dispatcher
 import cats.implicits._
-import fs2.io.file.Files
 import fs2.io.file.Path
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
@@ -24,6 +24,7 @@ import playground.BuildConfig
 import playground.BuildConfigDecoder
 import playground.ModelReader
 import playground.TextDocumentManager
+import playground.TextDocumentProvider
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
@@ -36,6 +37,9 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintWriter
 import java.nio.charset.Charset
+import playground.Runner
+import org.http4s.Uri
+import io.circe.Decoder
 
 object Main extends IOApp.Simple {
 
@@ -92,6 +96,10 @@ object Main extends IOApp.Simple {
 
   }
 
+  private implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
+    Uri.fromString(_).leftMap(_.message)
+  )
+
   private def makeServer(
     implicit lc: LanguageClient[IO]
   ): Resource[IO, LanguageServer[IO]] = EmberClientBuilder
@@ -106,31 +114,64 @@ object Main extends IOApp.Simple {
           TextDocumentManager
             .instance[IO]
             .flatMap { implicit tdm =>
-              // todo: workspace root
-              readBuildConfig(Path("/Users/kubukoz/projects/smithy-playground-demo"))
-                .flatMap(buildSchemaIndex)
+              buildFile[IO]
+                .flatMap((buildSchemaIndex _).tupled)
                 .map { dsi =>
-                  LanguageServer.instance[IO](dsi, client, awsEnv)
+                  val runner = Runner
+                    .forSchemaIndex[IO](
+                      dsi,
+                      client,
+                      LanguageClient[IO]
+                        .configuration[Uri]("smithyql.http.baseUrl"),
+                      awsEnv,
+                    )
+
+                  LanguageServer.instance[IO](dsi, runner)
                 }
             }
             .toResource
         }
     }
 
-  private def readBuildConfig(ctx: Path) = Files[IO]
-    .readAll(ctx / "smithy-build.json")
-    .compile
-    .toVector
-    .map(_.toArray)
-    .flatMap {
-      BuildConfigDecoder.decode(_).liftTo[IO]
-    }
+  def buildFile[F[_]: Sync: TextDocumentProvider]: F[(BuildConfig, Path)] = {
+    val configFiles = List("build/smithy-dependencies.json", ".smithy.json", "smithy-build.json")
 
-  private def buildSchemaIndex(bc: BuildConfig): IO[DynamicSchemaIndex] = IO
+    fs2
+      .Stream
+      .emit(Path("."))
+      .flatMap { folder =>
+        fs2
+          .Stream
+          .emits(configFiles)
+          .map(folder.resolve(_))
+      }
+      .evalMap(filePath =>
+        TextDocumentProvider[F]
+          .getOpt(
+            filePath
+              .toNioPath
+              .toUri()
+              .toString()
+          )
+          .map(_.tupleRight(filePath))
+      )
+      .unNone
+      .head
+      .compile
+      .lastOrError
+      .flatMap { case (fileContents, filePath) =>
+        BuildConfigDecoder
+          .decode(fileContents.getBytes())
+          .liftTo[F]
+          .tupleRight(filePath)
+      }
+  }
+
+  private def buildSchemaIndex(bc: BuildConfig, buildConfigPath: Path): IO[DynamicSchemaIndex] = IO
     .interruptibleMany {
       DumpModel.run(
         Smithy4sCommand.DumpModelArgs(
-          specs = bc.imports.combineAll.map(os.Path(_)),
+          specs = bc.imports.combineAll.map(buildConfigPath.resolve(_).toString).map(os.Path(_)),
           repositories = bc.mavenRepositories.combineAll,
           dependencies = bc.mavenDependencies.combineAll,
           transformers = Nil,

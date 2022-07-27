@@ -4,16 +4,15 @@ import org.scalablytyped.runtime.StObject
 import typings.vscode.anon.Dispose
 import typings.vscode.mod
 import typings.vscode.mod.ExtensionContext
+import typings.vscodeLanguageclient.clientMod.BaseLanguageClient
 import typings.vscodeLanguageclient.clientMod.LanguageClientOptions
 import typings.vscodeLanguageserverProtocol.protocolMod
 
 import scala.annotation.nowarn
-import scala.scalajs.js.annotation.JSExportTopLevel
 import scala.scalajs.js.JSConverters._
+import scala.scalajs.js.annotation.JSExportTopLevel
+
 import scalajs.js
-import typings.vscodeLanguageclient.clientMod.RevealOutputChannelOn
-import typings.std.stdStrings
-import typings.vscodeLanguageclient.clientMod.BaseLanguageClient
 
 @js.native
 // "dead code"
