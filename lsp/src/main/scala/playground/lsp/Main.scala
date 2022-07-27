@@ -48,10 +48,8 @@ object Main extends IOApp.Simple {
       .flatMap { dsi =>
         Deferred[IO, services.LanguageClient].flatMap { clientPromise =>
           implicit val client: LanguageClient[IO] = LanguageClient.adapt(clientPromise.get)
-          val completionProvider = CompletionProvider.forSchemaIndex(dsi)
 
-          val server =
-            new PlaygroundLanguageServerAdapter(LanguageServer.instance[IO](completionProvider))
+          val server = new PlaygroundLanguageServerAdapter(LanguageServer.instance[IO](dsi))
 
           val launcher = new LSPLauncher.Builder[services.LanguageClient]()
             .setLocalService(server)

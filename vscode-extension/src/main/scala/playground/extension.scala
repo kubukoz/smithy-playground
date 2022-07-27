@@ -145,7 +145,6 @@ object extension {
                     activateInternal(
                       context,
                       compiler,
-                      CompletionProvider.forSchemaIndex(dsi),
                       runner,
                     )
                   }
@@ -161,16 +160,10 @@ object extension {
   private def activateInternal[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     context: ExtensionContext,
     compiler: Compiler[IorThrow],
-    completionProvider: CompletionProvider,
     runner: Runner.Optional[IO],
   ): List[mod.Disposable] = {
 
     import vscodeutil.disposableToDispose
-
-    val vscodeCompletionProvider =
-      debug.timed("vscodeCompletionProvider setup")(
-        completions.complete(completionProvider)
-      )
 
     val subs = List(
       commands
@@ -215,15 +208,6 @@ object extension {
               }
               .unsafeRunAndForget(),
         ),
-      // languages.registerCompletionItemProvider(
-      //   "smithyql",
-      //   mod
-      //     .CompletionItemProvider { (doc, pos, _, _) =>
-      //       vscodeCompletionProvider(doc, pos).toJSArray
-      //     },
-      //   // todo this might not be working properly
-      //   "\t",
-      // ),
       languages.registerCodeLensProvider(
         "smithyql",
         mod.CodeLensProvider { (doc, _) =>

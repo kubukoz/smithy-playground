@@ -7,15 +7,13 @@ import cats.implicits._
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
+import playground.CompletionProvider
 import playground.smithyql.Formatter
 import playground.smithyql.SmithyQLParser
+import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.CompletionProvider
-import playground.smithyql.InsertText
-import playground.smithyql
-import cats.parse.LocationMap
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -32,9 +30,11 @@ trait LanguageServer[F[_]] {
 object LanguageServer {
 
   def instance[F[_]: Async: TextDocumentManager: LanguageClient](
-    completionProvider: CompletionProvider
+    dsi: DynamicSchemaIndex
   ): LanguageServer[F] =
     new LanguageServer[F] {
+
+      val completionProvider = CompletionProvider.forSchemaIndex(dsi)
 
       def initialize(
         params: InitializeParams
