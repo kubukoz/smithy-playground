@@ -41,7 +41,7 @@ trait LanguageServer[F[_]] {
 
 object LanguageServer {
 
-  def instance[F[_]: Async: TextDocumentManager: LanguageClient: std.Console](
+  def instance[F[_]: Async: TextDocumentManager: LanguageClient](
     dsi: DynamicSchemaIndex,
     runner: Runner.Optional[F],
   ): LanguageServer[F] =

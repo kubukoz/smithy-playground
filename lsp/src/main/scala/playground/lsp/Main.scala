@@ -114,20 +114,33 @@ object Main extends IOApp.Simple {
           TextDocumentManager
             .instance[IO]
             .flatMap { implicit tdm =>
-              buildFile[IO]
-                .flatMap((buildSchemaIndex _).tupled)
-                .map { dsi =>
-                  val runner = Runner
-                    .forSchemaIndex[IO](
-                      dsi,
-                      client,
-                      LanguageClient[IO]
-                        .configuration[Uri]("smithyql.http.baseUrl"),
-                      awsEnv,
-                    )
+              buildFile[IO].flatMap { case (buildConfig, buildFile) =>
+                buildSchemaIndex(buildConfig, buildFile)
+                  .flatMap { dsi =>
+                    PluginResolver
+                      .resolve[IO](
+                        buildConfig
+                          .plugins
+                          .flatMap(_.smithyPlayground)
+                          .flatMap(_.extensions)
+                          .combineAll,
+                        buildConfig.mavenRepositories.combineAll,
+                      )
+                      .map { plugins =>
+                        val runner = Runner
+                          .forSchemaIndex[IO](
+                            dsi,
+                            client,
+                            LanguageClient[IO]
+                              .configuration[Uri]("smithyql.http.baseUrl"),
+                            awsEnv,
+                            plugins = plugins,
+                          )
 
-                  LanguageServer.instance[IO](dsi, runner)
-                }
+                        LanguageServer.instance[IO](dsi, runner)
+                      }
+                  }
+              }
             }
             .toResource
         }
@@ -158,7 +171,12 @@ object Main extends IOApp.Simple {
       .unNone
       .head
       .compile
-      .lastOrError
+      .last
+      .flatMap {
+        _.liftTo[F](
+          new Throwable("Couldn't find one of the following files: " + configFiles.mkString(", "))
+        )
+      }
       .flatMap { case (fileContents, filePath) =>
         BuildConfigDecoder
           .decode(fileContents.getBytes())

@@ -115,7 +115,13 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
               val compiler = playground.Compiler.fromSchemaIndex(dsi)
 
               val runner = Runner
-                .forSchemaIndex[IO](dsi, Client(_ => Resource.never), IO.never, Resource.never)
+                .forSchemaIndex[IO](
+                  dsi,
+                  Client(_ => Resource.never),
+                  IO.never,
+                  Resource.never,
+                  plugins = Nil,
+                )
                 .get(parsed)
 
               val runnerStatus = runner
@@ -160,7 +166,7 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
                   .memoize
                   .use { awsEnv =>
                     Runner
-                      .forSchemaIndex[IO](dsi, client, baseUri.pure[IO], awsEnv)
+                      .forSchemaIndex[IO](dsi, client, baseUri.pure[IO], awsEnv, plugins = Nil)
                       .get(parsed)
                       .toEither
                       .leftMap { issues =>
