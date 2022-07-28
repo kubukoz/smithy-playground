@@ -1,3 +1,19 @@
+inThisBuild(
+  List(
+    organization := "com.kubukoz",
+    homepage := Some(url("https://github.com/kubukoz/smithy-playground")),
+    licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    developers := List(
+      Developer(
+        "kubukoz",
+        "Jakub Kozłowski",
+        "kubukoz@gmail.com",
+        url("https://kubukoz.com"),
+      )
+    ),
+  )
+)
+
 import scala.sys.process._
 
 def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
@@ -80,4 +96,5 @@ lazy val cli = project
 
 lazy val root = project
   .in(file("."))
+  .settings(publish / skip := true)
   .aggregate(core, cli, lsp)
