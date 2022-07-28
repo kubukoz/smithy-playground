@@ -6,5 +6,5 @@ yarn compile
 yarn vsce package
 yarn vsce publish
 
-# cd -
+cd -
 sbt ci-release
