@@ -6,7 +6,7 @@ Currently, everything is only available as a VS Code plugin, with future ideas t
 
 ## Usage
 
-1. Get the extension from [Marketplace](https://marketplace.visualstudio.com/items?itemName=kubukoz.smithy-playground) or build from source (instructions below).
+1. Get the extension from [Marketplace](https://marketplace.visualstudio.com/items?itemName=kubukoz.smithy-playground)
 2. Make sure you have Coursier available on the PATH as `cs`
 3. Create a file, `smithy-build.json`. Example:
 
@@ -28,10 +28,3 @@ Currently, everything is only available as a VS Code plugin, with future ideas t
 3. Reload the window / open the project with this file again
 4. Open/create a .smithyql file
 5. You should see output in the "Smithy Playground" panel, and after a while syntax/error highlighting in the open .smithyql files.
-
-## Development
-
-1. Use nix and enter the shell (`nix develop` if you have flake support, `nix-shell` otherwise), or make sure you have `yarn` and `sbt` on the PATH
-2. Run `sbtn` to start an sbt server - after it loads, you can close it at any time, it'll run until you use the `shutdown` command
-3. Use the attached launch configurations to run the extension: it should run `sbtn fastOptJS` and load the compiled extension.
-
