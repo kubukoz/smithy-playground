@@ -6,15 +6,23 @@
   "configurations": [
     {
       "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
-      "name": "Launch Extension",
+      "name": "Client",
       "outFiles": [
         "${workspaceFolder}/vscode-extension/out/*.js",
         "${workspaceFolder}/vscode-extension/out/*.js.map"
       ],
-      "preLaunchTask": "fastOptJS",
+      // "preLaunchTask": "build",
       "request": "launch",
       "type": "extensionHost",
       "sourceMaps": true
+    },
+    {
+      "type": "scala",
+      "request": "attach",
+      "name": "Server",
+      "buildTarget": "lsp",
+      "hostName": "localhost",
+      "port": 5005
     }
   ]
 }

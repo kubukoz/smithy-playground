@@ -8,7 +8,7 @@ object Arbitraries {
   implicit val arbitraryString: Arbitrary[String] = Arbitrary(Gen.asciiPrintableStr)
 
   implicit def arbitraryNel[A: Arbitrary]: Arbitrary[NonEmptyList[A]] = Arbitrary(
-    Gen.resultOf(NonEmptyList.of[A])
+    Gen.resultOf(NonEmptyList.apply[A])
   )
 
   implicit val arbitraryComment: Arbitrary[Comment] = Arbitrary {

@@ -497,7 +497,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
-  implicit val arbInputNode = Arbitrary(genInputNode(2))
+  implicit val arbInputNode: Arbitrary[InputNode[WithSource]] = Arbitrary(genInputNode(2))
   implicit val showWast: Show[PartialCompiler.WAST] = Show.fromToString
 
   test("anything to document matches") {

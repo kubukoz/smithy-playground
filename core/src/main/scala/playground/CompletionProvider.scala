@@ -91,7 +91,7 @@ object CompletionProvider {
 
         case Right(q) =>
           val matchingNode = WithSource.atPosition(q)(pos)
-          println("matchingNode: " + matchingNode.map(_.render))
+          // println("matchingNode: " + matchingNode.map(_.render))
 
           val serviceIdOpt =
             MultiServiceResolver

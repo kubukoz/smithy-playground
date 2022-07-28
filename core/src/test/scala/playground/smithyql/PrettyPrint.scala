@@ -1,6 +1,7 @@
 package playground.smithyql
 
 import cats.Id
+import scala.annotation.nowarn
 
 // Some pretty-printing utils for diagnostics
 object PrettyPrint {
@@ -29,6 +30,7 @@ object PrettyPrint {
 
 //
   def prettyPrint(q: Query[WithSource]): String = {
+    @nowarn() // idc
     def prettyPrintNode(node: InputNode[WithSource]): String =
       node match {
         case StringLiteral(ss) => s"StringLiteral(${escapeString(ss)})"
@@ -69,6 +71,8 @@ object PrettyPrint {
 
   def just(k: String) = Structure(Map(k -> empty))
 
+  // I literally don't care
+  @nowarn()
   def toStructure: InputNode[Id] => Structure =
     _.fold(
       struct =

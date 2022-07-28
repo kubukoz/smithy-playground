@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+set -e
 
-RELEASE_VERSION=${GITHUB_REF#refs/*/}
-
-sbt fastOptJS
-cd vscode-extension || exit
+cd vscode-extension
 yarn vsce package
-yarn vsce publish --no-git-tag-version "${RELEASE_VERSION:1}"
+yarn vsce publish
+
+cd -
+sbt ci-release

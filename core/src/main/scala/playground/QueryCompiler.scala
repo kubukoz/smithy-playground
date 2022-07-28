@@ -114,6 +114,7 @@ sealed trait DiagnosticSeverity extends Product with Serializable
 object DiagnosticSeverity {
   case object Warning extends DiagnosticSeverity
   case object Error extends DiagnosticSeverity
+  case object Information extends DiagnosticSeverity
 }
 
 sealed trait DiagnosticTag extends Product with Serializable
@@ -164,6 +165,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
+      case Message(text) => text
       case DeprecatedMember(info) =>
         s"Deprecated union member${CompletionItem.deprecationString(info)}"
       case DeprecatedField(info) => s"Deprecated field${CompletionItem.deprecationString(info)}"
@@ -231,6 +233,8 @@ object CompilationErrorDetails {
 
   }
 
+  // todo: remove
+  final case class Message(text: String) extends CompilationErrorDetails
   final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
     extends CompilationErrorDetails
 
