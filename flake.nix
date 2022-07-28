@@ -25,6 +25,7 @@
             pkgs.sbt
             pkgs.smithy4s.codegen
             pkgs.jless
+            pkgs.gnupg
           ];
         };
       }
