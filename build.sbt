@@ -75,7 +75,7 @@ lazy val lsp = project
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.14.0",
       "io.circe" %% "circe-core" % "0.14.2",
-      "org.http4s" %% "http4s-ember-client" % "0.23.13",
+      "org.http4s" %% "http4s-ember-client" % "0.23.14",
     ),
     commonSettings,
   )
@@ -87,7 +87,7 @@ lazy val cli = project
   .settings(
     commonSettings,
     libraryDependencies ++= Seq(
-      "org.http4s" %% "http4s-ember-client" % "0.23.13",
+      "org.http4s" %% "http4s-ember-client" % "0.23.14",
       "com.monovore" %% "decline-effect" % "2.3.0",
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
     ),
