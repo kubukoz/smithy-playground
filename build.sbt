@@ -52,6 +52,7 @@ val commonSettings = Seq(
 )
 
 lazy val pluginCore = project.settings(
+  name := "plugin-core",
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
