@@ -2,7 +2,7 @@
   "name": "smithy-playground",
   "displayName": "Smithy Playground",
   "description": "Experimental integration for queries in the Smithy language.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "engines": {
     "vscode": "^1.69.0"
   },

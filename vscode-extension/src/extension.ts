@@ -21,8 +21,8 @@ export function activate(context: ExtensionContext) {
       args: [
         "launch",
         `${serverArtifact}:${serverVersion}`,
-        "--",
-        "-J-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,quiet=y,address=5005",
+        // "--",
+        // "-J-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,quiet=y,address=5005",
       ],
     },
     {
