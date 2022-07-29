@@ -2,7 +2,6 @@ package playground.lsp
 
 import cats.Applicative
 import cats.effect.kernel.Async
-import cats.effect.std
 import cats.implicits._
 import cats.~>
 import com.google.gson.JsonElement
@@ -41,7 +40,7 @@ trait LanguageServer[F[_]] {
 
 object LanguageServer {
 
-  def instance[F[_]: Async: TextDocumentManager: LanguageClient: std.Console](
+  def instance[F[_]: Async: TextDocumentManager: LanguageClient](
     dsi: DynamicSchemaIndex,
     runner: Runner.Optional[F],
   ): LanguageServer[F] =

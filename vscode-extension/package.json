@@ -4,7 +4,7 @@
   "description": "Experimental integration for queries in the Smithy language.",
   "version": "0.1.4",
   "engines": {
-    "vscode": "^1.66.0"
+    "vscode": "^1.69.0"
   },
   "publisher": "kubukoz",
   "repository": {
@@ -16,7 +16,7 @@
     "Other"
   ],
   "scripts": {
-    "compile": "tsc -p ./"
+    "compile": "tsc -p ."
   },
   "contributes": {
     "languages": [
@@ -84,12 +84,13 @@
   ],
   "main": "./out/extension",
   "dependencies": {
-    "vscode-languageclient": "8.0.2"
+    "path-browserify": "^1.0.1",
+    "vscode-languageclient": "^8.0.2"
   },
   "devDependencies": {
-    "@types/node": "18.6.1",
-    "@types/vscode": "^1.66.0",
-    "typescript": "4.5.2",
-    "vsce": "^2.5.3"
+    "@types/node": "^18.6.2",
+    "@types/vscode": "^1.69.0",
+    "typescript": "^4.7.4",
+    "vsce": "^2.10.0"
   }
 }

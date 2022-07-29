@@ -35,6 +35,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
+import playground.plugins.PlaygroundPlugin
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -253,6 +254,7 @@ object Runner {
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
+    plugins: List[PlaygroundPlugin],
   ): Optional[F] = {
     val runners: Map[QualifiedIdentifier, Optional[F]] =
       dsi
@@ -265,6 +267,7 @@ object Runner {
               baseUri,
               awsEnv,
               dsi.getSchema,
+              plugins,
             )
         }
         .toMap
@@ -296,6 +299,7 @@ object Runner {
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     schemaIndex: ShapeId => Option[Schema[_]],
+    plugins: List[PlaygroundPlugin],
   ): Optional[F] =
     new Optional[F] {
 
@@ -360,6 +364,7 @@ object Runner {
           simpleFromBuilder(SimpleRestJsonBuilder),
           awsInterpreter,
         )
+        .concat(plugins.flatMap(_.http4sBuilders).map(simpleFromBuilder))
         .map(
           _.map { interpreter => q =>
             perform[q.I, q.E, q.O](

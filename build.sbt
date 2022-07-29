@@ -48,6 +48,14 @@ val commonSettings = Seq(
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
   scalacOptions ++= Seq("-Xsource:3.0"),
+  javacOptions ++= Seq("-source", "8", "-target", "8"),
+)
+
+lazy val pluginCore = project.settings(
+  libraryDependencies ++= Seq(
+    "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
+  ),
+  commonSettings,
 )
 
 lazy val core = project
@@ -60,22 +68,19 @@ lazy val core = project
       "org.typelevel" %% "paiges-cats" % "0.4.2",
     ),
     commonSettings,
-    buildInfoPackage := "playground.buildinfo",
-    buildInfoKeys ++= Seq(
-      smithy4sVersion
-    ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .enablePlugins(Smithy4sCodegenPlugin)
-  .enablePlugins(BuildInfoPlugin)
+  .dependsOn(pluginCore)
 
 lazy val lsp = project
   .settings(
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.14.0",
       "io.circe" %% "circe-core" % "0.14.2",
       "org.http4s" %% "http4s-ember-client" % "0.23.14",
+      "io.get-coursier" %% "coursier" % "2.0.16",
     ),
     commonSettings,
   )
@@ -97,4 +102,4 @@ lazy val cli = project
 lazy val root = project
   .in(file("."))
   .settings(publish / skip := true)
-  .aggregate(core, cli, lsp)
+  .aggregate(core, cli, lsp, pluginCore)
