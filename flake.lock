@@ -33,31 +33,7 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "smithy4s-nix": "smithy4s-nix"
-      }
-    },
-    "smithy4s-nix": {
-      "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1648689035,
-        "narHash": "sha256-1vRF038RHrYUPEbjYUSulFM4NKFkhC80fuuxVagAHLc=",
-        "owner": "kubukoz",
-        "repo": "smithy4s-nix",
-        "rev": "a200a3a6c683eb6a18ce7f6f889749f1031683b1",
-        "type": "github"
-      },
-      "original": {
-        "owner": "kubukoz",
-        "repo": "smithy4s-nix",
-        "type": "github"
+        "nixpkgs": "nixpkgs"
       }
     }
   },
