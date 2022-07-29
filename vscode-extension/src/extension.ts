@@ -1,7 +1,7 @@
 import { commands, ExtensionContext, workspace } from "vscode";
 import {
-  LanguageClient,
   LanguageClientOptions,
+  LanguageClient,
 } from "vscode-languageclient/node";
 
 export function activate(context: ExtensionContext) {

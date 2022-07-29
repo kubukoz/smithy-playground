@@ -11,7 +11,7 @@
         "${workspaceFolder}/vscode-extension/out/*.js",
         "${workspaceFolder}/vscode-extension/out/*.js.map"
       ],
-      // "preLaunchTask": "build",
+      "preLaunchTask": "build",
       "request": "launch",
       "type": "extensionHost",
       "sourceMaps": true

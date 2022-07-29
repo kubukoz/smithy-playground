@@ -2,7 +2,6 @@ package playground.lsp
 
 import cats.Applicative
 import cats.effect.kernel.Async
-import cats.effect.std
 import cats.implicits._
 import cats.~>
 import com.google.gson.JsonElement

@@ -13,23 +13,25 @@ import cats.effect.std
 import cats.effect.std.Dispatcher
 import cats.implicits._
 import fs2.io.file.Path
+import io.circe.Decoder
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.launch.LSPLauncher
 import org.eclipse.lsp4j.services
+import org.http4s.Uri
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
 import playground.BuildConfig
 import playground.BuildConfigDecoder
 import playground.ModelReader
+import playground.Runner
 import playground.TextDocumentManager
 import playground.TextDocumentProvider
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
-import smithy4s.codegen.cli.DumpModel
-import smithy4s.codegen.cli.Smithy4sCommand
+import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import java.io.File
@@ -37,9 +39,6 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintWriter
 import java.nio.charset.Charset
-import playground.Runner
-import org.http4s.Uri
-import io.circe.Decoder
 
 object Main extends IOApp.Simple {
 
@@ -126,6 +125,9 @@ object Main extends IOApp.Simple {
                           .combineAll,
                         buildConfig.mavenRepositories.combineAll,
                       )
+                      .flatTap { plugins =>
+                        std.Console[IO].println("Available plugins: " + plugins.mkString(", "))
+                      }
                       .map { plugins =>
                         val runner = Runner
                           .forSchemaIndex[IO](
@@ -156,7 +158,7 @@ object Main extends IOApp.Simple {
         fs2
           .Stream
           .emits(configFiles)
-          .map(folder.resolve(_))
+          .map(folder.resolve(_).absolute)
       }
       .evalMap(filePath =>
         TextDocumentProvider[F]
@@ -187,22 +189,29 @@ object Main extends IOApp.Simple {
 
   private def buildSchemaIndex(bc: BuildConfig, buildConfigPath: Path): IO[DynamicSchemaIndex] = IO
     .interruptibleMany {
-      DumpModel.run(
-        Smithy4sCommand.DumpModelArgs(
-          specs = bc.imports.combineAll.map(buildConfigPath.resolve(_).toString).map(os.Path(_)),
-          repositories = bc.mavenRepositories.combineAll,
+      ModelLoader
+        .load(
+          specs =
+            bc.imports
+              .combineAll
+              .map(
+                buildConfigPath
+                  .parent
+                  .getOrElse(sys.error("impossible - no parent"))
+                  .resolve(_)
+                  .toNioPath
+                  .toFile()
+              )
+              .toSet,
           dependencies = bc.mavenDependencies.combineAll,
+          repositories = bc.mavenRepositories.combineAll,
           transformers = Nil,
+          discoverModels = false,
           localJars = Nil,
         )
-      )
+        ._2
     }
-    .flatMap { modelText =>
-      ModelReader
-        .modelParser(modelText)
-        .liftTo[IO]
-        .map(ModelReader.buildSchemaIndex(_))
-    }
+    .flatMap(ModelReader.buildSchemaIndex[IO])
 
   private def connect[C <: services.LanguageClient](
     client: C,

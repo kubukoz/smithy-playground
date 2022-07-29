@@ -3,6 +3,8 @@ package playground.cli
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.implicits._
+import cats.effect.kernel.Resource
+import cats.effect.std
 import cats.implicits._
 import com.monovore.decline.Argument
 import com.monovore.decline.Opts
@@ -10,8 +12,10 @@ import com.monovore.decline.effect.CommandIOApp
 import fs2.io.file
 import fs2.io.file.Files
 import org.http4s.Uri
+import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import playground.BuildConfig
+import playground.BuildConfigDecoder
 import playground.ModelReader
 import playground.Runner
 import playground.smithyql.Formatter
@@ -21,15 +25,10 @@ import smithy4s.Document
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
-import smithy4s.codegen.cli.DumpModel
-import smithy4s.codegen.cli.Smithy4sCommand
+import smithy4s.codegen.ModelLoader
+import smithy4s.dynamic.DynamicSchemaIndex
 
 import java.nio.file.Path
-import smithy4s.dynamic.DynamicSchemaIndex
-import org.http4s.client.Client
-import cats.effect.kernel.Resource
-import cats.effect.std
-import playground.BuildConfigDecoder
 
 object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
@@ -78,22 +77,18 @@ object Main extends CommandIOApp("smithyql", "SmithyQL CLI") {
 
   private def buildSchemaIndex(bc: BuildConfig): IO[DynamicSchemaIndex] = IO
     .interruptibleMany {
-      DumpModel.run(
-        Smithy4sCommand.DumpModelArgs(
-          specs = bc.imports.combineAll.map(os.Path(_)),
-          repositories = bc.mavenRepositories.combineAll,
+      ModelLoader
+        .load(
+          specs = bc.imports.combineAll.map(file.Path(_).toNioPath.toFile()).toSet,
           dependencies = bc.mavenDependencies.combineAll,
+          repositories = bc.mavenRepositories.combineAll,
           transformers = Nil,
+          discoverModels = false,
           localJars = Nil,
         )
-      )
+        ._2
     }
-    .flatMap { modelText =>
-      ModelReader
-        .modelParser(modelText)
-        .liftTo[IO]
-        .map(ModelReader.buildSchemaIndex(_))
-    }
+    .flatMap(ModelReader.buildSchemaIndex[IO])
 
   private val ctxOpt = Opts
     .option[file.Path](

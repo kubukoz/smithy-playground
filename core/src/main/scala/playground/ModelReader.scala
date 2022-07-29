@@ -1,17 +1,14 @@
 package playground
 
-import smithy4s.dynamic.model.Model
+import cats.MonadThrow
+import cats.implicits._
 import smithy4s.dynamic.DynamicSchemaIndex
-import smithy4s.http.PayloadError
+import software.amazon
 
 object ModelReader {
 
-  val modelParser: String => Either[PayloadError, Model] = {
-    val capi = smithy4s.http.json.codecs()
-    val codec = capi.compileCodec(Model.schema)
+  def buildSchemaIndex[F[_]: MonadThrow](
+    model: amazon.smithy.model.Model
+  ): F[DynamicSchemaIndex] = DynamicSchemaIndex.loadModel(model).liftTo[F]
 
-    text => capi.decodeFromByteArray(codec, text.getBytes())
-  }
-
-  def buildSchemaIndex(model: Model): DynamicSchemaIndex = DynamicSchemaIndex.load(model)
 }
