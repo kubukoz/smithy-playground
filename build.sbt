@@ -90,19 +90,7 @@ lazy val lsp = project
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(core)
 
-lazy val cli = project
-  .in(file("cli"))
-  .settings(
-    commonSettings,
-    libraryDependencies ++= Seq(
-      "org.http4s" %% "http4s-ember-client" % "0.23.14",
-      "com.monovore" %% "decline-effect" % "2.3.0",
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value,
-    ),
-  )
-  .dependsOn(core)
-
 lazy val root = project
   .in(file("."))
   .settings(publish / skip := true)
-  .aggregate(core, cli, lsp, pluginCore)
+  .aggregate(core, lsp, pluginCore)
