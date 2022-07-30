@@ -49,6 +49,7 @@ val commonSettings = Seq(
   scalacOptions -= "-Vtype-diffs",
   scalacOptions ++= Seq("-Xsource:3.0"),
   javacOptions ++= Seq("-source", "8", "-target", "8"),
+  mimaFailOnNoPrevious := false,
 )
 
 lazy val pluginCore = project.settings(
@@ -57,6 +58,7 @@ lazy val pluginCore = project.settings(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
   commonSettings,
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
 )
 
 lazy val core = project
@@ -92,5 +94,9 @@ lazy val lsp = project
 
 lazy val root = project
   .in(file("."))
-  .settings(publish / skip := true)
+  .settings(
+    publish / skip := true,
+    mimaFailOnNoPrevious := false,
+    addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
+  )
   .aggregate(core, lsp, pluginCore)
