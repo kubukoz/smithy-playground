@@ -10,7 +10,6 @@ import java.net.URLClassLoader
 import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._
 import playground.plugins.PlaygroundPlugin
-import playground.plugins.PluginProvider
 
 object PluginResolver {
 
@@ -49,12 +48,11 @@ object PluginResolver {
 
           ServiceLoader
             .load(
-              classOf[PluginProvider],
+              classOf[PlaygroundPlugin],
               classLoader,
             )
             .asScala
             .toList
-            .map(_.create())
         }
       }
 
