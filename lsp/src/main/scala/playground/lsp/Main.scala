@@ -39,10 +39,11 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintWriter
 import java.nio.charset.Charset
+import playground.lsp.buildinfo.BuildInfo
 
 object Main extends IOApp.Simple {
 
-  private val logWriter = new PrintWriter(new File("lsp-log.txt"))
+  private val logWriter = new PrintWriter(new File("smithyql-log.txt"))
 
   def log(s: String): IO[Unit] = IO(logWriter.println(s))
 
@@ -125,9 +126,6 @@ object Main extends IOApp.Simple {
                           .combineAll,
                         buildConfig.mavenRepositories.combineAll,
                       )
-                      .flatTap { plugins =>
-                        std.Console[IO].println("Available plugins: " + plugins.mkString(", "))
-                      }
                       .map { plugins =>
                         val runner = Runner
                           .forSchemaIndex[IO](
@@ -219,7 +217,11 @@ object Main extends IOApp.Simple {
   ) =
     log("connecting: " + client) *>
       clientDeff.complete(client) *>
-      IO(client.showMessage(new MessageParams(MessageType.Info, "hello from smithyql server"))) *>
+      IO(
+        client.showMessage(
+          new MessageParams(MessageType.Info, s"Hello from Smithy Playground v${BuildInfo.version}")
+        )
+      ) *>
       log("Server connected")
 
   private object middleware {

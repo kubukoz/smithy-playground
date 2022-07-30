@@ -84,8 +84,10 @@ lazy val lsp = project
       "io.get-coursier" %% "coursier" % "2.0.16",
     ),
     commonSettings,
+    buildInfoPackage := "playground.lsp.buildinfo",
+    buildInfoKeys ++= Seq(version),
   )
-  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(BuildInfoPlugin)
   .dependsOn(core)
 
 lazy val cli = project
