@@ -5,7 +5,13 @@ on:
   push:
     branches: ['**']
     tags: ['**']
-
+  workflow_dispatch:
+    inputs:
+      publishExtension:
+        description: 'Publish Extension'
+        required: true
+        default: false
+        type: boolean
 env:
   PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
   SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
@@ -39,7 +45,11 @@ jobs:
     - run: nix develop --command sbt test
     -
       name: release
-      if: startsWith(github.ref, 'refs/tags/v')
-      run: nix develop --command ./release.sh
+      if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+      run: nix develop --command sbt ci-release
+    -
+      name: release plugin
+      if: github.event.inputs.publishSnapshot == true
+      run: nix develop --command ./release-plugin.sh
       env:
         VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
