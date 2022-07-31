@@ -80,7 +80,6 @@ lazy val lsp = project
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
-      "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.14.0",
       "io.circe" %% "circe-core" % "0.14.2",
       "org.http4s" %% "http4s-ember-client" % "0.23.14",
