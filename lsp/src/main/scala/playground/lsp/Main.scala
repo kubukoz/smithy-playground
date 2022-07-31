@@ -115,7 +115,7 @@ object Main extends IOApp.Simple {
               .flatMap { implicit tdm =>
                 implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
 
-                ServerReload
+                ServerLoader
                   .instance[F](client, awsEnv)
                   .map(_.server)
 

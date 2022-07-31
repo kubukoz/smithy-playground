@@ -15,15 +15,15 @@ import playground.Runner
 import playground.TextDocumentManager
 import smithy4s.aws.AwsEnvironment
 
-trait ServerReload[F[_]] {
+trait ServerLoader[F[_]] {
   type Params
-  def prepare: F[ServerReload.PrepareResult[Params]]
-  def perform(params: Params): F[ServerReload.WorkspaceStats]
+  def prepare: F[ServerLoader.PrepareResult[Params]]
+  def perform(params: Params): F[ServerLoader.WorkspaceStats]
   def server: LanguageServer[F]
 }
 
-object ServerReload {
-  def apply[F[_]](implicit F: ServerReload[F]): F.type = F
+object ServerLoader {
+  def apply[F[_]](implicit F: ServerLoader[F]): F.type = F
 
   case class PrepareResult[A](params: A, isChanged: Boolean)
   case class WorkspaceStats(importCount: Int, dependencyCount: Int, pluginCount: Int)
@@ -43,11 +43,11 @@ object ServerReload {
   ](
     client: Client[F],
     awsEnv: Resource[F, AwsEnvironment[F]],
-  ): F[ServerReload[F]] = Ref[F].of((LanguageServer.notAvailable[F], none[BuildConfig])).flatMap {
+  ): F[ServerLoader[F]] = Ref[F].of((LanguageServer.notAvailable[F], none[BuildConfig])).flatMap {
     serverRef =>
       val instance =
-        new ServerReload[F] {
-          implicit val sr: ServerReload[F] = this
+        new ServerLoader[F] {
+          implicit val sr: ServerLoader[F] = this
           type Params = (BuildConfig, Path)
 
           def prepare: F[PrepareResult[Params]] = serverRef.get.map(_._2).flatMap {

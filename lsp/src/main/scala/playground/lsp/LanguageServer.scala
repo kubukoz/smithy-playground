@@ -54,7 +54,7 @@ object LanguageServer {
     new Throwable("Server not available").raiseError[F, LanguageServer[F]]
   )
 
-  def instance[F[_]: Async: TextDocumentManager: LanguageClient: ServerReload](
+  def instance[F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader](
     dsi: DynamicSchemaIndex,
     runner: Runner.Optional[F],
   )(
@@ -194,14 +194,14 @@ object LanguageServer {
 
       def didChangeWatchedFiles(
         params: DidChangeWatchedFilesParams
-      ): F[Unit] = ServerReload[F].prepare.flatMap {
+      ): F[Unit] = ServerLoader[F].prepare.flatMap {
         case prepared if !prepared.isChanged =>
           LanguageClient[F].showInfoMessage(
             "No change detected, not rebuilding server"
           )
         case prepared =>
           LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
-            ServerReload[F]
+            ServerLoader[F]
               .perform(prepared.params)
               .onError { case e =>
                 LanguageClient[F].showErrorMessage(
