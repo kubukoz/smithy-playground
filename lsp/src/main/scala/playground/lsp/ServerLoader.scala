@@ -6,7 +6,6 @@ import cats.effect.kernel.Resource
 import cats.effect.std
 import cats.effect.std.Supervisor
 import cats.implicits._
-import fs2.io.file.Path
 import io.circe.Decoder
 import org.http4s.Uri
 import org.http4s.client.Client
@@ -53,12 +52,12 @@ object ServerLoader {
       val instance =
         new ServerLoader[F] {
           implicit val sr: ServerLoader[F] = this
-          type Params = (BuildConfig, Path)
+          type Params = BuildLoader.Loaded
 
           val prepare: F[PrepareResult[Params]] = serverRef.get.map(_.lastUsedConfig).flatMap {
             lastUsedConfig =>
-              BuildLoader[F].load.map { case params @ (bc, _) =>
-                PrepareResult(params, !lastUsedConfig.contains(bc))
+              BuildLoader[F].load.map { case params =>
+                PrepareResult(params, !lastUsedConfig.contains(params.config))
               }
           }
 
@@ -67,11 +66,10 @@ object ServerLoader {
           )
 
           def perform(params: Params): F[WorkspaceStats] = BuildLoader[F]
-            .buildSchemaIndex
-            .tupled(params)
+            .buildSchemaIndex(params)
             .flatMap { dsi =>
               PluginResolver[F]
-                .resolveFromConfig(params._1)
+                .resolveFromConfig(params.config)
                 .map { plugins =>
                   val runner = Runner
                     .forSchemaIndex[F](
@@ -86,9 +84,9 @@ object ServerLoader {
                   LanguageServer.instance[F](dsi, runner)
                 }
             }
-            .map(server => State(server, Some(params._1)))
+            .map(server => State(server, Some(params.config)))
             .flatMap(serverRef.set)
-            .as(WorkspaceStats.fromBuildConfig(params._1))
+            .as(WorkspaceStats.fromBuildConfig(params.config))
 
           val server: LanguageServer[F] = LanguageServer.defer(serverRef.get.map(_.currentServer))
         }

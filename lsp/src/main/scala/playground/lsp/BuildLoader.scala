@@ -11,22 +11,21 @@ import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
-  def load: F[(BuildConfig, Path)]
+  def load: F[BuildLoader.Loaded]
 
-  def buildSchemaIndex(
-    bc: BuildConfig,
-    buildConfigPath: Path,
-  ): F[DynamicSchemaIndex]
+  def buildSchemaIndex(info: BuildLoader.Loaded): F[DynamicSchemaIndex]
 
 }
 
 object BuildLoader {
   def apply[F[_]](implicit F: BuildLoader[F]): BuildLoader[F] = F
 
+  case class Loaded(config: BuildConfig, configFilePath: Path)
+
   def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
     new BuildLoader[F] {
 
-      def load: F[(BuildConfig, Path)] = {
+      def load: F[BuildLoader.Loaded] = {
         val configFiles = List(
           "build/smithy-dependencies.json",
           ".smithy.json",
@@ -68,18 +67,22 @@ object BuildLoader {
               .decode(fileContents.getBytes())
               .liftTo[F]
               .tupleRight(filePath)
+              .map(BuildLoader.Loaded.apply.tupled)
           }
       }
 
-      def buildSchemaIndex(bc: BuildConfig, buildConfigPath: Path): F[DynamicSchemaIndex] = Sync[F]
+      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = Sync[F]
         .interruptibleMany {
           ModelLoader
             .load(
               specs =
-                bc.imports
+                loaded
+                  .config
+                  .imports
                   .combineAll
                   .map(
-                    buildConfigPath
+                    loaded
+                      .configFilePath
                       .parent
                       .getOrElse(sys.error("impossible - no parent"))
                       .resolve(_)
@@ -87,8 +90,8 @@ object BuildLoader {
                       .toFile()
                   )
                   .toSet,
-              dependencies = bc.mavenDependencies.combineAll,
-              repositories = bc.mavenRepositories.combineAll,
+              dependencies = loaded.config.mavenDependencies.combineAll,
+              repositories = loaded.config.mavenRepositories.combineAll,
               transformers = Nil,
               discoverModels = false,
               localJars = Nil,
