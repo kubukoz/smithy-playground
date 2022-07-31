@@ -13,6 +13,7 @@ import playground.Feedback
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import cats.FlatMap
 
 trait LanguageClient[F[_]] extends Feedback[F] {
   def configuration[A: Decoder](section: String): F[A]
@@ -72,6 +73,22 @@ object LanguageClient {
 
       def refreshCodeLenses: F[Unit] = withClientF(_.refreshCodeLenses()).void
       def refreshDiagnostics: F[Unit] = withClientF(_.refreshDiagnostics()).void
+    }
+
+  def defer[F[_]: FlatMap](fa: F[LanguageClient[F]]): LanguageClient[F] =
+    new LanguageClient[F] {
+      def showOutputPanel: F[Unit] = fa.flatMap(_.showOutputPanel)
+
+      def logOutput(msg: String): F[Unit] = fa.flatMap(_.logOutput(msg))
+
+      def configuration[A: Decoder](section: String): F[A] = fa.flatMap(_.configuration(section))
+
+      def showMessage(tpe: MessageType, msg: String): F[Unit] = fa.flatMap(_.showMessage(tpe, msg))
+
+      def refreshDiagnostics: F[Unit] = fa.flatMap(_.refreshDiagnostics)
+
+      def refreshCodeLenses: F[Unit] = fa.flatMap(_.refreshCodeLenses)
+
     }
 
 }

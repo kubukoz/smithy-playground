@@ -31,7 +31,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
 
   @JsonRequest("shutdown")
   def shutdown(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.shutdown().as(null: Object))
+  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.shutdown.as(null: Object))
 
   @JsonNotification("textDocument/didChange")
   def didChange(
@@ -110,5 +110,5 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   )
 
   @JsonRequest("exit")
-  def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit().as(null: Object))
+  def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))
 }

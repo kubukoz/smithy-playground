@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.implicits._
 import cats.effect.kernel.Async
-import cats.effect.kernel.Ref
+import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
 import cats.effect.std
 import cats.effect.std.Dispatcher
@@ -14,7 +14,6 @@ import org.eclipse.lsp4j.launch.LSPLauncher
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
-import playground.BuildConfig
 import playground.TextDocumentManager
 import playground.lsp.buildinfo.BuildInfo
 import smithy4s.aws.AwsEnvironment
@@ -76,28 +75,30 @@ object Main extends IOApp.Simple {
   )(
     implicit d: Dispatcher[IO],
     sup: std.Supervisor[IO],
-  ) = IO.ref((LanguageServer.notAvailable[IO], none[BuildConfig])).toResource.flatMap { serverRef =>
-    val server = LanguageServer.defer(serverRef.get.map(_._1))
+  ) = Deferred[IO, LanguageClient[IO]].toResource.flatMap { clientRef =>
+    implicit val lc: LanguageClient[IO] = LanguageClient.defer(clientRef.get)
 
-    val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
-      .setLocalService(new PlaygroundLanguageServerAdapter(server))
-      .setRemoteInterface(classOf[PlaygroundLanguageClient])
-      .setInput(in)
-      .setOutput(out)
-      .traceMessages(logWriter)
-      .create();
+    makeServer[IO].evalMap { server =>
+      val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
+        .setLocalService(new PlaygroundLanguageServerAdapter(server))
+        .setRemoteInterface(classOf[PlaygroundLanguageClient])
+        .setInput(in)
+        .setOutput(out)
+        .traceMessages(logWriter)
+        .create();
 
-    implicit val client: LanguageClient[IO] = LanguageClient.adapt[IO](launcher.getRemoteProxy())
-
-    connect(serverRef).as(launcher)
+      log[IO]("connecting") *>
+        clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
+        LanguageClient[IO].showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
+        log[IO]("Server connected")
+          .as(launcher)
+    }
   }
 
   private def makeServer[F[_]: Async: std.Console](
-    serverRef: Ref[F, (LanguageServer[F], Option[BuildConfig])]
-  )(
     implicit lc: LanguageClient[F],
     sup: std.Supervisor[F],
-  ): Resource[F, Unit] = {
+  ): Resource[F, LanguageServer[F]] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
 
     EmberClientBuilder
@@ -114,22 +115,15 @@ object Main extends IOApp.Simple {
               .flatMap { implicit tdm =>
                 implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
 
-                ServerReload.instance[F](serverRef, client, awsEnv).void
+                ServerReload
+                  .instance[F](client, awsEnv)
+                  .map(_.server)
+
               }
               .toResource
           }
       }
   }
-
-  private def connect[F[_]: Async: LanguageClient: std.Console: std.Supervisor](
-    serverRef: Ref[F, (LanguageServer[F], Option[BuildConfig])]
-  ): Resource[F, Unit] =
-    log[F]("connecting").toResource *>
-      makeServer(serverRef) *>
-      LanguageClient[F]
-        .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}")
-        .toResource *>
-      log[F]("Server connected").toResource
 
   private object middleware {
 

@@ -7,9 +7,6 @@ import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.std.Supervisor
 import cats.implicits._
-import cats.tagless.Derive
-import cats.tagless.SuspendK
-import cats.tagless.Suspended
 import cats.~>
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ServerCapabilities
@@ -47,8 +44,8 @@ trait LanguageServer[F[_]] {
   ): F[Unit]
 
   def executeCommand(params: ExecuteCommandParams): F[Unit]
-  def shutdown(): F[Unit]
-  def exit(): F[Unit]
+  def shutdown: F[Unit]
+  def exit: F[Unit]
 }
 
 object LanguageServer {
@@ -91,7 +88,7 @@ object LanguageServer {
       }
 
       def initialized(params: InitializedParams): F[Unit] = Applicative[F].unit
-      def shutdown(): F[Unit] = Applicative[F].unit
+      def shutdown: F[Unit] = Applicative[F].unit
 
       def didChange(params: DidChangeTextDocumentParams): F[Unit] = {
         val changesAsList = params.getContentChanges.asScala.toList
@@ -238,71 +235,52 @@ object LanguageServer {
         }
         .flatMap(commandProvider.runCommand(params.getCommand(), _))
 
-      def exit(): F[Unit] = Applicative[F].unit
-    }
-
-  // Hoping https://github.com/typelevel/cats-tagless/issues/365 would simplify this
-  implicit val suspendKLSP: SuspendK[LanguageServer] =
-    new SuspendK[LanguageServer] {
-      private val funk = Derive.functorK[LanguageServer]
-      def mapK[F[_], G[_]](af: LanguageServer[F])(fk: F ~> G): LanguageServer[G] = funk.mapK(af)(fk)
-
-      def suspend[F[_]]: LanguageServer[Suspended[LanguageServer, F, *]] =
-        new LanguageServer[Suspended[LanguageServer, F, *]] {
-          def initialize(params: InitializeParams): Suspended[LanguageServer, F, InitializeResult] =
-            Suspended(_.initialize(params))
-
-          def initialized(params: InitializedParams): Suspended[LanguageServer, F, Unit] =
-            Suspended(_.initialized(params))
-
-          def didChange(params: DidChangeTextDocumentParams): Suspended[LanguageServer, F, Unit] =
-            Suspended(_.didChange(params))
-
-          def didOpen(params: DidOpenTextDocumentParams): Suspended[LanguageServer, F, Unit] =
-            Suspended(_.didOpen(params))
-
-          def didSave(params: DidSaveTextDocumentParams): Suspended[LanguageServer, F, Unit] =
-            Suspended(_.didSave(params))
-
-          def didClose(params: DidCloseTextDocumentParams): Suspended[LanguageServer, F, Unit] =
-            Suspended(_.didClose(params))
-
-          def formatting(
-            params: DocumentFormattingParams
-          ): Suspended[LanguageServer, F, List[TextEdit]] = Suspended(_.formatting(params))
-
-          def completion(
-            position: CompletionParams
-          ): Suspended[LanguageServer, F, Either[List[CompletionItem], CompletionList]] = Suspended(
-            _.completion(position)
-          )
-
-          def diagnostic(
-            params: DocumentDiagnosticParams
-          ): Suspended[LanguageServer, F, DocumentDiagnosticReport] = Suspended(
-            _.diagnostic(params)
-          )
-
-          def codeLens(params: CodeLensParams): Suspended[LanguageServer, F, List[CodeLens]] =
-            Suspended(_.codeLens(params))
-
-          def didChangeWatchedFiles(
-            params: DidChangeWatchedFilesParams
-          ): Suspended[LanguageServer, F, Unit] = Suspended(_.didChangeWatchedFiles(params))
-
-          def executeCommand(params: ExecuteCommandParams): Suspended[LanguageServer, F, Unit] =
-            Suspended(_.executeCommand(params))
-
-          def shutdown(): Suspended[LanguageServer, F, Unit] = Suspended(_.shutdown())
-
-          def exit(): Suspended[LanguageServer, F, Unit] = Suspended(_.exit())
-
-        }
-
+      def exit: F[Unit] = Applicative[F].unit
     }
 
   def defer[F[_]: FlatMap](
     fk: F[LanguageServer[F]]
-  ): LanguageServer[F] = SuspendK[LanguageServer].deferKId(fk)
+  ): LanguageServer[F] =
+    new LanguageServer[F] {
+
+      def initialize(
+        params: InitializeParams
+      ): F[InitializeResult] = fk.flatMap(_.initialize(params))
+
+      def initialized(params: InitializedParams): F[Unit] = fk.flatMap(_.initialized(params))
+
+      def didChange(params: DidChangeTextDocumentParams): F[Unit] = fk.flatMap(_.didChange(params))
+
+      def didOpen(params: DidOpenTextDocumentParams): F[Unit] = fk.flatMap(_.didOpen(params))
+
+      def didSave(params: DidSaveTextDocumentParams): F[Unit] = fk.flatMap(_.didSave(params))
+
+      def didClose(params: DidCloseTextDocumentParams): F[Unit] = fk.flatMap(_.didClose(params))
+
+      def formatting(
+        params: DocumentFormattingParams
+      ): F[List[TextEdit]] = fk.flatMap(_.formatting(params))
+
+      def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]] =
+        fk.flatMap(_.completion(position))
+
+      def diagnostic(
+        params: DocumentDiagnosticParams
+      ): F[DocumentDiagnosticReport] = fk.flatMap(_.diagnostic(params))
+
+      def codeLens(params: CodeLensParams): F[List[CodeLens]] = fk.flatMap(_.codeLens(params))
+
+      def didChangeWatchedFiles(
+        params: DidChangeWatchedFilesParams
+      ): F[Unit] = fk.flatMap(_.didChangeWatchedFiles(params))
+
+      def executeCommand(
+        params: ExecuteCommandParams
+      ): F[Unit] = fk.flatMap(_.executeCommand(params))
+
+      def shutdown: F[Unit] = fk.flatMap(_.shutdown)
+
+      def exit: F[Unit] = fk.flatMap(_.exit)
+    }
 
 }
