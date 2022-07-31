@@ -2,7 +2,7 @@
 
 This is an experimental, work-in-progress project to develop a query language for Smithy.
 
-Currently, everything is only available as a VS Code plugin, with future ideas to extract a Language Server.
+Currently available as a LSP server with a client implementation for VS Code.
 
 ## Usage
 
