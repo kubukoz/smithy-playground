@@ -13,9 +13,16 @@ import playground.Feedback
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import cats.FlatMap
 
 trait LanguageClient[F[_]] extends Feedback[F] {
   def configuration[A: Decoder](section: String): F[A]
+  def showMessage(tpe: MessageType, msg: String): F[Unit]
+  def refreshDiagnostics: F[Unit]
+  def refreshCodeLenses: F[Unit]
+
+  def showInfoMessage(msg: String): F[Unit] = showMessage(MessageType.Info, msg)
+  def showErrorMessage(msg: String): F[Unit] = showMessage(MessageType.Error, msg)
 }
 
 object LanguageClient {
@@ -54,8 +61,8 @@ object LanguageClient {
         }
         .flatMap(_.as[A].liftTo[F])
 
-      def showErrorMessage(msg: String): F[Unit] = withClientSync(
-        _.showMessage(new MessageParams(MessageType.Error, msg))
+      def showMessage(tpe: MessageType, msg: String): F[Unit] = withClientSync(
+        _.showMessage(new MessageParams(tpe, msg))
       )
 
       def logOutput(msg: String): F[Unit] = withClientSync(
@@ -64,20 +71,23 @@ object LanguageClient {
 
       def showOutputPanel: F[Unit] = withClientSync(_.showOutputPanel())
 
+      def refreshCodeLenses: F[Unit] = withClientF(_.refreshCodeLenses()).void
+      def refreshDiagnostics: F[Unit] = withClientF(_.refreshDiagnostics()).void
     }
 
-  def suspend[F[_]: Async](clientF: F[LanguageClient[F]]): LanguageClient[F] =
+  def defer[F[_]: FlatMap](fa: F[LanguageClient[F]]): LanguageClient[F] =
     new LanguageClient[F] {
+      def showOutputPanel: F[Unit] = fa.flatMap(_.showOutputPanel)
 
-      def showErrorMessage(msg: String): F[Unit] = clientF.flatMap(_.showErrorMessage(msg))
+      def logOutput(msg: String): F[Unit] = fa.flatMap(_.logOutput(msg))
 
-      def logOutput(msg: String): F[Unit] = clientF.flatMap(_.logOutput(msg))
+      def configuration[A: Decoder](section: String): F[A] = fa.flatMap(_.configuration(section))
 
-      def configuration[A: Decoder](
-        section: String
-      ): F[A] = clientF.flatMap(_.configuration(section))
+      def showMessage(tpe: MessageType, msg: String): F[Unit] = fa.flatMap(_.showMessage(tpe, msg))
 
-      val showOutputPanel: F[Unit] = clientF.flatMap(_.showOutputPanel)
+      def refreshDiagnostics: F[Unit] = fa.flatMap(_.refreshDiagnostics)
+
+      def refreshCodeLenses: F[Unit] = fa.flatMap(_.refreshCodeLenses)
 
     }
 

@@ -1,7 +1,11 @@
 package playground.lsp
 
 import cats.Applicative
+import cats.FlatMap
+import cats.MonadThrow
+import cats.effect.implicits._
 import cats.effect.kernel.Async
+import cats.effect.std.Supervisor
 import cats.implicits._
 import cats.~>
 import com.google.gson.JsonElement
@@ -25,6 +29,7 @@ import scala.util.chaining._
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
+  def initialized(params: InitializedParams): F[Unit]
   def didChange(params: DidChangeTextDocumentParams): F[Unit]
   def didOpen(params: DidOpenTextDocumentParams): F[Unit]
   def didSave(params: DidSaveTextDocumentParams): F[Unit]
@@ -33,16 +38,27 @@ trait LanguageServer[F[_]] {
   def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
   def diagnostic(params: DocumentDiagnosticParams): F[DocumentDiagnosticReport]
   def codeLens(params: CodeLensParams): F[List[CodeLens]]
+
+  def didChangeWatchedFiles(
+    params: DidChangeWatchedFilesParams
+  ): F[Unit]
+
   def executeCommand(params: ExecuteCommandParams): F[Unit]
-  def shutdown(): F[Unit]
-  def exit(): F[Unit]
+  def shutdown: F[Unit]
+  def exit: F[Unit]
 }
 
 object LanguageServer {
 
-  def instance[F[_]: Async: TextDocumentManager: LanguageClient](
+  def notAvailable[F[_]: MonadThrow]: LanguageServer[F] = defer(
+    new Throwable("Server not available").raiseError[F, LanguageServer[F]]
+  )
+
+  def instance[F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader](
     dsi: DynamicSchemaIndex,
     runner: Runner.Optional[F],
+  )(
+    implicit sup: Supervisor[F]
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
@@ -71,7 +87,8 @@ object LanguageServer {
         new InitializeResult(capabilities).pure[F]
       }
 
-      def shutdown(): F[Unit] = Applicative[F].unit
+      def initialized(params: InitializedParams): F[Unit] = Applicative[F].unit
+      def shutdown: F[Unit] = Applicative[F].unit
 
       def didChange(params: DidChangeTextDocumentParams): F[Unit] = {
         val changesAsList = params.getContentChanges.asScala.toList
@@ -175,6 +192,37 @@ object LanguageServer {
             .map(converters.toLSP.codeLens(documentText, _))
       }
 
+      def didChangeWatchedFiles(
+        params: DidChangeWatchedFilesParams
+      ): F[Unit] = ServerLoader[F].prepare.flatMap {
+        case prepared if !prepared.isChanged =>
+          LanguageClient[F].showInfoMessage(
+            "No change detected, not rebuilding server"
+          )
+        case prepared =>
+          LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
+            ServerLoader[F]
+              .perform(prepared.params)
+              .onError { case e =>
+                LanguageClient[F].showErrorMessage(
+                  "Couldn't reload server: " + e.getMessage
+                )
+              }
+              .flatMap { stats =>
+                // Can't make (and wait for) client requests while handling a client request (file change)
+                {
+                  LanguageClient[F].refreshDiagnostics *>
+                    LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
+                      .showInfoMessage(
+                        s"Reloaded Smithy Playground server with " +
+                          s"${stats.importCount} imports, " +
+                          s"${stats.dependencyCount} dependencies and " +
+                          s"${stats.pluginCount} plugins"
+                      )
+                }.supervise(sup).void
+              }
+      }
+
       def executeCommand(
         params: ExecuteCommandParams
       ): F[Unit] = params
@@ -187,7 +235,52 @@ object LanguageServer {
         }
         .flatMap(commandProvider.runCommand(params.getCommand(), _))
 
-      def exit(): F[Unit] = Applicative[F].unit
+      def exit: F[Unit] = Applicative[F].unit
+    }
+
+  def defer[F[_]: FlatMap](
+    fk: F[LanguageServer[F]]
+  ): LanguageServer[F] =
+    new LanguageServer[F] {
+
+      def initialize(
+        params: InitializeParams
+      ): F[InitializeResult] = fk.flatMap(_.initialize(params))
+
+      def initialized(params: InitializedParams): F[Unit] = fk.flatMap(_.initialized(params))
+
+      def didChange(params: DidChangeTextDocumentParams): F[Unit] = fk.flatMap(_.didChange(params))
+
+      def didOpen(params: DidOpenTextDocumentParams): F[Unit] = fk.flatMap(_.didOpen(params))
+
+      def didSave(params: DidSaveTextDocumentParams): F[Unit] = fk.flatMap(_.didSave(params))
+
+      def didClose(params: DidCloseTextDocumentParams): F[Unit] = fk.flatMap(_.didClose(params))
+
+      def formatting(
+        params: DocumentFormattingParams
+      ): F[List[TextEdit]] = fk.flatMap(_.formatting(params))
+
+      def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]] =
+        fk.flatMap(_.completion(position))
+
+      def diagnostic(
+        params: DocumentDiagnosticParams
+      ): F[DocumentDiagnosticReport] = fk.flatMap(_.diagnostic(params))
+
+      def codeLens(params: CodeLensParams): F[List[CodeLens]] = fk.flatMap(_.codeLens(params))
+
+      def didChangeWatchedFiles(
+        params: DidChangeWatchedFilesParams
+      ): F[Unit] = fk.flatMap(_.didChangeWatchedFiles(params))
+
+      def executeCommand(
+        params: ExecuteCommandParams
+      ): F[Unit] = fk.flatMap(_.executeCommand(params))
+
+      def shutdown: F[Unit] = fk.flatMap(_.shutdown)
+
+      def exit: F[Unit] = fk.flatMap(_.exit)
     }
 
 }
