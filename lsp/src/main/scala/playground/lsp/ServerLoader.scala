@@ -43,17 +43,22 @@ object ServerLoader {
   ](
     client: Client[F],
     awsEnv: Resource[F, AwsEnvironment[F]],
-  ): F[ServerLoader[F]] = Ref[F].of((LanguageServer.notAvailable[F], none[BuildConfig])).flatMap {
-    serverRef =>
+  ): F[ServerLoader[F]] = {
+    case class State(currentServer: LanguageServer[F], lastUsedConfig: Option[BuildConfig])
+    object State {
+      val initial: State = State(LanguageServer.notAvailable[F], none)
+    }
+
+    Ref[F].of(State.initial).flatMap { serverRef =>
       val instance =
         new ServerLoader[F] {
           implicit val sr: ServerLoader[F] = this
           type Params = (BuildConfig, Path)
 
-          def prepare: F[PrepareResult[Params]] = serverRef.get.map(_._2).flatMap {
-            previousBuildConfig =>
+          val prepare: F[PrepareResult[Params]] = serverRef.get.map(_.lastUsedConfig).flatMap {
+            lastUsedConfig =>
               BuildLoader[F].load.map { case params @ (bc, _) =>
-                PrepareResult(params, !previousBuildConfig.contains(bc))
+                PrepareResult(params, !lastUsedConfig.contains(bc))
               }
           }
 
@@ -81,15 +86,16 @@ object ServerLoader {
                   LanguageServer.instance[F](dsi, runner)
                 }
             }
-            .tupleRight(params._1.some)
+            .map(server => State(server, Some(params._1)))
             .flatMap(serverRef.set)
             .as(WorkspaceStats.fromBuildConfig(params._1))
 
-          def server: LanguageServer[F] = LanguageServer.defer(serverRef.get.map(_._1))
+          val server: LanguageServer[F] = LanguageServer.defer(serverRef.get.map(_.currentServer))
         }
 
       // Initial load
       BuildLoader[F].load.flatMap(instance.perform).as(instance)
+    }
   }
 
 }
