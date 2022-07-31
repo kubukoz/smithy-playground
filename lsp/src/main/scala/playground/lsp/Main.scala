@@ -114,13 +114,7 @@ object Main extends IOApp.Simple {
               .flatMap { implicit tdm =>
                 implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
 
-                val reload: ServerReload[F] = ServerReload.instance[F](serverRef, client, awsEnv)
-
-                BuildLoader[F]
-                  .load
-                  .flatMap { case (initialBuildConfig, buildFilePath) =>
-                    reload.perform((initialBuildConfig, buildFilePath))
-                  }
+                ServerReload.instance[F](serverRef, client, awsEnv).void
               }
               .toResource
           }

@@ -198,28 +198,32 @@ object LanguageServer {
       def didChangeWatchedFiles(
         params: DidChangeWatchedFilesParams
       ): F[Unit] = ServerReload[F].prepare.flatMap {
-        case None =>
+        case prepared if !prepared.isChanged =>
           LanguageClient[F].showInfoMessage(
             "No change detected, not rebuilding server"
           )
-        case Some(params @ (bc, _)) =>
+        case prepared =>
           LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
-            ServerReload[F].perform(params).onError { case e =>
-              LanguageClient[F].showErrorMessage(
-                "Couldn't reload server: " + e.getMessage
-              )
-            } *>
-            // Can't make (and wait for) client requests while handling a client request (file change)
-            {
-              LanguageClient[F].refreshDiagnostics *>
-                LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
-                  .showInfoMessage(
-                    s"Reloaded Smithy Playground server with " +
-                      s"${bc.imports.combineAll.size} imports, " +
-                      s"${bc.mavenDependencies.combineAll.size} dependencies and " +
-                      s"${bc.plugins.flatMap(_.smithyPlayground).flatMap(_.extensions).size} plugins"
-                  )
-            }.supervise(sup).void
+            ServerReload[F]
+              .perform(prepared.params)
+              .onError { case e =>
+                LanguageClient[F].showErrorMessage(
+                  "Couldn't reload server: " + e.getMessage
+                )
+              }
+              .flatMap { stats =>
+                // Can't make (and wait for) client requests while handling a client request (file change)
+                {
+                  LanguageClient[F].refreshDiagnostics *>
+                    LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
+                      .showInfoMessage(
+                        s"Reloaded Smithy Playground server with " +
+                          s"${stats.importCount} imports, " +
+                          s"${stats.dependencyCount} dependencies and " +
+                          s"${stats.pluginCount} plugins"
+                      )
+                }.supervise(sup).void
+              }
       }
 
       def executeCommand(
