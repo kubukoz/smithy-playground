@@ -48,50 +48,47 @@ object Main extends IOApp.Simple {
 
   def log[F[_]: std.Console](s: String): F[Unit] = std.Console[F].println(s)
 
-  def run: IO[Unit] =
-    Dispatcher[IO]
-      .flatMap { implicit d =>
-        std.Supervisor[IO].flatMap { implicit sup =>
-          val stdin = System.in
-          val stdout = System.out
+  def run: IO[Unit] = {
+    val stdin = System.in
+    val stdout = System.out
 
-          IO(System.setOut(logOut)).toResource *>
-            launch(stdin, stdout)
-        }
-      }
-      .use { launcher =>
-        IO.interruptibleMany(launcher.startListening().get())
-      } *> log("Server terminated without errors")
+    IO(System.setOut(logOut)).toResource *>
+      launch(stdin, stdout)
+  }
+    .use { launcher =>
+      IO.interruptibleMany(launcher.startListening().get())
+    } *> log("Server terminated without errors")
 
   def launch(
     in: InputStream,
     out: OutputStream,
-  )(
-    implicit d: Dispatcher[IO],
-    sup: std.Supervisor[IO],
   ) = Deferred[IO, LanguageClient[IO]].toResource.flatMap { clientRef =>
     implicit val lc: LanguageClient[IO] = LanguageClient.defer(clientRef.get)
 
-    makeServer[IO].evalMap { server =>
-      val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
-        .setLocalService(new PlaygroundLanguageServerAdapter(server))
-        .setRemoteInterface(classOf[PlaygroundLanguageClient])
-        .setInput(in)
-        .setOutput(out)
-        .traceMessages(logWriter)
-        .create();
+    makeServer[IO]
+      .flatMap { server =>
+        Dispatcher[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
+      }
+      .evalMap { serverAdapter =>
+        val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
+          .setLocalService(serverAdapter)
+          .setRemoteInterface(classOf[PlaygroundLanguageClient])
+          .setInput(in)
+          .setOutput(out)
+          .traceMessages(logWriter)
+          .create();
 
-      log[IO]("connecting") *>
-        clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
-        LanguageClient[IO].showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
-        log[IO]("Server connected")
-          .as(launcher)
-    }
+        log[IO]("connecting") *>
+          clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
+          LanguageClient[IO]
+            .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
+          log[IO]("Server connected")
+            .as(launcher)
+      }
   }
 
   private def makeServer[F[_]: Async: std.Console](
-    implicit lc: LanguageClient[F],
-    sup: std.Supervisor[F],
+    implicit lc: LanguageClient[F]
   ): Resource[F, LanguageServer[F]] = TextDocumentManager
     .instance[F]
     .toResource
