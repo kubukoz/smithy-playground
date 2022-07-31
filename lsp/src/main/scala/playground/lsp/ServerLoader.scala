@@ -31,7 +31,7 @@ object ServerLoader {
   def instance[F[_]: ServerBuilder: BuildLoader: Ref.Make: MonadThrow]: F[ServerLoader[F]] = {
     case class State(currentServer: LanguageServer[F], lastUsedConfig: Option[BuildConfig])
     object State {
-      val initial: State = State(LanguageServer.notAvailable[F], none)
+      val initial: State = apply(LanguageServer.notAvailable[F], none)
     }
 
     Ref[F].of(State.initial).flatMap { serverRef =>
