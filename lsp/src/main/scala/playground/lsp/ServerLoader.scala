@@ -1,18 +1,9 @@
 package playground.lsp
 
-import cats.effect.kernel.Async
+import cats.MonadThrow
 import cats.effect.kernel.Ref
-import cats.effect.kernel.Resource
-import cats.effect.std
-import cats.effect.std.Supervisor
 import cats.implicits._
-import io.circe.Decoder
-import org.http4s.Uri
-import org.http4s.client.Client
 import playground.BuildConfig
-import playground.Runner
-import playground.TextDocumentManager
-import smithy4s.aws.AwsEnvironment
 
 trait ServerLoader[F[_]] {
   type Params
@@ -37,12 +28,7 @@ object ServerLoader {
 
   }
 
-  def instance[
-    F[_]: TextDocumentManager: BuildLoader: LanguageClient: PluginResolver: Supervisor: Async: std.Console
-  ](
-    client: Client[F],
-    awsEnv: Resource[F, AwsEnvironment[F]],
-  ): F[ServerLoader[F]] = {
+  def instance[F[_]: ServerBuilder: BuildLoader: Ref.Make: MonadThrow]: F[ServerLoader[F]] = {
     case class State(currentServer: LanguageServer[F], lastUsedConfig: Option[BuildConfig])
     object State {
       val initial: State = State(LanguageServer.notAvailable[F], none)
@@ -51,7 +37,6 @@ object ServerLoader {
     Ref[F].of(State.initial).flatMap { serverRef =>
       val instance =
         new ServerLoader[F] {
-          implicit val sr: ServerLoader[F] = this
           type Params = BuildLoader.Loaded
 
           val prepare: F[PrepareResult[Params]] = serverRef.get.map(_.lastUsedConfig).flatMap {
@@ -61,29 +46,8 @@ object ServerLoader {
               }
           }
 
-          private implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
-            Uri.fromString(_).leftMap(_.message)
-          )
-
-          def perform(params: Params): F[WorkspaceStats] = BuildLoader[F]
-            .buildSchemaIndex(params)
-            .flatMap { dsi =>
-              PluginResolver[F]
-                .resolveFromConfig(params.config)
-                .map { plugins =>
-                  val runner = Runner
-                    .forSchemaIndex[F](
-                      dsi,
-                      client,
-                      LanguageClient[F]
-                        .configuration[Uri]("smithyql.http.baseUrl"),
-                      awsEnv,
-                      plugins = plugins,
-                    )
-
-                  LanguageServer.instance[F](dsi, runner)
-                }
-            }
+          def perform(params: Params): F[WorkspaceStats] = ServerBuilder[F]
+            .build(params, this)
             .map(server => State(server, Some(params.config)))
             .flatMap(serverRef.set)
             .as(WorkspaceStats.fromBuildConfig(params.config))

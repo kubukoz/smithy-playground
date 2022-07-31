@@ -11,14 +11,8 @@ import cats.effect.std
 import cats.effect.std.Dispatcher
 import cats.implicits._
 import org.eclipse.lsp4j.launch.LSPLauncher
-import org.http4s.client.Client
-import org.http4s.ember.client.EmberClientBuilder
-import org.http4s.headers.Authorization
 import playground.TextDocumentManager
 import playground.lsp.buildinfo.BuildInfo
-import smithy4s.aws.AwsEnvironment
-import smithy4s.aws.http4s.AwsHttp4sBackend
-import smithy4s.aws.kernel.AwsRegion
 
 import java.io.File
 import java.io.FileOutputStream
@@ -98,51 +92,18 @@ object Main extends IOApp.Simple {
   private def makeServer[F[_]: Async: std.Console](
     implicit lc: LanguageClient[F],
     sup: std.Supervisor[F],
-  ): Resource[F, LanguageServer[F]] = {
-    implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
+  ): Resource[F, LanguageServer[F]] = TextDocumentManager
+    .instance[F]
+    .toResource
+    .flatMap { implicit tdm =>
+      implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
 
-    EmberClientBuilder
-      .default[F]
-      .build
-      .map(middleware.AuthorizationHeader[F])
-      .flatMap { client =>
-        AwsEnvironment
-          .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
-          .memoize
-          .flatMap { awsEnv =>
-            TextDocumentManager
-              .instance[F]
-              .flatMap { implicit tdm =>
-                implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
-
-                ServerLoader
-                  .instance[F](client, awsEnv)
-                  .map(_.server)
-
-              }
-              .toResource
-          }
-      }
-  }
-
-  private object middleware {
-
-    def AuthorizationHeader[F[_]: Async: LanguageClient]: Client[F] => Client[F] =
-      client =>
-        Client[F] { request =>
-          val updatedRequest =
-            LanguageClient[F]
-              .configuration[String]("smithyql.http.authorizationHeader")
-              .flatMap {
-                case v if v.trim.isEmpty() => request.pure[F]
-                case v => Authorization.parse(v).liftTo[F].map(request.putHeaders(_))
-              }
-              .toResource
-
-          updatedRequest
-            .flatMap(client.run(_))
+      ServerBuilder
+        .instance[F]
+        .evalMap { implicit builder =>
+          ServerLoader.instance[F]
         }
-
-  }
+        .map(_.server)
+    }
 
 }
