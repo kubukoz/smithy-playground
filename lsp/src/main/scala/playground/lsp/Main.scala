@@ -124,9 +124,6 @@ object Main extends IOApp.Simple {
             LanguageServer.instance[F](dsi, runner)
           }
       }
-      .flatTap { _ =>
-        LanguageClient[F].showInfoMessage("Reloaded workspace at " + Instant.now())
-      }
   }
 
   private def makeServer(
