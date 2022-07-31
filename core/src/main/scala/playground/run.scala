@@ -7,7 +7,7 @@ import cats.Id
 import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
-import cats.effect.Async
+import cats.effect.Concurrent
 import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.effect.implicits._
@@ -249,7 +249,7 @@ object Runner {
         }
       }
 
-  def forSchemaIndex[F[_]: Async: std.Console](
+  def forSchemaIndex[F[_]: Concurrent: Defer: std.Console](
     dsi: DynamicSchemaIndex,
     client: Client[F],
     baseUri: F[Uri],
@@ -293,7 +293,7 @@ object Runner {
     }
   }
 
-  def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Async: std.Console](
+  def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Concurrent: Defer: std.Console](
     service: Service[Alg, Op],
     client: Client[F],
     baseUri: F[Uri],

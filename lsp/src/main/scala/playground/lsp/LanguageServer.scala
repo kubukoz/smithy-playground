@@ -2,7 +2,10 @@ package playground.lsp
 
 import cats.Applicative
 import cats.FlatMap
+import cats.MonadThrow
+import cats.effect.implicits._
 import cats.effect.kernel.Async
+import cats.effect.std.Supervisor
 import cats.implicits._
 import cats.tagless.Derive
 import cats.tagless.SuspendK
@@ -26,8 +29,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import cats.MonadThrow
-import cats.effect.std
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -56,10 +57,11 @@ object LanguageServer {
     new Throwable("Server not available").raiseError[F, LanguageServer[F]]
   )
 
-  def instance[F[_]: Async: TextDocumentManager: LanguageClient](
+  def instance[F[_]: Async: TextDocumentManager: LanguageClient: ServerReload](
     dsi: DynamicSchemaIndex,
     runner: Runner.Optional[F],
-    fileWatcher: F[Unit],
+  )(
+    implicit sup: Supervisor[F]
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
@@ -195,7 +197,30 @@ object LanguageServer {
 
       def didChangeWatchedFiles(
         params: DidChangeWatchedFilesParams
-      ): F[Unit] = fileWatcher
+      ): F[Unit] = ServerReload[F].prepare.flatMap {
+        case None =>
+          LanguageClient[F].showInfoMessage(
+            "No change detected, not rebuilding server"
+          )
+        case Some(params @ (bc, _)) =>
+          LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
+            ServerReload[F].perform(params).onError { case e =>
+              LanguageClient[F].showErrorMessage(
+                "Couldn't reload server: " + e.getMessage
+              )
+            } *>
+            // Can't make (and wait for) client requests while handling a client request (file change)
+            {
+              LanguageClient[F].refreshDiagnostics *>
+                LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
+                  .showInfoMessage(
+                    s"Reloaded Smithy Playground server with " +
+                      s"${bc.imports.combineAll.size} imports, " +
+                      s"${bc.mavenDependencies.combineAll.size} dependencies and " +
+                      s"${bc.plugins.flatMap(_.smithyPlayground).flatMap(_.extensions).size} plugins"
+                  )
+            }.supervise(sup).void
+      }
 
       def executeCommand(
         params: ExecuteCommandParams
