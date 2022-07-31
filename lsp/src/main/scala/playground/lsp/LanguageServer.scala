@@ -3,6 +3,9 @@ package playground.lsp
 import cats.Applicative
 import cats.effect.kernel.Async
 import cats.implicits._
+import cats.tagless.Derive
+import cats.tagless.SuspendK
+import cats.tagless.Suspended
 import cats.~>
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ServerCapabilities
@@ -22,6 +25,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import cats.FlatMap
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -189,5 +193,62 @@ object LanguageServer {
 
       def exit(): F[Unit] = Applicative[F].unit
     }
+
+  // Hoping https://github.com/typelevel/cats-tagless/issues/365 would simplify this
+  implicit val suspendKLSP: SuspendK[LanguageServer] =
+    new SuspendK[LanguageServer] {
+      private val funk = Derive.functorK[LanguageServer]
+      def mapK[F[_], G[_]](af: LanguageServer[F])(fk: F ~> G): LanguageServer[G] = funk.mapK(af)(fk)
+
+      def suspend[F[_]]: LanguageServer[Suspended[LanguageServer, F, *]] =
+        new LanguageServer[Suspended[LanguageServer, F, *]] {
+          def initialize(params: InitializeParams): Suspended[LanguageServer, F, InitializeResult] =
+            Suspended(_.initialize(params))
+
+          def didChange(params: DidChangeTextDocumentParams): Suspended[LanguageServer, F, Unit] =
+            Suspended(_.didChange(params))
+
+          def didOpen(params: DidOpenTextDocumentParams): Suspended[LanguageServer, F, Unit] =
+            Suspended(_.didOpen(params))
+
+          def didSave(params: DidSaveTextDocumentParams): Suspended[LanguageServer, F, Unit] =
+            Suspended(_.didSave(params))
+
+          def didClose(params: DidCloseTextDocumentParams): Suspended[LanguageServer, F, Unit] =
+            Suspended(_.didClose(params))
+
+          def formatting(
+            params: DocumentFormattingParams
+          ): Suspended[LanguageServer, F, List[TextEdit]] = Suspended(_.formatting(params))
+
+          def completion(
+            position: CompletionParams
+          ): Suspended[LanguageServer, F, Either[List[CompletionItem], CompletionList]] = Suspended(
+            _.completion(position)
+          )
+
+          def diagnostic(
+            params: DocumentDiagnosticParams
+          ): Suspended[LanguageServer, F, DocumentDiagnosticReport] = Suspended(
+            _.diagnostic(params)
+          )
+
+          def codeLens(params: CodeLensParams): Suspended[LanguageServer, F, List[CodeLens]] =
+            Suspended(_.codeLens(params))
+
+          def executeCommand(params: ExecuteCommandParams): Suspended[LanguageServer, F, Unit] =
+            Suspended(_.executeCommand(params))
+
+          def shutdown(): Suspended[LanguageServer, F, Unit] = Suspended(_.shutdown())
+
+          def exit(): Suspended[LanguageServer, F, Unit] = Suspended(_.exit())
+
+        }
+
+    }
+
+  def defer[F[_]: FlatMap](
+    fk: F[LanguageServer[F]]
+  ): LanguageServer[F] = SuspendK[LanguageServer].deferKId(fk)
 
 }

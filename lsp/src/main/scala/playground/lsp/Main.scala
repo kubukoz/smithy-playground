@@ -14,10 +14,7 @@ import cats.effect.std.Dispatcher
 import cats.implicits._
 import fs2.io.file.Path
 import io.circe.Decoder
-import org.eclipse.lsp4j.MessageParams
-import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.launch.LSPLauncher
-import org.eclipse.lsp4j.services
 import org.http4s.Uri
 import org.http4s.client.Client
 import org.http4s.ember.client.EmberClientBuilder
@@ -28,6 +25,7 @@ import playground.ModelReader
 import playground.Runner
 import playground.TextDocumentManager
 import playground.TextDocumentProvider
+import playground.lsp.buildinfo.BuildInfo
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
@@ -39,7 +37,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.PrintWriter
 import java.nio.charset.Charset
-import playground.lsp.buildinfo.BuildInfo
+import java.time.Instant
 
 object Main extends IOApp.Simple {
 
@@ -80,18 +78,19 @@ object Main extends IOApp.Simple {
     out: OutputStream,
   )(
     implicit d: Dispatcher[IO]
-  ) = Deferred[IO, PlaygroundLanguageClient].toResource.flatMap { clientPromise =>
-    makeServer(LanguageClient.suspend(clientPromise.get.map(LanguageClient.adapt(_)))).evalMap {
-      server =>
-        val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
-          .setLocalService(new PlaygroundLanguageServerAdapter(server))
-          .setRemoteInterface(classOf[PlaygroundLanguageClient])
-          .setInput(in)
-          .setOutput(out)
-          .traceMessages(logWriter)
-          .create();
+  ) = Deferred[IO, LanguageClient[IO]].toResource.flatMap { clientPromise =>
+    makeServer(LanguageClient.suspend(clientPromise.get)).evalMap { server =>
+      val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
+        .setLocalService(new PlaygroundLanguageServerAdapter(server))
+        .setRemoteInterface(classOf[PlaygroundLanguageClient])
+        .setInput(in)
+        .setOutput(out)
+        .traceMessages(logWriter)
+        .create();
 
-        connect(launcher.getRemoteProxy(), clientPromise).as(launcher)
+      val client = LanguageClient.adapt[IO](launcher.getRemoteProxy())
+
+      connect(client, clientPromise).as(launcher)
     }
 
   }
@@ -99,6 +98,36 @@ object Main extends IOApp.Simple {
   private implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
     Uri.fromString(_).leftMap(_.message)
   )
+
+  /** Produces a server using the global resources. Anything instantiated here should be considered
+    * ephemeral and may be rebuilt on every change to the build files.
+    */
+  private def makeServerInstance[F[_]: LanguageClient: TextDocumentManager: Async: std.Console](
+    client: Client[F],
+    awsEnv: Resource[F, AwsEnvironment[F]],
+  ): F[LanguageServer[F]] = buildFile[F].flatMap { case (buildConfig, buildFile) =>
+    buildSchemaIndex(buildConfig, buildFile)
+      .flatMap { dsi =>
+        PluginResolver
+          .resolveFromConfig[F](buildConfig)
+          .map { plugins =>
+            val runner = Runner
+              .forSchemaIndex[F](
+                dsi,
+                client,
+                LanguageClient[F]
+                  .configuration[Uri]("smithyql.http.baseUrl"),
+                awsEnv,
+                plugins = plugins,
+              )
+
+            LanguageServer.instance[F](dsi, runner)
+          }
+      }
+      .flatTap { _ =>
+        LanguageClient[F].showInfoMessage("Reloaded workspace at " + Instant.now())
+      }
+  }
 
   private def makeServer(
     implicit lc: LanguageClient[IO]
@@ -114,33 +143,7 @@ object Main extends IOApp.Simple {
           TextDocumentManager
             .instance[IO]
             .flatMap { implicit tdm =>
-              buildFile[IO].flatMap { case (buildConfig, buildFile) =>
-                buildSchemaIndex(buildConfig, buildFile)
-                  .flatMap { dsi =>
-                    PluginResolver
-                      .resolve[IO](
-                        buildConfig
-                          .plugins
-                          .flatMap(_.smithyPlayground)
-                          .flatMap(_.extensions)
-                          .combineAll,
-                        buildConfig.mavenRepositories.combineAll,
-                      )
-                      .map { plugins =>
-                        val runner = Runner
-                          .forSchemaIndex[IO](
-                            dsi,
-                            client,
-                            LanguageClient[IO]
-                              .configuration[Uri]("smithyql.http.baseUrl"),
-                            awsEnv,
-                            plugins = plugins,
-                          )
-
-                        LanguageServer.instance[IO](dsi, runner)
-                      }
-                  }
-              }
+              makeServerInstance(client, awsEnv)
             }
             .toResource
         }
@@ -185,7 +188,10 @@ object Main extends IOApp.Simple {
       }
   }
 
-  private def buildSchemaIndex(bc: BuildConfig, buildConfigPath: Path): IO[DynamicSchemaIndex] = IO
+  private def buildSchemaIndex[F[_]: Sync](
+    bc: BuildConfig,
+    buildConfigPath: Path,
+  ): F[DynamicSchemaIndex] = Sync[F]
     .interruptibleMany {
       ModelLoader
         .load(
@@ -209,19 +215,15 @@ object Main extends IOApp.Simple {
         )
         ._2
     }
-    .flatMap(ModelReader.buildSchemaIndex[IO])
+    .flatMap(ModelReader.buildSchemaIndex[F])
 
-  private def connect[C <: services.LanguageClient](
-    client: C,
-    clientDeff: DeferredSink[IO, C],
-  ) =
+  private def connect(
+    client: LanguageClient[IO],
+    clientDeff: DeferredSink[IO, LanguageClient[IO]],
+  ): IO[Unit] =
     log("connecting: " + client) *>
       clientDeff.complete(client) *>
-      IO(
-        client.showMessage(
-          new MessageParams(MessageType.Info, s"Hello from Smithy Playground v${BuildInfo.version}")
-        )
-      ) *>
+      client.showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
       log("Server connected")
 
   private object middleware {

@@ -27,7 +27,7 @@ export function activate(context: ExtensionContext) {
     },
     {
       documentSelector: [{ language: "smithyql" }],
-    } as LanguageClientOptions
+    }
   );
   const registerRunCommand = commands.registerTextEditorCommand(
     "smithyql.runQuery",

@@ -10,8 +10,18 @@ import java.net.URLClassLoader
 import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._
 import playground.plugins.PlaygroundPlugin
+import playground.BuildConfig
 
 object PluginResolver {
+
+  def resolveFromConfig[F[_]: Async](config: BuildConfig): F[List[PlaygroundPlugin]] = resolve[F](
+    config
+      .plugins
+      .flatMap(_.smithyPlayground)
+      .flatMap(_.extensions)
+      .combineAll,
+    config.mavenRepositories.combineAll,
+  )
 
   def resolve[F[_]: Async](
     artifacts: List[String],

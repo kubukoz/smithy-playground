@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.immutable.ListMap
 
 trait Feedback[F[_]] {
+  def showInfoMessage(msg: String): F[Unit]
   def showErrorMessage(msg: String): F[Unit]
   def showOutputPanel: F[Unit]
   def logOutput(msg: String): F[Unit]
