@@ -3,15 +3,15 @@ package playground.lsp
 import cats.Functor
 import cats.effect.std.Dispatcher
 import cats.implicits._
+import com.google.gson.JsonPrimitive
 import org.eclipse.lsp4j._
+import org.eclipse.lsp4j.jsonrpc.messages
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
-import org.eclipse.lsp4j.jsonrpc.messages
 import scala.util.chaining._
-import com.google.gson.JsonPrimitive
 
 final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   impl: LanguageServer[F]
@@ -23,6 +23,11 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   def initialize(
     params: InitializeParams
   ): CompletableFuture[InitializeResult] = d.unsafeToCompletableFuture(impl.initialize(params))
+
+  @JsonNotification("initialized")
+  def initialize(
+    params: InitializedParams
+  ): Unit = d.unsafeRunSync(impl.initialized(params))
 
   @JsonRequest("shutdown")
   def shutdown(
@@ -91,6 +96,11 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
         .executeCommand(params)
         .as(null: Object)
     )
+
+  @JsonNotification("workspace/didChangeWatchedFiles")
+  def didChangeWatchedFiles(
+    params: DidChangeWatchedFilesParams
+  ): Unit = d.unsafeRunSync(impl.didChangeWatchedFiles(params))
 
   @JsonRequest("smithyql/runQuery")
   def runQuery(params: RunQueryParams): CompletableFuture[Object] = executeCommand(

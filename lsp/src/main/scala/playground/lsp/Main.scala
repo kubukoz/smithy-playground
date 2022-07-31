@@ -1,12 +1,12 @@
 package playground.lsp
 
+import cats.Defer
 import cats.Show
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.implicits._
 import cats.effect.kernel.Async
-import cats.effect.kernel.Deferred
-import cats.effect.kernel.DeferredSink
+import cats.effect.kernel.Ref
 import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.effect.std
@@ -33,17 +33,17 @@ import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.io.PrintStream
 import java.io.PrintWriter
 import java.nio.charset.Charset
-import java.time.Instant
 
 object Main extends IOApp.Simple {
 
-  private val logWriter = new PrintWriter(new File("smithyql-log.txt"))
-
-  def log(s: String): IO[Unit] = IO(logWriter.println(s))
+  private val logOut = new PrintStream(new FileOutputStream(new File("smithyql-log.txt")))
+  private val logWriter = new PrintWriter(logOut)
 
   implicit val ioConsole: std.Console[IO] =
     new std.Console[IO] {
@@ -64,10 +64,18 @@ object Main extends IOApp.Simple {
 
     }
 
+  def log[F[_]: std.Console](s: String): F[Unit] = std.Console[F].println(s)
+
   def run: IO[Unit] =
     Dispatcher[IO]
       .flatMap { implicit d =>
-        launch(System.in, System.out)
+        std.Supervisor[IO].flatMap { implicit sup =>
+          val stdin = System.in
+          val stdout = System.out
+
+          IO(System.setOut(logOut)).toResource *>
+            launch(stdin, stdout)
+        }
       }
       .use { launcher =>
         IO.interruptibleMany(launcher.startListening().get())
@@ -77,22 +85,22 @@ object Main extends IOApp.Simple {
     in: InputStream,
     out: OutputStream,
   )(
-    implicit d: Dispatcher[IO]
-  ) = Deferred[IO, LanguageClient[IO]].toResource.flatMap { clientPromise =>
-    makeServer(LanguageClient.suspend(clientPromise.get)).evalMap { server =>
-      val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
-        .setLocalService(new PlaygroundLanguageServerAdapter(server))
-        .setRemoteInterface(classOf[PlaygroundLanguageClient])
-        .setInput(in)
-        .setOutput(out)
-        .traceMessages(logWriter)
-        .create();
+    implicit d: Dispatcher[IO],
+    sup: std.Supervisor[IO],
+  ) = IO.ref((LanguageServer.notAvailable[IO], none[BuildConfig])).toResource.flatMap { serverRef =>
+    val server = LanguageServer.defer(serverRef.get.map(_._1))
 
-      val client = LanguageClient.adapt[IO](launcher.getRemoteProxy())
+    val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
+      .setLocalService(new PlaygroundLanguageServerAdapter(server))
+      .setRemoteInterface(classOf[PlaygroundLanguageClient])
+      .setInput(in)
+      .setOutput(out)
+      .traceMessages(logWriter)
+      .create();
 
-      connect(client, clientPromise).as(launcher)
-    }
+    implicit val client: LanguageClient[IO] = LanguageClient.adapt[IO](launcher.getRemoteProxy())
 
+    connect(serverRef).as(launcher)
   }
 
   private implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
@@ -103,44 +111,87 @@ object Main extends IOApp.Simple {
     * ephemeral and may be rebuilt on every change to the build files.
     */
   private def makeServerInstance[F[_]: LanguageClient: TextDocumentManager: Async: std.Console](
+    buildConfig: BuildConfig,
+    buildFilePath: Path,
     client: Client[F],
     awsEnv: Resource[F, AwsEnvironment[F]],
-  ): F[LanguageServer[F]] = buildFile[F].flatMap { case (buildConfig, buildFile) =>
-    buildSchemaIndex(buildConfig, buildFile)
-      .flatMap { dsi =>
-        PluginResolver
-          .resolveFromConfig[F](buildConfig)
-          .map { plugins =>
-            val runner = Runner
-              .forSchemaIndex[F](
-                dsi,
-                client,
-                LanguageClient[F]
-                  .configuration[Uri]("smithyql.http.baseUrl"),
-                awsEnv,
-                plugins = plugins,
-              )
+    reload: F[Unit],
+  ): F[LanguageServer[F]] = buildSchemaIndex(buildConfig, buildFilePath)
+    .flatMap { dsi =>
+      PluginResolver
+        .resolveFromConfig[F](buildConfig)
+        .map { plugins =>
+          val runner = Runner
+            .forSchemaIndex[F](
+              dsi,
+              client,
+              LanguageClient[F]
+                .configuration[Uri]("smithyql.http.baseUrl"),
+              awsEnv,
+              plugins = plugins,
+            )
 
-            LanguageServer.instance[F](dsi, runner)
-          }
-      }
-  }
+          LanguageServer.instance[F](dsi, runner, reload)
+        }
+    }
 
-  private def makeServer(
-    implicit lc: LanguageClient[IO]
-  ): Resource[IO, LanguageServer[IO]] = EmberClientBuilder
-    .default[IO]
+  private def makeServer[F[_]: Async: std.Console](
+    serverRef: Ref[F, (LanguageServer[F], Option[BuildConfig])]
+  )(
+    implicit lc: LanguageClient[F],
+    sup: std.Supervisor[F],
+  ): Resource[F, Unit] = EmberClientBuilder
+    .default[F]
     .build
-    .map(middleware.AuthorizationHeader[IO])
+    .map(middleware.AuthorizationHeader[F])
     .flatMap { client =>
       AwsEnvironment
         .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
         .memoize
         .flatMap { awsEnv =>
           TextDocumentManager
-            .instance[IO]
+            .instance[F]
             .flatMap { implicit tdm =>
-              makeServerInstance(client, awsEnv)
+              def mkServer(bc: BuildConfig, p: Path, reload: F[Unit])
+                : F[Unit] = makeServerInstance(bc, p, client, awsEnv, reload)
+                .tupleRight(bc.some)
+                .flatMap(serverRef.set)
+
+              buildFile[F]
+                .flatMap { case (initialBuildConfig, buildFilePath) =>
+                  val reload = Defer[F].fix[Unit] { self =>
+                    buildFile[F].flatMap { case (bc, path) =>
+                      val completeAsync =
+                        LanguageClient[F].refreshDiagnostics *>
+                          LanguageClient[F].refreshCodeLenses *> LanguageClient[F].showInfoMessage(
+                            s"Reloaded Smithy Playground server with " +
+                              s"${bc.imports.combineAll.size} imports, " +
+                              s"${bc.mavenDependencies.combineAll.size} dependencies and " +
+                              s"${bc.plugins.flatMap(_.smithyPlayground).flatMap(_.extensions).size} plugins"
+                          )
+
+                      serverRef.get.map(_._2).flatMap { previousBuildConfig =>
+                        if (previousBuildConfig.contains(bc))
+                          LanguageClient[F].showInfoMessage(
+                            "No change detected, not rebuilding server"
+                          )
+                        else
+                          LanguageClient[F].showInfoMessage(
+                            "Detected changes, will try to rebuild server..."
+                          ) *>
+                            mkServer(bc, path, self).onError { case e =>
+                              LanguageClient[F].showErrorMessage(
+                                "Couldn't reload server: " + e.getMessage
+                              )
+                            } *>
+                            // Can't make (and wait for) client requests while handling a client request (file change)
+                            completeAsync.supervise(sup).void
+                      }
+                    }
+                  }
+
+                  mkServer(initialBuildConfig, buildFilePath, reload)
+                }
             }
             .toResource
         }
@@ -214,14 +265,15 @@ object Main extends IOApp.Simple {
     }
     .flatMap(ModelReader.buildSchemaIndex[F])
 
-  private def connect(
-    client: LanguageClient[IO],
-    clientDeff: DeferredSink[IO, LanguageClient[IO]],
-  ): IO[Unit] =
-    log("connecting: " + client) *>
-      clientDeff.complete(client) *>
-      client.showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
-      log("Server connected")
+  private def connect[F[_]: Async: LanguageClient: std.Console: std.Supervisor](
+    serverRef: Ref[F, (LanguageServer[F], Option[BuildConfig])]
+  ): Resource[F, Unit] =
+    log[F]("connecting").toResource *>
+      makeServer(serverRef) *>
+      LanguageClient[F]
+        .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}")
+        .toResource *>
+      log[F]("Server connected").toResource
 
   private object middleware {
 

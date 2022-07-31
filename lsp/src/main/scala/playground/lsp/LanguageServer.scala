@@ -1,6 +1,7 @@
 package playground.lsp
 
 import cats.Applicative
+import cats.FlatMap
 import cats.effect.kernel.Async
 import cats.implicits._
 import cats.tagless.Derive
@@ -25,10 +26,12 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import cats.FlatMap
+import cats.MonadThrow
+import cats.effect.std
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
+  def initialized(params: InitializedParams): F[Unit]
   def didChange(params: DidChangeTextDocumentParams): F[Unit]
   def didOpen(params: DidOpenTextDocumentParams): F[Unit]
   def didSave(params: DidSaveTextDocumentParams): F[Unit]
@@ -37,6 +40,11 @@ trait LanguageServer[F[_]] {
   def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
   def diagnostic(params: DocumentDiagnosticParams): F[DocumentDiagnosticReport]
   def codeLens(params: CodeLensParams): F[List[CodeLens]]
+
+  def didChangeWatchedFiles(
+    params: DidChangeWatchedFilesParams
+  ): F[Unit]
+
   def executeCommand(params: ExecuteCommandParams): F[Unit]
   def shutdown(): F[Unit]
   def exit(): F[Unit]
@@ -44,9 +52,14 @@ trait LanguageServer[F[_]] {
 
 object LanguageServer {
 
+  def notAvailable[F[_]: MonadThrow]: LanguageServer[F] = defer(
+    new Throwable("Server not available").raiseError[F, LanguageServer[F]]
+  )
+
   def instance[F[_]: Async: TextDocumentManager: LanguageClient](
     dsi: DynamicSchemaIndex,
     runner: Runner.Optional[F],
+    fileWatcher: F[Unit],
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
@@ -75,6 +88,7 @@ object LanguageServer {
         new InitializeResult(capabilities).pure[F]
       }
 
+      def initialized(params: InitializedParams): F[Unit] = Applicative[F].unit
       def shutdown(): F[Unit] = Applicative[F].unit
 
       def didChange(params: DidChangeTextDocumentParams): F[Unit] = {
@@ -179,6 +193,10 @@ object LanguageServer {
             .map(converters.toLSP.codeLens(documentText, _))
       }
 
+      def didChangeWatchedFiles(
+        params: DidChangeWatchedFilesParams
+      ): F[Unit] = fileWatcher
+
       def executeCommand(
         params: ExecuteCommandParams
       ): F[Unit] = params
@@ -204,6 +222,9 @@ object LanguageServer {
         new LanguageServer[Suspended[LanguageServer, F, *]] {
           def initialize(params: InitializeParams): Suspended[LanguageServer, F, InitializeResult] =
             Suspended(_.initialize(params))
+
+          def initialized(params: InitializedParams): Suspended[LanguageServer, F, Unit] =
+            Suspended(_.initialized(params))
 
           def didChange(params: DidChangeTextDocumentParams): Suspended[LanguageServer, F, Unit] =
             Suspended(_.didChange(params))
@@ -235,6 +256,10 @@ object LanguageServer {
 
           def codeLens(params: CodeLensParams): Suspended[LanguageServer, F, List[CodeLens]] =
             Suspended(_.codeLens(params))
+
+          def didChangeWatchedFiles(
+            params: DidChangeWatchedFilesParams
+          ): Suspended[LanguageServer, F, Unit] = Suspended(_.didChangeWatchedFiles(params))
 
           def executeCommand(params: ExecuteCommandParams): Suspended[LanguageServer, F, Unit] =
             Suspended(_.executeCommand(params))

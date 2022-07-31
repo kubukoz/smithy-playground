@@ -1,8 +1,5 @@
-import { commands, ExtensionContext, workspace } from "vscode";
-import {
-  LanguageClientOptions,
-  LanguageClient,
-} from "vscode-languageclient/node";
+import { commands, ExtensionContext, window, workspace } from "vscode";
+import { LanguageClient } from "vscode-languageclient/node";
 
 export function activate(context: ExtensionContext) {
   const serverArtifact = workspace
@@ -27,8 +24,14 @@ export function activate(context: ExtensionContext) {
     },
     {
       documentSelector: [{ language: "smithyql" }],
+      synchronize: {
+        fileEvents: workspace.createFileSystemWatcher(
+          "**/{build/smithy-dependencies.json,.smithy.json,smithy-build.json}"
+        ),
+      },
     }
   );
+
   const registerRunCommand = commands.registerTextEditorCommand(
     "smithyql.runQuery",
     (editor) => {

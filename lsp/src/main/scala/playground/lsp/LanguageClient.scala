@@ -13,14 +13,15 @@ import playground.Feedback
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import cats.tagless.SuspendK
-import cats.~>
-import cats.tagless.Derive
-import cats.tagless.SuspendK
-import cats.tagless.Suspended
 
 trait LanguageClient[F[_]] extends Feedback[F] {
   def configuration[A: Decoder](section: String): F[A]
+  def showMessage(tpe: MessageType, msg: String): F[Unit]
+  def refreshDiagnostics: F[Unit]
+  def refreshCodeLenses: F[Unit]
+
+  def showInfoMessage(msg: String): F[Unit] = showMessage(MessageType.Info, msg)
+  def showErrorMessage(msg: String): F[Unit] = showMessage(MessageType.Error, msg)
 }
 
 object LanguageClient {
@@ -59,13 +60,9 @@ object LanguageClient {
         }
         .flatMap(_.as[A].liftTo[F])
 
-      private def showMessage(tpe: MessageType, msg: String): F[Unit] = withClientSync(
+      def showMessage(tpe: MessageType, msg: String): F[Unit] = withClientSync(
         _.showMessage(new MessageParams(tpe, msg))
       )
-
-      def showInfoMessage(msg: String): F[Unit] = showMessage(MessageType.Info, msg)
-
-      def showErrorMessage(msg: String): F[Unit] = showMessage(MessageType.Error, msg)
 
       def logOutput(msg: String): F[Unit] = withClientSync(
         _.logMessage(new MessageParams().tap(_.setMessage(msg)))
@@ -73,38 +70,8 @@ object LanguageClient {
 
       def showOutputPanel: F[Unit] = withClientSync(_.showOutputPanel())
 
+      def refreshCodeLenses: F[Unit] = withClientF(_.refreshCodeLenses()).void
+      def refreshDiagnostics: F[Unit] = withClientF(_.refreshDiagnostics()).void
     }
-
-  implicit val suspendKClient: SuspendK[LanguageClient] =
-    new SuspendK[LanguageClient] {
-      private val funk = Derive.functorK[LanguageClient]
-
-      def mapK[F[_], G[_]](af: LanguageClient[F])(fk: F ~> G): LanguageClient[G] = funk.mapK(af)(fk)
-
-      def suspend[F[_]]: LanguageClient[Suspended[LanguageClient, F, *]] =
-        new LanguageClient[Suspended[LanguageClient, F, *]] {
-
-          def showInfoMessage(msg: String): Suspended[LanguageClient, F, Unit] = Suspended(
-            _.showInfoMessage(msg)
-          )
-
-          def showErrorMessage(msg: String): Suspended[LanguageClient, F, Unit] = Suspended(
-            _.showErrorMessage(msg)
-          )
-
-          def showOutputPanel: Suspended[LanguageClient, F, Unit] = Suspended(_.showOutputPanel)
-
-          def logOutput(msg: String): Suspended[LanguageClient, F, Unit] = Suspended(
-            _.logOutput(msg)
-          )
-
-          def configuration[A: Decoder](section: String): Suspended[LanguageClient, F, A] =
-            Suspended(_.configuration(section))
-        }
-
-    }
-
-  def suspend[F[_]: Async](clientF: F[LanguageClient[F]]): LanguageClient[F] =
-    SuspendK[LanguageClient].deferKId(clientF)
 
 }
