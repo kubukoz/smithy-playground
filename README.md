@@ -6,8 +6,8 @@ Currently, everything is only available as a VS Code plugin, with future ideas t
 
 ## Usage
 
-1. Get the extension from [Marketplace](https://marketplace.visualstudio.com/items?itemName=kubukoz.smithy-playground)
-2. Make sure you have Coursier available on the PATH as `cs`
+1. Make sure you have Coursier available on the PATH as `cs`
+2. Get the extension from [Marketplace](https://marketplace.visualstudio.com/items?itemName=kubukoz.smithy-playground)
 3. Create a file, `smithy-build.json`. Example:
 
 ```jsonc
