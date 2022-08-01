@@ -10,6 +10,11 @@ export function activate(context: ExtensionContext) {
     .getConfiguration()
     .get<string>("smithyql.server.version");
 
+  const outputChannel = window.createOutputChannel(
+    "Smithy Playground",
+    "smithyql"
+  );
+
   const lspClient = new LanguageClient(
     "smithyPlayground",
     "Smithy Playground",
@@ -29,6 +34,7 @@ export function activate(context: ExtensionContext) {
           "**/{build/smithy-dependencies.json,.smithy.json,smithy-build.json}"
         ),
       },
+      outputChannel,
     }
   );
 
