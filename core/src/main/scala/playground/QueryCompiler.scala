@@ -455,10 +455,7 @@ object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
       case VectorTag     => listOf(member).map(_.toVector)
     }
 
-  private def listOf[A](
-    member: Schema[A]
-  ) = listWithPos(member.compile(this))
-    .map(_.map(_._1))
+  private def listOf[A](member: Schema[A]) = listWithPos(member.compile(this)).map(_.map(_._1))
 
   def map[K, V](
     shapeId: ShapeId,
