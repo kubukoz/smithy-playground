@@ -364,6 +364,7 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
         }
 
       case c: CollectionSchema[_, _] => collection(c)
+      case m: MapSchema[_, _]        => m.reifyHint[api.Length]
       case _                         => schema
     }
 
