@@ -32,6 +32,7 @@ import WithSource.NodeContext.PathEntry
 import java.util.UUID
 import smithy.api
 import smithy4s.Bijection
+import smithy4s.schema.Schema.BijectionSchema
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
@@ -178,7 +179,7 @@ object CompletionItem {
 
       case Schema.RefinementSchema(underlying, _) => describeSchema(underlying)
 
-      case s => now(s.shapeId.name)
+      case BijectionSchema(underlying, _) => describeSchema(underlying)
     }
 
   private def now(s: String): () => String = () => s
