@@ -1,21 +1,26 @@
 package playground.smithyql
 
 import cats.Show
+import cats.data.Chain
 import cats.data.Ior
 import cats.data.NonEmptyChain
 import cats.implicits._
 import demo.smithy.Bad
 import demo.smithy.FriendSet
 import demo.smithy.Good
+import demo.smithy.HasDeprecations
 import demo.smithy.Hero
 import demo.smithy.IntSet
 import demo.smithy.Ints
+import demo.smithy.MyInstant
 import demo.smithy.Power
 import org.scalacheck.Arbitrary
 import playground.CompilationError
 import playground.CompilationErrorDetails
+import playground.DiagnosticTag
 import playground.PartialCompiler
 import playground.QueryCompiler
+import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.Document
 import smithy4s.ShapeId
@@ -30,16 +35,10 @@ import smithy4s.schema.Schema
 import weaver._
 import weaver.scalacheck.Checkers
 
+import java.time
 import java.util.UUID
 
 import Arbitraries._
-import demo.smithy.HasDeprecations
-import smithy.api
-import cats.data.Chain
-import playground.DiagnosticTag
-import demo.smithy.Instant
-import demo.smithy.InstantProvider
-import java.time
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -538,7 +537,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     val s = "2022-07-11T17:42:28.000Z"
     val ts = time.Instant.parse(s)
 
-    val result = compile[Instant](WithSource.liftId(s.mapK(WithSource.liftId)))
+    val result = compile[MyInstant](WithSource.liftId(s.mapK(WithSource.liftId)))
 
     assert(result == Ior.right(ts))
   }
