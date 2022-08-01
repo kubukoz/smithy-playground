@@ -1,5 +1,3 @@
 {
-  "mavenDependencies": [
-    "com.disneystreaming.smithy4s:smithy4s-protocol:latest.release"
-  ]
+  "mavenDependencies": ["com.disneystreaming.smithy4s:smithy4s-protocol:dev"]
 }

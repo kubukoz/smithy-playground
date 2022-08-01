@@ -9,6 +9,7 @@ import playground.smithyql.IntLiteral
 import playground.smithyql.Listed
 import playground.smithyql.StringLiteral
 import playground.smithyql.Struct
+import smithy4s.Bijection
 import smithy4s.Document
 import smithy4s.Document.DArray
 import smithy4s.Document.DBoolean
@@ -20,7 +21,13 @@ import smithy4s.Hints
 import smithy4s.Lazy
 import smithy4s.Refinement
 import smithy4s.ShapeId
+import smithy4s.capability.EncoderK
 import smithy4s.schema.Alt
+import smithy4s.schema.CollectionTag
+import smithy4s.schema.CollectionTag.IndexedSeqTag
+import smithy4s.schema.CollectionTag.ListTag
+import smithy4s.schema.CollectionTag.SetTag
+import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -42,12 +49,6 @@ import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
-import smithy4s.schema.CollectionTag
-import smithy4s.capability.EncoderK
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -194,15 +195,13 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
 
   def biject[A, B](
     schema: Schema[A],
-    to: A => B,
-    from: B => A,
-  ): NodeEncoder[B] = schema.compile(this).contramap(from)
+    bijection: Bijection[A, B],
+  ): NodeEncoder[B] = schema.compile(this).contramap(bijection.from)
 
-  def surject[A, B](
+  def refine[A, B](
     schema: Schema[A],
-    to: Refinement[A, B],
-    from: B => A,
-  ): NodeEncoder[B] = schema.compile(this).contramap(from)
+    refinement: Refinement[A, B],
+  ): NodeEncoder[B] = schema.compile(this).contramap(refinement.from)
 
   def lazily[A](suspend: Lazy[Schema[A]]): NodeEncoder[A] = {
     val mapped = suspend.map(_.compile(this))

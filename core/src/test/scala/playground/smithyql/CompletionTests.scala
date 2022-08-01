@@ -19,6 +19,7 @@ import demo.smithy.PowerMap
 import demo.smithy.HasNewtypes
 import demo.smithy.HasDeprecations
 import smithy4s.Hints
+import demo.smithy.MyInstant
 
 object CompletionTests extends FunSuite {
 
@@ -299,6 +300,13 @@ object CompletionTests extends FunSuite {
     assert.eql(
       CompletionItem.describeSchema(Schema.uuid)(),
       "uuid UUID",
+    )
+  }
+
+  test("describe refinement") {
+    assert.eql(
+      CompletionItem.describeSchema(MyInstant.schema)(),
+      "timestamp MyInstant",
     )
   }
 
