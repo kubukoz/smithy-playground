@@ -16,7 +16,9 @@ import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Lazy
 import smithy4s.Refinement
+import smithy4s.RefinementProvider
 import smithy4s.ShapeId
+import smithy4s.Surjection
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
@@ -42,6 +44,15 @@ import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
+import smithy4s.schema.Schema.BijectionSchema
+import smithy4s.schema.Schema.CollectionSchema
+import smithy4s.schema.Schema.EnumerationSchema
+import smithy4s.schema.Schema.LazySchema
+import smithy4s.schema.Schema.MapSchema
+import smithy4s.schema.Schema.PrimitiveSchema
+import smithy4s.schema.Schema.RefinementSchema
+import smithy4s.schema.Schema.StructSchema
+import smithy4s.schema.Schema.UnionSchema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 import smithy4s.~>
@@ -50,19 +61,6 @@ import java.util.UUID
 
 import util.chaining._
 import PartialCompiler.WAST
-import smithy4s.schema.Schema.EnumerationSchema
-import smithy4s.schema.Schema.PrimitiveSchema
-import smithy4s.schema.Schema.UnionSchema
-import smithy4s.schema.Schema.BijectionSchema
-import smithy4s.schema.Schema.LazySchema
-import smithy4s.schema.Schema.RefinementSchema
-import smithy4s.schema.Schema.CollectionSchema
-import smithy4s.schema.Schema.MapSchema
-import smithy4s.schema.Schema.StructSchema
-import smithy4s.RefinementProvider
-import java.time
-import smithy4s.ShapeTag
-import smithy4s.Surjection
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
