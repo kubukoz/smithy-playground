@@ -48,7 +48,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   def compile[A: smithy4s.Schema](
     in: PartialCompiler.WAST
-  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompiler).compile(in)
+  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompiler.full).compile(in)
 
   val dynamicModel = DynamicSchemaIndex.load(
     Model(
@@ -129,16 +129,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
-  // todo
-  // pureTest("string with length constraint - fail (dynamic)") {
-  //   val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "StringWithLength"))
+  pureTest("string with length constraint - fail (dynamic)") {
+    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "StringWithLength"))
 
-  //   assert(
-  //     compile {
-  //       WithSource.liftId("".mapK(WithSource.liftId))
-  //     }(dynamicStringSchema).isLeft
-  //   )
-  // }
+    assert(
+      compile {
+        WithSource.liftId("".mapK(WithSource.liftId))
+      }(dynamicStringSchema).isLeft
+    )
+  }
 
   pureTest("string - got int instead") {
     assert(

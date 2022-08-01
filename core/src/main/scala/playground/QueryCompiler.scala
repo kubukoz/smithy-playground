@@ -9,7 +9,9 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import playground.CompilationErrorDetails._
 import playground.smithyql._
+import smithy.api
 import smithy.api.TimestampFormat
+import smithy4s.Bijection
 import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Lazy
@@ -42,12 +44,12 @@ import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
+import smithy4s.~>
+
+import java.util.UUID
 
 import util.chaining._
 import PartialCompiler.WAST
-import java.util.UUID
-import smithy.api
-import smithy4s.Bijection
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -287,7 +289,18 @@ object CompilationErrorDetails {
   final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }
 
-object QueryCompiler extends SchemaVisitor[PartialCompiler] {
+object QueryCompiler {
+  val full = AddDynamicRefinements andThen QueryCompilerInternal
+}
+
+object AddDynamicRefinements extends (Schema ~> Schema) {
+
+  // todo: traverse schema to add refinements on each level
+  def apply[A](schema: Schema[A]): Schema[A] = schema
+
+}
+
+object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
 
   def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): PartialCompiler[P] =
     tag match {
@@ -372,7 +385,10 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
       case VectorTag     => listOf(member).map(_.toVector)
     }
 
-  private def listOf[A](member: Schema[A]) = listWithPos(member.compile(this)).map(_.map(_._1))
+  private def listOf[A](
+    member: Schema[A]
+  ) = listWithPos(member.compile(this))
+    .map(_.map(_._1))
 
   def map[K, V](
     shapeId: ShapeId,
@@ -560,18 +576,25 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     bijection: Bijection[A, B],
   ): PartialCompiler[B] = schema.compile(this).map(bijection.apply)
 
-  def refine[A, B](schema: Schema[A], refinement: Refinement[A, B]): PartialCompiler[B] =
-    (schema.compile(this), PartialCompiler.pos).tupled.emap { case (a, pos) =>
-      refinement(a)
-        .toIor
-        .leftMap { msg =>
-          CompilationError.error(
-            CompilationErrorDetails.RefinementFailure(msg),
-            pos,
-          )
-        }
-        .toIorNec
-    }
+  def refine[A, B](
+    schema: Schema[A],
+    refinement: Refinement[A, B],
+  ): PartialCompiler[B] = surject(schema.compile(this), refinement)
+
+  private def surject[A, B, C](
+    pc: PartialCompiler[A],
+    refinement: Refinement[A, B],
+  ): PartialCompiler[B] = (pc, PartialCompiler.pos).tupled.emap { case (a, pos) =>
+    refinement(a)
+      .toIor
+      .leftMap { msg =>
+        CompilationError.error(
+          CompilationErrorDetails.RefinementFailure(msg),
+          pos,
+        )
+      }
+      .toIorNec
+  }
 
   def lazily[A](suspend: Lazy[Schema[A]]): PartialCompiler[A] = {
     val it = suspend.map(_.compile(this))
