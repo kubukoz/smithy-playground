@@ -1,7 +1,11 @@
 package playground.lsp
 
+import cats.FlatMap
 import cats.effect.kernel.Async
 import cats.implicits._
+import cats.tagless.Derive
+import cats.tagless.FunctorK
+import cats.tagless.implicits._
 import com.google.gson.JsonElement
 import io.circe.Decoder
 import org.eclipse.lsp4j.ConfigurationItem
@@ -9,11 +13,11 @@ import org.eclipse.lsp4j.ConfigurationParams
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import playground.Feedback
+import playground.lsp.util.KleisliOps
 
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import cats.FlatMap
 
 trait LanguageClient[F[_]] extends Feedback[F] {
   def configuration[A: Decoder](section: String): F[A]
@@ -28,6 +32,8 @@ trait LanguageClient[F[_]] extends Feedback[F] {
 object LanguageClient {
 
   def apply[F[_]](implicit F: LanguageClient[F]): LanguageClient[F] = F
+
+  implicit val functorK: FunctorK[LanguageClient] = Derive.functorK
 
   def adapt[F[_]: Async](client: PlaygroundLanguageClient): LanguageClient[F] =
     new LanguageClient[F] {
@@ -75,20 +81,8 @@ object LanguageClient {
       def refreshDiagnostics: F[Unit] = withClientF(_.refreshDiagnostics()).void
     }
 
-  def defer[F[_]: FlatMap](fa: F[LanguageClient[F]]): LanguageClient[F] =
-    new LanguageClient[F] {
-      def showOutputPanel: F[Unit] = fa.flatMap(_.showOutputPanel)
-
-      def logOutput(msg: String): F[Unit] = fa.flatMap(_.logOutput(msg))
-
-      def configuration[A: Decoder](section: String): F[A] = fa.flatMap(_.configuration(section))
-
-      def showMessage(tpe: MessageType, msg: String): F[Unit] = fa.flatMap(_.showMessage(tpe, msg))
-
-      def refreshDiagnostics: F[Unit] = fa.flatMap(_.refreshDiagnostics)
-
-      def refreshCodeLenses: F[Unit] = fa.flatMap(_.refreshCodeLenses)
-
-    }
+  def defer[F[_]: FlatMap](
+    fa: F[LanguageClient[F]]
+  ): LanguageClient[F] = Derive.readerT[LanguageClient, F].mapK(KleisliOps.applyEffectK(fa))
 
 }
