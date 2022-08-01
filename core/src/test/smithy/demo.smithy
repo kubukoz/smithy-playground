@@ -2,8 +2,11 @@ namespace demo.smithy
 
 use smithy4s.api#simpleRestJson
 use smithy4s.meta#indexedSeq
-use smithy4s.meta#r
 use smithy4s.meta#refinement
+
+@refinement(targetType: "java.time.Instant", providerInstance: "demo.smithy.InstantProvider.provider")
+@trait
+structure instant { }
 
 @simpleRestJson
 service DemoService {
@@ -18,12 +21,6 @@ service DemoService2 {
   operations: [GetVersion, CreateSubscription],
 }
 
-
-@refinement(targetType: "java.time.Instant", providerInstance: "demo.smithy.InstantProvider.provider")
-@trait
-structure instant {
-
-}
 
 @readonly
 @http(uri: "/version", method: "GET")

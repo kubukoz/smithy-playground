@@ -1,4 +1,4 @@
-package demo.smithy
+package playground
 
 import smithy4s.Refinement
 import smithy4s.Surjection

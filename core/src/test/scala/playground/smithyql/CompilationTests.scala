@@ -81,6 +81,18 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             )
           )
         ),
+        IdRef("test#HasConstraintFields") -> Shape.StructureCase(
+          StructureShape(
+            members = Some(
+              Map(
+                "minLength" -> MemberShape(
+                  target = IdRef("test#StringWithLength"),
+                  traits = Some(Map(IdRef("smithy.api#required") -> Document.obj())),
+                )
+              )
+            )
+          )
+        ),
       ),
     )
   )
@@ -136,6 +148,32 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId("".mapK(WithSource.liftId))
       }(dynamicStringSchema).isLeft
+    )
+  }
+
+  pureTest("string with length constraint - fail (dynamic)") {
+    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "StringWithLength"))
+
+    val result = compile {
+      WithSource.liftId("".mapK(WithSource.liftId))
+    }(dynamicStringSchema)
+      .leftMap(_.map(_.err.asInstanceOf[CompilationErrorDetails.RefinementFailure]))
+
+    assert(
+      result.isLeft
+    )
+  }
+
+  pureTest("string field with length constraint - fail (dynamic)") {
+    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "HasConstraintFields"))
+
+    val result = compile {
+      WithSource.liftId(struct("minLength" -> "").mapK(WithSource.liftId))
+    }(dynamicStringSchema)
+      .leftMap(_.map(_.err.asInstanceOf[CompilationErrorDetails.RefinementFailure]))
+
+    assert(
+      result.isLeft
     )
   }
 
