@@ -7,6 +7,9 @@ import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.std.Supervisor
 import cats.implicits._
+import cats.tagless.Derive
+import cats.tagless.FunctorK
+import cats.tagless.implicits._
 import cats.~>
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ServerCapabilities
@@ -19,6 +22,7 @@ import playground.DiagnosticProvider
 import playground.Runner
 import playground.TextDocumentManager
 import playground.TextDocumentProvider
+import playground.lsp.util.KleisliOps
 import playground.smithyql.Formatter
 import playground.smithyql.SmithyQLParser
 import playground.types._
@@ -49,6 +53,8 @@ trait LanguageServer[F[_]] {
 }
 
 object LanguageServer {
+
+  implicit val functorK: FunctorK[LanguageServer] = Derive.functorK
 
   def notAvailable[F[_]: MonadThrow]: LanguageServer[F] = defer(
     new Throwable("Server not available").raiseError[F, LanguageServer[F]]
@@ -239,48 +245,7 @@ object LanguageServer {
     }
 
   def defer[F[_]: FlatMap](
-    fk: F[LanguageServer[F]]
-  ): LanguageServer[F] =
-    new LanguageServer[F] {
-
-      def initialize(
-        params: InitializeParams
-      ): F[InitializeResult] = fk.flatMap(_.initialize(params))
-
-      def initialized(params: InitializedParams): F[Unit] = fk.flatMap(_.initialized(params))
-
-      def didChange(params: DidChangeTextDocumentParams): F[Unit] = fk.flatMap(_.didChange(params))
-
-      def didOpen(params: DidOpenTextDocumentParams): F[Unit] = fk.flatMap(_.didOpen(params))
-
-      def didSave(params: DidSaveTextDocumentParams): F[Unit] = fk.flatMap(_.didSave(params))
-
-      def didClose(params: DidCloseTextDocumentParams): F[Unit] = fk.flatMap(_.didClose(params))
-
-      def formatting(
-        params: DocumentFormattingParams
-      ): F[List[TextEdit]] = fk.flatMap(_.formatting(params))
-
-      def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]] =
-        fk.flatMap(_.completion(position))
-
-      def diagnostic(
-        params: DocumentDiagnosticParams
-      ): F[DocumentDiagnosticReport] = fk.flatMap(_.diagnostic(params))
-
-      def codeLens(params: CodeLensParams): F[List[CodeLens]] = fk.flatMap(_.codeLens(params))
-
-      def didChangeWatchedFiles(
-        params: DidChangeWatchedFilesParams
-      ): F[Unit] = fk.flatMap(_.didChangeWatchedFiles(params))
-
-      def executeCommand(
-        params: ExecuteCommandParams
-      ): F[Unit] = fk.flatMap(_.executeCommand(params))
-
-      def shutdown: F[Unit] = fk.flatMap(_.shutdown)
-
-      def exit: F[Unit] = fk.flatMap(_.exit)
-    }
+    fa: F[LanguageServer[F]]
+  ): LanguageServer[F] = Derive.readerT[LanguageServer, F].mapK(KleisliOps.applyEffectK(fa))
 
 }
