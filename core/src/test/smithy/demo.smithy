@@ -207,6 +207,9 @@ integer MyInt
 
 string MyString
 
+@length(min: 1)
+string StringWithLength
+
 structure HasDeprecations {
   @deprecated(message: "Made-up reason")
   hasMessage: Boolean,

@@ -39,6 +39,8 @@ import java.time
 import java.util.UUID
 
 import Arbitraries._
+import demo.smithy.StringWithLength
+import smithy4s.dynamic.model.StringShape
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -48,8 +50,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     in: PartialCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompiler).compile(in)
 
-  val dynamicPersonSchema = {
-    val model = Model(
+  val dynamicModel = DynamicSchemaIndex.load(
+    Model(
       smithy = Some("1.0"),
       shapes = Map(
         IdRef("test#Person") ->
@@ -67,20 +69,29 @@ object CompilationTests extends SimpleIOSuite with Checkers {
                 )
               )
             )
+          ),
+        IdRef("test#StringWithLength") -> Shape.StringCase(
+          StringShape(
+            traits = Some(
+              Map(
+                IdRef("smithy.api#length") -> Document.obj(
+                  "min" -> Document.fromInt(1)
+                )
+              )
+            )
           )
+        ),
       ),
     )
+  )
 
-    DynamicSchemaIndex
-      .load(model)
-      .getSchema(ShapeId("test", "Person"))
-      .get
-  }
+  def dynamicSchemaFor(
+    shapeID: ShapeId
+  ): Schema[Any] = dynamicModel.getSchema(shapeID).get.asInstanceOf[Schema[Any]]
 
-  val dynamicPersonToDocument = Document
-    .Encoder
-    .fromSchema(dynamicPersonSchema)
-    .asInstanceOf[Document.Encoder[Any]]
+  val dynamicPersonSchema = dynamicSchemaFor(ShapeId("test", "Person"))
+
+  val dynamicPersonToDocument = Document.Encoder.fromSchema(dynamicPersonSchema)
 
   pureTest("seal - converts Both to Left when an error is present") {
     val e = CompilationError.error(
@@ -109,6 +120,25 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       }(Schema.string) == Ior.right("foo")
     )
   }
+
+  pureTest("string with length constraint - fail") {
+    assert(
+      compile[StringWithLength] {
+        WithSource.liftId("".mapK(WithSource.liftId))
+      }.isLeft
+    )
+  }
+
+  // todo
+  // pureTest("string with length constraint - fail (dynamic)") {
+  //   val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "StringWithLength"))
+
+  //   assert(
+  //     compile {
+  //       WithSource.liftId("".mapK(WithSource.liftId))
+  //     }(dynamicStringSchema).isLeft
+  //   )
+  // }
 
   pureTest("string - got int instead") {
     assert(
