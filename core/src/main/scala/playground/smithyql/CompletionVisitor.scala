@@ -18,7 +18,6 @@ import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema.BijectionSchema
 import smithy4s.schema.Schema.EnumerationSchema
 import smithy4s.schema.Schema.LazySchema
 import smithy4s.schema.Schema.MapSchema
@@ -32,6 +31,7 @@ import smithy4s.schema.SchemaVisitor
 import WithSource.NodeContext.PathEntry
 import java.util.UUID
 import smithy.api
+import smithy4s.Bijection
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
@@ -176,7 +176,7 @@ object CompletionItem {
         val desc = suspend.map(describeSchema)
         () => desc.value()
 
-      case BijectionSchema(underlying, _, _) => describeSchema(underlying)
+      case Schema.RefinementSchema(underlying, _) => describeSchema(underlying)
 
       case s => now(s.shapeId.name)
     }
@@ -436,13 +436,12 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     )
   }
 
-  override def biject[A, B](schema: Schema[A], to: A => B, from: B => A): CompletionResolver[B] =
+  override def biject[A, B](schema: Schema[A], bijection: Bijection[A, B]): CompletionResolver[B] =
     schema.compile(this).retag
 
-  override def surject[A, B](
+  override def refine[A, B](
     schema: Schema[A],
-    to: Refinement[A, B],
-    from: B => A,
+    refinement: Refinement[A, B],
   ): CompletionResolver[B] = schema.compile(this).retag
 
   // might need some testing

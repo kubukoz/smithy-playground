@@ -47,6 +47,7 @@ import util.chaining._
 import PartialCompiler.WAST
 import java.util.UUID
 import smithy.api
+import smithy4s.Bijection
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -556,13 +557,12 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
 
   def biject[A, B](
     schema: Schema[A],
-    to: A => B,
-    from: B => A,
-  ): PartialCompiler[B] = schema.compile(this).map(to)
+    bijection: Bijection[A, B],
+  ): PartialCompiler[B] = schema.compile(this).map(bijection.apply)
 
-  def surject[A, B](schema: Schema[A], to: Refinement[A, B], from: B => A): PartialCompiler[B] =
+  def refine[A, B](schema: Schema[A], refinement: Refinement[A, B]): PartialCompiler[B] =
     (schema.compile(this), PartialCompiler.pos).tupled.emap { case (a, pos) =>
-      to(a)
+      refinement(a)
         .toIor
         .leftMap { msg =>
           CompilationError.error(

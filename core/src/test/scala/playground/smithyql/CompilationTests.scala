@@ -37,6 +37,9 @@ import demo.smithy.HasDeprecations
 import smithy.api
 import cats.data.Chain
 import playground.DiagnosticTag
+import demo.smithy.Instant
+import demo.smithy.InstantProvider
+import java.time
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -529,5 +532,14 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         )
       )
     )
+  }
+
+  pureTest("timestamp matches instant") {
+    val s = "2022-07-11T17:42:28.000Z"
+    val ts = time.Instant.parse(s)
+
+    val result = compile[Instant](WithSource.liftId(s.mapK(WithSource.liftId)))
+
+    assert(result == Ior.right(ts))
   }
 }
