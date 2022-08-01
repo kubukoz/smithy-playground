@@ -22,9 +22,9 @@ export function activate(context: ExtensionContext) {
       command: "cs",
       args: [
         "launch",
+        // "--java-opt",
+        // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,quiet=y,address=5010",
         `${serverArtifact}:${serverVersion}`,
-        // "--",
-        // "-J-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,quiet=y,address=5005",
       ],
     },
     {

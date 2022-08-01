@@ -631,7 +631,7 @@ object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
           CompilationError
             .error(
               StructMismatch(
-                s.value.fields.value.keys.map(_.value.text).toList,
+                s.value.fields.value.keys.map(_.value.text),
                 labels,
               ),
               s.range,
