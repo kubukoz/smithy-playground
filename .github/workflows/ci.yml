@@ -49,7 +49,7 @@ jobs:
       run: nix develop --command sbt ci-release
     -
       name: release plugin
-      if: github.event.inputs.publishSnapshot == true
+      if: github.event.inputs.publishSnapshot
       run: nix develop --command ./release-plugin.sh
       env:
         VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
