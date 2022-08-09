@@ -12,7 +12,6 @@ import cats.effect.std.Dispatcher
 import cats.implicits._
 import org.eclipse.lsp4j.launch.LSPLauncher
 import playground.TextDocumentManager
-import playground.lsp.buildinfo.BuildInfo
 
 import java.io.File
 import java.io.FileOutputStream
@@ -80,8 +79,6 @@ object Main extends IOApp.Simple {
 
         log[IO]("connecting") *>
           clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
-          LanguageClient[IO]
-            .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
           log[IO]("Server connected")
             .as(launcher)
       }
