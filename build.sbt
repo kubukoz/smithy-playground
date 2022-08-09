@@ -20,7 +20,7 @@ def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(Cros
 
 val compilerPlugins =
   libraryDependencies ++= List(
-    crossPlugin("org.polyvariant" % "better-tostring" % "0.3.15")
+    crossPlugin("org.polyvariant" % "better-tostring" % "0.3.16")
   ) ++ (if (scalaVersion.value.startsWith("3"))
           Nil
         else
@@ -84,6 +84,7 @@ lazy val lsp = project
       "io.circe" %% "circe-core" % "0.14.2",
       "org.http4s" %% "http4s-ember-client" % "0.23.14",
       "io.get-coursier" %% "coursier" % "2.0.16",
+      "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
     commonSettings,
     buildInfoPackage := "playground.lsp.buildinfo",

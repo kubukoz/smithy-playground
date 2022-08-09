@@ -55,11 +55,7 @@ export function activate(context: ExtensionContext) {
   lspClient.start();
 
   context.subscriptions.push(
-    {
-      dispose() {
-        lspClient.stop();
-      },
-    },
+    lspClient,
     registerRunCommand,
     registerOutputPanelNotification
   );
