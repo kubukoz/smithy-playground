@@ -63,7 +63,7 @@ object ServerLoader {
       }
       .flatTap { serverLoader =>
         // loading with dummy config to initialize server without dependencies
-        serverLoader.perform(BuildLoader.Loaded(BuildConfig(), Path("/")))
+        serverLoader.perform(BuildLoader.Loaded.default)
       }
   }
 
