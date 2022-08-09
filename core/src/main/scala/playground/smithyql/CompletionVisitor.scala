@@ -47,7 +47,13 @@ final case class CompletionItem(
   deprecated: Boolean,
   docs: Option[String],
   extraTextEdits: List[TextEdit],
-)
+) {
+
+  def asValueCompletion: CompletionItem = copy(
+    insertText = InsertText.JustString(s"$label = ")
+  )
+
+}
 
 sealed trait TextEdit extends Product with Serializable
 
@@ -357,11 +363,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
     structLike(
       inBody = fk.getCompletions(Nil).map { item =>
-        // adding " = " to underlying key's completion because it's not in the usual value position
-        item.copy(
-          insertText = InsertText.JustString(s"${item.label} = ")
-        )
-
+        item.asValueCompletion
       },
       inValue = (_, t) => fv.getCompletions(t),
     )
