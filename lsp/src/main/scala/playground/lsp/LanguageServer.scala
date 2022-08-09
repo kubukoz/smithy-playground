@@ -30,6 +30,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.lsp.buildinfo.BuildInfo
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -90,14 +91,21 @@ object LanguageServer {
           .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
 
-        ServerLoader[F]
-          .prepare
-          .flatMap { prepped =>
-            ServerLoader[F].perform(prepped.params)
-          }
-          .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
-          .attempt
-          .as(new InitializeResult(capabilities))
+        LanguageClient[F]
+          .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
+          ServerLoader[F]
+            .prepare
+            .flatMap { prepped =>
+              ServerLoader[F].perform(prepped.params).flatTap { stats =>
+                LanguageClient[F]
+                  .showInfoMessage(
+                    s"Loaded Smithy Playground server with ${stats.render}"
+                  )
+              }
+            }
+            .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
+            .attempt
+            .as(new InitializeResult(capabilities))
       }
 
       def initialized(params: InitializedParams): F[Unit] = Applicative[F].unit
@@ -229,10 +237,7 @@ object LanguageServer {
                     LanguageClient[F].refreshDiagnostics *>
                       LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
                         .showInfoMessage(
-                          s"Reloaded Smithy Playground server with " +
-                            s"${stats.importCount} imports, " +
-                            s"${stats.dependencyCount} dependencies and " +
-                            s"${stats.pluginCount} plugins"
+                          s"Reloaded Smithy Playground server with ${stats.render}"
                         )
                   }.supervise(sup).void
                 }

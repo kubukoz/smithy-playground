@@ -4,7 +4,6 @@ import cats.MonadThrow
 import cats.effect.kernel.Ref
 import cats.implicits._
 import playground.BuildConfig
-import fs2.io.file.Path
 
 trait ServerLoader[F[_]] {
   type Params
@@ -19,7 +18,13 @@ object ServerLoader {
   type Aux[F[_], Params_] = ServerLoader[F] { type Params = Params_ }
 
   case class PrepareResult[A](params: A, isChanged: Boolean)
-  case class WorkspaceStats(importCount: Int, dependencyCount: Int, pluginCount: Int)
+
+  case class WorkspaceStats(importCount: Int, dependencyCount: Int, pluginCount: Int) {
+
+    def render: String =
+      s"$importCount imports, $dependencyCount dependencies and $pluginCount plugins"
+
+  }
 
   object WorkspaceStats {
 

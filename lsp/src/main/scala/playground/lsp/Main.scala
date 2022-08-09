@@ -80,8 +80,6 @@ object Main extends IOApp.Simple {
 
         log[IO]("connecting") *>
           clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
-          LanguageClient[IO]
-            .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
           log[IO]("Server connected")
             .as(launcher)
       }
