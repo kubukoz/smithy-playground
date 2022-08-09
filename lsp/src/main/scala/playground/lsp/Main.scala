@@ -12,7 +12,6 @@ import cats.effect.std.Dispatcher
 import cats.implicits._
 import org.eclipse.lsp4j.launch.LSPLauncher
 import playground.TextDocumentManager
-import playground.lsp.buildinfo.BuildInfo
 
 import java.io.File
 import java.io.FileOutputStream
