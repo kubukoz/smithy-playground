@@ -62,24 +62,9 @@ object SmithyQLParser {
       .repSep0(whitespace)
       .surroundedBy(whitespace)
 
-    // Should be kept in sync with withComments0
     def withComments[A](
       p: Parser[A]
     ): Parser[T[A]] = ((comments ~ Parser.index).with1 ~ p ~ (Parser.index ~ comments)).map {
-      case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
-        val range = SourceRange(Position(indexBefore), Position(indexAfter))
-        WithSource(
-          commentsLeft = commentsBefore,
-          commentsRight = commentsAfter,
-          range = range,
-          value = v,
-        )
-    }
-
-    // Duplication of withComments for Parser0
-    def withComments0[A](
-      p: Parser0[A]
-    ): Parser0[T[A]] = ((comments ~ Parser.index) ~ p ~ (Parser.index ~ comments)).map {
       case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
         val range = SourceRange(Position(indexBefore), Position(indexAfter))
         WithSource(
@@ -243,9 +228,22 @@ object SmithyQLParser {
         }
     }
 
-    (tokens.withComments0(useClause.?).map(_.sequence).with1 ~
-      ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments).map {
-      case (((useClause, opName), input), commentsAfter) =>
+    val useClauseWithSource: Parser0[Option[WithSource[UseClause]]] =
+      (tokens.comments ~
+        Parser.index ~ useClause ~ Parser.index).backtrack.?.map {
+        _.map { case (((commentsBefore, indexBefore), useClause), indexAfter) =>
+          WithSource(
+            commentsBefore,
+            Nil,
+            SourceRange(Position(indexBefore), Position(indexAfter)),
+            useClause,
+          )
+        }
+      }
+
+    (useClauseWithSource.with1 ~
+      ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments)
+      .map { case (((useClause, opName), input), commentsAfter) =>
         Query(
           useClause,
           opName,
@@ -256,7 +254,7 @@ object SmithyQLParser {
             value = input,
           ),
         )
-    }
+      }
   }
 
 }

@@ -285,9 +285,13 @@ hero = { //foo
     "Comments literally everywhere",
     Examples.fullOfComments,
   )(
-    "op".call(
-      "firstKey" -> "firstValue",
-      "secondKey" -> "secondValue",
-    )
+    "op"
+      .call(
+        "firstKey" -> "firstValue",
+        "secondKey" -> "secondValue",
+      )
+      .copy[Id](useClause =
+        Some(UseClause(QualifiedIdentifier(NonEmptyList.of("some", "api"), "Service")))
+      )
   )
 }

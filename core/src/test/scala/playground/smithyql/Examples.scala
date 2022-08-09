@@ -2,6 +2,8 @@ package playground.smithyql
 
 object Examples {
   val fullOfComments = """
+// before use clause
+use service some.api#Service
 // before op
 op
 // after op

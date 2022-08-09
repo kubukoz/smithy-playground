@@ -8,7 +8,15 @@ import DSL._
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 
-  def formattingTest(label: String)(q: Query[WithSource])(expected: String) =
+  def formattingTest(
+    label: TestName
+  )(
+    q: => Query[WithSource]
+  )(
+    expected: String
+  )(
+    implicit loc: SourceLocation
+  ) =
     pureTest(label) {
       val result = playground.smithyql.Formatter.format(q, 80)
       assert.eql(result, expected)
@@ -73,6 +81,30 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |        ,
       |    ] // and can have comments after themselves
       |    ,
+      |}
+      |""".stripMargin)
+
+  formattingTest("use service clause with lots of comments") {
+    parse("""//before clause
+    use service com.example#Service
+
+    // after clause
+    hello { }""")
+  }("""// before clause
+      |use service com.example#Service
+      |
+      |// after clause
+      |hello {
+      |
+      |}
+      |""".stripMargin)
+
+  formattingTest("no service clause with comment on the call") {
+    parse("""//before call
+    hello { }""")
+  }("""// before call
+      |hello {
+      |
       |}
       |""".stripMargin)
 
