@@ -90,7 +90,14 @@ object LanguageServer {
           .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
 
-        new InitializeResult(capabilities).pure[F]
+        ServerLoader[F]
+          .prepare
+          .flatMap { prepped =>
+            ServerLoader[F].perform(prepped.params)
+          }
+          .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
+          .attempt
+          .as(new InitializeResult(capabilities))
       }
 
       def initialized(params: InitializedParams): F[Unit] = Applicative[F].unit
@@ -200,34 +207,41 @@ object LanguageServer {
 
       def didChangeWatchedFiles(
         params: DidChangeWatchedFilesParams
-      ): F[Unit] = ServerLoader[F].prepare.flatMap {
-        case prepared if !prepared.isChanged =>
-          LanguageClient[F].showInfoMessage(
-            "No change detected, not rebuilding server"
+      ): F[Unit] = ServerLoader[F]
+        .prepare
+        .flatMap {
+          case prepared if !prepared.isChanged =>
+            LanguageClient[F].showInfoMessage(
+              "No change detected, not rebuilding server"
+            )
+          case prepared =>
+            LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
+              ServerLoader[F]
+                .perform(prepared.params)
+                .onError { case e =>
+                  LanguageClient[F].showErrorMessage(
+                    "Couldn't reload server: " + e.getMessage
+                  )
+                }
+                .flatMap { stats =>
+                  // Can't make (and wait for) client requests while handling a client request (file change)
+                  {
+                    LanguageClient[F].refreshDiagnostics *>
+                      LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
+                        .showInfoMessage(
+                          s"Reloaded Smithy Playground server with " +
+                            s"${stats.importCount} imports, " +
+                            s"${stats.dependencyCount} dependencies and " +
+                            s"${stats.pluginCount} plugins"
+                        )
+                  }.supervise(sup).void
+                }
+        }
+        .onError { case e =>
+          LanguageClient[F].showErrorMessage(
+            s"Couldn't rebuild server. Check your config file and the output panel.\nError: ${e.getMessage()}"
           )
-        case prepared =>
-          LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
-            ServerLoader[F]
-              .perform(prepared.params)
-              .onError { case e =>
-                LanguageClient[F].showErrorMessage(
-                  "Couldn't reload server: " + e.getMessage
-                )
-              }
-              .flatMap { stats =>
-                // Can't make (and wait for) client requests while handling a client request (file change)
-                {
-                  LanguageClient[F].refreshDiagnostics *>
-                    LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
-                      .showInfoMessage(
-                        s"Reloaded Smithy Playground server with " +
-                          s"${stats.importCount} imports, " +
-                          s"${stats.dependencyCount} dependencies and " +
-                          s"${stats.pluginCount} plugins"
-                      )
-                }.supervise(sup).void
-              }
-      }
+        }
 
       def executeCommand(
         params: ExecuteCommandParams
