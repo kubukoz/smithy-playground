@@ -7,10 +7,16 @@ import cats.Applicative
 import cats.data.NonEmptyList
 import smithy4s.ShapeId
 import cats.Show
+import cats.kernel.Eq
+import cats.Id
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
   def kind: NodeKind
+}
+
+object AST {
+  implicit val astIdEq: Eq[AST[Id]] = Eq.fromUniversalEquals
 }
 
 sealed trait InputNode[F[_]] extends AST[F] {
