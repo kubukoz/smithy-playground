@@ -69,6 +69,7 @@ lazy val core = project
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "org.typelevel" %% "cats-parse" % "0.3.8",
       "org.typelevel" %% "paiges-cats" % "0.4.2",
+      "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
     ),
     commonSettings,
     Smithy4sCodegenPlugin.defaultSettings(Test),

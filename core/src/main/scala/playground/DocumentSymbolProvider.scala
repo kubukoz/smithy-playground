@@ -1,13 +1,14 @@
 package playground
 
+import cats.kernel.Eq
 import playground.smithyql.InputNode
 import playground.smithyql.Listed
+import playground.smithyql.OperationName
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.SourceRange
 import playground.smithyql.Struct
-import playground.smithyql.WithSource
 import playground.smithyql.UseClause
-import playground.smithyql.OperationName
+import playground.smithyql.WithSource
 
 object DocumentSymbolProvider {
 

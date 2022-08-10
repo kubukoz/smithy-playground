@@ -1,10 +1,13 @@
 package playground
 
-import weaver._
-import playground.smithyql.SourceRange
+import com.softwaremill.diffx.generic.auto._
 import playground.smithyql.Position
+import playground.smithyql.SourceRange
+import weaver._
 
-object DocumentSymbolProviderTests extends FunSuite {
+import Assertions._
+
+object DocumentSymbolProviderTests extends SimpleIOSuite {
 
   def makeDSL(documentText: String) = new DocumentDSL(documentText)
 
@@ -36,9 +39,9 @@ object DocumentSymbolProviderTests extends FunSuite {
 
   }
 
-  test("hello world with one field") {
+  test("hello world with one field") { (_, log) =>
+    implicit val l = log
     val dsl = makeDSL("""hello { greeting = 42 }""")
-    val result = dsl.symbols
     val expected = List(
       dsl.symbol(
         "hello",
@@ -56,6 +59,55 @@ object DocumentSymbolProviderTests extends FunSuite {
       )
     )
 
-    assert(result == expected)
+    assertNoDiff(dsl.symbols, expected)
   }
+
+  test("nesting in structs") { (_, log) =>
+    implicit val l = log
+    val dsl = makeDSL("""q { a = { b = { c = { d = 42, }, }, }, }""")
+
+    val expected = List(
+      dsl.symbol(
+        "q",
+        SymbolKind.Function,
+        selectionRangeText = "q",
+        rangeText = "q { a = { b = { c = { d = 42, }, }, }, ",
+        List(
+          dsl.symbol(
+            "a",
+            SymbolKind.Field,
+            selectionRangeText = "a",
+            rangeText = "a = { b = { c = { d = 42, }, }, }",
+            List(
+              dsl.symbol(
+                "b",
+                SymbolKind.Field,
+                selectionRangeText = "b",
+                rangeText = "b = { c = { d = 42, }, }",
+                List(
+                  dsl.symbol(
+                    "c",
+                    SymbolKind.Field,
+                    selectionRangeText = "c",
+                    rangeText = "c = { d = 42, }",
+                    List(
+                      dsl.symbol(
+                        "d",
+                        SymbolKind.Field,
+                        selectionRangeText = "d",
+                        rangeText = "d = 42",
+                      )
+                    ),
+                  )
+                ),
+              )
+            ),
+          )
+        ),
+      )
+    )
+
+    assertNoDiff(dsl.symbols, expected)
+  }
+
 }
