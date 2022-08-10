@@ -22,6 +22,11 @@ object BuildLoader {
 
   case class Loaded(config: BuildConfig, configFilePath: Path)
 
+  object Loaded {
+    // Path is irrelevant when no imports are provided.
+    val default: Loaded = Loaded(BuildConfig(), Path("/"))
+  }
+
   def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
     new BuildLoader[F] {
 

@@ -19,12 +19,12 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
     else
       CheckConfig.default
 
-  /*
   pureTest("Comments from entire query are retained while parsing") {
     assert.eql(
       SmithyQLParser.parseFull(Examples.fullOfComments).map(WithSource.allQueryComments),
       Right(
         List(
+          Comment(" before use clause"),
           Comment(" before op"),
           Comment(" after op"),
           Comment("before key"),
@@ -52,6 +52,7 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
       result.map(WithSource.allQueryComments),
       Right(
         List(
+          Comment(" before use clause"),
           Comment(" before op"),
           Comment(" after op"),
           Comment(" before key"),
@@ -68,7 +69,6 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
       ),
     )
   }
-   */
 
   implicit val showQuery: Show[Query[WithSource]] = Show.fromToString
   implicit val showStruct: Show[Struct[WithSource]] = Show.fromToString

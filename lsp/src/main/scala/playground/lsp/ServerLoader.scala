@@ -15,8 +15,16 @@ trait ServerLoader[F[_]] {
 object ServerLoader {
   def apply[F[_]](implicit F: ServerLoader[F]): F.type = F
 
+  type Aux[F[_], Params_] = ServerLoader[F] { type Params = Params_ }
+
   case class PrepareResult[A](params: A, isChanged: Boolean)
-  case class WorkspaceStats(importCount: Int, dependencyCount: Int, pluginCount: Int)
+
+  case class WorkspaceStats(importCount: Int, dependencyCount: Int, pluginCount: Int) {
+
+    def render: String =
+      s"$importCount imports, $dependencyCount dependencies and $pluginCount plugins"
+
+  }
 
   object WorkspaceStats {
 
@@ -28,14 +36,17 @@ object ServerLoader {
 
   }
 
-  def instance[F[_]: ServerBuilder: BuildLoader: Ref.Make: MonadThrow]: F[ServerLoader[F]] = {
+  def instance[
+    F[_]: ServerBuilder: BuildLoader: Ref.Make: MonadThrow
+  ]: F[ServerLoader.Aux[F, BuildLoader.Loaded]] = {
     case class State(currentServer: LanguageServer[F], lastUsedConfig: Option[BuildConfig])
     object State {
       val initial: State = apply(LanguageServer.notAvailable[F], none)
     }
 
-    Ref[F].of(State.initial).flatMap { serverRef =>
-      val instance =
+    Ref[F]
+      .of(State.initial)
+      .map[ServerLoader.Aux[F, BuildLoader.Loaded]] { serverRef =>
         new ServerLoader[F] {
           type Params = BuildLoader.Loaded
 
@@ -54,10 +65,11 @@ object ServerLoader {
 
           val server: LanguageServer[F] = LanguageServer.defer(serverRef.get.map(_.currentServer))
         }
-
-      // Initial load
-      BuildLoader[F].load.flatMap(instance.perform).as(instance)
-    }
+      }
+      .flatTap { serverLoader =>
+        // loading with dummy config to initialize server without dependencies
+        serverLoader.perform(BuildLoader.Loaded.default)
+      }
   }
 
 }

@@ -234,7 +234,8 @@ object WithSource {
       listed = _.values.allComments(_.flatMap(_.allComments(comments))),
     )
 
-    q.operationName.allComments(_ => Nil) ++
+    q.useClause.foldMap(u => u.commentsLeft ++ u.commentsRight) ++
+      q.operationName.allComments(_ => Nil) ++
       q.input
         .allComments(
           _.fold(
