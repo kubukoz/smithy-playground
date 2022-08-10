@@ -15,6 +15,7 @@ import playground.TextDocumentManager
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
+import playground.std.StdlibRuntime
 
 trait ServerBuilder[F[_]] {
   def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]]
@@ -29,6 +30,8 @@ object ServerBuilder {
     implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
       Uri.fromString(_).leftMap(_.message)
     )
+
+    implicit val stdlibRuntime: StdlibRuntime[F] = StdlibRuntime.instance[F]
 
     EmberClientBuilder
       .default[F]

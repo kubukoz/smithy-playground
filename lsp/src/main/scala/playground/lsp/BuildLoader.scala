@@ -98,7 +98,7 @@ object BuildLoader {
               dependencies = loaded.config.mavenDependencies.combineAll,
               repositories = loaded.config.mavenRepositories.combineAll,
               transformers = Nil,
-              discoverModels = false,
+              discoverModels = true,
               localJars = Nil,
             )
             ._2

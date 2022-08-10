@@ -18,6 +18,7 @@ import org.http4s.Uri
 import org.http4s.client.Client
 import org.http4s.implicits._
 import playground._
+import playground.plugins.PlaygroundPlugin
 import playground.smithyql.InputNode
 import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
@@ -35,7 +36,8 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
-import playground.plugins.PlaygroundPlugin
+import playground.std.Stdlib
+import playground.std.StdlibRuntime
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -249,7 +251,7 @@ object Runner {
         }
       }
 
-  def forSchemaIndex[F[_]: Concurrent: Defer: std.Console](
+  def forSchemaIndex[F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
     dsi: DynamicSchemaIndex,
     client: Client[F],
     baseUri: F[Uri],
@@ -293,7 +295,11 @@ object Runner {
     }
   }
 
-  def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Concurrent: Defer: std.Console](
+  def forService[
+    Alg[_[_, _, _, _, _]],
+    Op[_, _, _, _, _],
+    F[_]: StdlibRuntime: Concurrent: Defer: std.Console,
+  ](
     service: Service[Alg, Op],
     client: Client[F],
     baseUri: F[Uri],
@@ -336,6 +342,24 @@ object Runner {
           .toIor
           .toIorNel
 
+      private def stdlibRunner: IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+        smithy4s
+          .checkProtocol(
+            service,
+            Stdlib.getTag,
+          )
+          .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols): Issue)
+          .toIor
+          .toIorNel *> {
+          val proxy = new DynamicServiceProxy[Alg, Op](service)
+
+          proxy
+            .tryProxy(StdlibRuntime[F].random)
+            .orElse(proxy.tryProxy(StdlibRuntime[F].clock))
+            .toRightIor(Issue.Other(new Throwable("unknown standard service")))
+            .toIorNel
+        }
+
       val awsInterpreter: IorNel[Issue, smithy4s.Interpreter[Op, F]] = AwsClient
         .prepare(service)
         .as {
@@ -365,6 +389,7 @@ object Runner {
           awsInterpreter,
         )
         .concat(plugins.flatMap(_.http4sBuilders).map(simpleFromBuilder))
+        .append(stdlibRunner)
         .map(
           _.map { interpreter => q =>
             perform[q.I, q.E, q.O](
