@@ -14,6 +14,15 @@ object RangeIndex {
       private val allRanges: List[ContextRange] =
         findInOperationName(q.operationName) ++ findInNode(q.input, NodeContext.InputContext.root)
 
+      // Console
+      //   .err
+      //   .println(
+      //     s"""Found ${allRanges.size} ranges for query ${q.operationName.value.text}:
+      //        |${allRanges
+      //         .map(r => r.ctx.render + " -> " + r.range.render)
+      //         .mkString("\n")}""".stripMargin
+      //   )
+
       def findAtPosition(
         pos: Position
       ): Option[ContextRange] = allRanges.filter(_.range.contains(pos)).maxByOption(_.ctx.length)

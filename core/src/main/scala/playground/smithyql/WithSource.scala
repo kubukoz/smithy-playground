@@ -32,6 +32,8 @@ final case class SourceRange(start: Position, end: Position) {
     end = end.copy(index = end.index - 1),
   )
 
+  def render: String = s"${start.index}-${end.index}"
+
 }
 
 object SourceRange {
