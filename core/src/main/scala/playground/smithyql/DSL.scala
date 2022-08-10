@@ -2,6 +2,7 @@ package playground.smithyql
 
 import cats.Id
 import cats.implicits._
+import cats.data.NonEmptyList
 
 object DSL {
 
@@ -13,6 +14,16 @@ object DSL {
       useClause = None,
       operationName = OperationName(s),
       input = struct(args: _*),
+    )
+
+  }
+
+  implicit class QueryOps(val q: Query[Id]) extends AnyVal {
+
+    def useService(path0: String, pathRest: String*)(service: String): Query[Id] = q.copy[Id](
+      useClause = Some(
+        UseClause(QualifiedIdentifier(NonEmptyList(path0, pathRest.toList), service))
+      )
     )
 
   }
