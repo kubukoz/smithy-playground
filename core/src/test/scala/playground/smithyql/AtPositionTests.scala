@@ -2,7 +2,7 @@ package playground.smithyql
 
 import weaver._
 import cats.data.Chain
-import WithSource.NodeContext.PathEntry._
+import NodeContext.PathEntry._
 
 object AtPositionTests extends FunSuite {
 
@@ -22,10 +22,13 @@ object AtPositionTests extends FunSuite {
         .toTry
         .get
 
-    WithSource.atPosition(parsed)(position)
+    RangeIndex
+      .build(parsed)
+      .findAtPosition(position)
+      .map(_.ctx)
   }
 
-  def assertFound(actual: Option[WithSource.NodeContext], expected: WithSource.NodeContext) =
+  def assertFound(actual: Option[NodeContext], expected: NodeContext) =
     assert(actual == Some(expected)) &&
       assert.eql(actual.map(_.render), Some(expected.render))
 
@@ -36,8 +39,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
+        NodeContext
           .InputContext(
             Chain(
               StructBody,
@@ -56,8 +58,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
+        NodeContext
           .InputContext(
             Chain(
               StructBody,
@@ -85,8 +86,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
+        NodeContext
           .OperationContext(
             op
           )
@@ -99,14 +99,12 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = ${CURSOR}[ { mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = WithSource
-      .NodeContext
-      .InputContext(
-        Chain(
-          StructBody,
-          StructValue("root"),
-        )
+    val expected = NodeContext.InputContext(
+      Chain(
+        StructBody,
+        StructValue("root"),
       )
+    )
 
     assert(
       actual == Some(
@@ -120,8 +118,7 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = WithSource
-      .NodeContext
+    val expected = NodeContext
       .InputContext(
         Chain(
           StructBody,
@@ -142,8 +139,7 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = WithSource
-      .NodeContext
+    val expected = NodeContext
       .InputContext(
         Chain(
           StructBody,
@@ -162,8 +158,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
+        NodeContext
           .InputContext(
             Chain(
               StructBody,
@@ -185,8 +180,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
+        NodeContext
           .InputContext(
             Chain(
               StructBody,
@@ -204,8 +198,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
+        NodeContext
           .InputContext(
             Chain(
               StructBody,
@@ -224,8 +217,7 @@ object AtPositionTests extends FunSuite {
 
     assertFound(
       actual,
-      WithSource
-        .NodeContext
+      NodeContext
         .InputContext(
           Chain(
             StructBody,
@@ -243,8 +235,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
+        NodeContext
           .InputContext(
             Chain(
               StructBody,

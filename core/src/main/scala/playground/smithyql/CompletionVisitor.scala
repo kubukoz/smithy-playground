@@ -29,7 +29,7 @@ import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
-import WithSource.NodeContext.PathEntry
+import NodeContext.PathEntry
 import java.util.UUID
 import smithy.api
 
