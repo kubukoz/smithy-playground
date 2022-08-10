@@ -100,7 +100,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case PUnit       =>
         // todo: inconsistent with decoder (takes everything)
         _ => obj(Nil)
-      case PUUID      => unsupported("uuid")
+      case PUUID      => string.contramap(_.toString())
       case PByte      => unsupported("byte")
       case PTimestamp =>
         // todo support formats
