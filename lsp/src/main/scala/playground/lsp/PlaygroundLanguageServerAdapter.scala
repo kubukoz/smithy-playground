@@ -12,8 +12,12 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter
+import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter
+import cats.effect.IO
+import cats.Applicative
 
-final class PlaygroundLanguageServerAdapter[F[_]: Functor](
+final class PlaygroundLanguageServerAdapter[F[_]: Functor: Applicative](
   impl: LanguageServer[F]
 )(
   implicit d: Dispatcher[F]
@@ -101,6 +105,15 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   def didChangeWatchedFiles(
     params: DidChangeWatchedFilesParams
   ): Unit = d.unsafeRunSync(impl.didChangeWatchedFiles(params))
+
+  @JsonRequest("textDocument/documentSymbol")
+  @ResponseJsonAdapter(classOf[DocumentSymbolResponseAdapter])
+  def documentSymbol(
+    params: DocumentSymbolParams
+  ): CompletableFuture[java.util.List[messages.Either[Nothing, DocumentSymbol]]] = d
+    .unsafeToCompletableFuture(
+      impl.documentSymbol(params).map(_.map(messages.Either.forRight(_)).asJava)
+    )
 
   @JsonRequest("smithyql/runQuery")
   def runQuery(params: RunQueryParams): CompletableFuture[Object] = executeCommand(
