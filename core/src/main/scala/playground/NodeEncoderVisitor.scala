@@ -102,9 +102,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
         _ => obj(Nil)
       case PUUID      => string.contramap(_.toString())
       case PByte      => unsupported("byte")
-      case PTimestamp =>
-        // todo support formats
-        string.contramap(_.toString)
+      case PTimestamp => string.contramap(_.toString)
     }
 
   def collection[C[_], A](
