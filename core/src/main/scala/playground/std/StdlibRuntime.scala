@@ -21,7 +21,7 @@ object StdlibRuntime {
           def nextUUID(): F[NextUUIDOutput] = UUIDGen[F].randomUUID.map(NextUUIDOutput(_))
         }
 
-      def clock: Clock[F] =
+      val clock: Clock[F] =
         new Clock[F] {
 
           def currentTimestamp(
