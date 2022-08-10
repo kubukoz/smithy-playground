@@ -1,16 +1,20 @@
 package playground.lsp
 
-import coursier._
 import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
+import coursier._
+import coursier.cache.FileCache
 import coursier.parse.DependencyParser
 import coursier.parse.RepositoryParser
+import coursier.util.Task
+import playground.BuildConfig
+import playground.plugins.PlaygroundPlugin
+
 import java.net.URLClassLoader
 import java.util.ServiceLoader
+import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
-import playground.plugins.PlaygroundPlugin
-import playground.BuildConfig
 
 trait PluginResolver[F[_]] {
 
@@ -59,7 +63,7 @@ object PluginResolver {
 
         (depsF, reposF)
           .mapN { (deps, repos) =>
-            Fetch()
+            Fetch(FileCache[Task]().noCredentials.withTtl(1.hour))
               .addDependencies(deps: _*)
               .addRepositories(repos: _*)
           }
