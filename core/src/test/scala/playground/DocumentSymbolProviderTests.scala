@@ -6,23 +6,51 @@ import playground.smithyql.Position
 
 object DocumentSymbolProviderTests extends FunSuite {
 
-  private def symbols(s: String) = DocumentSymbolProvider.make(s)
+  def makeDSL(documentText: String) = new DocumentDSL(documentText)
+
+  final class DocumentDSL(documentText: String) {
+
+    def symbols = DocumentSymbolProvider.make(documentText)
+
+    def textRange(text: String): SourceRange = {
+      val i = documentText.indexOf(text)
+      SourceRange(
+        Position(i),
+        Position(i + text.length),
+      )
+    }
+
+    def symbol(
+      name: String,
+      kind: SymbolKind,
+      selectionRangeText: String,
+      rangeText: String,
+      children: List[DocumentSymbol] = Nil,
+    ): DocumentSymbol = DocumentSymbol(
+      name,
+      kind,
+      selectionRange = textRange(selectionRangeText),
+      range = textRange(rangeText),
+      children,
+    )
+
+  }
 
   test("hello world with one field") {
-    val result = symbols("""hello { greeting = 42 }""")
+    val dsl = makeDSL("""hello { greeting = 42 }""")
+    val result = dsl.symbols
     val expected = List(
-      DocumentSymbol(
+      dsl.symbol(
         "hello",
         SymbolKind.Function,
-        SourceRange(Position(0), Position("hello".length)),
-        SourceRange(Position(0), Position("hello { greeting = 42 ".length)),
+        selectionRangeText = "hello",
+        rangeText = "hello { greeting = 42 ",
         List(
-          DocumentSymbol(
+          dsl.symbol(
             "greeting",
             SymbolKind.Field,
-            SourceRange(Position("hello { ".length), Position("hello { greeting".length)),
-            SourceRange(Position("hello { ".length), Position("hello { greeting = 42".length)),
-            Nil,
+            selectionRangeText = "greeting",
+            rangeText = "greeting = 42",
           )
         ),
       )

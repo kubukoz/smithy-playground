@@ -78,7 +78,7 @@ object DocumentSymbolProvider {
 
 }
 
-case class DocumentSymbol(
+final case class DocumentSymbol(
   name: String,
   kind: SymbolKind,
   selectionRange: SourceRange,
