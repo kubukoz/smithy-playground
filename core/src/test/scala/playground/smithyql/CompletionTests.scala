@@ -1,30 +1,31 @@
 package playground.smithyql
 
-import weaver._
-import demo.smithy.Good
-import smithy4s.schema.Schema
-import playground.smithyql.WithSource.NodeContext.PathEntry._
-import demo.smithy.Hero
-import demo.smithy.Power
-import smithy4s.Timestamp
-import playground.smithyql.InsertText.JustString
-import smithy.api.TimestampFormat
 import cats.implicits._
-import java.util.UUID
-import demo.smithy.Ints
+import demo.smithy.Good
+import demo.smithy.HasDeprecations
+import demo.smithy.HasNewtypes
+import demo.smithy.Hero
 import demo.smithy.IntSet
+import demo.smithy.Ints
 import demo.smithy.MyInt
 import demo.smithy.MyString
+import demo.smithy.Power
 import demo.smithy.PowerMap
-import demo.smithy.HasNewtypes
-import demo.smithy.HasDeprecations
+import playground.smithyql.InsertText.JustString
+import playground.smithyql.NodeContext.PathEntry._
+import smithy.api.TimestampFormat
 import smithy4s.Hints
+import smithy4s.Timestamp
+import smithy4s.schema.Schema
+import weaver._
+
+import java.util.UUID
 
 object CompletionTests extends FunSuite {
 
   def getCompletions(
     schema: Schema[_],
-    ctx: List[WithSource.NodeContext.PathEntry],
+    ctx: List[NodeContext.PathEntry],
   ): List[CompletionItem] = schema.compile(CompletionVisitor).getCompletions(ctx)
 
   test("completions on struct are empty without StructBody") {

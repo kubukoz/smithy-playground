@@ -4,11 +4,10 @@ import cats.Apply
 import cats.Eval
 import cats.Id
 import cats.NonEmptyTraverse
-import cats.data.Chain
+import cats.Show
 import cats.implicits._
 import cats.kernel.Eq
 import cats.~>
-import cats.Show
 
 // todo: multiline
 final case class Comment(text: String) extends AnyVal
@@ -32,6 +31,8 @@ final case class SourceRange(start: Position, end: Position) {
     start = start.copy(index = start.index + 1),
     end = end.copy(index = end.index - 1),
   )
+
+  def render: String = s"${start.index}-${end.index}"
 
 }
 
@@ -66,154 +67,6 @@ object WithSource {
     }
 
   implicit def showWithSource[A]: Show[WithSource[A]] = Show.fromToString
-
-  // The path to a position in the parsed source
-  sealed trait NodeContext extends Product with Serializable {
-    def render: String
-  }
-
-  object NodeContext {
-
-    final case class OperationContext(opName: WithSource[OperationName]) extends NodeContext {
-      def render: String = ".operationName"
-    }
-
-    final case class InputContext(context: Chain[PathEntry]) extends NodeContext {
-      def append(elem: PathEntry) = copy(context.append(elem))
-
-      def toList = context.toList
-
-      def render: String = {
-        import PathEntry._
-        context
-          .map {
-            case CollectionEntry(i) => s".[${i.getOrElse("")}]"
-            case StructValue(key)   => s".$key"
-            case StructBody         => ".{}"
-            case Quotes             => ".\"\""
-          }
-          .mkString_(".input", "", "")
-      }
-
-    }
-
-    object InputContext {
-      val root: InputContext = InputContext(Chain.nil)
-    }
-
-    sealed trait PathEntry extends Product with Serializable
-
-    object PathEntry {
-      final case class StructValue(key: String) extends PathEntry
-      // no index if it's not in an entry - todo replace with CollectionBody?
-      final case class CollectionEntry(index: Option[Int]) extends PathEntry
-      case object StructBody extends PathEntry
-      case object Quotes extends PathEntry
-    }
-
-  }
-
-  def atPosition(q: Query[WithSource])(pos: Position): Option[NodeContext] = {
-    val ctx = NodeContext.InputContext.root
-
-    findInOperationName(q.operationName, pos)
-      .orElse(findInNode(q.input, pos, ctx))
-  }
-
-  private def findInOperationName(
-    operationName: WithSource[OperationName],
-    pos: Position,
-  ): Option[NodeContext.OperationContext] =
-    if (operationName.range.contains(pos))
-      NodeContext.OperationContext(operationName).some
-    else
-      None
-
-  private def findInNode(
-    node: WithSource[InputNode[WithSource]],
-    pos: Position,
-    ctx: NodeContext.InputContext,
-  ): Option[NodeContext] = {
-    def entireNode(ctx: NodeContext.InputContext) = Option.when(node.range.contains(pos))(ctx)
-
-    node.value match {
-      case l @ Listed(_) =>
-        findInList(l, pos, ctx)
-          .orElse(entireNode(ctx))
-
-      case s @ Struct(_) =>
-        findInStruct(s, pos, ctx.append(NodeContext.PathEntry.StructBody))
-          .orElse(entireNode(ctx))
-
-      case StringLiteral(_) =>
-        val inQuotes = node
-          .range
-          .shrink1
-          .contains(pos)
-          .guard[Option]
-          .as(
-            ctx.append(NodeContext.PathEntry.Quotes)
-          )
-
-        inQuotes.orElse(entireNode(ctx))
-
-      case _ =>
-        // Default case: can be triggered e.g. inside a string literal
-        // which would affect completions of enum values and timestamps.
-        entireNode(ctx)
-    }
-
-  }
-
-  private def findInList(
-    list: Listed[WithSource],
-    pos: Position,
-    ctx: NodeContext.InputContext,
-  ): Option[NodeContext] = {
-    val inItems = list
-      .values
-      .value
-      .zipWithIndex
-      .find(_._1.range.contains(pos))
-      .flatMap { case (entry, index) =>
-        findInNode(entry, pos, ctx.append(NodeContext.PathEntry.CollectionEntry(index.some)))
-      }
-
-    val inBody = list
-      .values
-      .range
-      .contains(pos)
-      .guard[Option]
-      .as(ctx.append(NodeContext.PathEntry.CollectionEntry(None)))
-
-    inItems
-      .orElse(inBody)
-  }
-
-  private def findInStruct(
-    struct: Struct[WithSource],
-    pos: Position,
-    ctx: NodeContext.InputContext,
-  ): Option[NodeContext] =
-    // Struct fields that allow nesting in them
-    {
-      val inFields =
-        struct
-          .fields
-          .value
-          .value
-          .view
-          .map { case (k, v) =>
-            findInNode(v, pos, ctx.append(NodeContext.PathEntry.StructValue(k.value.text)))
-          }
-          .flatten
-          .headOption
-
-      val inBody = struct.fields.range.contains(pos).guard[Option].as(ctx)
-
-      inFields
-        .orElse(inBody)
-    }
 
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
