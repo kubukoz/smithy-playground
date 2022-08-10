@@ -1,6 +1,5 @@
 package playground
 
-import cats.kernel.Eq
 import playground.smithyql.InputNode
 import playground.smithyql.Listed
 import playground.smithyql.OperationName
