@@ -100,6 +100,30 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(result == Ior.leftNec(e))
   }
 
+  pureTest("unit") {
+    assert(
+      compile {
+        WithSource.liftId(struct().mapK(WithSource.liftId))
+      }(Schema.unit).isRight
+    )
+  }
+
+  pureTest("unit - doesn't accept string") {
+    assert(
+      compile {
+        WithSource.liftId("test".mapK(WithSource.liftId))
+      }(Schema.unit).isLeft
+    )
+  }
+
+  pureTest("unit - doesn't accept struct with a field present") {
+    assert(
+      compile {
+        WithSource.liftId(struct("test" -> 42).mapK(WithSource.liftId))
+      }(Schema.unit).isBoth
+    )
+  }
+
   pureTest("string") {
     assert(
       compile {
