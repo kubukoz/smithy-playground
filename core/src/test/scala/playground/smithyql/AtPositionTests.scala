@@ -1,8 +1,6 @@
 package playground.smithyql
 
 import weaver._
-import cats.data.Chain
-import NodeContext.PathEntry._
 
 object AtPositionTests extends FunSuite {
 
@@ -40,13 +38,11 @@ object AtPositionTests extends FunSuite {
     assert(
       actual == Some(
         NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-              StructBody,
-            )
-          )
+          .Root
+          .inOperationInput
+          .inStructBody
+          .inStructValue("root")
+          .inStructBody
       )
     )
   }
@@ -59,15 +55,13 @@ object AtPositionTests extends FunSuite {
     assert(
       actual == Some(
         NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-              StructBody,
-              StructValue("mid"),
-              StructBody,
-            )
-          )
+          .Root
+          .inOperationInput
+          .inStructBody
+          .inStructValue("root")
+          .inStructBody
+          .inStructValue("mid")
+          .inStructBody
       )
     )
   }
@@ -77,19 +71,9 @@ object AtPositionTests extends FunSuite {
       s"""Operat${CURSOR}ion { root = { mid = { child = "hello", }, }, }"""
     )
 
-    val op = WithSource(
-      commentsLeft = Nil,
-      commentsRight = Nil,
-      range = SourceRange(Position(0), Position("Operation".length)),
-      value = OperationName("Operation"),
-    )
-
     assert(
       actual == Some(
-        NodeContext
-          .OperationContext(
-            op
-          )
+        NodeContext.Root.inOperationName
       )
     )
   }
@@ -99,12 +83,7 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = ${CURSOR}[ { mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = NodeContext.InputContext(
-      Chain(
-        StructBody,
-        StructValue("root"),
-      )
-    )
+    val expected = NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
 
     assert(
       actual == Some(
@@ -119,13 +98,11 @@ object AtPositionTests extends FunSuite {
     )
 
     val expected = NodeContext
-      .InputContext(
-        Chain(
-          StructBody,
-          StructValue("root"),
-          CollectionEntry(None),
-        )
-      )
+      .Root
+      .inOperationInput
+      .inStructBody
+      .inStructValue("root")
+      .inCollectionEntry(None)
 
     assert(
       actual == Some(
@@ -139,15 +116,14 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = NodeContext
-      .InputContext(
-        Chain(
-          StructBody,
-          StructValue("root"),
-          CollectionEntry(Some(0)),
-          StructBody,
-        )
-      )
+    val expected =
+      NodeContext
+        .Root
+        .inOperationInput
+        .inStructBody
+        .inStructValue("root")
+        .inCollectionEntry(Some(0))
+        .inStructBody
     assert(actual == Some(expected))
   }
 
@@ -159,16 +135,14 @@ object AtPositionTests extends FunSuite {
     assert(
       actual == Some(
         NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-              CollectionEntry(Some(1)),
-              StructBody,
-              StructValue("mid"),
-              StructBody,
-            )
-          )
+          .Root
+          .inOperationInput
+          .inStructBody
+          .inStructValue("root")
+          .inCollectionEntry(Some(1))
+          .inStructBody
+          .inStructValue("mid")
+          .inStructBody
       )
     )
   }
@@ -180,13 +154,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-            )
-          )
+        NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
       )
     )
   }
@@ -198,14 +166,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-              StructBody,
-            )
-          )
+        NodeContext.Root.inOperationInput.inStructBody.inStructValue("root").inStructBody
       )
     )
   }
@@ -217,13 +178,7 @@ object AtPositionTests extends FunSuite {
 
     assertFound(
       actual,
-      NodeContext
-        .InputContext(
-          Chain(
-            StructBody,
-            StructValue("field"),
-          )
-        ),
+      NodeContext.Root.inOperationInput.inStructBody.inStructValue("field"),
     )
 
   }
@@ -235,14 +190,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("field"),
-              Quotes,
-            )
-          )
+        NodeContext.Root.inOperationInput.inStructBody.inStructValue("field").inQuotes
       )
     )
   }

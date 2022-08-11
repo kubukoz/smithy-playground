@@ -11,6 +11,8 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import playground.smithyql.QualifiedIdentifier
 import cats.data.NonEmptyList
 import playground.smithyql.NodeContext
+import playground.smithyql.NodeContext.^^:
+import playground.smithyql.NodeContext.Root
 import playground.smithyql.RangeIndex
 
 trait CompletionProvider {
@@ -110,14 +112,16 @@ object CompletionProvider {
               matchingNode
                 .toList
                 .flatMap {
-                  case NodeContext.OperationContext(_) =>
+                  case NodeContext.PathEntry.AtOperationName ^^: Root =>
                     completeOperationName(serviceId)(
                       q.useClause.map(_.value.identifier)
                     )
 
-                  case NodeContext.InputContext(ctx) =>
+                  case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
                     completionsByEndpoint(serviceId)(q.operationName.value)
-                      .getCompletions(ctx.toList)
+                      .getCompletions(ctx)
+
+                  case _ => Nil
                 }
 
             case None =>

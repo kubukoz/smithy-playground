@@ -19,7 +19,7 @@ object RangeIndexTests extends SimpleIOSuite {
         result == Some(
           ContextRange(
             range = SourceRange(Position("hello {".length), Position(q.length - 1)),
-            ctx = NodeContext.InputContext.root.append(NodeContext.PathEntry.StructBody),
+            ctx = NodeContext.Root.inOperationInput.inStructBody,
           )
         )
       )
