@@ -14,6 +14,7 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
 
         context
           .map {
+            case AtUseClause        => ".useClause"
             case AtOperationName    => ".operationName"
             case AtOperationInput   => ".input"
             case CollectionEntry(i) => s".[${i.getOrElse("")}]"
@@ -66,6 +67,7 @@ object NodeContext {
   sealed trait PathEntry extends Product with Serializable
 
   object PathEntry {
+    case object AtUseClause extends PathEntry
     case object AtOperationName extends PathEntry
     case object AtOperationInput extends PathEntry
     final case class StructValue(key: String) extends PathEntry
@@ -77,16 +79,17 @@ object NodeContext {
     trait TraversalOps {
       self: NodeContext =>
 
-      def inOperationName: NodeContext = append(NodeContext.PathEntry.AtOperationName)
-      def inOperationInput: NodeContext = append(NodeContext.PathEntry.AtOperationInput)
-      def inStructValue(key: String): NodeContext = append(NodeContext.PathEntry.StructValue(key))
+      def inUseClause: NodeContext = append(PathEntry.AtUseClause)
+      def inOperationName: NodeContext = append(PathEntry.AtOperationName)
+      def inOperationInput: NodeContext = append(PathEntry.AtOperationInput)
+      def inStructValue(key: String): NodeContext = append(PathEntry.StructValue(key))
 
       def inCollectionEntry(index: Option[Int]): NodeContext = append(
-        NodeContext.PathEntry.CollectionEntry(index)
+        PathEntry.CollectionEntry(index)
       )
 
-      def inStructBody: NodeContext = append(NodeContext.PathEntry.StructBody)
-      def inQuotes: NodeContext = append(NodeContext.PathEntry.Quotes)
+      def inStructBody: NodeContext = append(PathEntry.StructBody)
+      def inQuotes: NodeContext = append(PathEntry.Quotes)
 
     }
 

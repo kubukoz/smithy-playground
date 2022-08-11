@@ -20,11 +20,13 @@ object Formatter {
     }
 
   def renderUseClause(
-    clause: UseClause
-  ): Doc = Doc
-    .text("use")
-    .space("service")
-    .space(renderIdent(clause.identifier))
+    clause: UseClause[WithSource]
+  ): Doc =
+    // comments in clause are not allowed so we can ignore them when printing
+    Doc
+      .text("use")
+      .space("service")
+      .space(renderIdent(clause.identifier.value))
 
   def renderIdent(ident: QualifiedIdentifier): Doc =
     Doc.intercalate(
@@ -151,14 +153,10 @@ object Formatter {
   }
 
   def writeQuery(q: Query[WithSource]): Doc =
-    // note: commenting a clause seems to make it disappear on formatting
-    q.useClause
-      .fold(Doc.empty)(a =>
-        comments(a.commentsLeft) +
-          renderUseClause(a.value) +
-          Doc.hardLine +
-          comments(a.commentsRight) + Doc.hardLine
-      ) +
+    (comments(q.useClause.commentsLeft) +
+      q.useClause.value.fold(Doc.empty)(renderUseClause) +
+      Doc.hardLine +
+      comments(q.useClause.commentsRight) + Doc.hardLine) +
       comments(q.operationName.commentsLeft) +
       Doc.text(q.operationName.value.text) +
       Doc.space +

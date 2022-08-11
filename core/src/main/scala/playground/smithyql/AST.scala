@@ -42,7 +42,8 @@ sealed trait InputNode[F[_]] extends AST[F] {
 final case class OperationName(text: String) extends AnyVal
 
 final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: String) {
-  def render: String = segments.mkString_(".") + "#" + selection
+  def renderNamespace: String = segments.mkString_(".")
+  def render: String = renderNamespace + "#" + selection
 
   def toShapeId: ShapeId = ShapeId(segments.mkString_("."), selection)
 }
@@ -58,11 +59,12 @@ object QualifiedIdentifier {
 
 }
 
-//todo: identifier must be in WithSource
-final case class UseClause(identifier: QualifiedIdentifier) extends AnyVal
+final case class UseClause[F[_]](identifier: F[QualifiedIdentifier]) extends AnyVal {
+  def mapK[G[_]](fk: F ~> G): UseClause[G] = UseClause(fk(identifier))
+}
 
 final case class Query[F[_]](
-  useClause: Option[F[UseClause]],
+  useClause: F[Option[UseClause[F]]],
   operationName: F[OperationName],
   input: F[Struct[F]],
 ) extends AST[F] {
@@ -70,7 +72,7 @@ final case class Query[F[_]](
   def kind: NodeKind = NodeKind.Query
 
   def mapK[G[_]: Functor](fk: F ~> G): Query[G] = Query(
-    useClause.map(fk(_)),
+    fk(useClause).map(_.map(_.mapK(fk))),
     fk(operationName),
     fk(input).map(_.mapK(fk)),
   )

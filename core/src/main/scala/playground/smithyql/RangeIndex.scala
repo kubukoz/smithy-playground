@@ -12,10 +12,9 @@ object RangeIndex {
     new RangeIndex {
 
       private val allRanges: List[ContextRange] =
-        findInOperationName(q.operationName) ++ findInNode(
-          q.input,
-          NodeContext.Root.inOperationInput,
-        )
+        findInUseClause(q.useClause) ++
+          findInOperationName(q.operationName) ++
+          findInNode(q.input, NodeContext.Root.inOperationInput)
 
       // Console
       //   .err
@@ -31,6 +30,16 @@ object RangeIndex {
       ): Option[ContextRange] = allRanges.filter(_.range.contains(pos)).maxByOption(_.ctx.length)
 
     }
+
+  private def findInUseClause(
+    useClauseOpt: WithSource[Option[UseClause[WithSource]]]
+  ): List[ContextRange] =
+    useClauseOpt
+      .value
+      .map { useClause =>
+        ContextRange(useClause.identifier.range, NodeContext.Root.inUseClause)
+      }
+      .toList
 
   private def findInOperationName(
     operationName: WithSource[OperationName]

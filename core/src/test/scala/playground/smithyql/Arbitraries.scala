@@ -54,7 +54,9 @@ object Arbitraries {
     Gen.resultOf(QualifiedIdentifier.apply)
   )
 
-  implicit val arbitraryUseClause: Arbitrary[UseClause] = Arbitrary(Gen.resultOf(UseClause.apply))
+  implicit val arbitraryUseClause: Arbitrary[UseClause[WithSource]] = Arbitrary(
+    Gen.resultOf(UseClause.apply[WithSource])
+  )
 
   implicit val arbBool: Arbitrary[BooleanLiteral[WithSource]] = Arbitrary {
     Gen.resultOf(BooleanLiteral[WithSource])

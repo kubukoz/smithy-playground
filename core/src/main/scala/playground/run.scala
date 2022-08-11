@@ -167,7 +167,7 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private def getService(
     q: Query[WithSource]
   ): Either[Throwable, Compiler[Ior[Throwable, *]]] = MultiServiceResolver
-    .resolveService(q.useClause.map(_.value.identifier), services)
+    .resolveService(q.useClause.value.map(_.identifier.value), services)
     .leftMap { rf =>
       CompilationFailed.one(
         CompilationError.error(
@@ -277,14 +277,14 @@ object Runner {
     new Optional[F] {
       def get(q: Query[WithSource]): IorNel[Issue, Runner[F]] = MultiServiceResolver
         .resolveService(
-          q.useClause.map(_.value.identifier),
+          q.useClause.value.map(_.identifier.value),
           runners,
         )
         .leftMap(rf =>
           CompilationFailed.one(
             CompilationError.error(
               CompilationErrorDetails.fromResolutionFailure(rf),
-              q.useClause.fold(q.operationName.range)(_.range),
+              q.useClause.value.fold(q.operationName.range)(_.identifier.range),
             )
           )
         )

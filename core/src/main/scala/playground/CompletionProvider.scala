@@ -1,19 +1,20 @@
 package playground
 
+import cats.data.NonEmptyList
+import cats.implicits._
 import playground.smithyql.CompletionItem
+import playground.smithyql.NodeContext
+import playground.smithyql.NodeContext.Root
+import playground.smithyql.NodeContext.^^:
 import playground.smithyql.OperationName
 import playground.smithyql.Position
+import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.RangeIndex
 import playground.smithyql.SmithyQLParser
-import cats.implicits._
+import smithy4s.dynamic.DynamicSchemaIndex
+
 import smithyql.CompletionVisitor
 import smithyql.CompletionResolver
-import smithy4s.dynamic.DynamicSchemaIndex
-import playground.smithyql.QualifiedIdentifier
-import cats.data.NonEmptyList
-import playground.smithyql.NodeContext
-import playground.smithyql.NodeContext.^^:
-import playground.smithyql.NodeContext.Root
-import playground.smithyql.RangeIndex
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -102,7 +103,7 @@ object CompletionProvider {
           val serviceIdOpt =
             MultiServiceResolver
               .resolveService(
-                q.useClause.map(_.value.identifier),
+                q.useClause.value.map(_.identifier.value),
                 serviceIdsById,
               )
               .toOption
@@ -112,9 +113,12 @@ object CompletionProvider {
               matchingNode
                 .toList
                 .flatMap {
+                  case NodeContext.PathEntry.AtUseClause ^^: Root =>
+                    servicesById.map(CompletionItem.useServiceClause.tupled).toList
+
                   case NodeContext.PathEntry.AtOperationName ^^: Root =>
                     completeOperationName(serviceId)(
-                      q.useClause.map(_.value.identifier)
+                      q.useClause.value.map(_.identifier.value)
                     )
 
                   case NodeContext.PathEntry.AtOperationInput ^^: ctx =>

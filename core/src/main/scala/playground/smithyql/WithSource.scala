@@ -95,7 +95,12 @@ object WithSource {
       listed = _.values.allComments(_.flatMap(_.allComments(comments))),
     )
 
-    q.useClause.foldMap(u => u.commentsLeft ++ u.commentsRight) ++
+    q.useClause.commentsLeft ++ q
+      .useClause
+      .value
+      .foldMap(u => u.identifier.commentsLeft ++ u.identifier.commentsRight) ++ q
+      .useClause
+      .commentsRight ++
       q.operationName.allComments(_ => Nil) ++
       q.input
         .allComments(

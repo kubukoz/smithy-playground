@@ -39,9 +39,9 @@ object ResolutionFailure {
 
   // Returns the preferred range for diagnostics about resolution failure
   def diagnosticRange(q: Query[WithSource]): SourceRange =
-    q.useClause match {
+    q.useClause.value match {
       case None         => q.operationName.range
-      case Some(clause) => clause.range
+      case Some(clause) => clause.identifier.range
     }
 
 }
