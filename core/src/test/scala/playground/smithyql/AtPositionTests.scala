@@ -1,8 +1,6 @@
 package playground.smithyql
 
 import weaver._
-import cats.data.Chain
-import WithSource.NodeContext.PathEntry._
 
 object AtPositionTests extends FunSuite {
 
@@ -22,10 +20,13 @@ object AtPositionTests extends FunSuite {
         .toTry
         .get
 
-    WithSource.atPosition(parsed)(position)
+    RangeIndex
+      .build(parsed)
+      .findAtPosition(position)
+      .map(_.ctx)
   }
 
-  def assertFound(actual: Option[WithSource.NodeContext], expected: WithSource.NodeContext) =
+  def assertFound(actual: Option[NodeContext], expected: NodeContext) =
     assert(actual == Some(expected)) &&
       assert.eql(actual.map(_.render), Some(expected.render))
 
@@ -36,15 +37,12 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-              StructBody,
-            )
-          )
+        NodeContext
+          .Root
+          .inOperationInput
+          .inStructBody
+          .inStructValue("root")
+          .inStructBody
       )
     )
   }
@@ -56,17 +54,14 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-              StructBody,
-              StructValue("mid"),
-              StructBody,
-            )
-          )
+        NodeContext
+          .Root
+          .inOperationInput
+          .inStructBody
+          .inStructValue("root")
+          .inStructBody
+          .inStructValue("mid")
+          .inStructBody
       )
     )
   }
@@ -76,20 +71,9 @@ object AtPositionTests extends FunSuite {
       s"""Operat${CURSOR}ion { root = { mid = { child = "hello", }, }, }"""
     )
 
-    val op = WithSource(
-      commentsLeft = Nil,
-      commentsRight = Nil,
-      range = SourceRange(Position(0), Position("Operation".length)),
-      value = OperationName("Operation"),
-    )
-
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
-          .OperationContext(
-            op
-          )
+        NodeContext.Root.inOperationName
       )
     )
   }
@@ -99,14 +83,7 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = ${CURSOR}[ { mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = WithSource
-      .NodeContext
-      .InputContext(
-        Chain(
-          StructBody,
-          StructValue("root"),
-        )
-      )
+    val expected = NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
 
     assert(
       actual == Some(
@@ -120,15 +97,12 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = WithSource
-      .NodeContext
-      .InputContext(
-        Chain(
-          StructBody,
-          StructValue("root"),
-          CollectionEntry(None),
-        )
-      )
+    val expected = NodeContext
+      .Root
+      .inOperationInput
+      .inStructBody
+      .inStructValue("root")
+      .inCollectionEntry(None)
 
     assert(
       actual == Some(
@@ -142,16 +116,14 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = WithSource
-      .NodeContext
-      .InputContext(
-        Chain(
-          StructBody,
-          StructValue("root"),
-          CollectionEntry(Some(0)),
-          StructBody,
-        )
-      )
+    val expected =
+      NodeContext
+        .Root
+        .inOperationInput
+        .inStructBody
+        .inStructValue("root")
+        .inCollectionEntry(Some(0))
+        .inStructBody
     assert(actual == Some(expected))
   }
 
@@ -162,18 +134,15 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-              CollectionEntry(Some(1)),
-              StructBody,
-              StructValue("mid"),
-              StructBody,
-            )
-          )
+        NodeContext
+          .Root
+          .inOperationInput
+          .inStructBody
+          .inStructValue("root")
+          .inCollectionEntry(Some(1))
+          .inStructBody
+          .inStructValue("mid")
+          .inStructBody
       )
     )
   }
@@ -185,14 +154,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-            )
-          )
+        NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
       )
     )
   }
@@ -204,15 +166,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("root"),
-              StructBody,
-            )
-          )
+        NodeContext.Root.inOperationInput.inStructBody.inStructValue("root").inStructBody
       )
     )
   }
@@ -224,14 +178,7 @@ object AtPositionTests extends FunSuite {
 
     assertFound(
       actual,
-      WithSource
-        .NodeContext
-        .InputContext(
-          Chain(
-            StructBody,
-            StructValue("field"),
-          )
-        ),
+      NodeContext.Root.inOperationInput.inStructBody.inStructValue("field"),
     )
 
   }
@@ -243,15 +190,7 @@ object AtPositionTests extends FunSuite {
 
     assert(
       actual == Some(
-        WithSource
-          .NodeContext
-          .InputContext(
-            Chain(
-              StructBody,
-              StructValue("field"),
-              Quotes,
-            )
-          )
+        NodeContext.Root.inOperationInput.inStructBody.inStructValue("field").inQuotes
       )
     )
   }

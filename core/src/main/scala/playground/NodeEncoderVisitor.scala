@@ -98,14 +98,10 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case PDouble     => int.contramap(_.toInt) // todo: wraps
       case PDocument   => document
       case PFloat      => unsupported("float")
-      case PUnit       =>
-        // todo: inconsistent with decoder (takes everything)
-        _ => obj(Nil)
-      case PUUID      => string.contramap(_.toString())
-      case PByte      => unsupported("byte")
-      case PTimestamp =>
-        // todo support formats
-        string.contramap(_.toString)
+      case PUnit       => struct(shapeId, hints, Vector.empty, _ => ())
+      case PUUID       => string.contramap(_.toString())
+      case PByte       => unsupported("byte")
+      case PTimestamp  => string.contramap(_.toString)
     }
 
   def collection[C[_], A](

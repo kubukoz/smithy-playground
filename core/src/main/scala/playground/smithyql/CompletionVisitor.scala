@@ -28,14 +28,16 @@ import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
-import WithSource.NodeContext.PathEntry
+import NodeContext.PathEntry
 import java.util.UUID
 import smithy.api
 import smithy4s.Bijection
 import smithy4s.schema.Schema.BijectionSchema
+import NodeContext.^^:
+import NodeContext.Root
 
 trait CompletionResolver[+A] {
-  def getCompletions(ctx: List[PathEntry]): List[CompletionItem]
+  def getCompletions(ctx: NodeContext): List[CompletionItem]
   def retag[B]: CompletionResolver[B] = getCompletions(_)
 }
 
@@ -293,9 +295,9 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   private def quoteAware[A](
     makeCompletion: (String => String) => List[CompletionItem]
   ): CompletionResolver[A] = {
-    case PathEntry.Quotes :: Nil => makeCompletion(identity)
-    case Nil                     => makeCompletion(TextUtils.quote)
-    case _                       => Nil
+    case PathEntry.Quotes ^^: Root => makeCompletion(identity)
+    case Root                      => makeCompletion(TextUtils.quote)
+    case _                         => Nil
   }
 
   override def primitive[P](
@@ -346,8 +348,8 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     val memberInstance = member.compile(this)
 
     {
-      case PathEntry.CollectionEntry(_) :: rest => memberInstance.getCompletions(rest)
-      case _                                    =>
+      case PathEntry.CollectionEntry(_) ^^: rest => memberInstance.getCompletions(rest)
+      case _                                     =>
         // other contexts are invalid
         Nil
     }
@@ -363,7 +365,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     val fv = value.compile(this)
 
     structLike(
-      inBody = fk.getCompletions(Nil).map { item =>
+      inBody = fk.getCompletions(NodeContext.Root).map { item =>
         item.asValueCompletion
       },
       inValue = (_, t) => fv.getCompletions(t),
@@ -389,11 +391,11 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
   private def structLike[S](
     inBody: List[CompletionItem],
-    inValue: (String, List[PathEntry]) => List[CompletionItem],
+    inValue: (String, NodeContext) => List[CompletionItem],
   ): CompletionResolver[S] = {
-    case PathEntry.StructBody :: Nil                              => inBody
-    case PathEntry.StructBody :: PathEntry.StructValue(h) :: rest => inValue(h, rest)
-    case _                                                        => Nil
+    case PathEntry.StructBody ^^: Root                              => inBody
+    case PathEntry.StructBody ^^: PathEntry.StructValue(h) ^^: rest => inValue(h, rest)
+    case _                                                          => Nil
   }
 
   override def struct[S](

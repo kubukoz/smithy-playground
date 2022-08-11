@@ -4,13 +4,16 @@ import playground.smithyql.CompletionItem
 import playground.smithyql.OperationName
 import playground.smithyql.Position
 import playground.smithyql.SmithyQLParser
-import playground.smithyql.WithSource
 import cats.implicits._
 import smithyql.CompletionVisitor
 import smithyql.CompletionResolver
 import smithy4s.dynamic.DynamicSchemaIndex
 import playground.smithyql.QualifiedIdentifier
 import cats.data.NonEmptyList
+import playground.smithyql.NodeContext
+import playground.smithyql.NodeContext.^^:
+import playground.smithyql.NodeContext.Root
+import playground.smithyql.RangeIndex
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -90,7 +93,10 @@ object CompletionProvider {
           Nil
 
         case Right(q) =>
-          val matchingNode = WithSource.atPosition(q)(pos)
+          val matchingNode = RangeIndex
+            .build(q)
+            .findAtPosition(pos)
+            .map(_.ctx)
           // println("matchingNode: " + matchingNode.map(_.render))
 
           val serviceIdOpt =
@@ -106,14 +112,16 @@ object CompletionProvider {
               matchingNode
                 .toList
                 .flatMap {
-                  case WithSource.NodeContext.OperationContext(_) =>
+                  case NodeContext.PathEntry.AtOperationName ^^: Root =>
                     completeOperationName(serviceId)(
                       q.useClause.map(_.value.identifier)
                     )
 
-                  case WithSource.NodeContext.InputContext(ctx) =>
+                  case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
                     completionsByEndpoint(serviceId)(q.operationName.value)
-                      .getCompletions(ctx.toList)
+                      .getCompletions(ctx)
+
+                  case _ => Nil
                 }
 
             case None =>

@@ -379,7 +379,7 @@ object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
         PartialCompiler
           .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
           .map(_.value.value)
-      case PUnit => _ => ().rightIor
+      case PUnit => struct(shapeId, hints, Vector.empty, _ => ())
       case PInt =>
         PartialCompiler
           .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
