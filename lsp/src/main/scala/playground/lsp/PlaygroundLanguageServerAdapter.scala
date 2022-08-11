@@ -5,6 +5,8 @@ import cats.effect.std.Dispatcher
 import cats.implicits._
 import com.google.gson.JsonPrimitive
 import org.eclipse.lsp4j._
+import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter
+import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter
 import org.eclipse.lsp4j.jsonrpc.messages
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
@@ -12,12 +14,8 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter
-import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter
-import cats.effect.IO
-import cats.Applicative
 
-final class PlaygroundLanguageServerAdapter[F[_]: Functor: Applicative](
+final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   impl: LanguageServer[F]
 )(
   implicit d: Dispatcher[F]
