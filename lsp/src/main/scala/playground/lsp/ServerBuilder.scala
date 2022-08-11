@@ -16,6 +16,7 @@ import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 import playground.std.StdlibRuntime
+import org.http4s.client.middleware.Logger
 
 trait ServerBuilder[F[_]] {
   def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]]
@@ -37,6 +38,15 @@ object ServerBuilder {
       .default[F]
       .build
       .map(middleware.AuthorizationHeader[F])
+      .map(
+        Logger[F](
+          logHeaders = true,
+          logBody = true,
+          logAction = Some(msg =>
+            LanguageClient[F].logOutput(msg.linesWithSeparators.map("// " + _).mkString)
+          ),
+        )
+      )
       .flatMap { client =>
         AwsEnvironment
           .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
