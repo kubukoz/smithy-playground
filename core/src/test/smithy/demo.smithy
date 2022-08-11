@@ -4,7 +4,7 @@ use smithy4s.api#simpleRestJson
 use smithy4s.meta#indexedSeq
 use smithy4s.meta#refinement
 
-@refinement(targetType: "java.time.Instant", providerInstance: "demo.smithy.InstantProvider.provider")
+@refinement(targetType: "java.time.Instant", providerImport: "demo.smithy.InstantProvider._")
 @trait
 structure instant { }
 
