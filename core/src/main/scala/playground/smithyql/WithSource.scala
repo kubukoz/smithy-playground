@@ -23,6 +23,14 @@ object Position {
 }
 
 final case class SourceRange(start: Position, end: Position) {
+
+  // Like a union, but includes the space between the ranges if present.
+  def fakeUnion(another: SourceRange): SourceRange =
+    if (start.index <= another.start.index)
+      SourceRange(start, another.end)
+    else
+      SourceRange(another.start, end)
+
   def contains(pos: Position): Boolean = pos.index >= start.index && pos.index <= end.index
 
   // Assuming this range corresponds to a bracket/brace/quote etc.,

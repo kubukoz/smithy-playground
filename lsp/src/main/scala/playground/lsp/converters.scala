@@ -1,27 +1,46 @@
 package playground.lsp
 
+import cats.implicits._
 import cats.parse.LocationMap
+import com.google.gson.JsonElement
+import io.circe.Json
+import io.circe.JsonNumber
 import org.eclipse.lsp4j
+import playground.CodeLens
 import playground.CompilationError
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
+import playground.DocumentSymbol
+import playground.SymbolKind
 import playground.smithyql.CompletionItem
 import playground.smithyql.CompletionItemKind
 import playground.smithyql.InsertText
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
 import playground.smithyql.TextEdit
-import cats.implicits._
+
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.CodeLens
-import io.circe.JsonNumber
-import com.google.gson.JsonElement
-import io.circe.Json
 
 object converters {
 
   object toLSP {
+
+    def documentSymbol(docText: String, sym: DocumentSymbol): lsp4j.DocumentSymbol =
+      new lsp4j.DocumentSymbol(
+        sym.name,
+        symbolKind(sym.kind),
+        range(docText, sym.range),
+        range(docText, sym.range),
+      ).tap(_.setChildren(sym.children.map(documentSymbol(docText, _)).asJava))
+
+    def symbolKind(kind: SymbolKind): lsp4j.SymbolKind =
+      kind match {
+        case SymbolKind.Function => lsp4j.SymbolKind.Function
+        case SymbolKind.Array    => lsp4j.SymbolKind.Array
+        case SymbolKind.Field    => lsp4j.SymbolKind.Field
+        case SymbolKind.Package  => lsp4j.SymbolKind.Package
+      }
 
     def completionItem(
       doc: String,

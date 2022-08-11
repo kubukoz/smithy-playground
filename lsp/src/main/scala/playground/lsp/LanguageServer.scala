@@ -31,6 +31,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 import playground.lsp.buildinfo.BuildInfo
+import playground.DocumentSymbolProvider
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -43,6 +44,7 @@ trait LanguageServer[F[_]] {
   def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
   def diagnostic(params: DocumentDiagnosticParams): F[DocumentDiagnosticReport]
   def codeLens(params: CodeLensParams): F[List[CodeLens]]
+  def documentSymbol(params: DocumentSymbolParams): F[List[DocumentSymbol]]
 
   def didChangeWatchedFiles(
     params: DidChangeWatchedFilesParams
@@ -90,6 +92,7 @@ object LanguageServer {
           .tap(_.setCompletionProvider(new CompletionOptions()))
           .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
+          .tap(_.setDocumentSymbolProvider(true))
 
         LanguageClient[F]
           .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
@@ -212,6 +215,11 @@ object LanguageServer {
             )
             .map(converters.toLSP.codeLens(documentText, _))
       }
+
+      def documentSymbol(params: DocumentSymbolParams): F[List[DocumentSymbol]] =
+        TextDocumentManager[F].get(params.getTextDocument().getUri()).map { text =>
+          DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(text, _))
+        }
 
       def didChangeWatchedFiles(
         params: DidChangeWatchedFilesParams
