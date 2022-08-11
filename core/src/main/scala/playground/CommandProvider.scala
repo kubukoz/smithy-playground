@@ -66,7 +66,13 @@ object CommandProvider {
                         ) *>
                         runner
                           .run(compiled)
-                          .onError { case e =>
+                          .flatMap { out =>
+                            Feedback[F].logOutput(
+                              s"// Succeeded ${parsed.operationName.value.text} ($requestId), response:\n"
+                                + writeOutput(out)
+                            )
+                          }
+                          .handleErrorWith { e =>
                             val rendered =
                               compiled
                                 .catchError(e)
@@ -77,12 +83,7 @@ object CommandProvider {
 
                             Feedback[F].logOutput(s"// ERROR ($requestId) $rendered")
                           }
-                          .flatMap { out =>
-                            Feedback[F].logOutput(
-                              s"// Succeeded ${parsed.operationName.value.text} ($requestId), response:\n"
-                                + writeOutput(out)
-                            )
-                          }
+
                     }
                 }
                 .merge
