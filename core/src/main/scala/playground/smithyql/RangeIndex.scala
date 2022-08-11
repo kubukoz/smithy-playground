@@ -12,7 +12,10 @@ object RangeIndex {
     new RangeIndex {
 
       private val allRanges: List[ContextRange] =
-        findInOperationName(q.operationName) ++ findInNode(q.input, NodeContext.InputContext.root)
+        findInOperationName(q.operationName) ++ findInNode(
+          q.input,
+          NodeContext.Root.inOperationInput,
+        )
 
       // Console
       //   .err
@@ -32,24 +35,26 @@ object RangeIndex {
   private def findInOperationName(
     operationName: WithSource[OperationName]
   ): List[ContextRange] =
-    ContextRange(operationName.range, NodeContext.OperationContext(operationName)) :: Nil
+    ContextRange(
+      operationName.range,
+      NodeContext.Root.inOperationName,
+    ) :: Nil
 
   private def findInNode(
     node: WithSource[InputNode[WithSource]],
-    ctx: NodeContext.InputContext,
+    ctx: NodeContext,
   ): List[ContextRange] = {
-    def entireNode(ctx: NodeContext.InputContext) = ContextRange(node.range, ctx)
+    def entireNode(ctx: NodeContext) = ContextRange(node.range, ctx)
 
     node.value match {
       case l @ Listed(_) => entireNode(ctx) :: findInList(l, ctx)
 
-      case s @ Struct(_) =>
-        entireNode(ctx) :: findInStruct(s, ctx.append(NodeContext.PathEntry.StructBody))
+      case s @ Struct(_) => entireNode(ctx) :: findInStruct(s, ctx.inStructBody)
 
       case StringLiteral(_) =>
         val inQuotes = ContextRange(
           node.range.shrink1,
-          ctx.append(NodeContext.PathEntry.Quotes),
+          ctx.inQuotes,
         )
 
         inQuotes :: entireNode(ctx) :: Nil
@@ -64,21 +69,19 @@ object RangeIndex {
 
   private def findInList(
     list: Listed[WithSource],
-    ctx: NodeContext.InputContext,
+    ctx: NodeContext,
   ): List[ContextRange] = {
     val inItems = list
       .values
       .value
       .zipWithIndex
-      .flatMap { case (entry, index) =>
-        findInNode(entry, ctx.append(NodeContext.PathEntry.CollectionEntry(index.some)))
-      }
+      .flatMap { case (entry, index) => findInNode(entry, ctx.inCollectionEntry(index.some)) }
 
     val inBody = ContextRange(
       list
         .values
         .range,
-      ctx.append(NodeContext.PathEntry.CollectionEntry(None)),
+      ctx.inCollectionEntry(None),
     )
 
     inBody :: inItems
@@ -86,7 +89,7 @@ object RangeIndex {
 
   private def findInStruct(
     struct: Struct[WithSource],
-    ctx: NodeContext.InputContext,
+    ctx: NodeContext,
   ): List[ContextRange] =
     // Struct fields that allow nesting in them
     {
@@ -94,9 +97,7 @@ object RangeIndex {
         .fields
         .value
         .value
-        .flatMap { case (k, v) =>
-          findInNode(v, ctx.append(NodeContext.PathEntry.StructValue(k.value.text)))
-        }
+        .flatMap { case (k, v) => findInNode(v, ctx.inStructValue(k.value.text)) }
 
       ContextRange(struct.fields.range, ctx) :: inFields
     }
