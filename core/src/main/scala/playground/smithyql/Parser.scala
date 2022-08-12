@@ -135,7 +135,7 @@ object SmithyQLParser {
     val qualifiedIdent: Parser[QualifiedIdentifier] =
       (
         rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace)),
-        tokens.hash *> rawIdent.surroundedBy(tokens.whitespace),
+        tokens.hash *> rawIdent,
       ).mapN(QualifiedIdentifier.apply)
 
     val useClause: Parser[UseClause[T]] = {

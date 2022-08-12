@@ -37,6 +37,7 @@ import NodeContext.PathEntry
 import NodeContext.^^:
 import NodeContext.Root
 import cats.Id
+import playground.ServiceNameExtractor
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: NodeContext): List[CompletionItem]
@@ -180,7 +181,7 @@ object CompletionItem {
   }
 
   def describeService(service: DynamicSchemaIndex.ServiceWrapper): String =
-    s": service ${service.service.id.name}"
+    s": service ${ServiceNameExtractor.fromService(service.service).selection}"
 
   def describeSchema(schema: Schema[_]): () => String =
     schema match {
