@@ -26,7 +26,7 @@ object DiagnosticProvider {
 
   def instance[F[_]](
     compiler: Compiler[IorThrow],
-    runner: Runner.Optional[F],
+    runner: Runner.Resolver[F],
   ): DiagnosticProvider[F] =
     new DiagnosticProvider[F] {
 

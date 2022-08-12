@@ -70,16 +70,17 @@ object Formatter {
         } + {
           if (v.commentsRight.isEmpty)
             Doc.empty
-          else {
-            val sep =
-              if (v.value.kind == NodeKind.Struct)
-                Doc.hardLine
-              else
-                Doc.space
+          else
+            {
+              val sep =
+                if (v.value.kind == NodeKind.Struct)
+                  Doc.hardLine
+                else
+                  Doc.space
 
-            sep
-          } +
-            comments(v.commentsRight)
+              sep
+            } +
+              comments(v.commentsRight)
         }
     }
   }

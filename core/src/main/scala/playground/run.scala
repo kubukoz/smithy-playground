@@ -189,7 +189,7 @@ trait Runner[F[_]] {
 
 object Runner {
 
-  trait Optional[F[_]] {
+  trait Resolver[F[_]] {
     def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]]
   }
 
@@ -257,8 +257,8 @@ object Runner {
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
-  ): Optional[F] = {
-    val runners: Map[QualifiedIdentifier, Optional[F]] =
+  ): Resolver[F] = {
+    val runners: Map[QualifiedIdentifier, Resolver[F]] =
       dsi
         .allServices
         .map { svc =>
@@ -274,7 +274,7 @@ object Runner {
         }
         .toMap
 
-    new Optional[F] {
+    new Resolver[F] {
       def get(q: Query[WithSource]): IorNel[Issue, Runner[F]] = MultiServiceResolver
         .resolveService(
           q.useClause.value.map(_.identifier.value),
@@ -306,8 +306,8 @@ object Runner {
     awsEnv: Resource[F, AwsEnvironment[F]],
     schemaIndex: ShapeId => Option[Schema[_]],
     plugins: List[PlaygroundPlugin],
-  ): Optional[F] =
-    new Optional[F] {
+  ): Resolver[F] =
+    new Resolver[F] {
 
       val serviceProtocols = service
         .hints
@@ -391,12 +391,14 @@ object Runner {
         .concat(plugins.flatMap(_.http4sBuilders).map(simpleFromBuilder))
         .append(stdlibRunner)
         .map(
-          _.map { interpreter => q =>
-            perform[q.I, q.E, q.O](
-              interpreter,
-              // todo: try to find a safer way to do this, should be safe tho
-              q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
-            )
+          _.map { interpreter =>
+            new Runner[F] {
+              def run(q: CompiledInput): F[InputNode[Id]] = perform[q.I, q.E, q.O](
+                interpreter,
+                // note: this is safe... for real
+                q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
+              )
+            }
           }
         )
 
