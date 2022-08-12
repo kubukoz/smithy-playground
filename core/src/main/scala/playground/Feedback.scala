@@ -1,6 +1,5 @@
 package playground
 
-//todo: remove in favor of command listener/reporter
 trait Feedback[F[_]] {
   def showInfoMessage(msg: String): F[Unit]
   def showErrorMessage(msg: String): F[Unit]
