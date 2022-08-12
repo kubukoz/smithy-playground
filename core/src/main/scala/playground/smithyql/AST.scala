@@ -11,6 +11,7 @@ import cats.kernel.Eq
 import cats.Id
 import playground.ServiceNameExtractor
 import smithy4s.Service
+import cats.kernel.Order
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
@@ -62,7 +63,10 @@ object QualifiedIdentifier {
   ): QualifiedIdentifier = ServiceNameExtractor.fromService(service)
 
   implicit val show: Show[QualifiedIdentifier] = Show.fromToString
-  implicit val eq: Eq[QualifiedIdentifier] = Eq.fromUniversalEquals
+
+  implicit val ord: Order[QualifiedIdentifier] = Order.by { case QualifiedIdentifier(segs, sel) =>
+    (segs, sel)
+  }
 
 }
 

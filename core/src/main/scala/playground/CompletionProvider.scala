@@ -114,7 +114,11 @@ object CompletionProvider {
                 .toList
                 .flatMap {
                   case NodeContext.PathEntry.AtUseClause ^^: Root =>
-                    servicesById.map(CompletionItem.useServiceClause.tupled).toList
+                    servicesById
+                      .toList
+                      .sortBy(_._1)
+                      .map(CompletionItem.useServiceClause.tupled)
+                      .toList
 
                   case NodeContext.PathEntry.AtOperationName ^^: Root =>
                     completeOperationName(serviceId)(
