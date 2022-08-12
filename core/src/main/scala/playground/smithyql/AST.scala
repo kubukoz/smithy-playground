@@ -9,6 +9,8 @@ import smithy4s.ShapeId
 import cats.Show
 import cats.kernel.Eq
 import cats.Id
+import playground.ServiceNameExtractor
+import smithy4s.Service
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
@@ -55,7 +57,12 @@ object QualifiedIdentifier {
     shapeId.name,
   )
 
+  def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+    service: Service[Alg, Op]
+  ): QualifiedIdentifier = ServiceNameExtractor.fromService(service)
+
   implicit val show: Show[QualifiedIdentifier] = Show.fromToString
+  implicit val eq: Eq[QualifiedIdentifier] = Eq.fromUniversalEquals
 
 }
 
