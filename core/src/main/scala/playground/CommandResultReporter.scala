@@ -28,17 +28,16 @@ object CommandResultReporter {
 
       def onUnsupportedProtocol(
         issues: ProtocolIssues
-      ): F[Unit] = Feedback[F].showErrorMessage(
-        s"""The service uses an unsupported protocol.
-           |Supported protocols: ${issues
-            .supported
-            .map(_.show)
-            .mkString_(", ")}
-                             |Found supportedProtocols: ${issues
-            .found
-            .map(_.show)
-            .mkString(", ")}""".stripMargin
-      )
+      ): F[Unit] = {
+        val supportedString = issues.supported.map(_.show).mkString_(", ")
+        val foundOnServiceString = issues.found.map(_.show).mkString(", ")
+
+        Feedback[F].showErrorMessage(
+          s"""The service uses an unsupported protocol.
+             |Supported protocols: $supportedString
+             |Found protocols: $foundOnServiceString""".stripMargin
+        )
+      }
 
       def onIssues(issues: NonEmptyList[Throwable]): F[Unit] = Feedback[F].showErrorMessage(
         issues.map(_.toString).mkString_("\n\n")
