@@ -124,7 +124,7 @@ object SmithyQLParser {
         tokens.hash *> rawIdent.surroundedBy(tokens.whitespace),
       ).mapN(QualifiedIdentifier.apply)
 
-    val useClause: Parser[UseClause] = {
+    val useClause: Parser[UseClause[WithSource]] = {
       string("use") *>
         string("service")
           .surroundedBy(tokens.whitespace) *>
@@ -228,7 +228,7 @@ object SmithyQLParser {
         }
     }
 
-    val useClauseWithSource: Parser0[Option[WithSource[UseClause]]] =
+    val useClauseWithSource: Parser0[Option[WithSource[UseClause[WithSource]]]] =
       (tokens.comments ~
         Parser.index ~ useClause ~ Parser.index).backtrack.?.map {
         _.map { case (((commentsBefore, indexBefore), useClause), indexAfter) =>
@@ -242,7 +242,7 @@ object SmithyQLParser {
       }
 
     (useClauseWithSource.with1 ~
-      ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments)
+      ident.map(_.map(OperationName[WithSource](_))) ~ struct ~ tokens.comments)
       .map { case (((useClause, opName), input), commentsAfter) =>
         Query(
           useClause,

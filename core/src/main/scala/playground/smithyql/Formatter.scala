@@ -20,7 +20,7 @@ object Formatter {
     }
 
   def renderUseClause(
-    clause: UseClause
+    clause: UseClause[WithSource]
   ): Doc = Doc
     .text("use")
     .space("service")

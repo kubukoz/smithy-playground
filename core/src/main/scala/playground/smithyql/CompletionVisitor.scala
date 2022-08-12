@@ -34,6 +34,7 @@ import java.util.UUID
 import smithy.api
 import NodeContext.^^:
 import NodeContext.Root
+import cats.Id
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: NodeContext): List[CompletionItem]
@@ -194,7 +195,7 @@ object CompletionItem {
   sealed trait InsertUseClause extends Product with Serializable
 
   object InsertUseClause {
-    case class Required(opsToServices: Map[OperationName, NonEmptyList[QualifiedIdentifier]])
+    case class Required(opsToServices: Map[OperationName[Id], NonEmptyList[QualifiedIdentifier]])
       extends InsertUseClause
     case object NotRequired extends InsertUseClause
   }

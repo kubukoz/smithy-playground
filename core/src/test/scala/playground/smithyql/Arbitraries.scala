@@ -19,7 +19,7 @@ object Arbitraries {
       .map(Comment(_))
   }
 
-  implicit val arbOpName: Arbitrary[OperationName] = Arbitrary {
+  implicit val arbOpName: Arbitrary[OperationName[WithSource]] = Arbitrary {
     Gen.identifier.map(OperationName(_))
   }
 
@@ -54,7 +54,9 @@ object Arbitraries {
     Gen.resultOf(QualifiedIdentifier.apply)
   )
 
-  implicit val arbitraryUseClause: Arbitrary[UseClause] = Arbitrary(Gen.resultOf(UseClause.apply))
+  implicit val arbitraryUseClause: Arbitrary[UseClause[WithSource]] = Arbitrary(
+    Gen.resultOf(UseClause.apply[WithSource])
+  )
 
   implicit val arbBool: Arbitrary[BooleanLiteral[WithSource]] = Arbitrary {
     Gen.resultOf(BooleanLiteral[WithSource])

@@ -41,7 +41,12 @@ sealed trait InputNode[F[_]] extends AST[F] {
   def mapK[G[_]: Functor](fk: F ~> G): InputNode[G]
 }
 
-final case class OperationName(text: String) extends AnyVal
+final case class OperationName[F[_]](text: String) extends AST[F] {
+  def mapK[G[_]: Functor](fk: F ~> G): OperationName[G] = copy()
+
+  def kind: NodeKind = NodeKind.OperationName
+
+}
 
 final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: String) {
   def render: String = segments.mkString_(".") + "#" + selection
@@ -66,19 +71,22 @@ object QualifiedIdentifier {
 }
 
 //todo: identifier must be in WithSource
-final case class UseClause(identifier: QualifiedIdentifier) extends AnyVal
+final case class UseClause[F[_]](identifier: QualifiedIdentifier) extends AST[F] {
+  def mapK[G[_]: Functor](fk: F ~> G): UseClause[G] = UseClause(identifier)
+  def kind: NodeKind = NodeKind.UseClause
+}
 
 final case class Query[F[_]](
-  useClause: Option[F[UseClause]],
-  operationName: F[OperationName],
+  useClause: Option[F[UseClause[F]]],
+  operationName: F[OperationName[F]],
   input: F[Struct[F]],
 ) extends AST[F] {
 
   def kind: NodeKind = NodeKind.Query
 
   def mapK[G[_]: Functor](fk: F ~> G): Query[G] = Query(
-    useClause.map(fk(_)),
-    fk(operationName),
+    useClause.map(fk(_).map(_.mapK(fk))),
+    fk(operationName).map(_.mapK(fk)),
     fk(input).map(_.mapK(fk)),
   )
 
@@ -174,4 +182,6 @@ object NodeKind {
   case object Query extends NodeKind
   case object Listed extends NodeKind
   case object Bool extends NodeKind
+  case object UseClause extends NodeKind
+  case object OperationName extends NodeKind
 }

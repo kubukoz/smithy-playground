@@ -176,7 +176,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case AmbiguousService(matching) =>
         s"""Multiple services are available. Add a use clause to specify the service you want to use.
            |Available services:""".stripMargin + matching
-          .map(UseClause(_))
+          .map(UseClause[Id](_).mapK(WithSource.liftId))
           .map(Formatter.renderUseClause(_).render(Int.MaxValue))
           .mkString_("\n", "\n", ".")
 
@@ -248,8 +248,8 @@ object CompilationErrorDetails {
   ) extends CompilationErrorDetails
 
   final case class OperationNotFound(
-    name: OperationName,
-    validOperations: List[OperationName],
+    name: OperationName[Id],
+    validOperations: List[OperationName[Id]],
   ) extends CompilationErrorDetails
 
   final case class MissingField(label: String) extends CompilationErrorDetails

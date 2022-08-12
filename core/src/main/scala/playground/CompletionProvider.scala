@@ -14,6 +14,8 @@ import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.^^:
 import playground.smithyql.NodeContext.Root
 import playground.smithyql.RangeIndex
+import cats.Id
+import playground.smithyql.WithSource
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -38,7 +40,7 @@ object CompletionProvider {
       service
         .service
         .endpoints
-        .foldMap(e => Map(OperationName(e.name) -> NonEmptyList.one(serviceId)))
+        .foldMap(e => Map(OperationName[Id](e.name) -> NonEmptyList.one(serviceId)))
     }
 
     val completeOperationName = servicesById
@@ -72,13 +74,13 @@ object CompletionProvider {
       }
 
     val completionsByEndpoint
-      : Map[QualifiedIdentifier, Map[OperationName, CompletionResolver[Any]]] = servicesById
+      : Map[QualifiedIdentifier, Map[OperationName[Id], CompletionResolver[Any]]] = servicesById
       .fmap { service =>
         service
           .service
           .endpoints
           .map { endpoint =>
-            OperationName(endpoint.name) -> endpoint.input.compile(CompletionVisitor)
+            OperationName[Id](endpoint.name) -> endpoint.input.compile(CompletionVisitor)
           }
           .toMap
       }
@@ -118,7 +120,7 @@ object CompletionProvider {
                     )
 
                   case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
-                    completionsByEndpoint(serviceId)(q.operationName.value)
+                    completionsByEndpoint(serviceId)(q.operationName.value.mapK(WithSource.unwrap))
                       .getCompletions(ctx)
 
                   case _ => Nil
