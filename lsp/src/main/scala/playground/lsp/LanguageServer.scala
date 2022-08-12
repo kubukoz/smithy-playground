@@ -17,11 +17,14 @@ import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
 import playground.CodeLensProvider
 import playground.CommandProvider
+import playground.CommandResultReporter
 import playground.CompletionProvider
 import playground.DiagnosticProvider
+import playground.DocumentSymbolProvider
 import playground.Runner
 import playground.TextDocumentManager
 import playground.TextDocumentProvider
+import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.util.KleisliOps
 import playground.smithyql.Formatter
 import playground.smithyql.SmithyQLParser
@@ -30,8 +33,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.lsp.buildinfo.BuildInfo
-import playground.DocumentSymbolProvider
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -63,7 +64,9 @@ object LanguageServer {
     new Throwable("Server not available").raiseError[F, LanguageServer[F]]
   )
 
-  def instance[F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader](
+  def instance[
+    F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
+  ](
     dsi: DynamicSchemaIndex,
     runner: Runner.Resolver[F],
   )(
