@@ -13,7 +13,7 @@ object CodeLensProvider {
 
   def instance[F[_]](
     compiler: Compiler[IorThrow],
-    runner: Runner.Optional[F],
+    runner: Runner.Resolver[F],
   ): CodeLensProvider[F] =
     new CodeLensProvider[F] {
 

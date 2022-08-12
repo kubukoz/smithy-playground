@@ -65,7 +65,7 @@ object LanguageServer {
 
   def instance[F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader](
     dsi: DynamicSchemaIndex,
-    runner: Runner.Optional[F],
+    runner: Runner.Resolver[F],
   )(
     implicit sup: Supervisor[F]
   ): LanguageServer[F] =

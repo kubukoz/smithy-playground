@@ -18,7 +18,7 @@ object CommandProvider {
 
   def instance[F[_]: MonadThrow: TextDocumentProvider: Feedback](
     compiler: Compiler[F],
-    runner: Runner.Optional[F],
+    runner: Runner.Resolver[F],
   ): CommandProvider[F] =
     new CommandProvider[F] {
       // todo mutability
