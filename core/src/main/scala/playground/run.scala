@@ -391,12 +391,14 @@ object Runner {
         .concat(plugins.flatMap(_.http4sBuilders).map(simpleFromBuilder))
         .append(stdlibRunner)
         .map(
-          _.map { interpreter => q =>
-            perform[q.I, q.E, q.O](
-              interpreter,
-              // todo: try to find a safer way to do this, should be safe tho
-              q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
-            )
+          _.map { interpreter =>
+            new Runner[F] {
+              def run(q: CompiledInput): F[InputNode[Id]] = perform[q.I, q.E, q.O](
+                interpreter,
+                // note: this is safe... for real
+                q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
+              )
+            }
           }
         )
 
