@@ -85,7 +85,7 @@ object Compiler {
         .map { svc =>
           // todo: deprecated services (here / in completions)
           QualifiedIdentifier
-            .fromShapeId(svc.service.id) -> Compiler.fromService[svc.Alg, svc.Op](svc.service)
+            .forService(svc.service) -> Compiler.fromService[svc.Alg, svc.Op](svc.service)
         }
         .toMap
 
@@ -127,7 +127,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
             type E = Err
             type O = Out
             val input: I = compiled
-            val serviceId: QualifiedIdentifier = QualifiedIdentifier.fromShapeId(service.id)
+            val serviceId: QualifiedIdentifier = QualifiedIdentifier.forService(service)
             val endpoint: Endpoint[Op, I, E, O, _, _] = e
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
@@ -262,7 +262,7 @@ object Runner {
       dsi
         .allServices
         .map { svc =>
-          QualifiedIdentifier.fromShapeId(svc.service.id) ->
+          QualifiedIdentifier.forService(svc.service) ->
             Runner.forService[svc.Alg, svc.Op, F](
               svc.service,
               client,

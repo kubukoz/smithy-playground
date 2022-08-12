@@ -28,7 +28,7 @@ object CompletionProvider {
       dsi
         .allServices
         .map { service =>
-          QualifiedIdentifier.fromShapeId(service.service.id) -> service
+          QualifiedIdentifier.forService(service.service) -> service
         }
         .toMap
 
