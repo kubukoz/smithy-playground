@@ -249,8 +249,8 @@ object CompilationErrorDetails {
   ) extends CompilationErrorDetails
 
   final case class OperationNotFound(
-    name: OperationName,
-    validOperations: List[OperationName],
+    name: OperationName[Id],
+    validOperations: List[OperationName[Id]],
   ) extends CompilationErrorDetails
 
   final case class MissingField(label: String) extends CompilationErrorDetails

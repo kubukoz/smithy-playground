@@ -19,7 +19,7 @@ object Arbitraries {
       .map(Comment(_))
   }
 
-  implicit val arbOpName: Arbitrary[OperationName] = Arbitrary {
+  implicit val arbOpName: Arbitrary[OperationName[WithSource]] = Arbitrary {
     Gen.identifier.map(OperationName(_))
   }
 

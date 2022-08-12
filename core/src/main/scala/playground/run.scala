@@ -149,8 +149,8 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
         CompilationError.error(
           CompilationErrorDetails
             .OperationNotFound(
-              q.operationName.value,
-              endpoints.keys.map(OperationName(_)).toList,
+              q.operationName.value.mapK(WithSource.unwrap),
+              endpoints.keys.map(OperationName[Id](_)).toList,
             ),
           q.operationName.range,
         )

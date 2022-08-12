@@ -36,7 +36,7 @@ object DocumentSymbolProvider {
       .toList
 
   private def findInOperation(
-    op: WithSource[OperationName],
+    op: WithSource[OperationName[WithSource]],
     body: WithSource[Struct[WithSource]],
   ): List[DocumentSymbol] =
     DocumentSymbol(

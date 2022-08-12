@@ -254,7 +254,7 @@ object SmithyQLParser {
       }
 
     (useClauseWithSource.with1 ~
-      ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments)
+      ident.map(_.map(OperationName[WithSource](_))) ~ struct ~ tokens.comments)
       .map { case (((useClause, opName), input), commentsAfter) =>
         Query(
           useClause,

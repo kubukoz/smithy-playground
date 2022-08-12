@@ -21,7 +21,7 @@ object RangeIndex {
       //   .println(
       //     s"""Found ${allRanges.size} ranges for query ${q.operationName.value.text}:
       //        |${allRanges
-      //         .map(r => r.ctx.render + " -> " + r.range.render)
+      //         .map(_.render)
       //         .mkString("\n")}""".stripMargin
       //   )
 
@@ -42,7 +42,7 @@ object RangeIndex {
       .toList
 
   private def findInOperationName(
-    operationName: WithSource[OperationName]
+    operationName: WithSource[OperationName[WithSource]]
   ): List[ContextRange] =
     ContextRange(
       operationName.range,
@@ -113,4 +113,6 @@ object RangeIndex {
 
 }
 
-case class ContextRange(range: SourceRange, ctx: NodeContext)
+case class ContextRange(range: SourceRange, ctx: NodeContext) {
+  def render: String = ctx.render + " -> " + range.render
+}

@@ -212,7 +212,7 @@ object CompletionItem {
   sealed trait InsertUseClause extends Product with Serializable
 
   object InsertUseClause {
-    case class Required(opsToServices: Map[OperationName, NonEmptyList[QualifiedIdentifier]])
+    case class Required(opsToServices: Map[OperationName[Id], NonEmptyList[QualifiedIdentifier]])
       extends InsertUseClause
     case object NotRequired extends InsertUseClause
   }
