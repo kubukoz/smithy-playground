@@ -2,16 +2,17 @@ package playground.smithyql
 
 import cats.Id
 import cats.data.NonEmptyList
+import cats.implicits._
 import com.softwaremill.diffx.generic.auto._
 import demo.smithy.DemoServiceGen
+import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._
 import playground.CompletionProvider
+import playground.std.ClockGen
 import playground.std.RandomGen
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
 import weaver._
-import cats.implicits._
-import playground.std.ClockGen
 
 object CompletionProviderTests extends SimpleIOSuite {
 
@@ -121,6 +122,33 @@ object CompletionProviderTests extends SimpleIOSuite {
       )
 
     assert(result == expected)
+  }
+
+  locally {
+    // for some reason, this can't be defined within the test body.
+    val provider = CompletionProvider.forServices(List(wrap(DeprecatedServiceGen)))
+
+    pureTest("completing empty file - one (deprecated) service exists") {
+      val result = provider
+        .provide(
+          "",
+          Position(0),
+        )
+        .map(cit => (cit.deprecated, cit.kind))
+
+      assert(result == List(true -> CompletionItemKind.Function))
+    }
+
+    pureTest("completing use clause - one (deprecated) service exists") {
+      val result = provider
+        .provide(
+          "use service a#B\nhello {}",
+          Position("use service ".length),
+        )
+        .map(cit => (cit.deprecated, cit.kind))
+
+      assert(result == List(true -> CompletionItemKind.Module))
+    }
   }
 
   test("completing operation - use clause exists, multiple services available") { (_, log) =>
