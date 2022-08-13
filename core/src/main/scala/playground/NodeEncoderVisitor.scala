@@ -87,19 +87,19 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): NodeEncoder[P] =
     tag match {
       case PInt        => int
-      case PShort      => unsupported("short")
-      case PLong       => int.contramap(_.toInt) // todo: wraps
+      case PShort      => short
+      case PLong       => long
       case PString     => string
       case PBigInt     => unsupported("bigint")
       case PBoolean    => boolean
       case PBigDecimal => bigdecimal
       case PBlob       => string.contramap(_.toString) // todo this only works for UTF-8 text
-      case PDouble     => int.contramap(_.toInt) // todo: wraps
+      case PDouble     => long.contramap(_.toLong) // todo: wraps decimals
       case PDocument   => document
       case PFloat      => unsupported("float")
       case PUnit       => struct(shapeId, hints, Vector.empty, _ => ())
       case PUUID       => string.contramap(_.toString())
-      case PByte       => unsupported("byte")
+      case PByte       => byte
       case PTimestamp  => string.contramap(_.toString)
     }
 
@@ -209,7 +209,11 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     v => throw new Exception(s"Unsupported operation: $tag for value $v")
 
   val bigdecimal: NodeEncoder[BigDecimal] = unsupported("bigdecimal")
-  val int: NodeEncoder[Int] = IntLiteral(_)
+
+  val long: NodeEncoder[Long] = IntLiteral(_)
+  val int: NodeEncoder[Int] = long.contramap(_.toLong)
+  val short: NodeEncoder[Short] = long.contramap(_.toLong)
+  val byte: NodeEncoder[Byte] = long.contramap(_.toLong)
 
   val string: NodeEncoder[String] = StringLiteral(_)
 
@@ -229,8 +233,14 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
         case DArray(value)   => document.listed.toNode(value.toList)
         case DBoolean(value) => boolean.toNode(value)
         case DNumber(value) =>
-          if (value.isValidInt)
+          if (value.isValidByte)
+            byte.toNode(value.toByte)
+          else if (value.isValidShort)
+            short.toNode(value.toShort)
+          else if (value.isValidInt)
             int.toNode(value.toInt)
+          else if (value.isValidLong)
+            long.toNode(value.toLong)
           else
             // todo other numbers
             bigdecimal.toNode(value)

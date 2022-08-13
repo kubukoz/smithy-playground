@@ -33,7 +33,8 @@ object DSL {
   ): Struct[Id] = Struct[Id](Struct.Fields.fromSeq[Id](args.map(_.leftMap(Struct.Key(_)))))
 
   implicit def stringToAST(s: String): StringLiteral[Id] = StringLiteral[Id](s)
-  implicit def intToAST(i: Int): IntLiteral[Id] = IntLiteral[Id](i)
+  implicit def intToAST(i: Int): IntLiteral[Id] = IntLiteral[Id](i.toLong)
+  implicit def longToAAST(i: Long): IntLiteral[Id] = IntLiteral[Id](i)
   implicit def boolToAST(b: Boolean): BooleanLiteral[Id] = BooleanLiteral[Id](b)
 
   implicit def listToAST[A](

@@ -53,7 +53,6 @@ trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
     ast => compile(ast).flatMap(f)
 
-  // TODO: Actually use the powers of Ior. Maybe a custom monad for errors / warnings? Diagnosed[A]? Either+Writer composition?
   def compile(ast: WAST): PartialCompiler.Result[A]
 
 }
@@ -163,6 +162,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case Message(text)        => text
       case DeprecatedItem(info) => "Deprecated" + CompletionItem.deprecationString(info)
       case InvalidUUID          => "Invalid UUID"
+      case NumberOutOfRange(value, expectedType) => s"Number out of range for $expectedType: $value"
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
@@ -250,6 +250,9 @@ object CompilationErrorDetails {
 
   case object InvalidUUID extends CompilationErrorDetails
 
+  final case class NumberOutOfRange(numberValue: String, typeName: String)
+    extends CompilationErrorDetails
+
   final case class InvalidTimestampFormat(expected: TimestampFormat) extends CompilationErrorDetails
 
   final case class MissingDiscriminator(possibleValues: NonEmptyList[String])
@@ -282,6 +285,22 @@ object CompilationErrorDetails {
 
 object QueryCompiler extends SchemaVisitor[PartialCompiler] {
 
+  private def checkRange[A, B](
+    pc: PartialCompiler[A]
+  )(
+    tag: String
+  )(
+    matchToRange: PartialFunction[A, B]
+  ) = (pc, PartialCompiler.pos).tupled.emap { case (i, range) =>
+    matchToRange
+      .lift(i)
+      .toRightIor(
+        CompilationError
+          .error(NumberOutOfRange(i.toString, tag), range)
+      )
+      .toIorNec
+  }
+
   def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): PartialCompiler[P] =
     tag match {
       case PString => string
@@ -289,15 +308,14 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
         PartialCompiler
           .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
           .map(_.value.value)
-      case PUnit => struct(shapeId, hints, Vector.empty, _ => ())
-      case PInt =>
-        PartialCompiler
-          .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
-          .map(_.value.value)
+      case PUnit       => struct(shapeId, hints, Vector.empty, _ => ())
+      case PLong       => integer
+      case PInt        => checkRange(integer)("int") { case i if i.isValidInt => i.toInt }
+      case PShort      => checkRange(integer)("short") { case i if i.isValidShort => i.toShort }
+      case PByte       => checkRange(integer)("byte") { case i if i.isValidByte => i.toByte }
+      case PFloat      => unsupported("float")
       case PDocument   => document
-      case PShort      => unsupported("short")
       case PBlob       => unsupported("blob")
-      case PByte       => unsupported("byte")
       case PBigDecimal => unsupported("bigDecimal")
       case PDouble     => unsupported("double")
       case PBigInt     => unsupported("bigint")
@@ -310,8 +328,6 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             .toIorNec
         }
 
-      case PLong  => unsupported("long")
-      case PFloat => unsupported("float")
       case PTimestamp =>
         stringLiteral.emap { s =>
           // We don't support other formats for the simple reason that it's not necessary:
@@ -330,6 +346,10 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             .toIorNec
         }
     }
+
+  private val integer: PartialCompiler[Long] = PartialCompiler
+    .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
+    .map(_.value.value)
 
   def collection[C[_], A](
     shapeId: ShapeId,
@@ -570,7 +590,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     it.value.compile(_)
   }
 
-  def unsupported[A](ctx: String): PartialCompiler[A] =
+  private def unsupported[A](ctx: String): PartialCompiler[A] =
     ast =>
       Ior.leftNec(
         CompilationError.error(
@@ -585,7 +605,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
   val document: PartialCompiler[Document] =
     _.value match {
       case BooleanLiteral(value) => Document.fromBoolean(value).pure[PartialCompiler.Result]
-      case IntLiteral(value)     => Document.fromInt(value).pure[PartialCompiler.Result]
+      case IntLiteral(value)     => Document.fromLong(value).pure[PartialCompiler.Result]
       case StringLiteral(value)  => Document.fromString(value).pure[PartialCompiler.Result]
       // parTraverse in this file isn't going to work like you think it will
       case Listed(values) => values.value.parTraverse(document.compile(_)).map(Document.array(_))

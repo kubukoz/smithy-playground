@@ -141,6 +141,22 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("short") {
+    assert(
+      compile {
+        WithSource.liftId(42.mapK(WithSource.liftId))
+      }(Schema.short) == Ior.right(42.toShort)
+    )
+  }
+
+  pureTest("short - out of range") {
+    assert(
+      compile {
+        WithSource.liftId((Short.MaxValue + 1).mapK(WithSource.liftId))
+      }(Schema.short).isLeft
+    )
+  }
+
   pureTest("boolean") {
     assert(
       compile {
