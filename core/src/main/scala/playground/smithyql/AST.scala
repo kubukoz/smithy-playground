@@ -58,6 +58,12 @@ final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: 
 
 object QualifiedIdentifier {
 
+  def of(first: String, second: String, rest: String*): QualifiedIdentifier = {
+    val all = first :: second :: rest.toList
+
+    apply(NonEmptyList.fromListUnsafe(all.dropRight(1)), all.last)
+  }
+
   def fromShapeId(shapeId: ShapeId): QualifiedIdentifier = QualifiedIdentifier(
     shapeId.namespace.split("\\.").toList.toNel.getOrElse(sys.error("impossible! " + shapeId)),
     shapeId.name,

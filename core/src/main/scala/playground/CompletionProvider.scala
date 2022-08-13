@@ -17,6 +17,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import smithyql.CompletionVisitor
 import smithyql.CompletionResolver
+import playground.smithyql.Query
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -24,16 +25,17 @@ trait CompletionProvider {
 
 object CompletionProvider {
 
-  def forSchemaIndex[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+  def forSchemaIndex(
     dsi: DynamicSchemaIndex
+  ): CompletionProvider = forServices(dsi.allServices)
+
+  def forServices(
+    allServices: List[DynamicSchemaIndex.ServiceWrapper]
   ): CompletionProvider = {
     val servicesById =
-      dsi
-        .allServices
-        .map { service =>
-          QualifiedIdentifier.forService(service.service) -> service
-        }
-        .toMap
+      allServices.map { service =>
+        QualifiedIdentifier.forService(service.service) -> service
+      }.toMap
 
     val serviceIdsById = servicesById.map { case (k, _) => (k, k) }
 
@@ -74,6 +76,8 @@ object CompletionProvider {
         }
       }
 
+    val completeAnyOperationName = completeOperationName.toList.map(_._2).flatSequence.apply(None)
+
     val completionsByEndpoint
       : Map[QualifiedIdentifier, Map[OperationName[Id], CompletionResolver[Any]]] = servicesById
       .fmap { service =>
@@ -86,10 +90,21 @@ object CompletionProvider {
           .toMap
       }
 
+    def completeOperationNameFor(
+      q: Query[WithSource],
+      serviceId: Option[QualifiedIdentifier],
+    ) =
+      serviceId match {
+        case Some(serviceId) =>
+          completeOperationName(serviceId)(
+            q.useClause.value.map(_.identifier.value)
+          )
+        case _ => completeAnyOperationName
+      }
+
     (doc, pos) =>
       SmithyQLParser.parseFull(doc) match {
-        case Left(_) if doc.isBlank() =>
-          completeOperationName.toList.map(_._2).flatSequence.apply(None)
+        case Left(_) if doc.isBlank() => completeAnyOperationName
 
         case Left(_) =>
           // we can try to deal with this later
@@ -110,34 +125,30 @@ object CompletionProvider {
               )
               .toOption
 
-          serviceIdOpt match {
-            case Some(serviceId) =>
-              matchingNode
-                .toList
-                .flatMap {
-                  case NodeContext.PathEntry.AtUseClause ^^: Root =>
-                    servicesById
-                      .toList
-                      .sortBy(_._1)
-                      .map(CompletionItem.useServiceClause.tupled)
-                      .toList
+          matchingNode
+            .toList
+            .flatMap {
+              case NodeContext.PathEntry.AtUseClause ^^: Root =>
+                servicesById
+                  .toList
+                  .sortBy(_._1)
+                  .map(CompletionItem.useServiceClause.tupled)
+                  .toList
 
-                  case NodeContext.PathEntry.AtOperationName ^^: Root =>
-                    completeOperationName(serviceId)(
-                      q.useClause.value.map(_.identifier.value)
-                    )
+              case NodeContext.PathEntry.AtOperationName ^^: Root =>
+                completeOperationNameFor(q, serviceIdOpt)
 
-                  case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
+              case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
+                serviceIdOpt match {
+                  case Some(serviceId) =>
                     completionsByEndpoint(serviceId)(q.operationName.value.mapK(WithSource.unwrap))
                       .getCompletions(ctx)
 
-                  case _ => Nil
+                  case None => Nil
                 }
 
-            case None =>
-              // Compilation errors will be shown in the meantime
-              Nil
-          }
+              case _ => Nil
+            }
 
       }
   }
