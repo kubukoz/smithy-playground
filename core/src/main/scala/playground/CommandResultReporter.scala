@@ -1,7 +1,7 @@
 package playground
 
-import cats.FlatMap
 import cats.Id
+import cats.Monad
 import cats.data.NonEmptyList
 import cats.effect.kernel.Ref
 import cats.implicits._
@@ -12,14 +12,24 @@ import playground.smithyql.WithSource
 
 import Runner.Issue.ProtocolIssues
 
+trait CommandResultReporter[F[_]] {
+  type RequestId
+  def onUnsupportedProtocol(issues: ProtocolIssues): F[Unit]
+  def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
+  def onCompilationFailed: F[Unit]
+  def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
+  def onQuerySuccess(parsed: Query[Id], requestId: RequestId, output: InputNode[Id]): F[Unit]
+  def onQueryFailure(e: Throwable, compiled: CompiledInput, requestId: RequestId): F[Unit]
+}
+
 object CommandResultReporter {
   def apply[F[_]](implicit F: CommandResultReporter[F]): F.type = F
 
   def instance[
-    F[_]: Feedback: FlatMap: Ref.Make
+    F[_]: Feedback: Monad: Ref.Make
   ]: F[CommandResultReporter[F]] = Ref[F].of(0).map(withRequestCounter(_))
 
-  def withRequestCounter[F[_]: Feedback: FlatMap](
+  def withRequestCounter[F[_]: Feedback: Monad](
     requestCounter: Ref[F, Int]
   ): CommandResultReporter[F] =
     new CommandResultReporter[F] {
@@ -41,6 +51,10 @@ object CommandResultReporter {
 
       def onIssues(issues: NonEmptyList[Throwable]): F[Unit] = Feedback[F].showErrorMessage(
         issues.map(_.toString).mkString_("\n\n")
+      )
+
+      def onCompilationFailed: F[Unit] = Feedback[F].showErrorMessage(
+        "Couldn't run query because of compilation errors."
       )
 
       def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId] =
@@ -76,13 +90,4 @@ object CommandResultReporter {
 
     }
 
-}
-
-trait CommandResultReporter[F[_]] {
-  type RequestId
-  def onUnsupportedProtocol(issues: ProtocolIssues): F[Unit]
-  def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
-  def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
-  def onQuerySuccess(parsed: Query[Id], requestId: RequestId, output: InputNode[Id]): F[Unit]
-  def onQueryFailure(e: Throwable, compiled: CompiledInput, requestId: RequestId): F[Unit]
 }

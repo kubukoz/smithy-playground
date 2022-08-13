@@ -53,6 +53,10 @@ object CommandProvider {
                             }
                         }
                     }
+                    .recoverWith { case _: CompilationFailed =>
+                      CommandResultReporter[F].onCompilationFailed
+                    }
+
                 }
                 .merge
             }
