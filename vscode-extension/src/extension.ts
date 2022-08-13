@@ -10,6 +10,8 @@ export function activate(context: ExtensionContext) {
     .getConfiguration()
     .get<string>("smithyql.server.version");
 
+  const coursierTTL = serverVersion === "latest.integration" ? "0" : "1h";
+
   const outputChannel = window.createOutputChannel(
     "Smithy Playground",
     "smithyql"
@@ -27,6 +29,7 @@ export function activate(context: ExtensionContext) {
         `${serverArtifact}:${serverVersion}`,
         "--ttl",
         "1h",
+        coursierTTL,
       ],
     },
     {

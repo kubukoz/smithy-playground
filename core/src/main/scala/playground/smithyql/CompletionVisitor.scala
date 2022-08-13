@@ -12,6 +12,7 @@ import smithy4s.Lazy
 import smithy4s.Refinement
 import smithy4s.ShapeId
 import smithy4s.Timestamp
+import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
 import smithy4s.schema.EnumValue
@@ -28,13 +29,16 @@ import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
-import NodeContext.PathEntry
 import java.util.UUID
 import smithy.api
 import smithy4s.Bijection
 import smithy4s.schema.Schema.BijectionSchema
+
+import NodeContext.PathEntry
 import NodeContext.^^:
 import NodeContext.Root
+import cats.Id
+import playground.ServiceNameExtractor
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: NodeContext): List[CompletionItem]
@@ -72,6 +76,18 @@ object InsertText {
 }
 
 object CompletionItem {
+
+  def useServiceClause(
+    ident: QualifiedIdentifier,
+    service: DynamicSchemaIndex.ServiceWrapper,
+  ): CompletionItem = fromHints(
+    kind = CompletionItemKind.Module,
+    label = ident.selection,
+    insertText = InsertText.JustString(
+      Formatter.renderIdent(ident).render(Int.MaxValue)
+    ),
+    schema = Schema.unit.addHints(service.service.hints),
+  ).copy(detail = describeService(service))
 
   def fromField(
     field: Field[CompletionResolver, _, _],
@@ -165,6 +181,9 @@ object CompletionItem {
     }
   }
 
+  def describeService(service: DynamicSchemaIndex.ServiceWrapper): String =
+    s": service ${ServiceNameExtractor.fromService(service.service).selection}"
+
   def describeSchema(schema: Schema[_]): () => String =
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
@@ -195,7 +214,7 @@ object CompletionItem {
   sealed trait InsertUseClause extends Product with Serializable
 
   object InsertUseClause {
-    case class Required(opsToServices: Map[OperationName, NonEmptyList[QualifiedIdentifier]])
+    case class Required(opsToServices: Map[OperationName[Id], NonEmptyList[QualifiedIdentifier]])
       extends InsertUseClause
     case object NotRequired extends InsertUseClause
   }
@@ -213,7 +232,9 @@ object CompletionItem {
           TextEdit
             .Insert(
               (
-                Formatter.renderUseClause(UseClause(serviceId)) + Doc.hardLine.repeat(2)
+                Formatter.renderUseClause(UseClause[Id](serviceId).mapK(WithSource.liftId)) + Doc
+                  .hardLine
+                  .repeat(2)
               ).render(Int.MaxValue),
               Position.origin,
             )
@@ -285,6 +306,7 @@ sealed trait CompletionItemKind extends Product with Serializable
 object CompletionItemKind {
   case object EnumMember extends CompletionItemKind
   case object Field extends CompletionItemKind
+  case object Module extends CompletionItemKind
   case object Constant extends CompletionItemKind
   case object UnionMember extends CompletionItemKind
   case object Function extends CompletionItemKind

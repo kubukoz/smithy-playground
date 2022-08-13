@@ -8,14 +8,16 @@ import cats.implicits._
 import io.circe.Decoder
 import org.http4s.Uri
 import org.http4s.client.Client
+import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
+import playground.CommandResultReporter
 import playground.Runner
 import playground.TextDocumentManager
+import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
-import playground.std.StdlibRuntime
 
 trait ServerBuilder[F[_]] {
   def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]]
@@ -37,6 +39,15 @@ object ServerBuilder {
       .default[F]
       .build
       .map(middleware.AuthorizationHeader[F])
+      .map(
+        Logger[F](
+          logHeaders = true,
+          logBody = true,
+          logAction = Some(msg =>
+            LanguageClient[F].logOutput(msg.linesWithSeparators.map("// " + _).mkString)
+          ),
+        )
+      )
       .flatMap { client =>
         AwsEnvironment
           .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
@@ -55,7 +66,7 @@ object ServerBuilder {
                       .flatMap { dsi =>
                         PluginResolver[F]
                           .resolveFromConfig(buildInfo.config)
-                          .map { plugins =>
+                          .flatMap { plugins =>
                             val runner = Runner
                               .forSchemaIndex[F](
                                 dsi,
@@ -68,7 +79,9 @@ object ServerBuilder {
 
                             implicit val sl: ServerLoader[F] = loader
 
-                            LanguageServer.instance[F](dsi, runner)
+                            CommandResultReporter.instance[F].map { implicit rep =>
+                              LanguageServer.instance[F](dsi, runner)
+                            }
                           }
                       }
                   }

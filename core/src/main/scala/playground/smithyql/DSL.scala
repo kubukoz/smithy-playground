@@ -22,7 +22,7 @@ object DSL {
 
     def useService(path0: String, pathRest: String*)(service: String): Query[Id] = q.copy[Id](
       useClause = Some(
-        UseClause(QualifiedIdentifier(NonEmptyList(path0, pathRest.toList), service))
+        UseClause[Id](QualifiedIdentifier(NonEmptyList(path0, pathRest.toList), service))
       )
     )
 

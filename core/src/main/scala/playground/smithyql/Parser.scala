@@ -75,6 +75,20 @@ object SmithyQLParser {
         )
     }
 
+    def withRange[A](
+      p: Parser[A]
+    ): Parser[T[A]] = (Parser.index.with1 ~ p ~ Parser.index).map {
+      case ((indexBefore, v), indexAfter) =>
+        val range = SourceRange(Position(indexBefore), Position(indexAfter))
+
+        WithSource(
+          commentsLeft = Nil,
+          commentsRight = Nil,
+          range = range,
+          value = v,
+        )
+    }
+
     private[SmithyQLParser] val rawIdentifier =
       (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
         .map { case (ch, s) => s.prepended(ch) }
@@ -121,15 +135,15 @@ object SmithyQLParser {
     val qualifiedIdent: Parser[QualifiedIdentifier] =
       (
         rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace)),
-        tokens.hash *> rawIdent.surroundedBy(tokens.whitespace),
+        tokens.hash *> rawIdent,
       ).mapN(QualifiedIdentifier.apply)
 
-    val useClause: Parser[UseClause] = {
+    val useClause: Parser[UseClause[T]] = {
       string("use") *>
         string("service")
           .surroundedBy(tokens.whitespace) *>
-        qualifiedIdent
-    }.map(UseClause.apply)
+        tokens.withRange(qualifiedIdent)
+    }.map(UseClause.apply[T])
 
     val intLiteral = tokens
       .number
@@ -228,21 +242,19 @@ object SmithyQLParser {
         }
     }
 
-    val useClauseWithSource: Parser0[Option[WithSource[UseClause]]] =
-      (tokens.comments ~
-        Parser.index ~ useClause ~ Parser.index).backtrack.?.map {
-        _.map { case (((commentsBefore, indexBefore), useClause), indexAfter) =>
+    val useClauseWithSource: Parser0[WithSource[Option[UseClause[WithSource]]]] =
+      (tokens.comments ~ Parser.index ~ useClause.? ~ Parser.index).map {
+        case (((commentsBefore, indexBefore), useClause), indexAfter) =>
           WithSource(
             commentsBefore,
             Nil,
             SourceRange(Position(indexBefore), Position(indexAfter)),
             useClause,
           )
-        }
       }
 
     (useClauseWithSource.with1 ~
-      ident.map(_.map(OperationName(_))) ~ struct ~ tokens.comments)
+      ident.map(_.map(OperationName[WithSource](_))) ~ struct ~ tokens.comments)
       .map { case (((useClause, opName), input), commentsAfter) =>
         Query(
           useClause,

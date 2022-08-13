@@ -59,6 +59,7 @@ import smithy4s.~>
 
 import java.util.UUID
 
+import types._
 import util.chaining._
 import PartialCompiler.WAST
 
@@ -68,20 +69,6 @@ trait PartialCompiler[A] {
 
   // TODO: Actually use the powers of Ior. Maybe a custom monad for errors / warnings? Diagnosed[A]? Either+Writer composition?
   def compile(ast: WAST): PartialCompiler.Result[A]
-
-  /** Makes all error-level diagnostics fatal on the top level of this compiler instance.
-    */
-  def seal: PartialCompiler[A] =
-    ast =>
-      compile(ast).fold(
-        Ior.left(_),
-        Ior.right(_),
-        (e, a) =>
-          if (e.exists(_.isError))
-            Ior.left(e)
-          else
-            Ior.both(e, a),
-      )
 
 }
 
@@ -162,6 +149,14 @@ object CompilationError {
     range: SourceRange,
   ): CompilationError = default(err, range, DiagnosticSeverity.Warning)
 
+  def deprecation(
+    info: api.Deprecated,
+    range: SourceRange,
+  ): CompilationError =
+    CompilationError
+      .warning(CompilationErrorDetails.DeprecatedItem(info), range)
+      .deprecated
+
   def default(
     err: CompilationErrorDetails,
     range: SourceRange,
@@ -179,18 +174,17 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case Message(text) => text
-      case DeprecatedMember(info) =>
-        s"Deprecated union member${CompletionItem.deprecationString(info)}"
-      case DeprecatedField(info) => s"Deprecated field${CompletionItem.deprecationString(info)}"
-      case InvalidUUID           => "Invalid UUID"
+      case Message(text)        => text
+      case DeprecatedItem(info) => "Deprecated" + CompletionItem.deprecationString(info)
+      case InvalidUUID          => "Invalid UUID"
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
       case AmbiguousService(matching) =>
         s"""Multiple services are available. Add a use clause to specify the service you want to use.
            |Available services:""".stripMargin + matching
-          .map(UseClause(_))
+          .sorted
+          .map(UseClause[Id](_).mapK(WithSource.liftId))
           .map(Formatter.renderUseClause(_).render(Int.MaxValue))
           .mkString_("\n", "\n", ".")
 
@@ -262,8 +256,8 @@ object CompilationErrorDetails {
   ) extends CompilationErrorDetails
 
   final case class OperationNotFound(
-    name: OperationName,
-    validOperations: List[OperationName],
+    name: OperationName[Id],
+    validOperations: List[OperationName[Id]],
   ) extends CompilationErrorDetails
 
   final case class MissingField(label: String) extends CompilationErrorDetails
@@ -294,8 +288,8 @@ object CompilationErrorDetails {
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 
   case object DuplicateItem extends CompilationErrorDetails
-  case class DeprecatedField(info: api.Deprecated) extends CompilationErrorDetails
-  case class DeprecatedMember(info: api.Deprecated) extends CompilationErrorDetails
+
+  case class DeprecatedItem(info: api.Deprecated) extends CompilationErrorDetails
 
   final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }
@@ -522,21 +516,19 @@ object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
           .toList
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
-          .toLeftIor(())
+          .toBothLeft(())
           .combine(Ior.right(()))
 
         val deprecatedFieldWarnings: PartialCompiler.Result[Unit] = presentKeys
           .flatMap { key =>
             deprecatedFields.get(key.value.text).map { info =>
-              CompilationError
-                .warning(CompilationErrorDetails.DeprecatedField(info), key.range)
-                .deprecated
+              CompilationError.deprecation(info, key.range)
             }
           }
           .toList
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
-          .toLeftIor(())
+          .toBothLeft(())
           .combine(Ior.right(()))
 
         val buildStruct = fields
@@ -604,13 +596,12 @@ object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
             .get(k.value.text)
             .map { info =>
               CompilationError
-                .warning(CompilationErrorDetails.DeprecatedMember(info), k.range)
-                .deprecated
+                .deprecation(info, k.range)
             }
             .toList
             .toNel
             .map(NonEmptyChain.fromNonEmptyList)
-            .toLeftIor(())
+            .toBothLeft(())
             .combine(Ior.right(()))
 
           op.flatMap(go(_).compile(v)) <& deprecationWarning

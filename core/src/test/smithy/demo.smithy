@@ -8,6 +8,16 @@ use smithy4s.meta#refinement
 @trait
 structure instant { }
 
+@deprecated(message: "don't use", since: "0.0.0")
+service DeprecatedService {
+  version: "0.0.1",
+  operations: [DeprecatedOperation]
+}
+
+@deprecated(message: "don't use", since: "0.0.0")
+operation DeprecatedOperation {
+}
+
 @simpleRestJson
 service DemoService {
   version: "0.0.1",

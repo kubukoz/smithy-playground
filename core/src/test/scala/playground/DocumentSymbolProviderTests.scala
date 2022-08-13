@@ -39,6 +39,30 @@ object DocumentSymbolProviderTests extends SimpleIOSuite {
 
   }
 
+  test("hello world with use clause") { (_, log) =>
+    implicit val l = log
+    val dsl = makeDSL("""use service pkg#World
+                        |hello { }""".stripMargin)
+
+    val expected = List(
+      dsl.symbol(
+        "pkg#World",
+        SymbolKind.Package,
+        "pkg#World",
+        "pkg#World",
+        Nil,
+      ),
+      dsl.symbol(
+        "hello",
+        SymbolKind.Function,
+        "hello",
+        "hello { ",
+      ),
+    )
+
+    assertNoDiff(dsl.symbols, expected)
+  }
+
   test("hello world with one field") { (_, log) =>
     implicit val l = log
     val dsl = makeDSL("""hello { greeting = 42 }""")

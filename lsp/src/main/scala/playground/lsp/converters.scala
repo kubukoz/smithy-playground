@@ -52,6 +52,7 @@ object converters {
         case CompletionItemKind.Constant    => lsp4j.CompletionItemKind.Constant
         case CompletionItemKind.UnionMember => lsp4j.CompletionItemKind.Class
         case CompletionItemKind.Function    => lsp4j.CompletionItemKind.Function
+        case CompletionItemKind.Module      => lsp4j.CompletionItemKind.Module
       }
 
       val insertText =
