@@ -60,7 +60,9 @@ structure CreateHeroInput {
 
   hasNewtypes: HasNewtypes,
 
-  hasDeprecations: HasDeprecations
+  hasDeprecations: HasDeprecations,
+
+  doc: Document
 }
 
 set FriendSet {
