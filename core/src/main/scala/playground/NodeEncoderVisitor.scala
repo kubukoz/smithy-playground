@@ -20,7 +20,13 @@ import smithy4s.Hints
 import smithy4s.Lazy
 import smithy4s.Refinement
 import smithy4s.ShapeId
+import smithy4s.capability.EncoderK
 import smithy4s.schema.Alt
+import smithy4s.schema.CollectionTag
+import smithy4s.schema.CollectionTag.IndexedSeqTag
+import smithy4s.schema.CollectionTag.ListTag
+import smithy4s.schema.CollectionTag.SetTag
+import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -42,12 +48,6 @@ import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
-import smithy4s.schema.CollectionTag
-import smithy4s.capability.EncoderK
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -90,14 +90,14 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case PShort      => short
       case PLong       => long
       case PString     => string
-      case PBigInt     => unsupported("bigint")
+      case PBigInt     => bigint
       case PBoolean    => boolean
       case PBigDecimal => bigdecimal
       case PBlob       => string.contramap(_.toString) // todo this only works for UTF-8 text
       case PDouble     => long.contramap(_.toLong) // todo: wraps decimals
       case PDocument   => document
-      case PFloat      => unsupported("float")
-      case PUnit       => struct(shapeId, hints, Vector.empty, _ => ())
+      case PFloat      => float
+      case PUnit       => _ => obj(Nil)
       case PUUID       => string.contramap(_.toString())
       case PByte       => byte
       case PTimestamp  => string.contramap(_.toString)
@@ -205,16 +205,15 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     value => mapped.value.toNode(value)
   }
 
-  def unsupported[A](tag: String): NodeEncoder[A] =
-    v => throw new Exception(s"Unsupported operation: $tag for value $v")
-
   private val number: NodeEncoder[String] = IntLiteral(_)
   val bigdecimal: NodeEncoder[BigDecimal] = number.contramap(_.toString)
-
+  val bigint: NodeEncoder[BigInt] = number.contramap(_.toString)
   val long: NodeEncoder[Long] = number.contramap(_.toString)
   val int: NodeEncoder[Int] = number.contramap(_.toString)
   val short: NodeEncoder[Short] = number.contramap(_.toString)
   val byte: NodeEncoder[Byte] = number.contramap(_.toString)
+  val float: NodeEncoder[Float] = number.contramap(_.toString)
+  val double: NodeEncoder[Double] = number.contramap(_.toString)
 
   val string: NodeEncoder[String] = StringLiteral(_)
 
@@ -233,23 +232,10 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       doc match {
         case DArray(value)   => document.listed.toNode(value.toList)
         case DBoolean(value) => boolean.toNode(value)
-        case DNumber(value) =>
-          if (value.isValidByte)
-            byte.toNode(value.toByte)
-          else if (value.isValidShort)
-            short.toNode(value.toShort)
-          else if (value.isValidInt)
-            int.toNode(value.toInt)
-          else if (value.isValidLong)
-            long.toNode(value.toLong)
-          else
-            // todo other numbers
-            bigdecimal.toNode(value)
-        case DNull =>
-          // todo nul???
-          unsupported[Null]("null").toNode(null)
-        case DString(value) => string.toNode(value)
-        case DObject(value) => obj(value.toList.map(_.map(document.toNode)))
+        case DNumber(value)  => number.toNode(value.toString())
+        case DNull           => obj(List("null" -> obj(Nil)))
+        case DString(value)  => string.toNode(value)
+        case DObject(value)  => obj(value.toList.map(_.map(document.toNode)))
       }
 
 }
