@@ -86,7 +86,6 @@ object Compiler {
       dsi
         .allServices
         .map { svc =>
-          // todo: deprecated services (here / in completions)
           QualifiedIdentifier
             .forService(svc.service) -> Compiler.fromService[svc.Alg, svc.Op](svc.service)
         }

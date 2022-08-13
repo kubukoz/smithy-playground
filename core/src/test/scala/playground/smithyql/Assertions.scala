@@ -30,6 +30,7 @@ object Assertions extends Expectations.Helpers {
             string = _ => "string",
             listed = _ => "list",
             bool = _ => "bool",
+            nul = _ => "null",
           )
 
           ensureEqual(tpe(a), tpe(b))(ctx)
