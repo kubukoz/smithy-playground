@@ -11,7 +11,6 @@ import demo.smithy.Hero
 import smithy4s.Timestamp
 import smithy.api.TimestampFormat
 import smithy4s.ByteArray
-import java.util.Base64
 import playground.smithyql.StringLiteral
 
 object NodeEncoderTests extends FunSuite {
