@@ -281,6 +281,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       }(Schema.document) == Ior.right(Document.nullDoc)
     )
   }
+
+  pureTest("null doesn't work as anything like a string") {
+    assert(
+      compile {
+        WithSource.liftId(NullLiteral[WithSource]())
+      }(Schema.string).isLeft
+    )
+  }
+
   pureTest("blob") {
     assert(
       compile {
