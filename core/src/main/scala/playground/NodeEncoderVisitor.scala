@@ -48,6 +48,7 @@ import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
+import smithy4s.ByteArray
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -93,8 +94,8 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case PBigInt     => bigint
       case PBoolean    => boolean
       case PBigDecimal => bigdecimal
-      case PBlob       => string.contramap(_.toString) // todo this only works for UTF-8 text
-      case PDouble     => long.contramap(_.toLong) // todo: wraps decimals
+      case PBlob       => string.contramap((_: ByteArray).toString)
+      case PDouble     => double
       case PDocument   => document
       case PFloat      => float
       case PUnit       => _ => obj(Nil)

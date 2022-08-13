@@ -10,6 +10,9 @@ import weaver._
 import demo.smithy.Hero
 import smithy4s.Timestamp
 import smithy.api.TimestampFormat
+import smithy4s.ByteArray
+import java.util.Base64
+import playground.smithyql.StringLiteral
 
 object NodeEncoderTests extends FunSuite {
 
@@ -37,6 +40,10 @@ object NodeEncoderTests extends FunSuite {
     assertEncodes(Schema.int, 42, 42)
   }
 
+  test("double") {
+    assertEncodes(Schema.double, 420.2137d, 420.2137d)
+  }
+
   test("simple struct") {
     assertEncodes(Good.schema, Good(42), struct("howGood" -> 42))
   }
@@ -50,6 +57,14 @@ object NodeEncoderTests extends FunSuite {
       Schema.timestamp,
       Timestamp.parse("2022-07-11T17:42:28Z", TimestampFormat.DATE_TIME).get,
       "2022-07-11T17:42:28Z",
+    )
+  }
+
+  test("blob") {
+    assertEncodes(
+      Schema.bytes,
+      ByteArray("foo".getBytes()),
+      StringLiteral("Zm9v"),
     )
   }
 }
