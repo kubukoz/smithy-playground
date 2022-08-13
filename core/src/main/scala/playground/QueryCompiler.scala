@@ -621,6 +621,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           .value
           .parTraverse { case (key, value) => document.compile(value).tupleLeft(key.value.text) }
           .map(Document.obj(_: _*))
+      case NullLiteral() => Document.nullDoc.rightIor
     }
 
   val string = stringLiteral.map(_.value)

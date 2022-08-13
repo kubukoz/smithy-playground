@@ -25,6 +25,7 @@ object Formatter {
       case BooleanLiteral(b) => Doc.text(b.toString())
       case StringLiteral(s)  => Doc.text(renderStringLiteral(s))
       case l @ Listed(_)     => renderSequence(l)
+      case NullLiteral()     => Doc.text("null")
     }
 
   def renderOperationName(o: OperationName[WithSource]): Doc = Doc.text(o.text)

@@ -67,6 +67,7 @@ object DocumentSymbolProvider {
       int = _ => Nil,
       listed = list => findInList(node.copy(value = list)),
       bool = _ => Nil,
+      nul = _ => Nil,
     )
 
   private def findInList(

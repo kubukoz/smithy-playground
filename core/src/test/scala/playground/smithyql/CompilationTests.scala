@@ -274,6 +274,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("null document") {
+    assert(
+      compile {
+        WithSource.liftId(NullLiteral[WithSource]())
+      }(Schema.document) == Ior.right(Document.nullDoc)
+    )
+  }
   pureTest("blob") {
     assert(
       compile {

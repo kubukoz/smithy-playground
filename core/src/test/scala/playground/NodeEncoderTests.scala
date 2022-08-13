@@ -12,6 +12,8 @@ import smithy4s.Timestamp
 import smithy.api.TimestampFormat
 import smithy4s.ByteArray
 import playground.smithyql.StringLiteral
+import smithy4s.Document
+import playground.smithyql.NullLiteral
 
 object NodeEncoderTests extends FunSuite {
 
@@ -64,6 +66,14 @@ object NodeEncoderTests extends FunSuite {
       Schema.bytes,
       ByteArray("foo".getBytes()),
       StringLiteral("Zm9v"),
+    )
+  }
+
+  test("null document") {
+    assertEncodes(
+      Schema.document,
+      Document.nullDoc,
+      NullLiteral(),
     )
   }
 }

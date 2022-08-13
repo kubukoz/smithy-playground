@@ -18,6 +18,9 @@
       "include": "#booleans"
     },
     {
+      "include": "#nulls"
+    },
+    {
       "include": "#keywords"
     }
   ],
@@ -57,6 +60,15 @@
         {
           "name": "constant.boolean",
           "match": "true|false"
+        }
+      ]
+    },
+    "nulls": {
+      "name": "constant.null",
+      "patterns": [
+        {
+          "name": "constant.null",
+          "match": "null"
         }
       ]
     },

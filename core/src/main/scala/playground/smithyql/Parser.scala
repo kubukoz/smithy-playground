@@ -108,6 +108,8 @@ object SmithyQLParser {
       .with1
       .surroundedBy(char('"'))
 
+    val nullLiteral: Parser[Unit] = string("null")
+
     def punctuation(c: Char): Parser[Unit] = char(c)
 
     val equalsSign = punctuation('=')
@@ -150,11 +152,13 @@ object SmithyQLParser {
     val boolLiteral = tokens.bool.map(BooleanLiteral[T](_))
 
     val stringLiteral = tokens.stringLiteral.map(StringLiteral[T](_))
+    val nullLiteral = tokens.nullLiteral.map(_ => NullLiteral[T]())
 
     lazy val node: Parser[InputNode[T]] = Parser.defer {
       intLiteral |
         boolLiteral |
         stringLiteral |
+        nullLiteral |
         struct |
         listed
     }

@@ -49,6 +49,7 @@ import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 import smithy4s.ByteArray
+import playground.smithyql.NullLiteral
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -234,7 +235,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
         case DArray(value)   => document.listed.toNode(value.toList)
         case DBoolean(value) => boolean.toNode(value)
         case DNumber(value)  => number.toNode(value.toString())
-        case DNull           => obj(List("null" -> obj(Nil)))
+        case DNull           => NullLiteral()
         case DString(value)  => string.toNode(value)
         case DObject(value)  => obj(value.toList.map(_.map(document.toNode)))
       }
