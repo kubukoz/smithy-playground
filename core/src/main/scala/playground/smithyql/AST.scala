@@ -11,6 +11,7 @@ import cats.kernel.Eq
 import cats.Id
 import playground.ServiceNameExtractor
 import smithy4s.Service
+import cats.kernel.Order
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
@@ -49,12 +50,19 @@ final case class OperationName[F[_]](text: String) extends AST[F] {
 }
 
 final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: String) {
-  def render: String = segments.mkString_(".") + "#" + selection
+  def renderNamespace: String = segments.mkString_(".")
+  def render: String = renderNamespace + "#" + selection
 
   def toShapeId: ShapeId = ShapeId(segments.mkString_("."), selection)
 }
 
 object QualifiedIdentifier {
+
+  def of(first: String, second: String, rest: String*): QualifiedIdentifier = {
+    val all = first :: second :: rest.toList
+
+    apply(NonEmptyList.fromListUnsafe(all.dropRight(1)), all.last)
+  }
 
   def fromShapeId(shapeId: ShapeId): QualifiedIdentifier = QualifiedIdentifier(
     shapeId.namespace.split("\\.").toList.toNel.getOrElse(sys.error("impossible! " + shapeId)),
@@ -66,18 +74,20 @@ object QualifiedIdentifier {
   ): QualifiedIdentifier = ServiceNameExtractor.fromService(service)
 
   implicit val show: Show[QualifiedIdentifier] = Show.fromToString
-  implicit val eq: Eq[QualifiedIdentifier] = Eq.fromUniversalEquals
+
+  implicit val ord: Order[QualifiedIdentifier] = Order.by { case QualifiedIdentifier(segs, sel) =>
+    (segs, sel)
+  }
 
 }
 
-//todo: identifier must be in WithSource
-final case class UseClause[F[_]](identifier: QualifiedIdentifier) extends AST[F] {
-  def mapK[G[_]: Functor](fk: F ~> G): UseClause[G] = UseClause(identifier)
+final case class UseClause[F[_]](identifier: F[QualifiedIdentifier]) extends AST[F] {
+  def mapK[G[_]: Functor](fk: F ~> G): UseClause[G] = UseClause(fk(identifier))
   def kind: NodeKind = NodeKind.UseClause
 }
 
 final case class Query[F[_]](
-  useClause: Option[F[UseClause[F]]],
+  useClause: F[Option[UseClause[F]]],
   operationName: F[OperationName[F]],
   input: F[Struct[F]],
 ) extends AST[F] {
@@ -85,7 +95,7 @@ final case class Query[F[_]](
   def kind: NodeKind = NodeKind.Query
 
   def mapK[G[_]: Functor](fk: F ~> G): Query[G] = Query(
-    useClause.map(fk(_).map(_.mapK(fk))),
+    fk(useClause).map(_.map(_.mapK(fk))),
     fk(operationName).map(_.mapK(fk)),
     fk(input).map(_.mapK(fk)),
   )

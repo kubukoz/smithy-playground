@@ -20,17 +20,20 @@ object DocumentSymbolProvider {
     }
 
   private def findInUseClause(
-    clause: Option[WithSource[UseClause[WithSource]]]
+    clause: WithSource[Option[UseClause[WithSource]]]
   ): List[DocumentSymbol] =
-    clause.map { useClause =>
-      DocumentSymbol(
-        useClause.value.identifier.render,
-        SymbolKind.Package,
-        useClause.range,
-        useClause.range,
-        Nil,
-      )
-    }.toList
+    clause
+      .value
+      .map { useClause =>
+        DocumentSymbol(
+          useClause.identifier.value.render,
+          SymbolKind.Package,
+          useClause.identifier.range,
+          useClause.identifier.range,
+          Nil,
+        )
+      }
+      .toList
 
   private def findInOperation(
     op: WithSource[OperationName[WithSource]],

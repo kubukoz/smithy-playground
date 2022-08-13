@@ -10,7 +10,15 @@ object Formatter {
     w: Int,
   ): String = writeQuery(q).renderTrim(w)
 
-  def writeAst(ast: InputNode[WithSource]): Doc =
+  def writeAst(ast: AST[WithSource]): Doc =
+    ast match {
+      case o: OperationName[WithSource] => renderOperationName(o)
+      case q: Query[WithSource]         => writeQuery(q)
+      case u: UseClause[WithSource]     => renderUseClause(u)
+      case n: InputNode[WithSource]     => writeInputNode(n)
+    }
+
+  def writeInputNode(ast: InputNode[WithSource]): Doc =
     ast match {
       case s @ Struct(_)     => renderStruct(s)
       case IntLiteral(i)     => Doc.text(i.toString())
@@ -19,12 +27,16 @@ object Formatter {
       case l @ Listed(_)     => renderSequence(l)
     }
 
+  def renderOperationName(o: OperationName[WithSource]): Doc = Doc.text(o.text)
+
   def renderUseClause(
     clause: UseClause[WithSource]
-  ): Doc = Doc
-    .text("use")
-    .space("service")
-    .space(renderIdent(clause.identifier))
+  ): Doc =
+    // comments in clause are not allowed so we can ignore them when printing
+    Doc
+      .text("use")
+      .space("service")
+      .space(renderIdent(clause.identifier.value))
 
   def renderIdent(ident: QualifiedIdentifier): Doc =
     Doc.intercalate(
@@ -64,7 +76,7 @@ object Formatter {
             else
               Doc.lineOrSpace
 
-          sepBefore + writeAst(v.value)
+          sepBefore + writeInputNode(v.value)
         } + {
           if (v.commentsRight.isEmpty)
             Doc.empty
@@ -151,31 +163,40 @@ object Formatter {
     }
   }
 
-  def writeQuery(q: Query[WithSource]): Doc =
-    // note: commenting a clause seems to make it disappear on formatting
-    q.useClause
-      .fold(Doc.empty)(a =>
-        comments(a.commentsLeft) +
-          renderUseClause(a.value) +
-          Doc.hardLine +
-          comments(a.commentsRight) + Doc.hardLine
-      ) +
+  def writeQuery(q: Query[WithSource]): Doc = {
+
+    val useClausePart =
+      comments(q.useClause.commentsLeft) +
+        q.useClause.value.fold(Doc.empty)(renderUseClause(_) + Doc.hardLine) +
+        comments(q.useClause.commentsRight) + (if (q.useClause.value.isEmpty)
+                                                 Doc.empty
+                                               else
+                                                 Doc.hardLine)
+
+    val opNamePart =
       comments(q.operationName.commentsLeft) +
-      Doc.text(q.operationName.value.text) +
-      Doc.space +
-      comments(q.operationName.commentsRight) +
+        writeAst(q.operationName.value) +
+        Doc.space +
+        comments(q.operationName.commentsRight)
+
+    val inputPart =
       comments(q.input.commentsLeft) +
-      writeAst(q.input.value) + {
-        if (q.input.commentsRight.isEmpty)
-          Doc.empty
-        else
-          Doc.hardLine
-      } +
-      comments(q.input.commentsRight) + {
-        if (q.input.commentsRight.isEmpty)
-          Doc.hardLine
-        else
-          Doc.empty
-      }
+        writeInputNode(q.input.value) + {
+          if (q.input.commentsRight.isEmpty)
+            Doc.empty
+          else
+            Doc.hardLine
+        } +
+        comments(q.input.commentsRight) + {
+          if (q.input.commentsRight.isEmpty)
+            Doc.hardLine
+          else
+            Doc.empty
+        }
+
+    useClausePart +
+      opNamePart +
+      inputPart
+  }
 
 }

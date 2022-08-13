@@ -1,6 +1,5 @@
 package playground.smithyql
 
-import cats.implicits._
 import weaver._
 import weaver.scalacheck.Checkers
 
@@ -107,5 +106,4 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |
       |}
       |""".stripMargin)
-
 }
