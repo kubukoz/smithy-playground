@@ -97,9 +97,7 @@ object SmithyQLParser {
       (Rfc5234.alpha ~ Parser.charsWhile0(ch => ch.isLetterOrDigit || "_".contains(ch)))
         .map { case (ch, s) => s.prepended(ch) }
 
-    val number: Parser[Long] = Numbers
-      .signedIntString
-      .map(_.toLong)
+    val number: Parser[String] = Numbers.jsonNumber
 
     val bool: Parser[Boolean] = string("true").as(true).orElse(string("false").as(false))
 

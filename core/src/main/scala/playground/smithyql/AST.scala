@@ -158,7 +158,7 @@ object Struct {
 
 }
 
-final case class IntLiteral[F[_]](value: Long) extends InputNode[F] {
+final case class IntLiteral[F[_]](value: String) extends InputNode[F] {
   def kind: NodeKind = NodeKind.IntLiteral
   def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = copy()
 }

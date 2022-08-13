@@ -48,6 +48,8 @@ import java.util.UUID
 import types._
 import util.chaining._
 import PartialCompiler.WAST
+import smithy4s.ByteArray
+import java.util.Base64
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -162,6 +164,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case Message(text)        => text
       case DeprecatedItem(info) => "Deprecated" + CompletionItem.deprecationString(info)
       case InvalidUUID          => "Invalid UUID"
+      case InvalidBlob          => "Invalid blob, expected base64-encoded string"
       case NumberOutOfRange(value, expectedType) => s"Number out of range for $expectedType: $value"
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
@@ -180,8 +183,6 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case RefinementFailure(msg) => s"Refinement failed: $msg."
 
       case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
-
-      case UnsupportedNode(tag) => s"Unsupported operation: $tag"
 
       case OperationNotFound(name, validOperations) =>
         s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}."
@@ -274,9 +275,9 @@ object CompilationErrorDetails {
 
   final case class RefinementFailure(msg: String) extends CompilationErrorDetails
 
-  final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
-
   case object DuplicateItem extends CompilationErrorDetails
+
+  case object InvalidBlob extends CompilationErrorDetails
 
   case class DeprecatedItem(info: api.Deprecated) extends CompilationErrorDetails
 
@@ -290,10 +291,9 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
   )(
     tag: String
   )(
-    matchToRange: PartialFunction[A, B]
+    matchToRange: A => Option[B]
   ) = (pc, PartialCompiler.pos).tupled.emap { case (i, range) =>
-    matchToRange
-      .lift(i)
+    matchToRange(i)
       .toRightIor(
         CompilationError
           .error(NumberOutOfRange(i.toString, tag), range)
@@ -308,17 +308,31 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
         PartialCompiler
           .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
           .map(_.value.value)
-      case PUnit       => struct(shapeId, hints, Vector.empty, _ => ())
-      case PLong       => integer
-      case PInt        => checkRange(integer)("int") { case i if i.isValidInt => i.toInt }
-      case PShort      => checkRange(integer)("short") { case i if i.isValidShort => i.toShort }
-      case PByte       => checkRange(integer)("byte") { case i if i.isValidByte => i.toByte }
-      case PFloat      => unsupported("float")
-      case PDocument   => document
-      case PBlob       => unsupported("blob")
-      case PBigDecimal => unsupported("bigDecimal")
-      case PDouble     => unsupported("double")
-      case PBigInt     => unsupported("bigint")
+      case PUnit     => struct(shapeId, hints, Vector.empty, _ => ())
+      case PLong     => checkRange(integer)("int")(_.toLongOption)
+      case PInt      => checkRange(integer)("int")(_.toIntOption)
+      case PShort    => checkRange(integer)("short")(_.toShortOption)
+      case PByte     => checkRange(integer)("byte")(_.toByteOption)
+      case PFloat    => checkRange(integer)("float")(_.toFloatOption)
+      case PDouble   => checkRange(integer)("double")(_.toDoubleOption)
+      case PDocument => document
+      case PBlob =>
+        (string, PartialCompiler.pos).tupled.emap { case (s, range) =>
+          Either
+            .catchNonFatal(Base64.getDecoder().decode(s))
+            .map(ByteArray(_))
+            .leftMap(_ => CompilationError.error(CompilationErrorDetails.InvalidBlob, range))
+            .toIor
+            .toIorNec
+        }
+      case PBigDecimal =>
+        checkRange(integer)("bigdecimal") { s =>
+          Either.catchNonFatal(BigDecimal(s)).toOption
+        }
+      case PBigInt =>
+        checkRange(integer)("bigint") { s =>
+          Either.catchNonFatal(BigInt(s)).toOption
+        }
       case PUUID =>
         stringLiteral.emap { s =>
           Either
@@ -347,7 +361,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
         }
     }
 
-  private val integer: PartialCompiler[Long] = PartialCompiler
+  private val integer: PartialCompiler[String] = PartialCompiler
     .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
     .map(_.value.value)
 
@@ -590,23 +604,15 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
     it.value.compile(_)
   }
 
-  private def unsupported[A](ctx: String): PartialCompiler[A] =
-    ast =>
-      Ior.leftNec(
-        CompilationError.error(
-          UnsupportedNode(ctx),
-          ast.range,
-        )
-      )
-
   val stringLiteral =
     PartialCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
 
   val document: PartialCompiler[Document] =
     _.value match {
       case BooleanLiteral(value) => Document.fromBoolean(value).pure[PartialCompiler.Result]
-      case IntLiteral(value)     => Document.fromLong(value).pure[PartialCompiler.Result]
-      case StringLiteral(value)  => Document.fromString(value).pure[PartialCompiler.Result]
+      case IntLiteral(value) =>
+        Document.fromBigDecimal(BigDecimal(value)).pure[PartialCompiler.Result]
+      case StringLiteral(value) => Document.fromString(value).pure[PartialCompiler.Result]
       // parTraverse in this file isn't going to work like you think it will
       case Listed(values) => values.value.parTraverse(document.compile(_)).map(Document.array(_))
       case Struct(fields) =>

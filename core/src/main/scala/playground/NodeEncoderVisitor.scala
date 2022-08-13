@@ -208,12 +208,13 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def unsupported[A](tag: String): NodeEncoder[A] =
     v => throw new Exception(s"Unsupported operation: $tag for value $v")
 
-  val bigdecimal: NodeEncoder[BigDecimal] = unsupported("bigdecimal")
+  private val number: NodeEncoder[String] = IntLiteral(_)
+  val bigdecimal: NodeEncoder[BigDecimal] = number.contramap(_.toString)
 
-  val long: NodeEncoder[Long] = IntLiteral(_)
-  val int: NodeEncoder[Int] = long.contramap(_.toLong)
-  val short: NodeEncoder[Short] = long.contramap(_.toLong)
-  val byte: NodeEncoder[Byte] = long.contramap(_.toLong)
+  val long: NodeEncoder[Long] = number.contramap(_.toString)
+  val int: NodeEncoder[Int] = number.contramap(_.toString)
+  val short: NodeEncoder[Short] = number.contramap(_.toString)
+  val byte: NodeEncoder[Byte] = number.contramap(_.toString)
 
   val string: NodeEncoder[String] = StringLiteral(_)
 

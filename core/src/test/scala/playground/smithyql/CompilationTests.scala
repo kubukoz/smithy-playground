@@ -40,6 +40,7 @@ import weaver.scalacheck.Checkers
 import java.util.UUID
 
 import Arbitraries._
+import smithy4s.ByteArray
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -133,11 +134,35 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("long") {
+    assert(
+      compile {
+        WithSource.liftId(Long.MaxValue.mapK(WithSource.liftId))
+      }(Schema.long) == Ior.right(Long.MaxValue)
+    )
+  }
+
+  pureTest("long - out of range") {
+    assert(
+      compile {
+        WithSource.liftId((BigInt(Long.MaxValue) + 1).mapK(WithSource.liftId))
+      }(Schema.long).isLeft
+    )
+  }
+
   pureTest("int") {
     assert(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(Schema.int) == Ior.right(42)
+    )
+  }
+
+  pureTest("int - out of range") {
+    assert(
+      compile {
+        WithSource.liftId((Int.MaxValue.toLong + 1L).mapK(WithSource.liftId))
+      }(Schema.int).isLeft
     )
   }
 
@@ -157,11 +182,111 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("byte") {
+    assert(
+      compile {
+        WithSource.liftId(Byte.MaxValue.mapK(WithSource.liftId))
+      }(Schema.byte) == Ior.right(127.toByte)
+    )
+  }
+
+  pureTest("byte - out of range") {
+    assert(
+      compile {
+        WithSource.liftId((Byte.MaxValue + 1).mapK(WithSource.liftId))
+      }(Schema.byte).isLeft
+    )
+  }
+
+  pureTest("float") {
+    assert(
+      compile {
+        WithSource.liftId(Float.MaxValue.mapK(WithSource.liftId))
+      }(Schema.float) == Ior.right(Float.MaxValue)
+    )
+  }
+
+  pureTest("float - out of range") {
+    assert(
+      compile {
+        WithSource.liftId(Double.MaxValue.toString.mapK(WithSource.liftId))
+      }(Schema.float).isLeft
+    )
+  }
+
+  pureTest("double") {
+    assert(
+      compile {
+        WithSource.liftId(Double.MaxValue.mapK(WithSource.liftId))
+      }(Schema.double) == Ior.right(Double.MaxValue)
+    )
+  }
+
+  pureTest("double - out of range") {
+    assert(
+      compile {
+        WithSource.liftId((BigDecimal(Double.MaxValue) + 1).mapK(WithSource.liftId))
+      }(Schema.double) == Ior.right(Double.MaxValue)
+    )
+  }
+
+  test("bigint - OK") {
+    forall { (bi: BigInt) =>
+      assert(
+        compile {
+          WithSource.liftId(bi.mapK(WithSource.liftId))
+        }(Schema.bigint) == Ior.right(bi)
+      )
+    }
+  }
+
+  pureTest("bigint - not accepting floats") {
+    assert(
+      compile {
+        WithSource.liftId("40.50".mapK(WithSource.liftId))
+      }(Schema.bigint).isLeft
+    )
+  }
+
+  test("bigdecimal - OK") {
+    forall { (bd: BigDecimal) =>
+      assert(
+        compile {
+          WithSource.liftId(bd.mapK(WithSource.liftId))
+        }(Schema.bigdecimal) == Ior.right(bd)
+      )
+    }
+  }
+
+  pureTest("bigdecimal - not a number") {
+    assert(
+      compile {
+        WithSource.liftId("AAAA".mapK(WithSource.liftId))
+      }(Schema.bigdecimal).isLeft
+    )
+  }
+
   pureTest("boolean") {
     assert(
       compile {
         WithSource.liftId(true.mapK(WithSource.liftId))
       }(Schema.boolean) == Ior.right(true)
+    )
+  }
+
+  pureTest("blob") {
+    assert(
+      compile {
+        WithSource.liftId("dGVzdA==".mapK(WithSource.liftId))
+      }(Schema.bytes) == Ior.right(ByteArray("test".getBytes()))
+    )
+  }
+
+  pureTest("blob - invalid") {
+    assert(
+      compile {
+        WithSource.liftId("XYI519274n91lasdf/a'\'...,,".mapK(WithSource.liftId))
+      }(Schema.bytes).isLeft
     )
   }
 
@@ -402,9 +527,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           Listed[WithSource](
             WithSource.liftId(
               List(
-                WithSource.liftId(IntLiteral[WithSource](1)).withRange(range1),
-                WithSource.liftId(IntLiteral[WithSource](2)).withRange(range2),
-                WithSource.liftId(IntLiteral[WithSource](2)).withRange(range3),
+                WithSource.liftId(IntLiteral[WithSource]("1")).withRange(range1),
+                WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range2),
+                WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range3),
               )
             )
           )
