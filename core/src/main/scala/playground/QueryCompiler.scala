@@ -9,6 +9,7 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import playground.CompilationErrorDetails._
 import playground.smithyql._
+import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.Document
 import smithy4s.Hints
@@ -43,10 +44,10 @@ import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
+import java.util.UUID
+import types._
 import util.chaining._
 import PartialCompiler.WAST
-import java.util.UUID
-import smithy.api
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -54,20 +55,6 @@ trait PartialCompiler[A] {
 
   // TODO: Actually use the powers of Ior. Maybe a custom monad for errors / warnings? Diagnosed[A]? Either+Writer composition?
   def compile(ast: WAST): PartialCompiler.Result[A]
-
-  /** Makes all error-level diagnostics fatal on the top level of this compiler instance.
-    */
-  def seal: PartialCompiler[A] =
-    ast =>
-      compile(ast).fold(
-        Ior.left(_),
-        Ior.right(_),
-        (e, a) =>
-          if (e.exists(_.isError))
-            Ior.left(e)
-          else
-            Ior.both(e, a),
-      )
 
 }
 
@@ -148,6 +135,14 @@ object CompilationError {
     range: SourceRange,
   ): CompilationError = default(err, range, DiagnosticSeverity.Warning)
 
+  def deprecation(
+    info: api.Deprecated,
+    range: SourceRange,
+  ): CompilationError =
+    CompilationError
+      .warning(CompilationErrorDetails.DeprecatedItem(info), range)
+      .deprecated
+
   def default(
     err: CompilationErrorDetails,
     range: SourceRange,
@@ -165,11 +160,9 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case Message(text) => text
-      case DeprecatedMember(info) =>
-        s"Deprecated union member${CompletionItem.deprecationString(info)}"
-      case DeprecatedField(info) => s"Deprecated field${CompletionItem.deprecationString(info)}"
-      case InvalidUUID           => "Invalid UUID"
+      case Message(text)        => text
+      case DeprecatedItem(info) => "Deprecated" + CompletionItem.deprecationString(info)
+      case InvalidUUID          => "Invalid UUID"
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
@@ -281,8 +274,8 @@ object CompilationErrorDetails {
   final case class UnsupportedNode(tag: String) extends CompilationErrorDetails
 
   case object DuplicateItem extends CompilationErrorDetails
-  case class DeprecatedField(info: api.Deprecated) extends CompilationErrorDetails
-  case class DeprecatedMember(info: api.Deprecated) extends CompilationErrorDetails
+
+  case class DeprecatedItem(info: api.Deprecated) extends CompilationErrorDetails
 
   final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }
@@ -439,21 +432,19 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           .toList
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
-          .toLeftIor(())
+          .toBothLeft(())
           .combine(Ior.right(()))
 
         val deprecatedFieldWarnings: PartialCompiler.Result[Unit] = presentKeys
           .flatMap { key =>
             deprecatedFields.get(key.value.text).map { info =>
-              CompilationError
-                .warning(CompilationErrorDetails.DeprecatedField(info), key.range)
-                .deprecated
+              CompilationError.deprecation(info, key.range)
             }
           }
           .toList
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
-          .toLeftIor(())
+          .toBothLeft(())
           .combine(Ior.right(()))
 
         val buildStruct = fields
@@ -521,13 +512,12 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
             .get(k.value.text)
             .map { info =>
               CompilationError
-                .warning(CompilationErrorDetails.DeprecatedMember(info), k.range)
-                .deprecated
+                .deprecation(info, k.range)
             }
             .toList
             .toNel
             .map(NonEmptyChain.fromNonEmptyList)
-            .toLeftIor(())
+            .toBothLeft(())
             .combine(Ior.right(()))
 
           op.flatMap(go(_).compile(v)) <& deprecationWarning
