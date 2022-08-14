@@ -117,6 +117,7 @@ final case class CompilationError(
   range: SourceRange,
   severity: DiagnosticSeverity,
   tags: Set[DiagnosticTag],
+  relatedInfo: List[DiagnosticRelatedInformation],
 ) {
   def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
 
@@ -153,20 +154,35 @@ object CompilationError {
     range = range,
     severity = severity,
     tags = Set.empty,
+    relatedInfo = Nil,
   )
 
+}
+
+final case class DiagnosticRelatedInformation(
+  location: RelativeLocation,
+  message: CompilationErrorDetails,
+)
+
+final case class RelativeLocation(document: DocumentReference, range: SourceRange)
+  extends Product
+  with Serializable
+
+sealed trait DocumentReference extends Product with Serializable
+
+object DocumentReference {
+  case object SameFile extends DocumentReference
 }
 
 sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case Message(text)        => text
-      case DeprecatedItem(info) => "Deprecated" + CompletionItem.deprecationString(info)
-      case InvalidUUID          => "Invalid UUID"
-      case InvalidBlob          => "Invalid blob, expected base64-encoded string"
-      case ConflictingServiceReference(refs) =>
-        s"Conflicting service references: ${refs.map(_.render).mkString(", ")}"
+      case Message(text)                  => text
+      case DeprecatedItem(info)           => "Deprecated" + CompletionItem.deprecationString(info)
+      case InvalidUUID                    => "Invalid UUID"
+      case InvalidBlob                    => "Invalid blob, expected base64-encoded string"
+      case ConflictingServiceReference(_) => "Conflicting service references"
 
       case NumberOutOfRange(value, expectedType) => s"Number out of range for $expectedType: $value"
       case EnumFallback(enumName) =>

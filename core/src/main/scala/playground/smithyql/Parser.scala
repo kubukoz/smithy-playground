@@ -265,10 +265,11 @@ object SmithyQLParser {
 
     val queryOperationName: Parser[T[QueryOperationName[WithSource]]] = {
 
-      val serviceId = tokens
-        .withRange(
-          qualifiedIdent.backtrack <* tokens.whitespace <* tokens.dot
-        )
+      val serviceId =
+        tokens
+          .withRange(
+            qualifiedIdent.backtrack <* tokens.whitespace
+          ) <* tokens.dot
 
       val operationName = tokens.withRange(rawIdent).map(_.map(OperationName[WithSource](_)))
 

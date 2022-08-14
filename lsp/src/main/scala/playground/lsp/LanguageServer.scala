@@ -190,22 +190,25 @@ object LanguageServer {
 
       def diagnostic(
         params: DocumentDiagnosticParams
-      ): F[DocumentDiagnosticReport] = TextDocumentManager[F]
-        .get(params.getTextDocument().getUri())
-        .map { documentText =>
-          val diags = diagnosticProvider.getDiagnostics(
-            params.getTextDocument().getUri(),
-            documentText,
-          )
-
-          new DocumentDiagnosticReport(
-            new RelatedFullDocumentDiagnosticReport(
-              diags
-                .map(converters.toLSP.diagnostic(documentText, _))
-                .asJava
+      ): F[DocumentDiagnosticReport] = {
+        val documentUri = params.getTextDocument().getUri()
+        TextDocumentManager[F]
+          .get(documentUri)
+          .map { documentText =>
+            val diags = diagnosticProvider.getDiagnostics(
+              params.getTextDocument().getUri(),
+              documentText,
             )
-          )
-        }
+
+            new DocumentDiagnosticReport(
+              new RelatedFullDocumentDiagnosticReport(
+                diags
+                  .map(converters.toLSP.diagnostic(documentText, documentUri, _))
+                  .asJava
+              )
+            )
+          }
+      }
 
       def codeLens(
         params: CodeLensParams

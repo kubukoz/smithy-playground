@@ -53,8 +53,33 @@ object ResolutionFailure {
     knownServices: List[QualifiedIdentifier],
   ) extends ResolutionFailure
 
+  def toCompilationError(rf: ResolutionFailure, q: Query[WithSource]): CompilationError = {
+    val err = CompilationErrorDetails.fromResolutionFailure(rf)
+
+    CompilationError
+      .error(
+        err,
+        defaultRange(q),
+      )
+      .copy(relatedInfo =
+        q.operationName
+          .value
+          .identifier
+          .map { qsr =>
+            DiagnosticRelatedInformation(
+              RelativeLocation(
+                DocumentReference.SameFile,
+                qsr.range,
+              ),
+              err,
+            )
+          }
+          .toList
+      )
+  }
+
   // Returns the preferred range for diagnostics about resolution failure
-  def diagnosticRange(q: Query[WithSource]): SourceRange =
+  private def defaultRange(q: Query[WithSource]): SourceRange =
     q.useClause.value match {
       case None         => q.operationName.value.operationName.range
       case Some(clause) => clause.identifier.range

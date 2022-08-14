@@ -219,10 +219,7 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     )
     .leftMap { rf =>
       CompilationFailed.one(
-        CompilationError.error(
-          CompilationErrorDetails.fromResolutionFailure(rf),
-          ResolutionFailure.diagnosticRange(q),
-        )
+        ResolutionFailure.toCompilationError(rf, q)
       )
     }
 
