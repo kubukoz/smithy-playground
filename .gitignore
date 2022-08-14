@@ -4,3 +4,5 @@
 **/.DS_Store
 .smithy.lsp.log
 .sbt
+**/node_modules
+tree-sitter-smithyql/build

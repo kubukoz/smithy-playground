@@ -1,0 +1,3 @@
+[submodule "tree-sitter-smithyql/tree-sitter"]
+	path = tree-sitter-smithyql/tree-sitter
+	url = git@github.com:tree-sitter/tree-sitter
