@@ -46,13 +46,14 @@ object CompletionProvider {
         .foldMap(e => Map(OperationName[Id](e.name) -> NonEmptyList.one(serviceId)))
     }
 
-    val completeOperationName = servicesById
+    val completeOperationName
+      : Map[QualifiedIdentifier, List[QualifiedIdentifier] => List[CompletionItem]] = servicesById
       .map { case (serviceId, service) =>
-        serviceId -> { (useClauseIdent: Option[QualifiedIdentifier]) =>
+        serviceId -> { (presentServiceIdentifiers: List[QualifiedIdentifier]) =>
           val needsUseClause =
             MultiServiceResolver
               .resolveService(
-                useClauseIdent,
+                presentServiceIdentifiers,
                 servicesById,
               )
               .isLeft
@@ -76,7 +77,7 @@ object CompletionProvider {
         }
       }
 
-    val completeAnyOperationName = completeOperationName.toList.map(_._2).flatSequence.apply(None)
+    val completeAnyOperationName = completeOperationName.toList.map(_._2).flatSequence.apply(Nil)
 
     val completionsByEndpoint
       : Map[QualifiedIdentifier, Map[OperationName[Id], CompletionResolver[Any]]] = servicesById
@@ -97,7 +98,7 @@ object CompletionProvider {
       serviceId match {
         case Some(serviceId) =>
           completeOperationName(serviceId)(
-            q.useClause.value.map(_.identifier.value)
+            q.mapK(WithSource.unwrap).collectServiceIdentifiers
           )
         case _ => completeAnyOperationName
       }
@@ -120,7 +121,7 @@ object CompletionProvider {
           val serviceIdOpt =
             MultiServiceResolver
               .resolveService(
-                q.useClause.value.map(_.identifier.value),
+                q.mapK(WithSource.unwrap).collectServiceIdentifiers,
                 serviceIdsById,
               )
               .toOption
@@ -141,7 +142,9 @@ object CompletionProvider {
               case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
                 serviceIdOpt match {
                   case Some(serviceId) =>
-                    completionsByEndpoint(serviceId)(q.operationName.value.mapK(WithSource.unwrap))
+                    completionsByEndpoint(serviceId)(
+                      q.operationName.value.operationName.value.mapK(WithSource.unwrap)
+                    )
                       .getCompletions(ctx)
 
                   case None => Nil

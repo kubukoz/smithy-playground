@@ -36,11 +36,19 @@ object SmithyQLParser {
           case e                                  => e.toString
         }
 
+      def prep(s: String): String = s.replace(' ', '·').replace("\n", "\\n\n")
+
       s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
           .expected
           .map(showExpectation)
-          .mkString_("/")} at offset ${underlying.failedAtOffset}, got ${Console.YELLOW}\"${failed
-          .take(10)}\"${Console.RESET} instead"
+          .mkString_("/")} after ${Console.BLUE}${prep(
+          text.take(
+            underlying.failedAtOffset
+          )
+        )}${Console.RESET}, got ${Console.YELLOW}\"${prep(
+          failed
+            .take(10)
+        )}\"${Console.RESET} instead"
     }
 
   }
@@ -134,8 +142,8 @@ object SmithyQLParser {
     // doesn't accept comments
     val qualifiedIdent: Parser[QualifiedIdentifier] =
       (
-        rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace)),
-        tokens.hash *> rawIdent,
+        rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace).backtrack),
+        tokens.hash.surroundedBy(tokens.whitespace) *> rawIdent,
       ).mapN(QualifiedIdentifier.apply)
 
     val useClause: Parser[UseClause[T]] = {
@@ -255,8 +263,24 @@ object SmithyQLParser {
           )
       }
 
+    val queryOperationName: Parser[T[QueryOperationName[WithSource]]] = {
+
+      val serviceId = tokens
+        .withRange(
+          qualifiedIdent.backtrack <* tokens.whitespace <* tokens.dot
+        )
+
+      val operationName = tokens.withRange(rawIdent).map(_.map(OperationName[WithSource](_)))
+
+      tokens.withComments {
+        ((serviceId <* tokens.whitespace).?.with1 ~ operationName).map {
+          QueryOperationName.apply[WithSource].tupled
+        }
+      }
+    }
+
     (useClauseWithSource.with1 ~
-      ident.map(_.map(OperationName[WithSource](_))) ~ struct ~ tokens.comments)
+      queryOperationName ~ struct ~ tokens.comments)
       .map { case (((useClause, opName), input), commentsAfter) =>
         Query(
           useClause,

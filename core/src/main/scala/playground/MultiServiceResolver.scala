@@ -9,10 +9,23 @@ import playground.smithyql.WithSource
 object MultiServiceResolver {
 
   def resolveService[A](
-    useClauseIdentifier: Option[QualifiedIdentifier],
+    identifiers: List[QualifiedIdentifier],
     services: Map[QualifiedIdentifier, A],
   ): Either[ResolutionFailure, A] =
-    useClauseIdentifier match {
+    identifiers match {
+      case Nil         => resolveFromOne(None, services)
+      case body :: Nil => resolveFromOne(Some(body) /* once told me */, services)
+      case more =>
+        ResolutionFailure
+          .ConflictingServiceReference(more)
+          .asLeft
+    }
+
+  private def resolveFromOne[A](
+    ident: Option[QualifiedIdentifier],
+    services: Map[QualifiedIdentifier, A],
+  ): Either[ResolutionFailure, A] =
+    ident match {
       case None if services.sizeIs == 1 => services.head._2.asRight
       case None => ResolutionFailure.AmbiguousService(services.keySet.toList).asLeft
 
@@ -32,6 +45,9 @@ object ResolutionFailure {
   final case class AmbiguousService(knownServices: List[QualifiedIdentifier])
     extends ResolutionFailure
 
+  final case class ConflictingServiceReference(references: List[QualifiedIdentifier])
+    extends ResolutionFailure
+
   final case class UnknownService(
     unknownId: QualifiedIdentifier,
     knownServices: List[QualifiedIdentifier],
@@ -40,8 +56,9 @@ object ResolutionFailure {
   // Returns the preferred range for diagnostics about resolution failure
   def diagnosticRange(q: Query[WithSource]): SourceRange =
     q.useClause.value match {
-      case None         => q.operationName.range
+      case None         => q.operationName.value.operationName.range
       case Some(clause) => clause.identifier.range
+      // todo: involve the optional range in q.operationName's service reference
     }
 
 }

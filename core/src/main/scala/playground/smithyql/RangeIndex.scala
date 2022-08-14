@@ -42,10 +42,10 @@ object RangeIndex {
       .toList
 
   private def findInOperationName(
-    operationName: WithSource[OperationName[WithSource]]
+    operationName: WithSource[QueryOperationName[WithSource]]
   ): List[ContextRange] =
     ContextRange(
-      operationName.range,
+      operationName.value.operationName.range,
       NodeContext.Root.inOperationName,
     ) :: Nil
 

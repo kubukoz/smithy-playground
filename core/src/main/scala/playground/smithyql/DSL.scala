@@ -12,7 +12,7 @@ object DSL {
       args: (String, InputNode[Id])*
     ): Query[Id] = Query[Id](
       useClause = None,
-      operationName = OperationName(s),
+      operationName = QueryOperationName[Id](None, OperationName(s)),
       input = struct(args: _*),
     )
 

@@ -16,7 +16,7 @@ object DocumentSymbolProvider {
       case Left(_) => Nil
       case Right(q) =>
         findInUseClause(q.useClause) ++
-          findInOperation(q.operationName, q.input)
+          findInOperation(q.operationName.value.operationName, q.input)
     }
 
   private def findInUseClause(

@@ -165,6 +165,9 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case DeprecatedItem(info) => "Deprecated" + CompletionItem.deprecationString(info)
       case InvalidUUID          => "Invalid UUID"
       case InvalidBlob          => "Invalid blob, expected base64-encoded string"
+      case ConflictingServiceReference(refs) =>
+        s"Conflicting service references: ${refs.map(_.render).mkString(", ")}"
+
       case NumberOutOfRange(value, expectedType) => s"Number out of range for $expectedType: $value"
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
@@ -225,12 +228,17 @@ object CompilationErrorDetails {
       CompilationErrorDetails.AmbiguousService(knownServices)
     case ResolutionFailure.UnknownService(unknownId, knownServices) =>
       CompilationErrorDetails.UnknownService(unknownId, knownServices)
+    case ResolutionFailure.ConflictingServiceReference(refs) =>
+      CompilationErrorDetails.ConflictingServiceReference(refs)
 
   }
 
   // todo: remove
   final case class Message(text: String) extends CompilationErrorDetails
   final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
+    extends CompilationErrorDetails
+
+  final case class ConflictingServiceReference(refs: List[QualifiedIdentifier])
     extends CompilationErrorDetails
 
   final case class AmbiguousService(
