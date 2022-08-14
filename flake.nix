@@ -22,6 +22,7 @@
             pkgs.sbt
             pkgs.jless
             pkgs.gnupg
+            pkgs.tree-sitter
           ];
         };
       }
