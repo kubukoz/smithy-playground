@@ -1,0 +1,112 @@
+================================================================================
+Full of comments
+================================================================================
+
+// before use clause
+use//after use
+service //after service
+some //after ident
+.//after dot
+api//after api ident
+#//after hash
+Service//after service
+// before op
+op
+// after op
+ {
+
+  //before key
+  firstKey
+  // after key
+   =
+    //  before value
+     "firstValue"
+    //  after value
+  ,
+  // before another key
+  secondKey
+  // after second key
+  =
+    // before value
+    "secondValue"
+    // after value
+,
+    //after trailing comma, technically this is part of the struct
+ }
+//  after whole thing
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (whitespace)
+  (comment)
+  (whitespace)
+  (use_clause
+    (comment)
+    (whitespace)
+    (whitespace)
+    (comment)
+    (whitespace)
+    (qualified_identifier
+      (identifier)
+      (whitespace)
+      (comment)
+      (whitespace)
+      (comment)
+      (whitespace)
+      (identifier)
+      (comment)
+      (whitespace)
+      (comment)
+      (whitespace)
+      (identifier)))
+  (comment)
+  (whitespace)
+  (comment)
+  (whitespace)
+  (operation_name
+    (identifier))
+  (whitespace)
+  (comment)
+  (whitespace)
+  (struct
+    (whitespace)
+    (comment)
+    (whitespace)
+    (fields
+      (field
+        (identifier)
+        (whitespace)
+        (comment)
+        (whitespace)
+        (whitespace)
+        (comment)
+        (whitespace)
+        (input_node
+          (string)))
+      (whitespace)
+      (comment)
+      (whitespace)
+      (whitespace)
+      (comment)
+      (whitespace)
+      (fields
+        (field
+          (identifier)
+          (whitespace)
+          (comment)
+          (whitespace)
+          (whitespace)
+          (comment)
+          (whitespace)
+          (input_node
+            (string)))
+        (whitespace)
+        (comment)
+        (whitespace)))
+    (whitespace)
+    (comment)
+    (whitespace))
+  (whitespace)
+  (comment)
+  (whitespace))

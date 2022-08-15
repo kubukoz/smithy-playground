@@ -1,0 +1,35 @@
+================================================================================
+Struct with 3 fields
+================================================================================
+{ a = 42, b = "false", c = true, }
+--------------------------------------------------------------------------------
+
+(source_file
+  (operation_name
+    (MISSING identifier))
+  (struct
+    (whitespace)
+    (fields
+      (field
+        (identifier)
+        (whitespace)
+        (whitespace)
+        (input_node
+          (number)))
+      (whitespace)
+      (fields
+        (field
+          (identifier)
+          (whitespace)
+          (whitespace)
+          (input_node
+            (string)))
+        (whitespace)
+        (fields
+          (field
+            (identifier)
+            (whitespace)
+            (whitespace)
+            (input_node
+              (boolean))))))
+    (whitespace)))

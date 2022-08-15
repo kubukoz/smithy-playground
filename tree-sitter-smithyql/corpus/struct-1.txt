@@ -1,0 +1,19 @@
+================================================================================
+Struct with 1 field
+================================================================================
+{ a = 42 }
+--------------------------------------------------------------------------------
+
+(source_file
+  (operation_name
+    (MISSING identifier))
+  (struct
+    (whitespace)
+    (fields
+      (field
+        (identifier)
+        (whitespace)
+        (whitespace)
+        (input_node
+          (number))))
+    (whitespace)))

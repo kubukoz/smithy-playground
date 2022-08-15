@@ -1,0 +1,27 @@
+================================================================================
+Struct with 2 fields
+================================================================================
+{ a = 42, b = "false" }
+--------------------------------------------------------------------------------
+
+(source_file
+  (operation_name
+    (MISSING identifier))
+  (struct
+    (whitespace)
+    (fields
+      (field
+        (identifier)
+        (whitespace)
+        (whitespace)
+        (input_node
+          (number)))
+      (whitespace)
+      (fields
+        (field
+          (identifier)
+          (whitespace)
+          (whitespace)
+          (input_node
+            (string)))))
+    (whitespace)))

@@ -1,0 +1,148 @@
+================================================================================
+Return statements
+================================================================================
+
+use service a.b#C
+
+hello {
+  a = 42,
+  b = 50,
+  c = {
+    d = "foo",
+    e=false,
+    f=true,
+    list = [ 50, 100, 100,
+      [null, false, true, null, "a", 40, ]
+      ],
+  },
+  nul = null,
+}
+--------------------------------------------------------------------------------
+
+(source_file
+  (whitespace)
+  (use_clause
+    (whitespace)
+    (whitespace)
+    (qualified_identifier
+      (identifier)
+      (identifier)
+      (identifier)))
+  (whitespace)
+  (operation_name
+    (identifier))
+  (whitespace)
+  (struct
+    (whitespace)
+    (fields
+      (field
+        (identifier)
+        (whitespace)
+        (whitespace)
+        (input_node
+          (number)))
+      (whitespace)
+      (fields
+        (field
+          (identifier)
+          (whitespace)
+          (whitespace)
+          (input_node
+            (number)))
+        (whitespace)
+        (fields
+          (field
+            (identifier)
+            (whitespace)
+            (whitespace)
+            (input_node
+              (struct
+                (whitespace)
+                (fields
+                  (field
+                    (identifier)
+                    (whitespace)
+                    (whitespace)
+                    (input_node
+                      (string)))
+                  (whitespace)
+                  (fields
+                    (field
+                      (identifier)
+                      (input_node
+                        (boolean)))
+                    (whitespace)
+                    (fields
+                      (field
+                        (identifier)
+                        (input_node
+                          (boolean)))
+                      (whitespace)
+                      (fields
+                        (field
+                          (identifier)
+                          (whitespace)
+                          (whitespace)
+                          (input_node
+                            (list
+                              (whitespace)
+                              (list_fields
+                                (list_field
+                                  (input_node
+                                    (number)))
+                                (whitespace)
+                                (list_fields
+                                  (list_field
+                                    (input_node
+                                      (number)))
+                                  (whitespace)
+                                  (list_fields
+                                    (list_field
+                                      (input_node
+                                        (number)))
+                                    (whitespace)
+                                    (list_fields
+                                      (list_field
+                                        (input_node
+                                          (list
+                                            (list_fields
+                                              (list_field
+                                                (input_node
+                                                  (null)))
+                                              (whitespace)
+                                              (list_fields
+                                                (list_field
+                                                  (input_node
+                                                    (boolean)))
+                                                (whitespace)
+                                                (list_fields
+                                                  (list_field
+                                                    (input_node
+                                                      (boolean)))
+                                                  (whitespace)
+                                                  (list_fields
+                                                    (list_field
+                                                      (input_node
+                                                        (null)))
+                                                    (whitespace)
+                                                    (list_fields
+                                                      (list_field
+                                                        (input_node
+                                                          (string)))
+                                                      (whitespace)
+                                                      (list_fields
+                                                        (list_field
+                                                          (input_node
+                                                            (number)))))))))
+                                            (whitespace))))))))
+                              (whitespace))))))))
+                (whitespace))))
+          (whitespace)
+          (fields
+            (field
+              (identifier)
+              (whitespace)
+              (whitespace)
+              (input_node
+                (null)))))))
+    (whitespace)))

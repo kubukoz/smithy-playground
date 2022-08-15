@@ -6,3 +6,4 @@
 .sbt
 **/node_modules
 tree-sitter-smithyql/build
+tree-sitter-smithyql/*.wasm

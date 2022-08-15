@@ -1,0 +1,15 @@
+================================================================================
+Just use clause
+================================================================================
+use service playground.std#Clock
+--------------------------------------------------------------------------------
+
+(source_file
+  (ERROR
+    (use_clause
+      (whitespace)
+      (whitespace)
+      (qualified_identifier
+        (identifier)
+        (identifier)
+        (identifier)))))
