@@ -1,7 +1,5 @@
 namespace playground
 
-use smithy4s.meta#refinement
-
 structure BuildConfig {
   mavenDependencies: Strings,
   mavenRepositories: Strings,
