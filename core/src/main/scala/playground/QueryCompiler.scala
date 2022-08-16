@@ -325,7 +325,6 @@ class TransitiveCompiler(underlying: Schema ~> Schema) extends (Schema ~> Schema
 
 object AddDynamicRefinements extends (Schema ~> Schema) {
 
-  // todo: https://github.com/disneystreaming/smithy4s/pull/348
   private def void[C, A](
     underlying: RefinementProvider[C, A, _]
   ): RefinementProvider.Simple[C, A] =
@@ -336,7 +335,6 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
       )
 
   private implicit class SchemaOps[A](schema: Schema[A]) {
-    // could this live in smithy4s?
     def reifyHint[B](implicit rp: RefinementProvider[B, A, _]): Schema[A] =
       schema.hints.get(rp.tag).fold(schema)(schema.validated(_)(void(rp)))
   }
