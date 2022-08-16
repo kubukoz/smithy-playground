@@ -368,9 +368,17 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
     schema match {
       case PrimitiveSchema(_, _, tag) =>
         tag match {
-          case PString => schema.reifyHint[api.Length].reifyHint[api.Pattern]
-          case PInt    => schema.reifyHint[api.Range]
-          case _       => schema
+          case PString     => schema.reifyHint[api.Length].reifyHint[api.Pattern]
+          case PByte       => schema.reifyHint[api.Range]
+          case PShort      => schema.reifyHint[api.Range]
+          case PInt        => schema.reifyHint[api.Range]
+          case PLong       => schema.reifyHint[api.Range]
+          case PFloat      => schema.reifyHint[api.Range]
+          case PDouble     => schema.reifyHint[api.Range]
+          case PBigInt     => schema.reifyHint[api.Range]
+          case PBigDecimal => schema.reifyHint[api.Range]
+          case PBlob       => schema.reifyHint[api.Length]
+          case PUnit | PTimestamp | PDocument | PBoolean | PUUID => schema
         }
 
       case c: CollectionSchema[_, _] => collection(c)
