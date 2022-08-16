@@ -17,19 +17,17 @@ Struct with 3 fields
         (input_node
           (number)))
       (whitespace)
-      (fields
-        (field
-          (identifier)
-          (whitespace)
-          (whitespace)
-          (input_node
-            (string)))
+      (field
+        (identifier)
         (whitespace)
-        (fields
-          (field
-            (identifier)
-            (whitespace)
-            (whitespace)
-            (input_node
-              (boolean))))))
+        (whitespace)
+        (input_node
+          (string)))
+      (whitespace)
+      (field
+        (identifier)
+        (whitespace)
+        (whitespace)
+        (input_node
+          (boolean))))
     (whitespace)))

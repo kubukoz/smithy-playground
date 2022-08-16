@@ -7,20 +7,27 @@
   {
     "type": "field",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        },
-        {
-          "type": "input_node",
-          "named": true
-        }
-      ]
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "input_node",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -33,10 +40,6 @@
       "types": [
         {
           "type": "field",
-          "named": true
-        },
-        {
-          "type": "fields",
           "named": true
         }
       ]
@@ -80,31 +83,17 @@
   {
     "type": "list",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": false,
-      "types": [
-        {
-          "type": "list_fields",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "list_field",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "input_node",
-          "named": true
-        }
-      ]
+    "fields": {
+      "list_fields": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "list_fields",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -116,11 +105,7 @@
       "required": true,
       "types": [
         {
-          "type": "list_field",
-          "named": true
-        },
-        {
-          "type": "list_fields",
+          "type": "input_node",
           "named": true
         }
       ]
@@ -129,31 +114,57 @@
   {
     "type": "operation_name",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        }
-      ]
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
     "type": "qualified_identifier",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        }
-      ]
+    "fields": {
+      "head": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "selection": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "tail": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": ".",
+            "named": false
+          },
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -195,30 +206,38 @@
   {
     "type": "struct",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": false,
-      "types": [
-        {
-          "type": "fields",
-          "named": true
-        }
-      ]
+    "fields": {
+      "fields": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "fields",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
     "type": "use_clause",
     "named": true,
-    "fields": {},
+    "fields": {
+      "identifier": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "qualified_identifier",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
       "required": true,
       "types": [
-        {
-          "type": "qualified_identifier",
-          "named": true
-        },
         {
           "type": "whitespace",
           "named": true

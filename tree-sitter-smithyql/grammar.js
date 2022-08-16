@@ -1,6 +1,9 @@
 // Comma-separated sequence of field, with an optional trailing comma.
-function comma_separated_trailing(name, $, field) {
-  return seq(field, optional(seq(",", optional($[name]))));
+function comma_separated_trailing(field_grammar) {
+  return prec.left(
+    1,
+    seq(field_grammar, repeat(seq(",", field_grammar)), optional(","))
+  );
 }
 
 module.exports = grammar({
@@ -18,27 +21,36 @@ module.exports = grammar({
       ),
 
     use_clause: ($) =>
-      seq("use", $.whitespace, "service", $.whitespace, $.qualified_identifier),
+      seq(
+        "use",
+        $.whitespace,
+        "service",
+        $.whitespace,
+        field("identifier", $.qualified_identifier)
+      ),
 
     qualified_identifier: ($) =>
-      seq($.identifier, repeat(seq(".", $.identifier)), "#", $.identifier),
+      seq(
+        field("head", $.identifier),
+        field("tail", repeat(seq(".", $.identifier))),
+        "#",
+        field("selection", $.identifier)
+      ),
 
-    operation_name: ($) => $.identifier,
+    operation_name: ($) => field("name", $.identifier),
 
     input_node: ($) =>
       choice($.struct, $.list, $.number, $.string, $.boolean, $.null),
 
-    struct: ($) => seq("{", optional($.fields), "}"),
-    list: ($) => seq("[", optional($.list_fields), "]"),
+    struct: ($) => seq("{", field("fields", optional($.fields)), "}"),
+    list: ($) => seq("[", field("list_fields", optional($.list_fields)), "]"),
 
-    fields: ($) => comma_separated_trailing("fields", $, $.field),
+    fields: ($) => comma_separated_trailing($.field),
 
-    field: ($) => seq($.identifier, "=", $.input_node),
+    field: ($) =>
+      seq(field("key", $.identifier), "=", field("value", $.input_node)),
 
-    list_fields: ($) =>
-      comma_separated_trailing("list_fields", $, $.list_field),
-
-    list_field: ($) => $.input_node,
+    list_fields: ($) => comma_separated_trailing($.input_node),
 
     identifier: ($) => /[a-zA-Z_][a-zA-Z0-9_]*/,
 

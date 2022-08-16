@@ -17,11 +17,10 @@ Struct with 2 fields
         (input_node
           (number)))
       (whitespace)
-      (fields
-        (field
-          (identifier)
-          (whitespace)
-          (whitespace)
-          (input_node
-            (string)))))
+      (field
+        (identifier)
+        (whitespace)
+        (whitespace)
+        (input_node
+          (string))))
     (whitespace)))
