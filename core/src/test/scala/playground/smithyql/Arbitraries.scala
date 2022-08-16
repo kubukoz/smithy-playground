@@ -41,7 +41,9 @@ object Arbitraries {
   }
 
   implicit val arbIntLiteral: Arbitrary[IntLiteral[WithSource]] = Arbitrary {
-    Gen.resultOf(IntLiteral.apply[WithSource])
+    Arbitrary.arbBigDecimal.arbitrary.map { bd =>
+      IntLiteral[WithSource](bd.toString())
+    }
   }
 
   implicit val arbStringLiteral: Arbitrary[StringLiteral[WithSource]] = Arbitrary {

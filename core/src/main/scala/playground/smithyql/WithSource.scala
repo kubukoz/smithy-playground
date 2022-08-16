@@ -84,7 +84,7 @@ object WithSource {
           _.value
             .flatMap { case (k, v) =>
               k.allComments(_ => Nil) ++ v.allComments(
-                _.fold(comments, comments, comments, comments, comments)
+                _.fold(comments, comments, comments, comments, comments, comments)
               )
             }
             .toList
@@ -93,6 +93,7 @@ object WithSource {
       int = _ => Nil,
       bool = _ => Nil,
       listed = _.values.allComments(_.flatMap(_.allComments(comments))),
+      nul = _ => Nil,
     )
 
     q.useClause.commentsLeft ++ q
@@ -105,6 +106,7 @@ object WithSource {
       q.input
         .allComments(
           _.fold(
+            comments,
             comments,
             comments,
             comments,

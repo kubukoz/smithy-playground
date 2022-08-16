@@ -30,6 +30,7 @@ sealed trait InputNode[F[_]] extends AST[F] {
     int: IntLiteral[F] => A,
     listed: Listed[F] => A,
     bool: BooleanLiteral[F] => A,
+    nul: NullLiteral[F] => A,
   ): A =
     this match {
       case s @ Struct(_)         => struct(s)
@@ -37,6 +38,7 @@ sealed trait InputNode[F[_]] extends AST[F] {
       case b @ BooleanLiteral(_) => bool(b)
       case s @ StringLiteral(_)  => string(s)
       case l @ Listed(_)         => listed(l)
+      case n @ NullLiteral()     => nul(n)
     }
 
   def mapK[G[_]: Functor](fk: F ~> G): InputNode[G]
@@ -158,7 +160,12 @@ object Struct {
 
 }
 
-final case class IntLiteral[F[_]](value: Int) extends InputNode[F] {
+final case class NullLiteral[F[_]]() extends InputNode[F] {
+  def kind: NodeKind = NodeKind.NullLiteral
+  def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = copy()
+}
+
+final case class IntLiteral[F[_]](value: String) extends InputNode[F] {
   def kind: NodeKind = NodeKind.IntLiteral
   def mapK[G[_]: Functor](fk: F ~> G): InputNode[G] = copy()
 }
@@ -188,6 +195,7 @@ sealed trait NodeKind extends Product with Serializable
 object NodeKind {
   case object Struct extends NodeKind
   case object IntLiteral extends NodeKind
+  case object NullLiteral extends NodeKind
   case object StringLiteral extends NodeKind
   case object Query extends NodeKind
   case object Listed extends NodeKind

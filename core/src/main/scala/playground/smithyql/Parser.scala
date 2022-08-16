@@ -97,9 +97,7 @@ object SmithyQLParser {
       (Rfc5234.alpha ~ Parser.charsWhile0(ch => ch.isLetterOrDigit || "_".contains(ch)))
         .map { case (ch, s) => s.prepended(ch) }
 
-    val number: Parser[Int] = Numbers
-      .signedIntString
-      .map(_.toInt)
+    val number: Parser[String] = Numbers.jsonNumber
 
     val bool: Parser[Boolean] = string("true").as(true).orElse(string("false").as(false))
 
@@ -109,6 +107,8 @@ object SmithyQLParser {
       .map(_.mkString)
       .with1
       .surroundedBy(char('"'))
+
+    val nullLiteral: Parser[Unit] = string("null")
 
     def punctuation(c: Char): Parser[Unit] = char(c)
 
@@ -152,11 +152,13 @@ object SmithyQLParser {
     val boolLiteral = tokens.bool.map(BooleanLiteral[T](_))
 
     val stringLiteral = tokens.stringLiteral.map(StringLiteral[T](_))
+    val nullLiteral = tokens.nullLiteral.map(_ => NullLiteral[T]())
 
     lazy val node: Parser[InputNode[T]] = Parser.defer {
       intLiteral |
         boolLiteral |
         stringLiteral |
+        nullLiteral |
         struct |
         listed
     }

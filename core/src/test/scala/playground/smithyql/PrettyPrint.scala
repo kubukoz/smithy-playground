@@ -88,6 +88,7 @@ object PrettyPrint {
       int = i => Structure(Map("int" -> just(i.value.toString))),
       listed = list => ???, /* todo */
       bool = b => Structure(Map("bool" -> just(b.value.toString))),
+      nul = _ => Structure(Map("null" -> empty)),
     )
 
 }

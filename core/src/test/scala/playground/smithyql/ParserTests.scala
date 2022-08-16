@@ -29,6 +29,16 @@ object ParserTests extends FunSuite {
   parsingTest("simple call, sparse", " hello { } ")("hello".call())
   parsingTest("simple call, sparse with underscore", " hello_world { } ")("hello_world".call())
 
+  parsingTest("simple call with float", "hello { a = 21.37 }")("hello".call("a" -> 21.37f))
+  parsingTest(
+    "simple call with double",
+    s"hello { a = ${Double.MaxValue.toString} }",
+  )(
+    "hello".call(
+      "a" -> Double.MaxValue
+    )
+  )
+
   parsingTest("use service", "use service com.example#Demo hello {}")(
     "hello".call().useService("com", "example")("Demo")
   )
