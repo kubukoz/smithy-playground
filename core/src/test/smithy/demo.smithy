@@ -200,6 +200,7 @@ structure HasNewtypes {
   power: Power,
   powerMap: PowerMap,
   anUUID: smithy4s.api#UUID,
+  stringWithLength: StringWithLength
 }
 
 
