@@ -679,7 +679,7 @@ object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
     refinement: Refinement[A, B],
   ): PartialCompiler[B] = surject(schema.compile(this), refinement)
 
-  private def surject[A, B, C](
+  private def surject[A, B](
     pc: PartialCompiler[A],
     refinement: Refinement[A, B],
   ): PartialCompiler[B] = (pc, PartialCompiler.pos).tupled.emap { case (a, pos) =>
