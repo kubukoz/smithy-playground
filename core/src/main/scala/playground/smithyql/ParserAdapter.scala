@@ -3,17 +3,15 @@ package playground.smithyql
 import ai.serenade.treesitter.Languages
 import ai.serenade.treesitter.Node
 import ai.serenade.treesitter.Parser
+import cats.Id
+import cats.Monad
+import cats.StackSafeMonad
+import cats.data.NonEmptyList
 import cats.implicits._
 
 import java.io.Closeable
 import scala.util.Using
-import cats.data.NonEmptyList
-import cats.Id
-import cats.Monad
-import cats.Applicative
-import scala.util.matching.Regex
-import cats.~>
-import cats.StackSafeMonad
+import ai.serenade.treesitter.TreeSitter
 
 object ParserAdapter {
 
@@ -47,7 +45,7 @@ object ParserAdapter {
 
     case class Op[F[_]](
       useClause: F[Option[UseClause[F]]],
-      name: F[String],
+      name: F[Identifier[F]],
       input: F[Struct[F]],
     )
 
@@ -115,137 +113,146 @@ object ParserAdapter {
   import ast1._
 
   trait NodeDecoder[+A] {
-    def decode(node: Node): A
-    def >>>[B](another: NodeDecoder[B])(implicit aIsNode: A <:< Node): NodeDecoder[B] =
-      node => another.decode(decode(node))
+
+    def decode(node: Node, text: String): A
+
+    def text: NodeDecoder[String] =
+      (node, src) => src.substring(node.getStartByte(), node.getEndByte())
+
+    def firstMatch[B](implicit ev: A <:< List[B]): NodeDecoder[Option[B]] = this.map {
+      _.headOption
+    }
+
+    def unNone[B](
+      implicit ev: A <:< Option[B]
+    ): NodeDecoder[B] = this.map(_.getOrElse(sys.error("missing item")))
+
+    def atType(
+      tpe: String
+    ): NodeDecoder[A] = atTypeOpt(tpe).unNone
+
+    def atTypeOpt(
+      tpe: String
+    ): NodeDecoder[Option[A]] = atTypeSeq(tpe).firstMatch
+
+    def atTypeSeq(tpe: String): NodeDecoder[List[A]] =
+      (node, text) =>
+        NodeDecoder
+          .children
+          .map(_.filter(_.getType() == tpe))
+          .map(_.map(this.decode(_, text)))
+          .decode(node, text)
+
   }
 
   object NodeDecoder {
+    val id: NodeDecoder[Node] = (node, _) => node
 
     implicit val instances: Monad[NodeDecoder] =
       new StackSafeMonad[NodeDecoder] {
 
-        def flatMap[A, B](fa: NodeDecoder[A])(f: A => NodeDecoder[B]): NodeDecoder[B] = { node =>
-          f(fa.decode(node)).decode(node)
+        def flatMap[A, B](
+          fa: NodeDecoder[A]
+        )(
+          f: A => NodeDecoder[B]
+        ): NodeDecoder[B] = { (node, text) =>
+          f(fa.decode(node, text)).decode(node, text)
         }
 
-        def pure[A](x: A): NodeDecoder[A] = _ => x
+        def pure[A](x: A): NodeDecoder[A] = (_, _) => x
 
       }
 
     val children: NodeDecoder[List[Node]] =
-      node => List.tabulate(node.getChildCount())(node.getChild(_))
+      (node, _) => List.tabulate(node.getChildCount())(node.getChild(_))
 
-    def downType(
-      tpe: String
-    ): NodeDecoder[Node] =
-      node =>
-        downTypeOpt(tpe)
-          .decode(node)
-          .getOrElse(
-            sys.error(
-              "no children with type " + tpe + ", existing types: " + children
-                .decode(node)
-                .map(_.getType())
-                .mkString(",")
-            )
-          )
-
-    def downTypeAll(
-      tpe: String
-    ): NodeDecoder[List[Node]] = children.map(_.filter(_.getType() == tpe))
-
-    def downTypeOpt(
-      tpe: String
-    ): NodeDecoder[Option[Node]] = children
-      .map(_.find(_.getType() == tpe))
-
-    def childTypes: NodeDecoder[String] = children
+    val childTypes: NodeDecoder[String] = children
       .map(_.map(_.getType()).mkString(", "))
 
     def union[A](decoders: (String, NodeDecoder[A])*): NodeDecoder[A] =
-      node =>
+      (node, text) =>
         decoders
-          .collectFirstSome { case (key, v) => downTypeOpt(key).decode(node).map(v.decode) }
-          .getOrElse(sys.error("missing case: " + childTypes.decode(node)))
+          .collectFirstSome { case (key, v) => v.atTypeOpt(key).decode(node, text) }
+          .getOrElse(sys.error("missing case: " + childTypes.decode(node, text)))
+
+    val text: NodeDecoder[String] = id.text
+
+    implicit final class NodeDecoderOps[A](nd: => NodeDecoder[A]) {
+      def deferred: NodeDecoder[A] = nd.decode(_, _)
+    }
 
   }
 
-  class OpDecoders(src: String) {
+  object OpDecoders {
     import NodeDecoder._
-
-    val text: NodeDecoder[String] = node => src.substring(node.getStartByte(), node.getEndByte())
+    import NodeDecoder.NodeDecoderOps
 
     val identifier: NodeDecoder[Identifier] = text.map(Identifier(_))
 
-    val listItems: NodeDecoder[ListItems] = downTypeAll("input_node")
-      .map(_.map(inputNode.decode))
+    val listItems: NodeDecoder[ListItems] = inputNode
+      .atTypeSeq("input_node")
       .map(ListItems.apply)
 
-    val listed: NodeDecoder[Listed] = downTypeOpt("list_fields")
-      .map(_.map(listItems.decode))
+    val listed: NodeDecoder[Listed] = listItems
+      .atTypeOpt("list_fields")
       .map(Listed.apply)
 
     val bool: NodeDecoder[Boolean] = text
       .map(_.toBoolean)
 
-    lazy val inputNode: NodeDecoder[InputNode] = union(
-      "number" -> text.map(InputNode.NumberCase(_)),
-      "string" -> text.map(InputNode.StringCase(_)),
-      "null" -> InputNode.NullCase.pure[NodeDecoder],
-      "struct" -> struct.map(InputNode.StructCase(_)),
-      "list" -> listed.map(InputNode.ListCase(_)),
-      "boolean" -> bool.map(InputNode.BoolCase(_)),
-    )
+    lazy val inputNode: NodeDecoder[InputNode] =
+      union(
+        "number" -> text.map(InputNode.NumberCase(_)),
+        "string" -> text.map(InputNode.StringCase(_)),
+        "null" -> InputNode.NullCase.pure[NodeDecoder],
+        "struct" -> struct.map(InputNode.StructCase(_)),
+        "list" -> listed.map(InputNode.ListCase(_)),
+        "boolean" -> bool.map(InputNode.BoolCase(_)),
+      ).deferred
 
     val field: NodeDecoder[Field] =
       (
-        downType("identifier") >>> identifier,
-        downType("input_node") >>> inputNode,
+        identifier.atType("identifier"),
+        inputNode.atType("input_node"),
       ).mapN(Field.apply)
 
-    val fields: NodeDecoder[Fields] = downTypeAll("field")
-      .map(_.map(field.decode))
+    val fields: NodeDecoder[Fields] = field
+      .atTypeSeq("field")
       .map(Fields.apply)
 
-    lazy val struct: NodeDecoder[Struct] = downTypeOpt("fields")
-      .map(_.map(fields.decode))
+    val struct: NodeDecoder[Struct] = fields
+      .atTypeOpt("fields")
       .map(Struct.apply)
 
-    val qualifiedIdentifier: NodeDecoder[QualifiedIdentifier] = downTypeAll("identifier")
+    val qualifiedIdentifier: NodeDecoder[QualifiedIdentifier] = identifier
+      .atTypeSeq("identifier")
       .map {
         case _ :: Nil | Nil => sys.error("no ident??")
         case all =>
           val prefix = NonEmptyList.fromListUnsafe(all.init)
 
-          QualifiedIdentifier(prefix.map(identifier.decode), identifier.decode(all.last))
+          QualifiedIdentifier(prefix, all.last)
       }
 
-    val useClause: NodeDecoder[UseClause] =
-      (
-        downType("qualified_identifier") >>>
-          qualifiedIdentifier
-      )
-        .map(UseClause)
+    val useClause: NodeDecoder[UseClause] = qualifiedIdentifier
+      .atType("qualified_identifier")
+      .map(UseClause)
 
     val op: NodeDecoder[Op] =
       (
-        downTypeOpt("use_clause").map(_.map(useClause.decode)),
-        downType("operation_name") >>>
-          downType("identifier") >>>
-          text,
-        downType("struct") >>>
-          struct,
+        useClause.atTypeOpt("use_clause"),
+        identifier.atType("operation_name"),
+        struct.atType("struct"),
       ).mapN(Op.apply)
 
   }
 
   def parse(s: String) = {
-
     val p = new Parser()
     p.setLanguage(Languages.smithyql())
     Using.resource(p.parseString(s)) { tree =>
-      new OpDecoders(s).op.decode(tree.getRootNode())
+      println(tree.getRootNode().getChildByFieldName("operation_name").getType())
+      OpDecoders.op.decode(tree.getRootNode(), s)
     }
   }
 

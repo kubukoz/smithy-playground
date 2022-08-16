@@ -71,7 +71,7 @@ lazy val core = project
       "org.typelevel" %% "cats-parse" % "0.3.8",
       "org.typelevel" %% "paiges-cats" % "0.4.2",
       "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
-      "ai.serenade" % "java-tree-sitter" % "1.1.2",
+      "ai.serenade" % "java-tree-sitter" % "1.1.3-SNAPSHOT",
     ),
     commonSettings,
     Smithy4sCodegenPlugin.defaultSettings(Test),
