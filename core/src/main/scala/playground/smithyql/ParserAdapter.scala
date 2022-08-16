@@ -8,6 +8,8 @@ import cats.implicits._
 import java.io.Closeable
 import scala.util.Using
 import cats.data.NonEmptyList
+import cats.Id
+import cats.Monad
 
 object ParserAdapter {
 
@@ -51,37 +53,93 @@ object ParserAdapter {
     .map(_.getType())
     .mkString(", ")
 
-  case class QualifiedIdentifier(
-    path: NonEmptyList[Identifier],
-    selection: Identifier,
-  )
+  object ast {
 
-  case class UseClause(
-    ident: QualifiedIdentifier
-  )
+    case class QualifiedIdentifier[F[_]](
+      path: F[NonEmptyList[Identifier[F]]],
+      selection: F[Identifier[F]],
+    ) {
 
-  case class Op(
-    useClause: Option[UseClause],
-    name: String,
-    input: Struct,
-  )
+      def sequenceK(
+        implicit F: Monad[F]
+      ): F[QualifiedIdentifier[Id]] =
+        (
+          path.flatMap(_.nonEmptyTraverse(_.sequenceK)),
+          selection.flatMap(_.sequenceK),
+        )
+          .mapN(QualifiedIdentifier.apply[Id])
 
-  case class Identifier(value: String)
+    }
 
-  case class Field(identifier: Identifier, inputNode: InputNode)
-  case class Fields(fields: List[Field])
-  case class Struct(fields: Option[Fields])
-  case class ListItems(items: List[InputNode])
-  case class Listed(items: Option[ListItems])
-  sealed trait InputNode
+    case class UseClause[F[_]](
+      ident: F[QualifiedIdentifier[F]]
+    )
 
-  object InputNode {
-    case class StructCase(s: Struct) extends InputNode
-    case class ListCase(l: Listed) extends InputNode
-    case class NumberCase(n: String) extends InputNode
-    case class StringCase(n: String) extends InputNode
-    case class BoolCase(v: Boolean) extends InputNode
-    case object NullCase extends InputNode
+    case class Op[F[_]](
+      useClause: F[Option[UseClause[F]]],
+      name: F[String],
+      input: F[Struct[F]],
+    )
+
+    case class Identifier[F[_]](value: F[String]) {
+      def sequenceK(implicit F: Monad[F]): F[Identifier[Id]] = value.map(Identifier.apply[Id])
+    }
+
+    case class Field[F[_]](identifier: F[Identifier[F]], inputNode: F[InputNode[F]])
+    case class Fields[F[_]](fields: F[List[Field[F]]])
+    case class Struct[F[_]](fields: F[Option[Fields[F]]])
+    case class ListItems[F[_]](items: F[List[InputNode[F]]])
+    case class Listed[F[_]](items: F[Option[ListItems[F]]])
+    sealed trait InputNode[F[_]]
+
+    object InputNode {
+      case class StructCase[F[_]](s: Struct[F]) extends InputNode[F]
+      case class ListCase[F[_]](l: Listed[F]) extends InputNode[F]
+      case class NumberCase[F[_]](n: F[String]) extends InputNode[F]
+      case class StringCase[F[_]](n: F[String]) extends InputNode[F]
+      case class BoolCase[F[_]](v: F[Boolean]) extends InputNode[F]
+      case class NullCase[F[_]]() extends InputNode[F]
+    }
+
+  }
+
+  object ast1 {
+
+    type QualifiedIdentifier = ast.QualifiedIdentifier[Id]
+    val QualifiedIdentifier = ast.QualifiedIdentifier[Id]
+    type UseClause = ast.UseClause[Id]
+    val UseClause = ast.UseClause[Id]
+    type Op = ast.Op[Id]
+    val Op = ast.Op[Id]
+    type Identifier = ast.Identifier[Id]
+    val Identifier = ast.Identifier[Id]
+    type Field = ast.Field[Id]
+    val Field = ast.Field[Id]
+    type Fields = ast.Fields[Id]
+    val Fields = ast.Fields[Id]
+    type Struct = ast.Struct[Id]
+    val Struct = ast.Struct[Id]
+    type ListItems = ast.ListItems[Id]
+    val ListItems = ast.ListItems[Id]
+    type Listed = ast.Listed[Id]
+    val Listed = ast.Listed[Id]
+    type InputNode = ast.InputNode[Id]
+
+    object InputNode {
+      type StructCase = ast.InputNode.StructCase[Id]
+      val StructCase = ast.InputNode.StructCase[Id]
+      type ListCase = ast.InputNode.ListCase[Id]
+      val ListCase = ast.InputNode.ListCase[Id]
+      type NumberCase = ast.InputNode.NumberCase[Id]
+      val NumberCase = ast.InputNode.NumberCase[Id]
+      type StringCase = ast.InputNode.StringCase[Id]
+      val StringCase = ast.InputNode.StringCase[Id]
+      type BoolCase = ast.InputNode.BoolCase[Id]
+      val BoolCase = ast.InputNode.BoolCase[Id]
+      type NullCase = ast.InputNode.NullCase[Id]
+      val NullCase = ast.InputNode.NullCase[Id]()
+    }
+
   }
 
   def union[A](decoders: (String, Node => A)*): Node => A =
@@ -89,6 +147,8 @@ object ParserAdapter {
       decoders
         .collectFirstSome { case (key, v) => downTypeOpt(key)(node).map(v) }
         .getOrElse(sys.error("missing case: " + childTypes(node)))
+
+  import ast1._
 
   class OpDecoders(src: String) {
     def text(node: Node) = src.substring(node.getStartByte(), node.getEndByte())
