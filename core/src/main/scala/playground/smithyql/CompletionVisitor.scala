@@ -24,6 +24,7 @@ import smithy4s.schema.Schema.LazySchema
 import smithy4s.schema.Schema.MapSchema
 import smithy4s.schema.Schema.PrimitiveSchema
 import smithy4s.schema.Schema.StructSchema
+import smithy4s.schema.Schema.RefinementSchema
 import smithy4s.schema.Schema.UnionSchema
 import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
@@ -204,7 +205,7 @@ object CompletionItem {
         val desc = suspend.map(describeSchema)
         () => desc.value()
 
-      case Schema.RefinementSchema(underlying, _) => describeSchema(underlying)
+      case RefinementSchema(underlying, _) => describeSchema(underlying)
 
       case BijectionSchema(underlying, _) => describeSchema(underlying)
     }

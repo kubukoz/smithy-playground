@@ -207,6 +207,7 @@ structure HasNewtypes {
   powerMap: PowerMap,
   anUUID: smithy4s.api#UUID,
   anInstant: MyInstant,
+  stringWithLength: StringWithLength,
 }
 
 @instant
