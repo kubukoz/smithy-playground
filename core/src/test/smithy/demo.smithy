@@ -199,12 +199,16 @@ structure HasNewtypes {
   str: MyString,
   power: Power,
   powerMap: PowerMap,
-  anUUID: smithy4s.api#UUID
+  anUUID: smithy4s.api#UUID,
 }
+
 
 integer MyInt
 
 string MyString
+
+@length(min: 1)
+string StringWithLength
 
 structure HasDeprecations {
   @deprecated(message: "Made-up reason")
