@@ -10,6 +10,10 @@ import scala.util.Using
 import cats.data.NonEmptyList
 import cats.Id
 import cats.Monad
+import cats.Applicative
+import scala.util.matching.Regex
+import cats.~>
+import cats.StackSafeMonad
 
 object ParserAdapter {
 
@@ -18,40 +22,6 @@ object ParserAdapter {
   implicit object CloseableIsReleasable extends Using.Releasable[Closeable] {
     def release(resource: Closeable): Unit = resource.close()
   }
-
-  def children(node: Node): List[Node] = List.tabulate(node.getChildCount())(node.getChild(_))
-
-  def downType(
-    tpe: String
-  )(
-    node: Node
-  ): Node = downTypeOpt(tpe)(node)
-    .getOrElse(
-      sys.error(
-        "no children with type " + tpe + ", existing types: " + children(node)
-          .map(_.getType())
-          .mkString(",")
-      )
-    )
-
-  def downTypeAll(
-    tpe: String
-  )(
-    node: Node
-  ): List[Node] = children(node).filter(_.getType() == tpe)
-
-  def downTypeOpt(
-    tpe: String
-  )(
-    node: Node
-  ): Option[Node] = children(node)
-    .find(_.getType() == tpe)
-
-  def childTypes(
-    node: Node
-  ): String = children(node)
-    .map(_.getType())
-    .mkString(", ")
 
   object ast {
 
@@ -142,72 +112,125 @@ object ParserAdapter {
 
   }
 
-  def union[A](decoders: (String, Node => A)*): Node => A =
-    node =>
-      decoders
-        .collectFirstSome { case (key, v) => downTypeOpt(key)(node).map(v) }
-        .getOrElse(sys.error("missing case: " + childTypes(node)))
-
   import ast1._
 
+  trait NodeDecoder[+A] {
+    def decode(node: Node): A
+    def >>>[B](another: NodeDecoder[B])(implicit aIsNode: A <:< Node): NodeDecoder[B] =
+      node => another.decode(decode(node))
+  }
+
+  object NodeDecoder {
+
+    implicit val instances: Monad[NodeDecoder] =
+      new StackSafeMonad[NodeDecoder] {
+
+        def flatMap[A, B](fa: NodeDecoder[A])(f: A => NodeDecoder[B]): NodeDecoder[B] = { node =>
+          f(fa.decode(node)).decode(node)
+        }
+
+        def pure[A](x: A): NodeDecoder[A] = _ => x
+
+      }
+
+    val children: NodeDecoder[List[Node]] =
+      node => List.tabulate(node.getChildCount())(node.getChild(_))
+
+    def downType(
+      tpe: String
+    ): NodeDecoder[Node] =
+      node =>
+        downTypeOpt(tpe)
+          .decode(node)
+          .getOrElse(
+            sys.error(
+              "no children with type " + tpe + ", existing types: " + children
+                .decode(node)
+                .map(_.getType())
+                .mkString(",")
+            )
+          )
+
+    def downTypeAll(
+      tpe: String
+    ): NodeDecoder[List[Node]] = children.map(_.filter(_.getType() == tpe))
+
+    def downTypeOpt(
+      tpe: String
+    ): NodeDecoder[Option[Node]] = children
+      .map(_.find(_.getType() == tpe))
+
+    def childTypes: NodeDecoder[String] = children
+      .map(_.map(_.getType()).mkString(", "))
+
+    def union[A](decoders: (String, NodeDecoder[A])*): NodeDecoder[A] =
+      node =>
+        decoders
+          .collectFirstSome { case (key, v) => downTypeOpt(key).decode(node).map(v.decode) }
+          .getOrElse(sys.error("missing case: " + childTypes.decode(node)))
+
+  }
+
   class OpDecoders(src: String) {
-    def text(node: Node) = src.substring(node.getStartByte(), node.getEndByte())
+    import NodeDecoder._
 
-    val identifier: Node => Identifier = text.map(Identifier(_))
+    val text: NodeDecoder[String] = node => src.substring(node.getStartByte(), node.getEndByte())
 
-    val listItems: Node => ListItems = downTypeAll("input_node")
-      .map(_.map(inputNode))
+    val identifier: NodeDecoder[Identifier] = text.map(Identifier(_))
+
+    val listItems: NodeDecoder[ListItems] = downTypeAll("input_node")
+      .map(_.map(inputNode.decode))
       .map(ListItems.apply)
 
-    val listed: Node => Listed = downTypeOpt("list_fields")
-      .map(_.map(listItems))
+    val listed: NodeDecoder[Listed] = downTypeOpt("list_fields")
+      .map(_.map(listItems.decode))
       .map(Listed.apply)
 
-    val bool: Node => Boolean = text
+    val bool: NodeDecoder[Boolean] = text
       .map(_.toBoolean)
 
-    lazy val inputNode: Node => InputNode = union(
+    lazy val inputNode: NodeDecoder[InputNode] = union(
       "number" -> text.map(InputNode.NumberCase(_)),
       "string" -> text.map(InputNode.StringCase(_)),
-      "null" -> Function.const(InputNode.NullCase),
+      "null" -> InputNode.NullCase.pure[NodeDecoder],
       "struct" -> struct.map(InputNode.StructCase(_)),
       "list" -> listed.map(InputNode.ListCase(_)),
       "boolean" -> bool.map(InputNode.BoolCase(_)),
     )
 
-    val field: Node => Field =
+    val field: NodeDecoder[Field] =
       (
         downType("identifier") >>> identifier,
         downType("input_node") >>> inputNode,
       ).mapN(Field.apply)
 
-    val fields: Node => Fields = downTypeAll("field")
-      .map(_.map(field))
+    val fields: NodeDecoder[Fields] = downTypeAll("field")
+      .map(_.map(field.decode))
       .map(Fields.apply)
 
-    lazy val struct: Node => Struct = downTypeOpt("fields")
-      .map(_.map(fields))
+    lazy val struct: NodeDecoder[Struct] = downTypeOpt("fields")
+      .map(_.map(fields.decode))
       .map(Struct.apply)
 
-    val qualifiedIdentifier: Node => QualifiedIdentifier = downTypeAll("identifier")
+    val qualifiedIdentifier: NodeDecoder[QualifiedIdentifier] = downTypeAll("identifier")
       .map {
         case _ :: Nil | Nil => sys.error("no ident??")
         case all =>
           val prefix = NonEmptyList.fromListUnsafe(all.init)
 
-          QualifiedIdentifier(prefix.map(identifier), identifier(all.last))
+          QualifiedIdentifier(prefix.map(identifier.decode), identifier.decode(all.last))
       }
 
-    val useClause: Node => UseClause =
+    val useClause: NodeDecoder[UseClause] =
       (
         downType("qualified_identifier") >>>
           qualifiedIdentifier
       )
         .map(UseClause)
 
-    val op: Node => Op =
+    val op: NodeDecoder[Op] =
       (
-        downTypeOpt("use_clause").map(_.map(useClause)),
+        downTypeOpt("use_clause").map(_.map(useClause.decode)),
         downType("operation_name") >>>
           downType("identifier") >>>
           text,
@@ -222,7 +245,7 @@ object ParserAdapter {
     val p = new Parser()
     p.setLanguage(Languages.smithyql())
     Using.resource(p.parseString(s)) { tree =>
-      new OpDecoders(s).op(tree.getRootNode())
+      new OpDecoders(s).op.decode(tree.getRootNode())
     }
   }
 
