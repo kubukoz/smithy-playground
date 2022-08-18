@@ -13,6 +13,7 @@ import demo.smithy.HasDeprecations
 import demo.smithy.Hero
 import demo.smithy.IntSet
 import demo.smithy.Ints
+import demo.smithy.MyInstant
 import demo.smithy.Power
 import org.scalacheck.Arbitrary
 import playground.CompilationError
@@ -37,6 +38,7 @@ import smithy4s.schema.Schema
 import weaver._
 import weaver.scalacheck.Checkers
 
+import java.time
 import java.util.UUID
 
 import Arbitraries._
@@ -760,6 +762,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         )
       )
     )
+  }
+
+  pureTest("timestamp matches instant") {
+    val s = "2022-07-11T17:42:28.000Z"
+    val ts = time.Instant.parse(s)
+
+    val result = compile[MyInstant](WithSource.liftId(s.mapK(WithSource.liftId)))
+
+    assert(result == Ior.right(ts))
   }
 
   private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
