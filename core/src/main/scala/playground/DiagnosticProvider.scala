@@ -144,6 +144,7 @@ object DiagnosticProvider {
           range,
           DiagnosticSeverity.Information,
           tags = Set.empty,
+          relatedInfo = Nil,
         )
 
     }

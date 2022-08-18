@@ -106,4 +106,13 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |
       |}
       |""".stripMargin)
+
+  formattingTest("no service clause with comment on the call and explicit service ref") {
+    parse("""//before call
+    a.b#C.hello { }""")
+  }("""// before call
+      |a.b#C.hello {
+      |
+      |}
+      |""".stripMargin)
 }

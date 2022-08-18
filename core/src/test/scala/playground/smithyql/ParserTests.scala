@@ -3,6 +3,7 @@ package playground.smithyql
 import cats.Id
 import playground.smithyql.Query
 import weaver._
+import cats.implicits._
 
 object ParserTests extends FunSuite {
 
@@ -47,8 +48,37 @@ object ParserTests extends FunSuite {
     "hello".call().useService("com1", "example2")("Demo3")
   )
 
+  parsingTest("use service with whitespace", "use service com1 . example2 # Demo3 hello {}")(
+    "hello".call().useService("com1", "example2")("Demo3")
+  )
+
   parsingTest("use service with underscore", "use service com.aws#Kinesis_2022 hello {}")(
     "hello".call().useService("com", "aws")("Kinesis_2022")
+  )
+
+  parsingTest("per-operation service reference", "com.aws#Kinesis.hello {}")(
+    Query[Id](
+      useClause = None,
+      operationName = QueryOperationName[Id](
+        QualifiedIdentifier.of("com", "aws", "Kinesis").some,
+        OperationName("hello"),
+      ),
+      struct(),
+    )
+  )
+
+  parsingTest(
+    "per-operation service reference, with whitespace",
+    "com . aws # Kinesis . hello {}",
+  )(
+    Query[Id](
+      useClause = None,
+      operationName = QueryOperationName[Id](
+        QualifiedIdentifier.of("com", "aws", "Kinesis").some,
+        OperationName("hello"),
+      ),
+      struct(),
+    )
   )
 
   val simpleResult = "hello".call("world" -> "bar")

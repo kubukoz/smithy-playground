@@ -21,6 +21,8 @@ import playground.smithyql.TextEdit
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.DocumentReference.SameFile
+import playground.RelativeLocation
 
 object converters {
 
@@ -109,27 +111,49 @@ object converters {
         })
     }
 
-    def diagnostic(doc: String, diag: CompilationError): lsp4j.Diagnostic = new lsp4j.Diagnostic()
-      .tap(_.setRange(toLSP.range(doc, diag.range)))
-      .tap(_.setMessage(diag.err.render))
-      .tap(_.setSeverity(diag.severity match {
-        case DiagnosticSeverity.Error       => lsp4j.DiagnosticSeverity.Error
-        case DiagnosticSeverity.Information => lsp4j.DiagnosticSeverity.Information
-        case DiagnosticSeverity.Warning     => lsp4j.DiagnosticSeverity.Warning
-      }))
-      .tap(
-        _.setTags(
-          diag
-            .tags
-            .map { tag =>
-              tag match {
-                case DiagnosticTag.Deprecated => lsp4j.DiagnosticTag.Deprecated
-                case DiagnosticTag.Unused     => lsp4j.DiagnosticTag.Unnecessary
+    def diagnostic(doc: String, documentUri: String, diag: CompilationError): lsp4j.Diagnostic =
+      new lsp4j.Diagnostic()
+        .tap(_.setRange(toLSP.range(doc, diag.range)))
+        .tap(_.setMessage(diag.err.render))
+        .tap(_.setSeverity(diag.severity match {
+          case DiagnosticSeverity.Error       => lsp4j.DiagnosticSeverity.Error
+          case DiagnosticSeverity.Information => lsp4j.DiagnosticSeverity.Information
+          case DiagnosticSeverity.Warning     => lsp4j.DiagnosticSeverity.Warning
+        }))
+        .tap(
+          _.setRelatedInformation(
+            diag
+              .relatedInfo
+              .map { info =>
+                new lsp4j.DiagnosticRelatedInformation(
+                  location(doc, documentUri, info.location),
+                  info.message.render,
+                )
               }
-            }
-            .toList
-            .asJava
+              .asJava
+          )
         )
+        .tap(
+          _.setTags(
+            diag
+              .tags
+              .map { tag =>
+                tag match {
+                  case DiagnosticTag.Deprecated => lsp4j.DiagnosticTag.Deprecated
+                  case DiagnosticTag.Unused     => lsp4j.DiagnosticTag.Unnecessary
+                }
+              }
+              .toList
+              .asJava
+          )
+        )
+
+    private def location(doc: String, documentUri: String, loc: RelativeLocation): lsp4j.Location =
+      new lsp4j.Location(
+        loc.document match {
+          case SameFile => documentUri
+        },
+        range(doc, loc.range),
       )
 
     def codeLens(documentText: String, lens: CodeLens): lsp4j.CodeLens =

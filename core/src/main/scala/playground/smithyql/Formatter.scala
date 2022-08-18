@@ -12,6 +12,13 @@ object Formatter {
 
   def writeAst(ast: AST[WithSource]): Doc =
     ast match {
+      case qo: QueryOperationName[WithSource] =>
+        // Comments inside this whole node are not allowed, so we ignore them
+        qo.identifier
+          .map(_.value)
+          .fold(Doc.empty)(renderIdent(_) + Doc.char('.')) +
+          writeAst(qo.operationName.value)
+
       case o: OperationName[WithSource] => renderOperationName(o)
       case q: Query[WithSource]         => writeQuery(q)
       case u: UseClause[WithSource]     => renderUseClause(u)
