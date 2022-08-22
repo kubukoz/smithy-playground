@@ -1,7 +1,8 @@
 import { commands, ExtensionContext, window, workspace } from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
+import { getCoursierExecutable } from "./coursier/coursier";
 
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
   const serverArtifact = workspace
     .getConfiguration()
     .get<string>("smithyql.server.artifact");
@@ -16,6 +17,8 @@ export function activate(context: ExtensionContext) {
     "Smithy Playground",
     "smithyql"
   );
+
+  const coursierBinary = await getCoursierExecutable(context.extensionPath);
 
   const lspClient = new LanguageClient(
     "smithyPlayground",
