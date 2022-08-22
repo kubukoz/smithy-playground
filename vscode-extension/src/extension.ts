@@ -24,7 +24,7 @@ export async function activate(context: ExtensionContext) {
     "smithyPlayground",
     "Smithy Playground",
     {
-      command: "cs",
+      command: coursierBinary,
       args: [
         "launch",
         // "--java-opt",
