@@ -11,11 +11,14 @@ import playground.CompilationErrorDetails._
 import playground.smithyql._
 import smithy.api
 import smithy.api.TimestampFormat
+import smithy4s.Bijection
 import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Lazy
 import smithy4s.Refinement
+import smithy4s.RefinementProvider
 import smithy4s.ShapeId
+import smithy4s.Surjection
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
@@ -41,10 +44,21 @@ import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
+import smithy4s.schema.Schema.BijectionSchema
+import smithy4s.schema.Schema.CollectionSchema
+import smithy4s.schema.Schema.EnumerationSchema
+import smithy4s.schema.Schema.LazySchema
+import smithy4s.schema.Schema.MapSchema
+import smithy4s.schema.Schema.PrimitiveSchema
+import smithy4s.schema.Schema.RefinementSchema
+import smithy4s.schema.Schema.StructSchema
+import smithy4s.schema.Schema.UnionSchema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
+import smithy4s.~>
 
 import java.util.UUID
+
 import types._
 import util.chaining._
 import PartialCompiler.WAST
@@ -117,6 +131,7 @@ final case class CompilationError(
   range: SourceRange,
   severity: DiagnosticSeverity,
   tags: Set[DiagnosticTag],
+  relatedInfo: List[DiagnosticRelatedInformation],
 ) {
   def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
 
@@ -153,18 +168,36 @@ object CompilationError {
     range = range,
     severity = severity,
     tags = Set.empty,
+    relatedInfo = Nil,
   )
 
+}
+
+final case class DiagnosticRelatedInformation(
+  location: RelativeLocation,
+  message: CompilationErrorDetails,
+)
+
+final case class RelativeLocation(document: DocumentReference, range: SourceRange)
+  extends Product
+  with Serializable
+
+sealed trait DocumentReference extends Product with Serializable
+
+object DocumentReference {
+  case object SameFile extends DocumentReference
 }
 
 sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case Message(text)        => text
-      case DeprecatedItem(info) => "Deprecated" + CompletionItem.deprecationString(info)
-      case InvalidUUID          => "Invalid UUID"
-      case InvalidBlob          => "Invalid blob, expected base64-encoded string"
+      case Message(text)                  => text
+      case DeprecatedItem(info)           => "Deprecated" + CompletionItem.deprecationString(info)
+      case InvalidUUID                    => "Invalid UUID"
+      case InvalidBlob                    => "Invalid blob, expected base64-encoded string"
+      case ConflictingServiceReference(_) => "Conflicting service references"
+
       case NumberOutOfRange(value, expectedType) => s"Number out of range for $expectedType: $value"
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
@@ -225,12 +258,17 @@ object CompilationErrorDetails {
       CompilationErrorDetails.AmbiguousService(knownServices)
     case ResolutionFailure.UnknownService(unknownId, knownServices) =>
       CompilationErrorDetails.UnknownService(unknownId, knownServices)
+    case ResolutionFailure.ConflictingServiceReference(refs) =>
+      CompilationErrorDetails.ConflictingServiceReference(refs)
 
   }
 
   // todo: remove
   final case class Message(text: String) extends CompilationErrorDetails
   final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
+    extends CompilationErrorDetails
+
+  final case class ConflictingServiceReference(refs: List[QualifiedIdentifier])
     extends CompilationErrorDetails
 
   final case class AmbiguousService(
@@ -284,7 +322,83 @@ object CompilationErrorDetails {
   final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }
 
-object QueryCompiler extends SchemaVisitor[PartialCompiler] {
+object QueryCompiler {
+  val full = new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerInternal
+
+}
+
+// Applies the underlying transformation on each node of the schema that has its own hints
+class TransitiveCompiler(underlying: Schema ~> Schema) extends (Schema ~> Schema) {
+
+  def apply[A](fa: Schema[A]): Schema[A] =
+    fa match {
+      case e @ EnumerationSchema(_, _, _, _) => underlying(e)
+      case p @ PrimitiveSchema(_, _, _)      => underlying(p)
+      case u @ UnionSchema(_, _, _, _) =>
+        underlying(u.copy(alternatives = u.alternatives.map(_.mapK(this))))
+      case BijectionSchema(s, bijection) => BijectionSchema(this(s), bijection)
+      case LazySchema(suspend)           => LazySchema(suspend.map(this.apply))
+      case RefinementSchema(underlying, refinement) =>
+        RefinementSchema(this(underlying), refinement)
+      case c @ CollectionSchema(_, _, _, _) => c.copy(member = this(c.member))
+      case m @ MapSchema(_, _, _, _) => underlying(m.copy(key = this(m.key), value = this(m.value)))
+      case s @ StructSchema(_, _, _, _) => underlying(s.copy(fields = s.fields.map(_.mapK(this))))
+    }
+
+}
+
+object AddDynamicRefinements extends (Schema ~> Schema) {
+
+  private def void[C, A](
+    underlying: RefinementProvider[C, A, _]
+  ): RefinementProvider.Simple[C, A] =
+    Refinement
+      .drivenBy[C]
+      .contextual[A, A](c => Surjection(v => underlying.make(c).apply(v).as(v), identity))(
+        underlying.tag
+      )
+
+  private implicit class SchemaOps[A](schema: Schema[A]) {
+    def reifyHint[B](implicit rp: RefinementProvider[B, A, _]): Schema[A] =
+      schema.hints.get(rp.tag).fold(schema)(schema.validated(_)(void(rp)))
+  }
+
+  private def collection[C[_], A](
+    schema: Schema.CollectionSchema[C, A]
+  ): Schema[C[A]] =
+    schema.tag match {
+      case ListTag   => schema.reifyHint(RefinementProvider.iterableLengthConstraint[List, A])
+      case VectorTag => schema.reifyHint(RefinementProvider.iterableLengthConstraint[Vector, A])
+      case SetTag    => schema.reifyHint(RefinementProvider.iterableLengthConstraint[Set, A])
+      case IndexedSeqTag =>
+        schema.reifyHint(RefinementProvider.iterableLengthConstraint[IndexedSeq, A])
+    }
+
+  def apply[A](schema: Schema[A]): Schema[A] =
+    schema match {
+      case PrimitiveSchema(_, _, tag) =>
+        tag match {
+          case PString     => schema.reifyHint[api.Length].reifyHint[api.Pattern]
+          case PByte       => schema.reifyHint[api.Range]
+          case PShort      => schema.reifyHint[api.Range]
+          case PInt        => schema.reifyHint[api.Range]
+          case PLong       => schema.reifyHint[api.Range]
+          case PFloat      => schema.reifyHint[api.Range]
+          case PDouble     => schema.reifyHint[api.Range]
+          case PBigInt     => schema.reifyHint[api.Range]
+          case PBigDecimal => schema.reifyHint[api.Range]
+          case PBlob       => schema.reifyHint[api.Length]
+          case PUnit | PTimestamp | PDocument | PBoolean | PUUID => schema
+        }
+
+      case c: CollectionSchema[_, _] => collection(c)
+      case m: MapSchema[_, _]        => m.reifyHint[api.Length]
+      case _                         => schema
+    }
+
+}
+
+object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
 
   private def checkRange[A, B](
     pc: PartialCompiler[A]
@@ -569,7 +683,7 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
           CompilationError
             .error(
               StructMismatch(
-                s.value.fields.value.keys.map(_.value.text).toList,
+                s.value.fields.value.keys.map(_.value.text),
                 labels,
               ),
               s.range,
@@ -581,22 +695,28 @@ object QueryCompiler extends SchemaVisitor[PartialCompiler] {
 
   def biject[A, B](
     schema: Schema[A],
-    to: A => B,
-    from: B => A,
-  ): PartialCompiler[B] = schema.compile(this).map(to)
+    bijection: Bijection[A, B],
+  ): PartialCompiler[B] = schema.compile(this).map(bijection.apply)
 
-  def surject[A, B](schema: Schema[A], to: Refinement[A, B], from: B => A): PartialCompiler[B] =
-    (schema.compile(this), PartialCompiler.pos).tupled.emap { case (a, pos) =>
-      to(a)
-        .toIor
-        .leftMap { msg =>
-          CompilationError.error(
-            CompilationErrorDetails.RefinementFailure(msg),
-            pos,
-          )
-        }
-        .toIorNec
-    }
+  def refine[A, B](
+    schema: Schema[A],
+    refinement: Refinement[A, B],
+  ): PartialCompiler[B] = surject(schema.compile(this), refinement)
+
+  private def surject[A, B](
+    pc: PartialCompiler[A],
+    refinement: Refinement[A, B],
+  ): PartialCompiler[B] = (pc, PartialCompiler.pos).tupled.emap { case (a, pos) =>
+    refinement(a)
+      .toIor
+      .leftMap { msg =>
+        CompilationError.error(
+          CompilationErrorDetails.RefinementFailure(msg),
+          pos,
+        )
+      }
+      .toIorNec
+  }
 
   def lazily[A](suspend: Lazy[Schema[A]]): PartialCompiler[A] = {
     val it = suspend.map(_.compile(this))

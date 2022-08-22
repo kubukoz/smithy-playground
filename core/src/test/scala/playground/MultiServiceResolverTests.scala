@@ -14,7 +14,7 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
         name: String,
       ) =>
         val result = MultiServiceResolver.resolveService(
-          None,
+          Nil,
           Map(
             ident -> name
           ),
@@ -32,13 +32,33 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
         otherServices: Map[QualifiedIdentifier, String],
       ) =>
         val result = MultiServiceResolver.resolveService(
-          Some(useClauseIdent),
+          List(useClauseIdent),
           otherServices ++ Map(
             useClauseIdent -> name
           ),
         )
 
         assert(result == Right(name))
+    }
+  }
+
+  test("resolveService with any amount of services, a use clause and a service ref") {
+    forall {
+      (
+        useClauseIdent: QualifiedIdentifier,
+        serviceRef: QualifiedIdentifier,
+        services: Map[QualifiedIdentifier, String],
+      ) =>
+        val result = MultiServiceResolver.resolveService(
+          List(useClauseIdent, serviceRef),
+          services,
+        )
+
+        assert(
+          result == Left(
+            ResolutionFailure.ConflictingServiceReference(List(useClauseIdent, serviceRef))
+          )
+        )
     }
   }
 
@@ -51,7 +71,7 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
         val ident = useClauseIdent
 
         val result = MultiServiceResolver.resolveService(
-          Some(useClauseIdent),
+          List(useClauseIdent),
           services - useClauseIdent,
         )
 
@@ -75,7 +95,7 @@ object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
         val allServices = services + extraService1 + extraService2
 
         val result = MultiServiceResolver.resolveService(
-          useClauseIdentifier = None,
+          Nil,
           services = allServices,
         )
 

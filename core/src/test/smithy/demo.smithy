@@ -2,6 +2,11 @@ namespace demo.smithy
 
 use smithy4s.api#simpleRestJson
 use smithy4s.meta#indexedSeq
+use smithy4s.meta#refinement
+
+@refinement(targetType: "java.time.Instant", providerImport: "demo.smithy.InstantProvider._")
+@trait
+structure instant { }
 
 @deprecated(message: "don't use", since: "0.0.0")
 service DeprecatedService {
@@ -25,6 +30,7 @@ service DemoService2 {
   version: "0.0.1",
   operations: [GetVersion, CreateSubscription],
 }
+
 
 @readonly
 @http(uri: "/version", method: "GET")
@@ -199,12 +205,20 @@ structure HasNewtypes {
   str: MyString,
   power: Power,
   powerMap: PowerMap,
-  anUUID: smithy4s.api#UUID
+  anUUID: smithy4s.api#UUID,
+  anInstant: MyInstant,
+  stringWithLength: StringWithLength,
 }
+
+@instant
+timestamp MyInstant
 
 integer MyInt
 
 string MyString
+
+@length(min: 1)
+string StringWithLength
 
 structure HasDeprecations {
   @deprecated(message: "Made-up reason")

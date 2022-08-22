@@ -12,10 +12,10 @@ import cats.Id
 import playground.ServiceNameExtractor
 import smithy4s.Service
 import cats.kernel.Order
+import cats.Apply
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
-  def kind: NodeKind
 }
 
 object AST {
@@ -23,6 +23,7 @@ object AST {
 }
 
 sealed trait InputNode[F[_]] extends AST[F] {
+  def kind: NodeKind
 
   def fold[A](
     struct: Struct[F] => A,
@@ -46,9 +47,6 @@ sealed trait InputNode[F[_]] extends AST[F] {
 
 final case class OperationName[F[_]](text: String) extends AST[F] {
   def mapK[G[_]: Functor](fk: F ~> G): OperationName[G] = copy()
-
-  def kind: NodeKind = NodeKind.OperationName
-
 }
 
 final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: String) {
@@ -85,22 +83,37 @@ object QualifiedIdentifier {
 
 final case class UseClause[F[_]](identifier: F[QualifiedIdentifier]) extends AST[F] {
   def mapK[G[_]: Functor](fk: F ~> G): UseClause[G] = UseClause(fk(identifier))
-  def kind: NodeKind = NodeKind.UseClause
+}
+
+final case class QueryOperationName[F[_]](
+  identifier: Option[F[QualifiedIdentifier]],
+  operationName: F[OperationName[F]],
+) extends AST[F] {
+
+  def mapK[G[_]: Functor](fk: F ~> G): QueryOperationName[G] = QueryOperationName(
+    identifier.map(fk(_)),
+    fk(operationName).map(_.mapK(fk)),
+  )
+
 }
 
 final case class Query[F[_]](
   useClause: F[Option[UseClause[F]]],
-  operationName: F[OperationName[F]],
+  operationName: F[QueryOperationName[F]],
   input: F[Struct[F]],
 ) extends AST[F] {
-
-  def kind: NodeKind = NodeKind.Query
 
   def mapK[G[_]: Functor](fk: F ~> G): Query[G] = Query(
     fk(useClause).map(_.map(_.mapK(fk))),
     fk(operationName).map(_.mapK(fk)),
     fk(input).map(_.mapK(fk)),
   )
+
+  def collectServiceIdentifiers(implicit F: Apply[F]): F[List[F[QualifiedIdentifier]]] =
+    (
+      useClause.map(_.map(_.identifier)),
+      operationName.map(_.identifier),
+    ).mapN(_.toList ++ _.toList)
 
 }
 
@@ -197,9 +210,6 @@ object NodeKind {
   case object IntLiteral extends NodeKind
   case object NullLiteral extends NodeKind
   case object StringLiteral extends NodeKind
-  case object Query extends NodeKind
   case object Listed extends NodeKind
   case object Bool extends NodeKind
-  case object UseClause extends NodeKind
-  case object OperationName extends NodeKind
 }

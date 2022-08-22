@@ -106,6 +106,10 @@ object Arbitraries {
 
   implicit val arbStruct: Arbitrary[Struct[WithSource]] = Arbitrary(genStruct(genInputNode(1)))
 
+  implicit val arbQueryOperationName: Arbitrary[QueryOperationName[WithSource]] = Arbitrary(
+    Gen.resultOf(QueryOperationName.apply[WithSource])
+  )
+
   implicit val arbQuery: Arbitrary[Query[WithSource]] = Arbitrary {
     Gen.resultOf(Query.apply[WithSource])
   }

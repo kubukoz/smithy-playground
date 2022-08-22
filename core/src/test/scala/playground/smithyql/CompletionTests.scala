@@ -15,6 +15,7 @@ import playground.smithyql.InsertText.JustString
 import playground.smithyql.NodeContext.PathEntry._
 import smithy.api.TimestampFormat
 import smithy4s.Hints
+import demo.smithy.MyInstant
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
 import weaver._
@@ -297,6 +298,13 @@ object CompletionTests extends FunSuite {
     assert.eql(
       CompletionItem.describeSchema(Schema.uuid)(),
       "uuid UUID",
+    )
+  }
+
+  test("describe refinement") {
+    assert.eql(
+      CompletionItem.describeSchema(MyInstant.schema)(),
+      "timestamp MyInstant",
     )
   }
 

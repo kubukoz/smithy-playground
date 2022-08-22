@@ -13,6 +13,7 @@ import demo.smithy.HasDeprecations
 import demo.smithy.Hero
 import demo.smithy.IntSet
 import demo.smithy.Ints
+import demo.smithy.MyInstant
 import demo.smithy.Power
 import org.scalacheck.Arbitrary
 import playground.CompilationError
@@ -37,9 +38,12 @@ import smithy4s.schema.Schema
 import weaver._
 import weaver.scalacheck.Checkers
 
+import java.time
 import java.util.UUID
 
 import Arbitraries._
+import demo.smithy.StringWithLength
+import smithy4s.dynamic.model.StringShape
 import smithy4s.ByteArray
 
 object CompilationTests extends SimpleIOSuite with Checkers {
@@ -48,10 +52,10 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   def compile[A: smithy4s.Schema](
     in: PartialCompiler.WAST
-  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompiler).compile(in)
+  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompiler.full).compile(in)
 
-  val dynamicPersonSchema = {
-    val model = Model(
+  val dynamicModel = DynamicSchemaIndex.load(
+    Model(
       smithy = Some("1.0"),
       shapes = Map(
         IdRef("test#Person") ->
@@ -69,20 +73,41 @@ object CompilationTests extends SimpleIOSuite with Checkers {
                 )
               )
             )
+          ),
+        IdRef("test#StringWithLength") -> Shape.StringCase(
+          StringShape(
+            traits = Some(
+              Map(
+                IdRef("smithy.api#length") -> Document.obj(
+                  "min" -> Document.fromInt(1)
+                )
+              )
+            )
           )
+        ),
+        IdRef("test#HasConstraintFields") -> Shape.StructureCase(
+          StructureShape(
+            members = Some(
+              Map(
+                "minLength" -> MemberShape(
+                  target = IdRef("test#StringWithLength"),
+                  traits = Some(Map(IdRef("smithy.api#required") -> Document.obj())),
+                )
+              )
+            )
+          )
+        ),
       ),
     )
+  )
 
-    DynamicSchemaIndex
-      .load(model)
-      .getSchema(ShapeId("test", "Person"))
-      .get
-  }
+  def dynamicSchemaFor(
+    shapeID: ShapeId
+  ): Schema[Any] = dynamicModel.getSchema(shapeID).get.asInstanceOf[Schema[Any]]
 
-  val dynamicPersonToDocument = Document
-    .Encoder
-    .fromSchema(dynamicPersonSchema)
-    .asInstanceOf[Document.Encoder[Any]]
+  val dynamicPersonSchema = dynamicSchemaFor(ShapeId("test", "Person"))
+
+  val dynamicPersonToDocument = Document.Encoder.fromSchema(dynamicPersonSchema)
 
   pureTest("unit") {
     assert(
@@ -113,6 +138,50 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId("foo".mapK(WithSource.liftId))
       }(Schema.string) == Ior.right("foo")
+    )
+  }
+
+  pureTest("string with length constraint - fail") {
+    assert(
+      compile[StringWithLength] {
+        WithSource.liftId("".mapK(WithSource.liftId))
+      }.isLeft
+    )
+  }
+
+  pureTest("string with length constraint - fail (dynamic)") {
+    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "StringWithLength"))
+
+    assert(
+      compile {
+        WithSource.liftId("".mapK(WithSource.liftId))
+      }(dynamicStringSchema).isLeft
+    )
+  }
+
+  pureTest("string with length constraint - fail (dynamic)") {
+    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "StringWithLength"))
+
+    val result = compile {
+      WithSource.liftId("".mapK(WithSource.liftId))
+    }(dynamicStringSchema)
+      .leftMap(_.map(_.err.asInstanceOf[CompilationErrorDetails.RefinementFailure]))
+
+    assert(
+      result.isLeft
+    )
+  }
+
+  pureTest("string field with length constraint - fail (dynamic)") {
+    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "HasConstraintFields"))
+
+    val result = compile {
+      WithSource.liftId(struct("minLength" -> "").mapK(WithSource.liftId))
+    }(dynamicStringSchema)
+      .leftMap(_.map(_.err.asInstanceOf[CompilationErrorDetails.RefinementFailure]))
+
+    assert(
+      result.isLeft
     )
   }
 
@@ -695,6 +764,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("timestamp matches instant") {
+    val s = "2022-07-11T17:42:28.000Z"
+    val ts = time.Instant.parse(s)
+
+    val result = compile[MyInstant](WithSource.liftId(s.mapK(WithSource.liftId)))
+
+    assert(result == Ior.right(ts))
+  }
+
   private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op]
   )(
@@ -767,6 +845,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       case e => failure("Unexpected exception: " + e)
     }
   }
+
   pureTest("deprecated operation - only warnings") {
     parseAndCompile(DeprecatedServiceGen)(
       "use service demo.smithy#DeprecatedService\nDeprecatedOperation { }"

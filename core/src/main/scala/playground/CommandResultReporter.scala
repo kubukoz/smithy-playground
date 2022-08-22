@@ -62,13 +62,13 @@ object CommandResultReporter {
           requestCounter.updateAndGet(_ + 1).flatTap { requestId =>
             Feedback[F]
               .logOutput(
-                s"// Calling ${parsed.operationName.text} ($requestId)"
+                s"// Calling ${parsed.operationName.operationName.text} ($requestId)"
               )
           }
 
       def onQuerySuccess(parsed: Query[Id], requestId: RequestId, out: InputNode[Id]): F[Unit] =
         Feedback[F].logOutput(
-          s"// Succeeded ${parsed.operationName.text} ($requestId), response:\n"
+          s"// Succeeded ${parsed.operationName.operationName.text} ($requestId), response:\n"
             + writeOutput(out)
         )
 

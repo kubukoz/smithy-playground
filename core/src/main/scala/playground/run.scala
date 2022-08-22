@@ -113,7 +113,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
   ): WithSource[InputNode[WithSource]] => IorNel[CompilationError, CompiledInput] = {
-    val inputCompiler = e.input.compile(QueryCompiler)
+    val inputCompiler = e.input.compile(QueryCompiler.full)
     val outputEncoder = NodeEncoder.derive(e.output)
     val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
 
@@ -146,7 +146,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private def operationNotFound(q: Query[WithSource]): CompilationError = CompilationError.error(
     CompilationErrorDetails
       .OperationNotFound(
-        q.operationName.value.mapK(WithSource.unwrap),
+        q.operationName.value.operationName.value.mapK(WithSource.unwrap),
         endpoints.keys.map(OperationName[Id](_)).toList,
       ),
     q.operationName.range,
@@ -196,7 +196,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   def compile(q: Query[WithSource]): Ior[Throwable, CompiledInput] = {
     val compiled =
       endpoints
-        .get(q.operationName.value.text)
+        .get(q.operationName.value.operationName.value.text)
         .toRightIor(NonEmptyList.one(operationNotFound(q)))
         .flatTap { case (e, _) => deprecatedOperationCheck(q, e) }
         .flatMap(_._2.apply(q.input)) <& deprecationWarnings(q)
@@ -213,13 +213,13 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private def getService(
     q: Query[WithSource]
   ): Either[Throwable, Compiler[Ior[Throwable, *]]] = MultiServiceResolver
-    .resolveService(q.useClause.value.map(_.identifier.value), services)
+    .resolveService(
+      q.mapK(WithSource.unwrap).collectServiceIdentifiers,
+      services,
+    )
     .leftMap { rf =>
       CompilationFailed.one(
-        CompilationError.error(
-          CompilationErrorDetails.fromResolutionFailure(rf),
-          ResolutionFailure.diagnosticRange(q),
-        )
+        ResolutionFailure.toCompilationError(rf, q)
       )
     }
 
@@ -323,7 +323,7 @@ object Runner {
     new Resolver[F] {
       def get(q: Query[WithSource]): IorNel[Issue, Runner[F]] = MultiServiceResolver
         .resolveService(
-          q.useClause.value.map(_.identifier.value),
+          q.mapK(WithSource.unwrap).collectServiceIdentifiers,
           runners,
         )
         .leftMap(rf =>

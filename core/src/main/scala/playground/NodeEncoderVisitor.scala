@@ -9,6 +9,7 @@ import playground.smithyql.IntLiteral
 import playground.smithyql.Listed
 import playground.smithyql.StringLiteral
 import playground.smithyql.Struct
+import smithy4s.Bijection
 import smithy4s.Document
 import smithy4s.Document.DArray
 import smithy4s.Document.DBoolean
@@ -192,15 +193,13 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
 
   def biject[A, B](
     schema: Schema[A],
-    to: A => B,
-    from: B => A,
-  ): NodeEncoder[B] = schema.compile(this).contramap(from)
+    bijection: Bijection[A, B],
+  ): NodeEncoder[B] = schema.compile(this).contramap(bijection.from)
 
-  def surject[A, B](
+  def refine[A, B](
     schema: Schema[A],
-    to: Refinement[A, B],
-    from: B => A,
-  ): NodeEncoder[B] = schema.compile(this).contramap(from)
+    refinement: Refinement[A, B],
+  ): NodeEncoder[B] = schema.compile(this).contramap(refinement.from)
 
   def lazily[A](suspend: Lazy[Schema[A]]): NodeEncoder[A] = {
     val mapped = suspend.map(_.compile(this))

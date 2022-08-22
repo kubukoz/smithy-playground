@@ -6,7 +6,6 @@ import org.typelevel.paiges.Doc
 import playground.TextUtils
 import playground.smithyql.CompletionItem.InsertUseClause.NotRequired
 import playground.smithyql.CompletionItem.InsertUseClause.Required
-import smithy.api
 import smithy4s.Endpoint
 import smithy4s.Hints
 import smithy4s.Lazy
@@ -20,18 +19,21 @@ import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema.BijectionSchema
 import smithy4s.schema.Schema.EnumerationSchema
 import smithy4s.schema.Schema.LazySchema
 import smithy4s.schema.Schema.MapSchema
 import smithy4s.schema.Schema.PrimitiveSchema
 import smithy4s.schema.Schema.StructSchema
+import smithy4s.schema.Schema.RefinementSchema
 import smithy4s.schema.Schema.UnionSchema
 import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
+import smithy.api
+import smithy4s.Bijection
+import smithy4s.schema.Schema.BijectionSchema
 
 import NodeContext.PathEntry
 import NodeContext.^^:
@@ -203,9 +205,9 @@ object CompletionItem {
         val desc = suspend.map(describeSchema)
         () => desc.value()
 
-      case BijectionSchema(underlying, _, _) => describeSchema(underlying)
+      case RefinementSchema(underlying, _) => describeSchema(underlying)
 
-      case s => now(s.shapeId.name)
+      case BijectionSchema(underlying, _) => describeSchema(underlying)
     }
 
   private def now(s: String): () => String = () => s
@@ -462,13 +464,12 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     )
   }
 
-  override def biject[A, B](schema: Schema[A], to: A => B, from: B => A): CompletionResolver[B] =
+  override def biject[A, B](schema: Schema[A], bijection: Bijection[A, B]): CompletionResolver[B] =
     schema.compile(this).retag
 
-  override def surject[A, B](
+  override def refine[A, B](
     schema: Schema[A],
-    to: Refinement[A, B],
-    from: B => A,
+    refinement: Refinement[A, B],
   ): CompletionResolver[B] = schema.compile(this).retag
 
   // might need some testing
