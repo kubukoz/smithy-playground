@@ -408,14 +408,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): QueryCompiler[E] = (string, QueryCompiler.pos).tupled.emap { case (name, range) =>
-    values
-      .foreach(v =>
-        System
-          .err
-          .println(
-            s"""EnumValue(stringValue = ${v.stringValue}, intValue = ${v.intValue}, value = ${v.value}, name = ${v.name}, hints = ${v.hints})"""
-          )
-      )
     val byValue = values
       .find(_.stringValue == name)
 
