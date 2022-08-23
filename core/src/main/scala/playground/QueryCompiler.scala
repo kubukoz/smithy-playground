@@ -9,16 +9,16 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import playground.CompilationErrorDetails._
 import playground.smithyql._
+import playground.smithyutil._
 import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.Bijection
+import smithy4s.ByteArray
 import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Lazy
 import smithy4s.Refinement
-import smithy4s.RefinementProvider
 import smithy4s.ShapeId
-import smithy4s.Surjection
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
@@ -44,26 +44,15 @@ import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema.BijectionSchema
-import smithy4s.schema.Schema.CollectionSchema
-import smithy4s.schema.Schema.EnumerationSchema
-import smithy4s.schema.Schema.LazySchema
-import smithy4s.schema.Schema.MapSchema
-import smithy4s.schema.Schema.PrimitiveSchema
-import smithy4s.schema.Schema.RefinementSchema
-import smithy4s.schema.Schema.StructSchema
-import smithy4s.schema.Schema.UnionSchema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
-import smithy4s.~>
 
+import java.util.Base64
 import java.util.UUID
 
 import types._
 import util.chaining._
 import PartialCompiler.WAST
-import smithy4s.ByteArray
-import java.util.Base64
 
 trait PartialCompiler[A] {
   final def emap[B](f: A => PartialCompiler.Result[B]): PartialCompiler[B] =
@@ -111,290 +100,8 @@ object PartialCompiler {
 
 }
 
-sealed trait DiagnosticSeverity extends Product with Serializable
-
-object DiagnosticSeverity {
-  case object Warning extends DiagnosticSeverity
-  case object Error extends DiagnosticSeverity
-  case object Information extends DiagnosticSeverity
-}
-
-sealed trait DiagnosticTag extends Product with Serializable
-
-object DiagnosticTag {
-  case object Deprecated extends DiagnosticTag
-  case object Unused extends DiagnosticTag
-}
-
-final case class CompilationError(
-  err: CompilationErrorDetails,
-  range: SourceRange,
-  severity: DiagnosticSeverity,
-  tags: Set[DiagnosticTag],
-  relatedInfo: List[DiagnosticRelatedInformation],
-) {
-  def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
-
-  def isError: Boolean = severity == DiagnosticSeverity.Error
-  def isWarning: Boolean = severity == DiagnosticSeverity.Warning
-}
-
-object CompilationError {
-
-  def error(
-    err: CompilationErrorDetails,
-    range: SourceRange,
-  ): CompilationError = default(err, range, DiagnosticSeverity.Error)
-
-  def warning(
-    err: CompilationErrorDetails,
-    range: SourceRange,
-  ): CompilationError = default(err, range, DiagnosticSeverity.Warning)
-
-  def deprecation(
-    info: api.Deprecated,
-    range: SourceRange,
-  ): CompilationError =
-    CompilationError
-      .warning(CompilationErrorDetails.DeprecatedItem(info), range)
-      .deprecated
-
-  def default(
-    err: CompilationErrorDetails,
-    range: SourceRange,
-    severity: DiagnosticSeverity,
-  ): CompilationError = CompilationError(
-    err = err,
-    range = range,
-    severity = severity,
-    tags = Set.empty,
-    relatedInfo = Nil,
-  )
-
-}
-
-final case class DiagnosticRelatedInformation(
-  location: RelativeLocation,
-  message: CompilationErrorDetails,
-)
-
-final case class RelativeLocation(document: DocumentReference, range: SourceRange)
-  extends Product
-  with Serializable
-
-sealed trait DocumentReference extends Product with Serializable
-
-object DocumentReference {
-  case object SameFile extends DocumentReference
-}
-
-sealed trait CompilationErrorDetails extends Product with Serializable {
-
-  def render: String =
-    this match {
-      case Message(text)                  => text
-      case DeprecatedItem(info)           => "Deprecated" + CompletionItem.deprecationString(info)
-      case InvalidUUID                    => "Invalid UUID"
-      case InvalidBlob                    => "Invalid blob, expected base64-encoded string"
-      case ConflictingServiceReference(_) => "Conflicting service references"
-
-      case NumberOutOfRange(value, expectedType) => s"Number out of range for $expectedType: $value"
-      case EnumFallback(enumName) =>
-        s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
-      case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
-      case AmbiguousService(matching) =>
-        s"""Multiple services are available. Add a use clause to specify the service you want to use.
-           |Available services:""".stripMargin + matching
-          .sorted
-          .map(UseClause[Id](_).mapK(WithSource.liftId))
-          .map(Formatter.renderUseClause(_).render(Int.MaxValue))
-          .mkString_("\n", "\n", ".")
-
-      case UnknownService(id, known) =>
-        s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
-
-      case RefinementFailure(msg) => s"Refinement failed: $msg."
-
-      case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
-
-      case OperationNotFound(name, validOperations) =>
-        s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}."
-
-      case MissingField(label) => s"Missing field $label."
-
-      case InvalidTimestampFormat(expected) => s"Invalid timestamp format, expected $expected."
-
-      case MissingDiscriminator(labels) =>
-        s"wrong shape, this union requires one of: ${labels.mkString_(", ")}."
-
-      case EmptyStruct(possibleValues) =>
-        s"found empty struct, expected one of: ${possibleValues.mkString_(", ")}."
-
-      case UnknownEnumValue(name, possibleValues) =>
-        s"Unknown enum value: $name. Available values: ${possibleValues.mkString(", ")}"
-
-      case StructMismatch(keys, possibleValues) =>
-        s"struct mismatch (keys: ${keys.mkString_(", ")}), you must choose exactly one of: ${possibleValues
-            .mkString_(", ")}."
-
-      case UnexpectedField(remainingFields) =>
-        val expectedRemainingString =
-          if (remainingFields.isEmpty)
-            ""
-          else if (remainingFields.size == 1)
-            s" Expected: ${remainingFields.head}."
-          else
-            s" Expected: one of ${remainingFields.mkString(", ")}."
-
-        s"Unexpected field.$expectedRemainingString"
-    }
-
-}
-
-object CompilationErrorDetails {
-
-  val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
-    case ResolutionFailure.AmbiguousService(knownServices) =>
-      CompilationErrorDetails.AmbiguousService(knownServices)
-    case ResolutionFailure.UnknownService(unknownId, knownServices) =>
-      CompilationErrorDetails.UnknownService(unknownId, knownServices)
-    case ResolutionFailure.ConflictingServiceReference(refs) =>
-      CompilationErrorDetails.ConflictingServiceReference(refs)
-
-  }
-
-  // todo: remove
-  final case class Message(text: String) extends CompilationErrorDetails
-  final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
-    extends CompilationErrorDetails
-
-  final case class ConflictingServiceReference(refs: List[QualifiedIdentifier])
-    extends CompilationErrorDetails
-
-  final case class AmbiguousService(
-    known: List[QualifiedIdentifier]
-  ) extends CompilationErrorDetails
-
-  final case class TypeMismatch(
-    expected: NodeKind,
-    actual: NodeKind,
-  ) extends CompilationErrorDetails
-
-  final case class OperationNotFound(
-    name: OperationName[Id],
-    validOperations: List[OperationName[Id]],
-  ) extends CompilationErrorDetails
-
-  final case class MissingField(label: String) extends CompilationErrorDetails
-
-  case object InvalidUUID extends CompilationErrorDetails
-
-  final case class NumberOutOfRange(numberValue: String, typeName: String)
-    extends CompilationErrorDetails
-
-  final case class InvalidTimestampFormat(expected: TimestampFormat) extends CompilationErrorDetails
-
-  final case class MissingDiscriminator(possibleValues: NonEmptyList[String])
-    extends CompilationErrorDetails
-
-  final case class EmptyStruct(possibleValues: NonEmptyList[String]) extends CompilationErrorDetails
-
-  final case class UnknownEnumValue(value: String, possibleValues: List[String])
-    extends CompilationErrorDetails
-
-  final case class StructMismatch(
-    keys: List[String],
-    possibleValues: NonEmptyList[String],
-  ) extends CompilationErrorDetails
-
-  final case class UnexpectedField(
-    remainingFields: List[String]
-  ) extends CompilationErrorDetails
-
-  final case class RefinementFailure(msg: String) extends CompilationErrorDetails
-
-  case object DuplicateItem extends CompilationErrorDetails
-
-  case object InvalidBlob extends CompilationErrorDetails
-
-  case class DeprecatedItem(info: api.Deprecated) extends CompilationErrorDetails
-
-  final case class EnumFallback(enumName: String) extends CompilationErrorDetails
-}
-
 object QueryCompiler {
   val full = new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerInternal
-
-}
-
-// Applies the underlying transformation on each node of the schema that has its own hints
-class TransitiveCompiler(underlying: Schema ~> Schema) extends (Schema ~> Schema) {
-
-  def apply[A](fa: Schema[A]): Schema[A] =
-    fa match {
-      case e @ EnumerationSchema(_, _, _, _) => underlying(e)
-      case p @ PrimitiveSchema(_, _, _)      => underlying(p)
-      case u @ UnionSchema(_, _, _, _) =>
-        underlying(u.copy(alternatives = u.alternatives.map(_.mapK(this))))
-      case BijectionSchema(s, bijection) => BijectionSchema(this(s), bijection)
-      case LazySchema(suspend)           => LazySchema(suspend.map(this.apply))
-      case RefinementSchema(underlying, refinement) =>
-        RefinementSchema(this(underlying), refinement)
-      case c @ CollectionSchema(_, _, _, _) => c.copy(member = this(c.member))
-      case m @ MapSchema(_, _, _, _) => underlying(m.copy(key = this(m.key), value = this(m.value)))
-      case s @ StructSchema(_, _, _, _) => underlying(s.copy(fields = s.fields.map(_.mapK(this))))
-    }
-
-}
-
-object AddDynamicRefinements extends (Schema ~> Schema) {
-
-  private def void[C, A](
-    underlying: RefinementProvider[C, A, _]
-  ): RefinementProvider.Simple[C, A] =
-    Refinement
-      .drivenBy[C]
-      .contextual[A, A](c => Surjection(v => underlying.make(c).apply(v).as(v), identity))(
-        underlying.tag
-      )
-
-  private implicit class SchemaOps[A](schema: Schema[A]) {
-    def reifyHint[B](implicit rp: RefinementProvider[B, A, _]): Schema[A] =
-      schema.hints.get(rp.tag).fold(schema)(schema.validated(_)(void(rp)))
-  }
-
-  private def collection[C[_], A](
-    schema: Schema.CollectionSchema[C, A]
-  ): Schema[C[A]] =
-    schema.tag match {
-      case ListTag   => schema.reifyHint(RefinementProvider.iterableLengthConstraint[List, A])
-      case VectorTag => schema.reifyHint(RefinementProvider.iterableLengthConstraint[Vector, A])
-      case SetTag    => schema.reifyHint(RefinementProvider.iterableLengthConstraint[Set, A])
-      case IndexedSeqTag =>
-        schema.reifyHint(RefinementProvider.iterableLengthConstraint[IndexedSeq, A])
-    }
-
-  def apply[A](schema: Schema[A]): Schema[A] =
-    schema match {
-      case PrimitiveSchema(_, _, tag) =>
-        tag match {
-          case PString     => schema.reifyHint[api.Length].reifyHint[api.Pattern]
-          case PByte       => schema.reifyHint[api.Range]
-          case PShort      => schema.reifyHint[api.Range]
-          case PInt        => schema.reifyHint[api.Range]
-          case PLong       => schema.reifyHint[api.Range]
-          case PFloat      => schema.reifyHint[api.Range]
-          case PDouble     => schema.reifyHint[api.Range]
-          case PBigInt     => schema.reifyHint[api.Range]
-          case PBigDecimal => schema.reifyHint[api.Range]
-          case PBlob       => schema.reifyHint[api.Length]
-          case PUnit | PTimestamp | PDocument | PBoolean | PUUID => schema
-        }
-
-      case c: CollectionSchema[_, _] => collection(c)
-      case m: MapSchema[_, _]        => m.reifyHint[api.Length]
-      case _                         => schema
-    }
 
 }
 
@@ -752,6 +459,14 @@ object QueryCompilerInternal extends SchemaVisitor[PartialCompiler] {
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): PartialCompiler[E] = (string, PartialCompiler.pos).tupled.emap { case (name, range) =>
+    values
+      .foreach(v =>
+        System
+          .err
+          .println(
+            s"""EnumValue(stringValue = ${v.stringValue}, intValue = ${v.intValue}, value = ${v.value}, name = ${v.name}, hints = ${v.hints})"""
+          )
+      )
     val byValue = values
       .find(_.stringValue == name)
 
