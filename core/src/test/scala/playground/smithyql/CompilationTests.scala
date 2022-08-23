@@ -20,8 +20,8 @@ import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
 import playground.DiagnosticTag
-import playground.PartialCompiler
 import playground.QueryCompiler
+import playground.QueryCompilerVisitor
 import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.Document
@@ -51,8 +51,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   import DSL._
 
   def compile[A: smithy4s.Schema](
-    in: PartialCompiler.WAST
-  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompiler.full).compile(in)
+    in: QueryCompiler.WAST
+  ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerVisitor.full).compile(in)
 
   val dynamicModel = DynamicSchemaIndex.load(
     Model(
@@ -556,7 +556,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     val result = compile[Power](WithSource.liftId("Wind".mapK(WithSource.liftId)).withRange(aRange))
 
-    val expected: PartialCompiler.Result[Power] = Ior.both(
+    val expected: QueryCompiler.Result[Power] = Ior.both(
       NonEmptyChain.one(
         CompilationError
           .warning(
@@ -731,10 +731,10 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   implicit val arbInputNode: Arbitrary[InputNode[WithSource]] = Arbitrary(genInputNode(2))
-  implicit val showWast: Show[PartialCompiler.WAST] = Show.fromToString
+  implicit val showWast: Show[QueryCompiler.WAST] = Show.fromToString
 
   test("anything to document matches") {
-    forall((wast: PartialCompiler.WAST) =>
+    forall((wast: QueryCompiler.WAST) =>
       assert(
         compile[Document](wast)(Schema.document).isRight
       )
