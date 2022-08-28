@@ -17,6 +17,31 @@ export function activate(context: ExtensionContext) {
     "smithyql"
   );
 
+  const enableTracer = workspace
+    .getConfiguration()
+    .get<boolean>("smithyql.server.trace");
+
+  const enableDebug = workspace
+    .getConfiguration()
+    .get<boolean>("smithyql.server.debug");
+
+  const tracerArgs = enableTracer
+    ? [
+        "tech.neander:langoustine-tracer_3:latest.release",
+        "--", //separator for coursier launch
+        "--", //separator for tracer
+        "cs",
+        "launch",
+      ]
+    : [];
+
+  const debugArgs = enableDebug
+    ? [
+        "--java-opt",
+        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,quiet=y,address=5010",
+      ]
+    : [];
+
   const lspClient = new LanguageClient(
     "smithyPlayground",
     "Smithy Playground",
@@ -24,11 +49,11 @@ export function activate(context: ExtensionContext) {
       command: "cs",
       args: [
         "launch",
-        // "--java-opt",
-        // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,quiet=y,address=5010",
+        ...tracerArgs,
         `${serverArtifact}:${serverVersion}`,
         "--ttl",
         coursierTTL,
+        ...debugArgs,
       ],
     },
     {
