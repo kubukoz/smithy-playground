@@ -71,7 +71,8 @@ structure CreateHeroInput {
   doc: Document
 }
 
-set FriendSet {
+@uniqueItems
+list FriendSet {
   member: Hero
 }
 
@@ -195,7 +196,8 @@ list Ints {
   member: Integer
 }
 
-set IntSet {
+@uniqueItems
+list IntSet {
   member: Integer
 }
 

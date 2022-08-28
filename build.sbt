@@ -83,7 +83,7 @@ lazy val lsp = project
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.15.0",
       "io.circe" %% "circe-core" % "0.14.2",
-      "org.http4s" %% "http4s-ember-client" % "0.23.14",
+      "org.http4s" %% "http4s-ember-client" % "0.23.15",
       "io.get-coursier" %% "coursier" % "2.0.16",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
