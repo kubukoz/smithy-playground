@@ -147,7 +147,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     hints: Hints,
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
-  ): NodeEncoder[E] = string.contramap(total(_).stringValue)
+  ): NodeEncoder[E] = string.contramap(total(_).name)
 
   def struct[S](
     shapeId: ShapeId,
