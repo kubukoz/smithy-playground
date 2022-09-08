@@ -254,6 +254,7 @@ object Runner {
     def squash(
       issues: NonEmptyList[Issue]
     ): Either[ProtocolIssues, NonEmptyList[Throwable]] = {
+      // todo: use nonEmptyPartition
       val (protocols, others) = issues.toList.partitionMap {
         case InvalidProtocol(p, _) => Left(p)
         case Other(e)              => Right(e)
