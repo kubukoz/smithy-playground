@@ -282,14 +282,15 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
               .value
               .byName(field.label)(_.value)
               .parTraverse(field.instance.compiler.compile)
-              // Note: in dynamic schemas, fields with defaults are considered optional. In static schemas, they're considered required.
-              // smithy4s bug?
-              .map(_.orElse(field.instance.default))
 
             if (field.isOptional)
               fieldOpt
             else
-              fieldOpt.flatMap {
+              // Note: defaults get no special handling in dynamic schemas (in which a field with a default is considered optional).
+              // There's no real need to provide the default value in a dynamic client, as it can just omit the field in the request being sent.
+              // The server shall provide the default value on its own.
+              // This `orElse` fallback will arguably never be hit in practice, but it's here for completeness - just in case the compiler ends up being used with static services.
+              fieldOpt.map(_.orElse(field.instance.default)).flatMap {
                 _.toRightIor(
                   CompilationError.error(
                     MissingField(field.label),

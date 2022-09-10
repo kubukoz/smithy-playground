@@ -415,7 +415,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         asDocument(dynamicSchemaFor[HasDefault])
       )
 
-    assert(result == Ior.right(Document.obj("message" -> Document.fromString("test"))))
+    // Object is empty here, but the server shall deserialize it providing the default
+    assert(result == Ior.right(Document.obj()))
   }
 
   pureTest("Missing fields in struct") {
