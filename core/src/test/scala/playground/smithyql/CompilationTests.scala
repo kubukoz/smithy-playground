@@ -101,13 +101,6 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
-  def compileToDocument[A](
-    q: QueryCompiler.WAST,
-    schema: Schema[A],
-  ): Ior[NonEmptyChain[CompilationError], Document] = compile(q)(schema).map {
-    Document.Encoder.fromSchema(schema).encode(_)
-  }
-
   pureTest("unit") {
     assert(
       compile {
