@@ -199,12 +199,12 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       }
   }
 
-  trait FieldCompiler[A] {
+  private trait FieldCompiler[A] {
     def compiler: QueryCompiler[A]
     def default: Option[A]
   }
 
-  def compileField: Schema ~> FieldCompiler =
+  private val compileField: Schema ~> FieldCompiler =
     new (Schema ~> FieldCompiler) {
 
       def apply[A](schema: Schema[A]): FieldCompiler[A] =
