@@ -44,7 +44,7 @@ import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
-
+import smithy4s.~>
 import java.util.Base64
 import java.util.UUID
 
@@ -199,13 +199,35 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       }
   }
 
+  trait FieldCompiler[A] {
+    def compiler: QueryCompiler[A]
+    def default: Option[A]
+  }
+
+  def compileField: Schema ~> FieldCompiler =
+    new (Schema ~> FieldCompiler) {
+
+      def apply[A](schema: Schema[A]): FieldCompiler[A] =
+        new FieldCompiler[A] {
+          def compiler: QueryCompiler[A] = schema.compile(QueryCompilerVisitorInternal)
+
+          def default: Option[A] = schema
+            .hints
+            .get(api.Default)
+            // Ignoring precise error, as this should generally be a Right _always_ due to smithy-level validation
+            .flatMap(v => Document.Decoder.fromSchema(schema).decode(v.value).toOption)
+
+        }
+
+    }
+
   def struct[S](
     shapeId: ShapeId,
     hints: Hints,
     fieldsRaw: Vector[SchemaField[S, _]],
     make: IndexedSeq[Any] => S,
   ): QueryCompiler[S] = {
-    val fields = fieldsRaw.map(_.mapK(this))
+    val fields = fieldsRaw.map(_.mapK(compileField)) // .map(_.mapK(this))
 
     val validFields = fields.map(_.label)
     val deprecatedFields =
@@ -259,7 +281,10 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
               .fields
               .value
               .byName(field.label)(_.value)
-              .parTraverse(field.instance.compile)
+              .parTraverse(field.instance.compiler.compile)
+              // Note: in dynamic schemas, fields with defaults are considered optional. In static schemas, they're considered required.
+              // smithy4s bug?
+              .map(_.orElse(field.instance.default))
 
             if (field.isOptional)
               fieldOpt
