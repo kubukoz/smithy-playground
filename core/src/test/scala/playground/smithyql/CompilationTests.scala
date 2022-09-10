@@ -31,7 +31,6 @@ import smithy.api.TimestampFormat
 import smithy4s.ByteArray
 import smithy4s.Document
 import smithy4s.Refinement
-import smithy4s.RefinementProvider
 import smithy4s.Service
 import smithy4s.ShapeId
 import smithy4s.ShapeTag
@@ -80,9 +79,10 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     val encoder = Document.Encoder.fromSchema(schema)
     val decoder = Document.Decoder.fromSchema(schema)
 
-    schema
-      .refined[Document]
-      .apply(())(new RefinementProvider[Unit, A, Document] {
+    Schema.RefinementSchema(
+      schema,
+      new Refinement[A, Document] {
+        type Constraint = Unit
 
         val tag: ShapeTag[Unit] =
           new ShapeTag[Unit] {
@@ -90,24 +90,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             val schema: Schema[Unit] = Schema.unit
           }
 
-        val t = tag
+        val constraint: Unit = ()
 
-        def make(c: Unit): Refinement.Aux[Unit, A, Document] =
-          new Refinement[A, Document] {
-            type Constraint = Unit
-            def tag: ShapeTag[Unit] = t
+        def apply(a: A): Either[String, Document] = unsafe(a).asRight
 
-            def constraint: Unit = ()
+        def from(b: Document): A = b.decode(decoder).toTry.get
 
-            def apply(a: A): Either[String, Document] = unsafe(a).asRight
-
-            def from(b: Document): A = b.decode(decoder).toTry.get
-
-            def unsafe(a: A): Document = encoder.encode(a)
-
-          }
-
-      })
+        def unsafe(a: A): Document = encoder.encode(a)
+      },
+    )
   }
 
   def compileToDocument[A](
