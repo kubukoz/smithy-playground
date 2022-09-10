@@ -227,7 +227,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     fieldsRaw: Vector[SchemaField[S, _]],
     make: IndexedSeq[Any] => S,
   ): QueryCompiler[S] = {
-    val fields = fieldsRaw.map(_.mapK(compileField)) // .map(_.mapK(this))
+    val fields = fieldsRaw.map(_.mapK(compileField))
 
     val validFields = fields.map(_.label)
     val deprecatedFields =
