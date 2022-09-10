@@ -1,3 +1,5 @@
+$version: "2"
+
 namespace demo.smithy
 
 use smithy4s.api#simpleRestJson
@@ -140,9 +142,12 @@ map PowerMap {
   value: Hero
 }
 
-@enum([{value: "Ice", name: "ICE"}, {value: "Fire", name: "FIRE"}, {value: "Lightning", name: "LIGHTNING"}, {value: "Wind", name: "WIND"}])
-string Power
-
+enum Power {
+  ICE = "Ice",
+  FIRE = "Fire",
+  LIGHTNING = "Lightning",
+  WIND = "Wind",
+}
 
 @http(method: "PUT", uri: "/subscriptions")
 @idempotent
@@ -150,21 +155,18 @@ string Power
 Create a subscription.
 """)
 operation CreateSubscription {
-  input: CreateSubscriptionInput,
-  output: CreateSubscriptionOutput,
+  input := {
+    @httpPayload
+    @required
+    subscription: Subscription
+  },
+  output := {
+    @httpPayload
+    @required
+    subscription: Subscription
+  },
 }
 
-structure CreateSubscriptionInput {
-  @httpPayload
-  @required
-  subscription: Subscription
-}
-
-structure CreateSubscriptionOutput {
-  @httpPayload
-  @required
-  subscription: Subscription
-}
 
 structure Subscription {
   @required
@@ -188,8 +190,9 @@ structure Sku {
   sku: String
 }
 
-@enum([{name: "ACTIVE", value: "ACTIVE"}, {name: "INACTIVE", value: "INACTIVE"}])
-string SubscriptionStatus
+enum SubscriptionStatus {
+  ACTIVE, INACTIVE
+}
 
 @indexedSeq
 list Ints {
