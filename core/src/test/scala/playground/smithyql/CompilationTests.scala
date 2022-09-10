@@ -9,12 +9,16 @@ import demo.smithy.Bad
 import demo.smithy.DeprecatedServiceGen
 import demo.smithy.FriendSet
 import demo.smithy.Good
+import demo.smithy.HasConstraintFields
+import demo.smithy.HasDefault
 import demo.smithy.HasDeprecations
 import demo.smithy.Hero
 import demo.smithy.IntSet
 import demo.smithy.Ints
 import demo.smithy.MyInstant
+import demo.smithy.Person
 import demo.smithy.Power
+import demo.smithy.StringWithLength
 import org.scalacheck.Arbitrary
 import playground.CompilationError
 import playground.CompilationErrorDetails
@@ -24,27 +28,24 @@ import playground.QueryCompiler
 import playground.QueryCompilerVisitor
 import smithy.api
 import smithy.api.TimestampFormat
+import smithy4s.ByteArray
 import smithy4s.Document
+import smithy4s.Refinement
 import smithy4s.Service
 import smithy4s.ShapeId
+import smithy4s.ShapeTag
 import smithy4s.Timestamp
 import smithy4s.dynamic.DynamicSchemaIndex
-import smithy4s.dynamic.model.IdRef
-import smithy4s.dynamic.model.MemberShape
-import smithy4s.dynamic.model.Model
-import smithy4s.dynamic.model.Shape
-import smithy4s.dynamic.model.StructureShape
 import smithy4s.schema.Schema
+import software.amazon.smithy.model.{Model => SModel}
 import weaver._
 import weaver.scalacheck.Checkers
 
+import java.nio.file.Paths
 import java.time
 import java.util.UUID
 
 import Arbitraries._
-import demo.smithy.StringWithLength
-import smithy4s.dynamic.model.StringShape
-import smithy4s.ByteArray
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -54,60 +55,51 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     in: QueryCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerVisitor.full).compile(in)
 
-  val dynamicModel = DynamicSchemaIndex.load(
-    Model(
-      smithy = Some("1.0"),
-      shapes = Map(
-        IdRef("test#Person") ->
-          Shape.StructureCase(
-            StructureShape(
-              members = Some(
-                Map(
-                  "name" -> MemberShape(
-                    target = IdRef("smithy.api#String"),
-                    traits = Some(Map(IdRef("smithy.api#required") -> Document.obj())),
-                  ),
-                  "age" -> MemberShape(
-                    target = IdRef("smithy.api#Integer")
-                  ),
-                )
-              )
-            )
-          ),
-        IdRef("test#StringWithLength") -> Shape.StringCase(
-          StringShape(
-            traits = Some(
-              Map(
-                IdRef("smithy.api#length") -> Document.obj(
-                  "min" -> Document.fromInt(1)
-                )
-              )
-            )
-          )
-        ),
-        IdRef("test#HasConstraintFields") -> Shape.StructureCase(
-          StructureShape(
-            members = Some(
-              Map(
-                "minLength" -> MemberShape(
-                  target = IdRef("test#StringWithLength"),
-                  traits = Some(Map(IdRef("smithy.api#required") -> Document.obj())),
-                )
-              )
-            )
-          )
-        ),
-      ),
+  val dynamicModel = {
+    val model = SModel
+      .assembler()
+      .addImport(Paths.get("core/src/test/smithy/demo.smithy"))
+      .discoverModels()
+      .assemble()
+      .unwrap()
+
+    DynamicSchemaIndex.loadModel(model).toTry.get
+  }
+
+  def dynamicSchemaFor[A: ShapeTag]: Schema[_] = {
+    val shapeId = ShapeTag[A].id
+
+    dynamicModel
+      .getSchema(shapeId)
+      .getOrElse(sys.error("missing model for shape " + shapeId))
+  }
+
+  // Kinda hacky, but does the job
+  def asDocument[A](schema: Schema[A]): Schema[Document] = {
+    val encoder = Document.Encoder.fromSchema(schema)
+    val decoder = Document.Decoder.fromSchema(schema)
+
+    Schema.RefinementSchema(
+      schema,
+      new Refinement[A, Document] {
+        type Constraint = Unit
+
+        val tag: ShapeTag[Unit] =
+          new ShapeTag[Unit] {
+            val id: ShapeId = Schema.unit.shapeId
+            val schema: Schema[Unit] = Schema.unit
+          }
+
+        val constraint: Unit = ()
+
+        def apply(a: A): Either[String, Document] = unsafe(a).asRight
+
+        def from(b: Document): A = b.decode(decoder).toTry.get
+
+        def unsafe(a: A): Document = encoder.encode(a)
+      },
     )
-  )
-
-  def dynamicSchemaFor(
-    shapeID: ShapeId
-  ): Schema[Any] = dynamicModel.getSchema(shapeID).get.asInstanceOf[Schema[Any]]
-
-  val dynamicPersonSchema = dynamicSchemaFor(ShapeId("test", "Person"))
-
-  val dynamicPersonToDocument = Document.Encoder.fromSchema(dynamicPersonSchema)
+  }
 
   pureTest("unit") {
     assert(
@@ -150,17 +142,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("string with length constraint - fail (dynamic)") {
-    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "StringWithLength"))
-
-    assert(
-      compile {
-        WithSource.liftId("".mapK(WithSource.liftId))
-      }(dynamicStringSchema).isLeft
-    )
-  }
-
-  pureTest("string with length constraint - fail (dynamic)") {
-    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "StringWithLength"))
+    val dynamicStringSchema = dynamicSchemaFor[StringWithLength]
 
     val result = compile {
       WithSource.liftId("".mapK(WithSource.liftId))
@@ -173,7 +155,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("string field with length constraint - fail (dynamic)") {
-    val dynamicStringSchema = dynamicSchemaFor(ShapeId("test", "HasConstraintFields"))
+    val dynamicStringSchema = dynamicSchemaFor[HasConstraintFields]
 
     val result = compile {
       WithSource.liftId(struct("minLength" -> "").mapK(WithSource.liftId))
@@ -412,6 +394,22 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         )
       )
     )
+  }
+
+  pureTest("struct with default field") {
+    val result = compile[HasDefault](WithSource.liftId(struct().mapK(WithSource.liftId)))
+
+    assert(result == Ior.right(HasDefault()))
+  }
+
+  pureTest("dynamic struct with default field") {
+    val result =
+      compile(WithSource.liftId(struct().mapK(WithSource.liftId)))(
+        asDocument(dynamicSchemaFor[HasDefault])
+      )
+
+    // Object is empty here, but the server shall deserialize it providing the default
+    assert(result == Ior.right(Document.obj()))
   }
 
   pureTest("Missing fields in struct") {
@@ -660,41 +658,39 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
-  pureTest("set of struct has warnings when duplicates are found - dynamic") {
+  pureTest("set of struct fails when duplicates are found - dynamic") {
+
+    val item = struct("good" -> struct("howGood" -> 42))
     val compiledFailures = compile(
       WithSource.liftId(
         List(
-          struct("name" -> "Hello"),
-          struct("name" -> "Hello"),
+          item,
+          item,
         ).mapK(WithSource.liftId)
       )
-    )(Schema.set(dynamicPersonSchema))
-      .map(_.map(dynamicPersonToDocument.encode(_)))
+    )(Schema.set(asDocument(dynamicSchemaFor[Hero])))
       .leftMap(_.map(_.err))
-
-    val expected = Set(
-      Document.obj(
-        "name" -> Document.fromString("Hello")
-      )
-    )
 
     assert(
       compiledFailures == Ior.both(
         NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem),
-        expected,
+        Set(Document.obj("good" -> Document.obj("howGood" -> Document.fromInt(42)))),
       )
     )
   }
 
   pureTest("set of struct is OK when optional fields differ - dynamic") {
-    val compiledCount = compile(
-      WithSource.liftId(
-        List(
-          struct("name" -> "Hello", "age" -> 42),
-          struct("name" -> "Hello"),
-        ).mapK(WithSource.liftId)
+    val compiledDoc =
+      compile(
+        WithSource.liftId(
+          List(
+            struct("name" -> "Hello", "age" -> 42),
+            struct("name" -> "Hello"),
+          ).mapK(WithSource.liftId)
+        )
+      )(
+        Schema.set(asDocument(dynamicSchemaFor[Person]))
       )
-    )(Schema.set(dynamicPersonSchema)).map(_.map(dynamicPersonToDocument.encode(_)))
 
     val expected = Set(
       Document.obj(
@@ -707,7 +703,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
 
     assert(
-      compiledCount == Ior.right(
+      compiledDoc == Ior.right(
         expected
       )
     )

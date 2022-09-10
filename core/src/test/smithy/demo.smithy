@@ -225,6 +225,12 @@ string MyString
 @length(min: 1)
 string StringWithLength
 
+structure HasConstraintFields {
+  @required
+  minLength: StringWithLength
+}
+
+
 structure HasDeprecations {
   @deprecated(message: "Made-up reason")
   hasMessage: Boolean,
@@ -234,4 +240,13 @@ structure HasDeprecations {
   @deprecated(message: "Another reason", since: "1.0.0")
   @required
   hasBoth: Boolean,
+}
+
+structure HasDefault {
+  message: String = "test"
+}
+
+structure Person {
+  @required name: String,
+  age: Integer
 }
