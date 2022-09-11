@@ -55,7 +55,7 @@ object Formatter {
         ident.selection
       )
 
-  def renderKey(k: WithSource[Struct.Key]): Doc =
+  def renderKey(k: WithSource[Identifier]): Doc =
     comments(k.commentsLeft) +
       Doc.text(k.value.text) +
       Doc.space +
@@ -103,10 +103,14 @@ object Formatter {
     }
   }
 
-  def renderField(k: WithSource[Struct.Key], v: WithSource[InputNode[WithSource]]): Doc =
+  def renderField(binding: Binding[WithSource]): Doc = {
+    val k = binding.identifier
+    val v = binding.value
+
     renderKey(k) +
       Doc.char('=') +
       renderValue(v)
+  }
 
   def renderFields[T](fields: List[T])(renderField: T => Doc): Doc =
     Doc
@@ -141,7 +145,7 @@ object Formatter {
       after
 
   def renderStruct(struct: Struct[WithSource]): Doc =
-    renderBracketed(struct.fields.map(_.value))(Doc.char('{'), Doc.char('}'))(renderField.tupled)
+    renderBracketed(struct.fields.map(_.value))(Doc.char('{'), Doc.char('}'))(renderField)
 
   def renderSequence(seq: Listed[WithSource]): Doc =
     renderBracketed(seq.values)(Doc.char('['), Doc.char(']'))(renderValue(_))

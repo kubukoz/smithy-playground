@@ -187,12 +187,12 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         val fields = struct.value.fields.value.value
 
         fields
-          .parTraverse { case (k, v) =>
+          .parTraverse { binding =>
             (
-              fk.compile(k.map { key =>
+              fk.compile(binding.identifier.map { key =>
                 StringLiteral[Id](key.text).mapK(WithSource.liftId)
               }),
-              fv.compile(v),
+              fv.compile(binding.value),
             ).parTupled
           }
           .map(_.toMap)
@@ -322,15 +322,16 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
       .emap {
         case s if s.value.fields.value.size == 1 =>
-          val defs = s.value.fields.value
+          val definition = s.value.fields.value.head
+          val key = definition.identifier
+
           def go[A](
             alt: Alt[QueryCompiler, U, A]
           ): QueryCompiler[U] = alt.instance.map(alt.inject)
 
-          val (k, v) = defs.head
           val op =
             alternativesCompiled
-              .get(k.value.text)
+              .get(key.value.text)
               .toRightIor(
                 CompilationError.error(
                   MissingDiscriminator(labels),
@@ -340,10 +341,10 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
               .toIorNec
 
           val deprecationWarning: QueryCompiler.Result[Unit] = deprecatedAlternativeLabels
-            .get(k.value.text)
+            .get(key.value.text)
             .map { info =>
               CompilationError
-                .deprecation(info, k.range)
+                .deprecation(info, key.range)
             }
             .toList
             .toNel
@@ -351,7 +352,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
             .toBothLeft(())
             .combine(Ior.right(()))
 
-          op.flatMap(go(_).compile(v)) <& deprecationWarning
+          op.flatMap(go(_).compile(definition.value)) <& deprecationWarning
 
         case s if s.value.fields.value.isEmpty =>
           CompilationError
@@ -421,7 +422,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         fields
           .value
           .value
-          .parTraverse { case (key, value) => document.compile(value).tupleLeft(key.value.text) }
+          .parTraverse { binding =>
+            document.compile(binding.value).tupleLeft(binding.identifier.value.text)
+          }
           .map(Document.obj(_: _*))
       case NullLiteral() => Document.nullDoc.rightIor
     }

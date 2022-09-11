@@ -106,7 +106,9 @@ object RangeIndex {
         .fields
         .value
         .value
-        .flatMap { case (k, v) => findInNode(v, ctx.inStructValue(k.value.text)) }
+        .flatMap { binding =>
+          findInNode(binding.value, ctx.inStructValue(binding.identifier.value.text))
+        }
 
       ContextRange(struct.fields.range, ctx) :: inFields
     }
