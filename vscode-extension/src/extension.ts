@@ -1,5 +1,6 @@
 import { commands, ExtensionContext, window, workspace } from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
+import { buildArgs, CoursierCall, withDebug, withTracer } from "./coursier";
 
 export function activate(context: ExtensionContext) {
   const serverArtifact = workspace
@@ -17,19 +18,34 @@ export function activate(context: ExtensionContext) {
     "smithyql"
   );
 
+  const enableTracer = workspace
+    .getConfiguration()
+    .get<boolean>("smithyql.server.trace");
+
+  const enableDebug = workspace
+    .getConfiguration()
+    .get<boolean>("smithyql.server.debug");
+
+  const base: CoursierCall = {
+    coursierArgs: ["--ttl", coursierTTL],
+    app: {
+      maven: { artifact: serverArtifact, version: serverVersion },
+      args: [],
+    },
+  };
+
   const lspClient = new LanguageClient(
     "smithyPlayground",
     "Smithy Playground",
     {
       command: "cs",
-      args: [
-        "launch",
-        // "--java-opt",
-        // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,quiet=y,address=5010",
-        `${serverArtifact}:${serverVersion}`,
-        "--ttl",
-        coursierTTL,
-      ],
+      args: buildArgs(
+        withTracer(enableTracer)(
+          //
+          withDebug(enableDebug)(base)
+          //
+        )
+      ),
     },
     {
       documentSelector: [{ language: "smithyql" }],

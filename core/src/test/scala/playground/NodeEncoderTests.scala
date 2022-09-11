@@ -14,6 +14,7 @@ import smithy4s.ByteArray
 import playground.smithyql.StringLiteral
 import smithy4s.Document
 import playground.smithyql.NullLiteral
+import demo.smithy.Power
 
 object NodeEncoderTests extends FunSuite {
 
@@ -47,6 +48,10 @@ object NodeEncoderTests extends FunSuite {
 
   test("simple struct") {
     assertEncodes(Good.schema, Good(42), struct("howGood" -> 42))
+  }
+
+  test("enum") {
+    assertEncodes(Power.schema, Power.ICE, "ICE")
   }
 
   test("union") {

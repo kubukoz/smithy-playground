@@ -20,7 +20,7 @@ def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(Cros
 
 val compilerPlugins =
   libraryDependencies ++= List(
-    crossPlugin("org.polyvariant" % "better-tostring" % "0.3.16")
+    crossPlugin("org.polyvariant" % "better-tostring" % "0.3.17")
   ) ++ (if (scalaVersion.value.startsWith("3"))
           Nil
         else
@@ -68,6 +68,7 @@ lazy val core = project
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
       "org.typelevel" %% "cats-parse" % "0.3.8",
       "org.typelevel" %% "paiges-cats" % "0.4.2",
       "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
@@ -85,7 +86,7 @@ lazy val lsp = project
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.15.0",
       "io.circe" %% "circe-core" % "0.14.2",
-      "org.http4s" %% "http4s-ember-client" % "0.23.14",
+      "org.http4s" %% "http4s-ember-client" % "0.23.15",
       "io.get-coursier" %% "coursier" % "2.0.16",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),

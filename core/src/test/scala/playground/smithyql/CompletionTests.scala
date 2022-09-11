@@ -131,7 +131,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Power.schema, NodeContext.Root)
 
     val inserts = completions.map(_.insertText)
-    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
+    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
       .map(s => s"\"$s\"")
       .map(InsertText.JustString(_))
 
@@ -143,7 +143,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Power.schema, NodeContext.Root.inQuotes)
 
     val inserts = completions.map(_.insertText)
-    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
+    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
       .map(InsertText.JustString(_))
 
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
@@ -163,7 +163,7 @@ object CompletionTests extends FunSuite {
 
     val inserts = completions.map(_.insertText)
 
-    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
+    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
       .map(_ + " = ")
       .map(InsertText.JustString(_))
 

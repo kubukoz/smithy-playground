@@ -1,4 +1,7 @@
+$version: "2"
+
 namespace playground.std
+
 use smithy4s.api#UUID
 
 @trait(selector: "service")
@@ -13,12 +16,10 @@ service Random {
 
 @documentation("Generates a new UUID.")
 operation NextUUID {
-  output: NextUUIDOutput
-}
-
-structure NextUUIDOutput {
-  @required
-  value: UUID
+  output :=  {
+    @required
+    value: UUID
+  }
 }
 
 @stdlib
@@ -29,10 +30,8 @@ service Clock {
 
 @documentation("Provides the current time as a Timestamp.")
 operation CurrentTimestamp {
-  output: CurrentTimestampOutput
-}
-
-structure CurrentTimestampOutput {
-  @required
-  value: Timestamp
+  output := {
+    @required
+    value: Timestamp
+  }
 }
