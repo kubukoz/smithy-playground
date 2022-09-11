@@ -115,6 +115,20 @@
     "type": "operation_name",
     "named": true,
     "fields": {
+      "identifier": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": ".",
+            "named": false
+          },
+          {
+            "type": "qualified_identifier",
+            "named": true
+          }
+        ]
+      },
       "name": {
         "multiple": false,
         "required": true,

@@ -37,7 +37,11 @@ module.exports = grammar({
         field("selection", $.identifier)
       ),
 
-    operation_name: ($) => field("name", $.identifier),
+    operation_name: ($) =>
+      seq(
+        field("identifier", optional(seq($.qualified_identifier, "."))),
+        field("name", $.identifier)
+      ),
 
     input_node: ($) =>
       choice($.struct, $.list, $.number, $.string, $.boolean, $.null),
