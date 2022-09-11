@@ -30,7 +30,9 @@ object DSL {
 
   def struct(
     args: (String, InputNode[Id])*
-  ): Struct[Id] = Struct[Id](Struct.Fields.fromSeq[Id](args.map(_.leftMap(Struct.Key(_)))))
+  ): Struct[Id] = Struct[Id](
+    Struct.Fields.fromSeq[Id](args.map(_.leftMap(Identifier(_))).map(Binding.apply[Id].tupled))
+  )
 
   implicit def stringToAST(s: String): StringLiteral[Id] = StringLiteral[Id](s)
   implicit def intToAST(i: Int): IntLiteral[Id] = IntLiteral[Id](i.toString)

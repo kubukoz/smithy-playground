@@ -184,14 +184,14 @@ object SmithyQLParser {
     }
 
     lazy val struct: Parser[Struct[T]] = {
-      type TField = (T[Struct.Key], T[InputNode[T]])
+      type TField = Binding[T]
 
       val field: Parser[TField] =
         (
           // sussy backtrack, but it works
-          ident.map(_.map(Struct.Key.apply)).backtrack <* tokens.equalsSign,
+          ident.map(_.map(Identifier.apply)).backtrack <* tokens.equalsSign,
           tokens.withComments(node),
-        ).tupled
+        ).mapN(Binding.apply[T])
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
       val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)

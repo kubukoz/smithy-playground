@@ -51,6 +51,8 @@ import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 import smithy4s.ByteArray
 import playground.smithyql.NullLiteral
+import playground.smithyql.Identifier
+import playground.smithyql.Binding
 
 trait NodeEncoder[A] {
   def toNode(a: A): InputNode[Id]
@@ -59,7 +61,7 @@ trait NodeEncoder[A] {
 
   def atKey(key: String): NodeEncoder[A] = transform { result =>
     Struct.one[Id](
-      key = Struct.Key(key),
+      key = Identifier(key),
       value = result,
     )
   }
@@ -131,7 +133,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     _.toList
       .parTraverse { case (k, v) =>
         fk.toNode(k) match {
-          case StringLiteral(s) => (s -> fv.toNode(v)).asRight
+          case StringLiteral(s) => Binding[Id](Identifier(s), fv.toNode(v)).asRight
           case n                => s"Expected string key, got $n".leftNel
         }
       }
@@ -160,19 +162,21 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     def go[A](
       f: Field[NodeEncoder, S, A],
       s: S,
-    ) = f.fold(new Field.Folder[NodeEncoder, S, Option[(String, InputNode[Id])]] {
-      def onRequired[F](
-        label: String,
-        instance: NodeEncoder[F],
-        get: S => F,
-      ): Option[(String, InputNode[Id])] = Some(label -> instance.toNode(get(s)))
+    ): Option[Binding[Id]] = f.fold(
+      new Field.Folder[NodeEncoder, S, Option[Binding[Id]]] {
+        def onRequired[F](
+          label: String,
+          instance: NodeEncoder[F],
+          get: S => F,
+        ): Option[Binding[Id]] = Binding[Id](Identifier(label), instance.toNode(get(s))).some
 
-      def onOptional[F](
-        label: String,
-        instance: NodeEncoder[F],
-        get: S => Option[F],
-      ): Option[(String, InputNode[Id])] = get(s).map(f => label -> instance.toNode(f))
-    })
+        def onOptional[F](
+          label: String,
+          instance: NodeEncoder[F],
+          get: S => Option[F],
+        ): Option[Binding[Id]] = get(s).map(f => Binding[Id](Identifier(label), instance.toNode(f)))
+      }
+    )
 
     s => obj(fields.flatMap(go(_, s)).toList)
   }
@@ -221,11 +225,11 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   val boolean: NodeEncoder[Boolean] = BooleanLiteral(_)
 
   private def obj(
-    values: List[(String, InputNode[Id])]
+    values: List[Binding[Id]]
   ): Struct[Id] = Struct[Id](
     Struct
       .Fields
-      .fromSeq[Id](values.map(_.leftMap(Struct.Key(_))))
+      .fromSeq[Id](values)
   )
 
   val document: NodeEncoder[Document] =
@@ -236,7 +240,12 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
         case DNumber(value)  => number.toNode(value.toString())
         case DNull           => NullLiteral()
         case DString(value)  => string.toNode(value)
-        case DObject(value)  => obj(value.toList.map(_.map(document.toNode)))
+        case DObject(value) =>
+          obj(
+            value
+              .toList
+              .map { case (k, v) => Binding[Id](Identifier(k), document.toNode(v)) }
+          )
       }
 
 }

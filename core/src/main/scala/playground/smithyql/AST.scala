@@ -129,41 +129,51 @@ final case class Struct[F[_]](
 
 }
 
-object Struct {
-  final case class Key(text: String) extends AnyVal
+final case class Binding[F[_]](identifier: F[Identifier], value: F[InputNode[F]]) {
 
-  final case class Fields[F[_]](value: List[(F[Struct.Key], F[InputNode[F]])]) {
-    def keys: List[F[Struct.Key]] = value.map(_._1)
+  def mapK[G[_]: Functor](fk: F ~> G): Binding[G] = Binding(
+    fk(identifier),
+    fk(value).map(_.mapK(fk)),
+  )
+
+}
+
+final case class Identifier(text: String) extends AnyVal
+
+object Struct {
+
+  final case class Fields[F[_]](value: List[Binding[F]]) {
+    def keys: List[F[Identifier]] = value.map(_.identifier)
 
     def size: Int = value.size
-    def head: (F[Struct.Key], F[InputNode[F]]) = value.head
+    def head: Binding[F] = value.head
     def isEmpty: Boolean = value.isEmpty
 
-    def mapK[G[_]: Functor](fk: F ~> G): Fields[G] = Fields(value.map { case (k, v) =>
-      fk(k) -> fk(v).map(_.mapK(fk))
-    })
+    def mapK[G[_]: Functor](fk: F ~> G): Fields[G] = Fields(value.map(_.mapK(fk)))
 
-    def keySet(getValue: F[Struct.Key] => Struct.Key): Set[String] =
-      value.map(_._1).map(getValue).map(_.text).toSet
+    def keySet(getValue: F[Identifier] => Identifier): Set[String] =
+      value.map(_.identifier).map(getValue).map(_.text).toSet
 
     // Usage not recommended, fields can have duplicate fields at the parsing stage
-    def toMap: Map[F[Struct.Key], F[InputNode[F]]] = value.toMap
+    def toMap: Map[F[Identifier], F[InputNode[F]]] = value.map(b => (b.identifier, b.value)).toMap
 
     def byName(
       name: String
     )(
-      getValue: F[Struct.Key] => Struct.Key
-    ): Option[F[InputNode[F]]] = value.find(pair => getValue(pair._1).text == name).map(_._2)
+      getValue: F[Identifier] => Identifier
+    ): Option[F[InputNode[F]]] = value
+      .find(pair => getValue(pair.identifier).text == name)
+      .map(_.value)
 
   }
 
-  def one[F[_]: Applicative](key: F[Struct.Key], value: F[InputNode[F]]): Struct[F] = Struct(
-    Fields(List((key, value))).pure[F]
+  def one[F[_]: Applicative](key: F[Identifier], value: F[InputNode[F]]): Struct[F] = Struct(
+    Fields(List(Binding(key, value))).pure[F]
   )
 
   object Fields {
 
-    def fromSeq[F[_]](value: Seq[(F[Struct.Key], F[InputNode[F]])]): Fields[F] = Fields(
+    def fromSeq[F[_]](value: Seq[Binding[F]]): Fields[F] = Fields(
       value.toList
     )
 

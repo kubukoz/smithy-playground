@@ -82,10 +82,12 @@ object WithSource {
       struct =
         _.fields.allComments(
           _.value
-            .flatMap { case (k, v) =>
-              k.allComments(_ => Nil) ++ v.allComments(
-                _.fold(comments, comments, comments, comments, comments, comments)
-              )
+            .flatMap { binding =>
+              binding.identifier.allComments(_ => Nil) ++ binding
+                .value
+                .allComments(
+                  _.fold(comments, comments, comments, comments, comments, comments)
+                )
             }
             .toList
         ),
