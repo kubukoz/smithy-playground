@@ -49,8 +49,8 @@ object Assertions extends Expectations.Helpers {
           "keySet" :: ctx
         ) &&
         (
-          rhs.fields.toMap: Map[Struct.Key, InputNode[Id]],
-          lhs.fields.toMap: Map[Struct.Key, InputNode[Id]],
+          rhs.fields.toMap: Map[Identifier, InputNode[Id]],
+          lhs.fields.toMap: Map[Identifier, InputNode[Id]],
         ).tupled
           .map { case (k, (lhs, rhs)) => compareNode(lhs, rhs)(k.text :: ctx) }
           .toList

@@ -49,7 +49,10 @@ object DocumentSymbolProvider {
 
   private def findInStruct(
     struct: WithSource[Struct[WithSource]]
-  ): List[DocumentSymbol] = struct.value.fields.value.value.map { case (key, value) =>
+  ): List[DocumentSymbol] = struct.value.fields.value.value.map { binding =>
+    val key = binding.identifier
+    val value = binding.value
+
     DocumentSymbol(
       key.value.text,
       SymbolKind.Field,

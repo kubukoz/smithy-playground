@@ -80,13 +80,17 @@ object Arbitraries {
         arbBool.arbitrary,
       )
 
-  implicit val arbStructKey: Arbitrary[Struct.Key] = Arbitrary {
-    Gen.identifier.map(Struct.Key(_))
+  implicit val arbStructKey: Arbitrary[Identifier] = Arbitrary {
+    Gen.identifier.map(Identifier(_))
   }
 
-  implicit def arbFields[F[_]](
-    implicit arbKey: Arbitrary[F[Struct.Key]],
+  implicit def arbBinding[F[_]](
+    implicit arbKey: Arbitrary[F[Identifier]],
     arbValue: Arbitrary[F[InputNode[F]]],
+  ): Arbitrary[Binding[F]] = Arbitrary(Gen.resultOf(Binding.apply[F]))
+
+  implicit def arbFields[F[_]](
+    implicit arbBind: Arbitrary[Binding[F]]
   ): Arbitrary[Struct.Fields[F]] = Arbitrary(Gen.resultOf(Struct.Fields[F](_)))
 
   def genStruct(recurse: Gen[InputNode[WithSource]]): Gen[Struct[WithSource]] = {
