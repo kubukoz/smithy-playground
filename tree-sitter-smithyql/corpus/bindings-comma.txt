@@ -1,16 +1,19 @@
 ================================================================================
-File with comments
+Simple let binding with trailing comma
 ================================================================================
-//comm
-hello {}
+let label = 42,
+Op {}
 --------------------------------------------------------------------------------
 
-(source_file
-  (comment)
+(ERROR
   (whitespace)
-  (top_level_statement
-    (operation_call
-      (operation_name
-        (identifier))
+  (ERROR
+    (binding
+      (identifier)
       (whitespace)
-      (struct))))
+      (whitespace)
+      (input_node
+        (number))))
+  (whitespace)
+  (identifier)
+  (whitespace))

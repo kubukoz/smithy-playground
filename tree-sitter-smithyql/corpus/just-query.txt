@@ -5,7 +5,9 @@ hello {}
 --------------------------------------------------------------------------------
 
 (source_file
-  (operation_name
-    (identifier))
-  (whitespace)
-  (struct))
+  (top_level_statement
+    (operation_call
+      (operation_name
+        (identifier))
+      (whitespace)
+      (struct))))

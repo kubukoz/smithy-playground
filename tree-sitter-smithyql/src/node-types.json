@@ -1,11 +1,6 @@
 [
   {
-    "type": "boolean",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "field",
+    "type": "binding",
     "named": true,
     "fields": {
       "key": {
@@ -31,7 +26,7 @@
     }
   },
   {
-    "type": "fields",
+    "type": "bindings",
     "named": true,
     "fields": {},
     "children": {
@@ -39,11 +34,16 @@
       "required": true,
       "types": [
         {
-          "type": "field",
+          "type": "binding",
           "named": true
         }
       ]
     }
+  },
+  {
+    "type": "boolean",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "input_node",
@@ -81,6 +81,25 @@
     }
   },
   {
+    "type": "let_binding",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binding",
+          "named": true
+        },
+        {
+          "type": "whitespace",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "list",
     "named": true,
     "fields": {
@@ -109,6 +128,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "operation_call",
+    "named": true,
+    "fields": {
+      "input": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "struct",
+            "named": true
+          }
+        ]
+      },
+      "operation_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "operation_name",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -185,22 +230,12 @@
     "type": "source_file",
     "named": true,
     "fields": {
-      "input": {
+      "statements": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
-            "type": "struct",
-            "named": true
-          }
-        ]
-      },
-      "operation_name": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "operation_name",
+            "type": "top_level_statement",
             "named": true
           }
         ]
@@ -221,16 +256,35 @@
     "type": "struct",
     "named": true,
     "fields": {
-      "fields": {
+      "bindings": {
         "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "fields",
+            "type": "bindings",
             "named": true
           }
         ]
       }
+    }
+  },
+  {
+    "type": "top_level_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "let_binding",
+          "named": true
+        },
+        {
+          "type": "operation_call",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -294,6 +348,10 @@
   {
     "type": "identifier",
     "named": true
+  },
+  {
+    "type": "let",
+    "named": false
   },
   {
     "type": "null",

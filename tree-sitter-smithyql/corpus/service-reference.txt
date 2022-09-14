@@ -5,10 +5,12 @@ namespace#Service.OpName {}
 --------------------------------------------------------------------------------
 
 (source_file
-  (operation_name
-    (qualified_identifier
-      (identifier)
-      (identifier))
-    (identifier))
-  (whitespace)
-  (struct))
+  (top_level_statement
+    (operation_call
+      (operation_name
+        (qualified_identifier
+          (identifier)
+          (identifier))
+        (identifier))
+      (whitespace)
+      (struct))))

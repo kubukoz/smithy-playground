@@ -5,15 +5,17 @@ Struct with 1 field
 --------------------------------------------------------------------------------
 
 (source_file
-  (operation_name
-    (MISSING identifier))
-  (struct
-    (whitespace)
-    (fields
-      (field
-        (identifier)
+  (top_level_statement
+    (operation_call
+      (operation_name
+        (MISSING identifier))
+      (struct
         (whitespace)
-        (whitespace)
-        (input_node
-          (number))))
-    (whitespace)))
+        (bindings
+          (binding
+            (identifier)
+            (whitespace)
+            (whitespace)
+            (input_node
+              (number))))
+        (whitespace)))))

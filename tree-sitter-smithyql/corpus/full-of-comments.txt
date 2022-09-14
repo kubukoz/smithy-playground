@@ -64,48 +64,50 @@ op
   (whitespace)
   (comment)
   (whitespace)
-  (operation_name
-    (identifier))
-  (whitespace)
-  (comment)
-  (whitespace)
-  (struct
-    (whitespace)
-    (comment)
-    (whitespace)
-    (fields
-      (field
-        (identifier)
-        (whitespace)
-        (comment)
-        (whitespace)
-        (whitespace)
-        (comment)
-        (whitespace)
-        (input_node
-          (string)))
+  (top_level_statement
+    (operation_call
+      (operation_name
+        (identifier))
       (whitespace)
       (comment)
       (whitespace)
-      (whitespace)
-      (comment)
-      (whitespace)
-      (field
-        (identifier)
+      (struct
         (whitespace)
         (comment)
         (whitespace)
+        (bindings
+          (binding
+            (identifier)
+            (whitespace)
+            (comment)
+            (whitespace)
+            (whitespace)
+            (comment)
+            (whitespace)
+            (input_node
+              (string)))
+          (whitespace)
+          (comment)
+          (whitespace)
+          (whitespace)
+          (comment)
+          (whitespace)
+          (binding
+            (identifier)
+            (whitespace)
+            (comment)
+            (whitespace)
+            (whitespace)
+            (comment)
+            (whitespace)
+            (input_node
+              (string)))
+          (whitespace)
+          (comment)
+          (whitespace))
         (whitespace)
         (comment)
-        (whitespace)
-        (input_node
-          (string)))
-      (whitespace)
-      (comment)
-      (whitespace))
-    (whitespace)
-    (comment)
-    (whitespace))
+        (whitespace))))
   (whitespace)
   (comment)
   (whitespace))

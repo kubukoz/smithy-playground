@@ -4,6 +4,5 @@ Just a string
 "hello"
 --------------------------------------------------------------------------------
 
-(source_file
-  (ERROR
-    (string)))
+(ERROR
+  (string))

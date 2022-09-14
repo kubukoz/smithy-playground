@@ -1,16 +1,21 @@
 ================================================================================
-File with comments
+Simple let binding
 ================================================================================
-//comm
-hello {}
+let label = 42
+Op {}
 --------------------------------------------------------------------------------
 
 (source_file
-  (comment)
-  (whitespace)
   (top_level_statement
-    (operation_call
-      (operation_name
-        (identifier))
+    (let_binding
       (whitespace)
-      (struct))))
+      (binding
+        (identifier)
+        (whitespace)
+        (whitespace)
+        (input_node
+          (number)))))
+  (whitespace)
+  (ERROR
+    (identifier)
+    (whitespace)))

@@ -12,13 +12,17 @@ module.exports = grammar({
   extras: ($) => [$.whitespace, $.comment],
   rules: {
     source_file: ($) =>
-      optional(
-        seq(
-          field("use_clause", optional($.use_clause)),
-          field("operation_name", $.operation_name),
-          field("input", $.struct)
-        )
+      seq(
+        field("use_clause", optional($.use_clause)),
+        field("statements", seq($.top_level_statement))
       ),
+
+    top_level_statement: ($) => choice($.let_binding, $.operation_call),
+
+    let_binding: ($) => seq("let", $.whitespace, $.binding, optional(",")),
+
+    operation_call: ($) =>
+      seq(field("operation_name", $.operation_name), field("input", $.struct)),
 
     use_clause: ($) =>
       seq(
@@ -38,20 +42,23 @@ module.exports = grammar({
       ),
 
     operation_name: ($) =>
-      seq(
-        field("identifier", optional(seq($.qualified_identifier, "."))),
-        field("name", $.identifier)
+      prec.left(
+        1,
+        seq(
+          field("identifier", optional(seq($.qualified_identifier, "."))),
+          field("name", $.identifier)
+        )
       ),
 
     input_node: ($) =>
       choice($.struct, $.list, $.number, $.string, $.boolean, $.null),
 
-    struct: ($) => seq("{", field("fields", optional($.fields)), "}"),
+    struct: ($) => seq("{", field("bindings", optional($.bindings)), "}"),
     list: ($) => seq("[", field("list_fields", optional($.list_fields)), "]"),
 
-    fields: ($) => comma_separated_trailing($.field),
+    bindings: ($) => comma_separated_trailing($.binding),
 
-    field: ($) =>
+    binding: ($) =>
       seq(field("key", $.identifier), "=", field("value", $.input_node)),
 
     list_fields: ($) => comma_separated_trailing($.input_node),

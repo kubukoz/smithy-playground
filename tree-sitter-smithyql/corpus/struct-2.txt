@@ -5,22 +5,24 @@ Struct with 2 fields
 --------------------------------------------------------------------------------
 
 (source_file
-  (operation_name
-    (MISSING identifier))
-  (struct
-    (whitespace)
-    (fields
-      (field
-        (identifier)
+  (top_level_statement
+    (operation_call
+      (operation_name
+        (MISSING identifier))
+      (struct
         (whitespace)
-        (whitespace)
-        (input_node
-          (number)))
-      (whitespace)
-      (field
-        (identifier)
-        (whitespace)
-        (whitespace)
-        (input_node
-          (string))))
-    (whitespace)))
+        (bindings
+          (binding
+            (identifier)
+            (whitespace)
+            (whitespace)
+            (input_node
+              (number)))
+          (whitespace)
+          (binding
+            (identifier)
+            (whitespace)
+            (whitespace)
+            (input_node
+              (string))))
+        (whitespace)))))
