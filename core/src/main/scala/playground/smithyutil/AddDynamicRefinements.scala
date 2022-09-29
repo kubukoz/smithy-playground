@@ -57,8 +57,8 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
         schema.reifyHint(RefinementProvider.iterableLengthConstraint[IndexedSeq, A])
     }
 
-  def apply[A](schema: Schema[A]): Schema[A] =
-    schema match {
+  def apply[A](schema: Schema[A]): Schema[A] = ???
+  /*  schema match {
       case PrimitiveSchema(_, _, tag) =>
         tag match {
           case PString     => schema.reifyHint[api.Length].reifyHint[api.Pattern]
@@ -77,6 +77,6 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
       case c: CollectionSchema[_, _] => collection(c)
       case m: MapSchema[_, _]        => m.reifyHint[api.Length]
       case _                         => schema
-    }
+    } */
 
 }

@@ -52,7 +52,24 @@ trait CompiledInput {
   def writeError: Option[NodeEncoder[E]]
   def writeOutput: NodeEncoder[O]
   def serviceId: QualifiedIdentifier
-  def wrap(i: I): _Op[I, E, O, _, _]
+  def wrap(i: I): Op3[_Op, I, E, O]
+}
+
+trait Op3[Op[_, _, _, _, _], I, E, O] {
+  type SE
+  type SO
+  def op: Op[I, E, O, SE, SO]
+}
+
+object Op3 {
+
+  def wrap[Op[_, _, _, _, _], I, E, O, _SE, _SO](opp: Op[I, E, O, _SE, _SO]): Op3[Op, I, E, O] =
+    new Op3[Op, I, E, O] {
+      type SE = _SE
+      type SO = _SO
+      val op: Op[I, E, O, SE, SO] = opp
+    }
+
 }
 
 object CompiledInput {
@@ -130,7 +147,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
             val input: I = compiled
             val serviceId: QualifiedIdentifier = QualifiedIdentifier.forService(service)
 
-            def wrap(i: In): Op[In, Err, Out, _, _] = e.wrap(i)
+            def wrap(i: In): Op3[Op, In, Err, Out] = Op3.wrap(e.wrap(i))
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
             val catchError: Throwable => Option[Err] = err => e.errorable.flatMap(_.liftError(err))
@@ -426,7 +443,7 @@ object Runner {
       private def perform[I, E, O](
         interpreter: smithy4s.Interpreter[Op, F],
         q: CompiledInput.Aux[I, E, O, Op],
-      ) = Defer[F].defer(interpreter(q.wrap(q.input))).map { response =>
+      ) = Defer[F].defer(interpreter(q.wrap(q.input).op)).map { response =>
         q.writeOutput.toNode(response)
       }
 
@@ -450,7 +467,7 @@ object Runner {
         )
 
       val getInternal: IorNel[Issue, Runner[F]] = runners.reduce(
-        IorUtils.orElseCombine[NonEmptyList[Issue], Runner[F]]
+        IorUtils.orElseCombine[NonEmptyList[Issue], Runner[F]](_, _)
       )
 
       def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]] = getInternal

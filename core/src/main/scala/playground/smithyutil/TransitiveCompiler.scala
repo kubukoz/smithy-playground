@@ -25,7 +25,7 @@ final class TransitiveCompiler(underlying: Schema ~> Schema) extends (Schema ~> 
       case LazySchema(suspend)           => LazySchema(suspend.map(this.apply))
       case RefinementSchema(underlying, refinement) =>
         RefinementSchema(this(underlying), refinement)
-      case c @ CollectionSchema(_, _, _, _) => c.copy(member = this(c.member))
+      case c @ CollectionSchema(_, _, _, _) => ??? // c.copy(member = this(c.member))
       case m @ MapSchema(_, _, _, _) => underlying(m.copy(key = this(m.key), value = this(m.value)))
       case s @ StructSchema(_, _, _, _) => underlying(s.copy(fields = s.fields.map(_.mapK(this))))
     }

@@ -99,7 +99,6 @@ object BuildLoader {
               repositories = loaded.config.mavenRepositories.combineAll,
               transformers = Nil,
               discoverModels = true,
-              localJars = Nil,
             )
             ._2
         }

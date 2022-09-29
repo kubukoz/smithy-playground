@@ -1,6 +1,7 @@
 package playground
 
 import com.softwaremill.diffx.generic.auto._
+import com.softwaremill.diffx.generic.auto.given
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
 import weaver._

@@ -15,6 +15,7 @@ import java.net.URLClassLoader
 import java.util.ServiceLoader
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
+import playground.lsp.buildinfo.BuildInfo
 
 trait PluginResolver[F[_]] {
 
@@ -46,7 +47,7 @@ object PluginResolver {
         repositories: List[String],
       ): F[List[PlaygroundPlugin]] = {
         val depsF = DependencyParser
-          .dependencies(artifacts, defaultScalaVersion = "2.13")
+          .dependencies(artifacts, defaultScalaVersion = BuildInfo.scalaBinaryVersion)
           .either
           .leftMap(errors =>
             new Throwable("Failed to parse dependencies: " + errors.mkString(", "))

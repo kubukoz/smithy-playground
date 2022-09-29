@@ -32,8 +32,8 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "2.13.8"
-ThisBuild / crossScalaVersions := Seq("2.13.8")
+ThisBuild / scalaVersion := "3.2.0"
+ThisBuild / crossScalaVersions := Seq("3.2.0")
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
@@ -67,13 +67,14 @@ lazy val core = project
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
       "org.typelevel" %% "cats-parse" % "0.3.8",
       "org.typelevel" %% "paiges-cats" % "0.4.2",
       "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
+      "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
     ),
     commonSettings,
     Smithy4sCodegenPlugin.defaultSettings(Test),
+    Test / scalacOptions += "-Xmax-inlines:64",
   )
   .enablePlugins(Smithy4sCodegenPlugin)
   .dependsOn(pluginCore)
@@ -81,16 +82,17 @@ lazy val core = project
 lazy val lsp = project
   .settings(
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
+      "software.amazon.smithy" % "smithy-build" % "1.24.0",
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.15.0",
       "io.circe" %% "circe-core" % "0.14.3",
       "org.http4s" %% "http4s-ember-client" % "0.23.15",
-      "io.get-coursier" %% "coursier" % "2.0.16",
-      "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
+      ("io.get-coursier" % "coursier_2.13" % "2.0.16")
+        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
+      // "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
     commonSettings,
     buildInfoPackage := "playground.lsp.buildinfo",
-    buildInfoKeys ++= Seq(version),
+    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
   )
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(core)

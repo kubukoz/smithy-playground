@@ -72,7 +72,7 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
         def apply[I, E, O, SI, SO](endpoint: Endpoint[Op, I, E, O, SI, SO]): I => F[O] =
           applyWithStatic(endpoint, grp(endpoint.id))
       }
-        .precompute(service.endpoints)
+        .precompute(service.endpoints.map(smithy4s.Kind5.existential(_)))
 
     new smithy4s.Interpreter[Op, F] {
       def apply[I, E, O, SI, SO](op: Op[I, E, O, SI, SO]): F[O] = {

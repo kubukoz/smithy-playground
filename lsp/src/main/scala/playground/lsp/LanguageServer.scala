@@ -7,9 +7,9 @@ import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.std.Supervisor
 import cats.implicits._
-import cats.tagless.Derive
-import cats.tagless.FunctorK
-import cats.tagless.implicits._
+// import cats.tagless.Derive
+// import cats.tagless.FunctorK
+// import cats.tagless.implicits._
 import cats.~>
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ServerCapabilities
@@ -58,11 +58,12 @@ trait LanguageServer[F[_]] {
 
 object LanguageServer {
 
-  implicit val functorK: FunctorK[LanguageServer] = Derive.functorK
+  // implicit val functorK: FunctorK[LanguageServer] = Derive.functorK
 
-  def notAvailable[F[_]: MonadThrow]: LanguageServer[F] = defer(
-    new Throwable("Server not available").raiseError[F, LanguageServer[F]]
-  )
+  def notAvailable[F[_]: MonadThrow]: LanguageServer[F] = ???
+  // defer(
+  //   new Throwable("Server not available").raiseError[F, LanguageServer[F]]
+  // )
 
   def instance[
     F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
@@ -279,6 +280,6 @@ object LanguageServer {
 
   def defer[F[_]: FlatMap](
     fa: F[LanguageServer[F]]
-  ): LanguageServer[F] = Derive.readerT[LanguageServer, F].mapK(KleisliOps.applyEffectK(fa))
+  ): LanguageServer[F] = ??? // Derive.readerT[LanguageServer, F].mapK(KleisliOps.applyEffectK(fa))
 
 }

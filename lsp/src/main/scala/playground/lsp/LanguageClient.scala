@@ -3,9 +3,6 @@ package playground.lsp
 import cats.FlatMap
 import cats.effect.kernel.Async
 import cats.implicits._
-import cats.tagless.Derive
-import cats.tagless.FunctorK
-import cats.tagless.implicits._
 import com.google.gson.JsonElement
 import io.circe.Decoder
 import org.eclipse.lsp4j.ConfigurationItem
@@ -33,7 +30,7 @@ object LanguageClient {
 
   def apply[F[_]](implicit F: LanguageClient[F]): LanguageClient[F] = F
 
-  implicit val functorK: FunctorK[LanguageClient] = Derive.functorK
+  // implicit val functorK: FunctorK[LanguageClient] = Derive.functorK
 
   def adapt[F[_]: Async](client: PlaygroundLanguageClient): LanguageClient[F] =
     new LanguageClient[F] {
@@ -83,6 +80,6 @@ object LanguageClient {
 
   def defer[F[_]: FlatMap](
     fa: F[LanguageClient[F]]
-  ): LanguageClient[F] = Derive.readerT[LanguageClient, F].mapK(KleisliOps.applyEffectK(fa))
+  ): LanguageClient[F] = ??? // Derive.readerT[LanguageClient, F].mapK(KleisliOps.applyEffectK(fa))
 
 }

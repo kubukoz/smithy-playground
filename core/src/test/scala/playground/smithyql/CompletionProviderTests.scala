@@ -4,6 +4,7 @@ import cats.Id
 import cats.data.NonEmptyList
 import cats.implicits._
 import com.softwaremill.diffx.generic.auto._
+import com.softwaremill.diffx.generic.auto.given
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._
@@ -13,7 +14,7 @@ import playground.std.RandomGen
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
 import weaver._
-
+/*
 object CompletionProviderTests extends SimpleIOSuite {
 
   private def wrap[Algg[_[_, _, _, _, _]], Opp[_, _, _, _, _]](
@@ -177,3 +178,4 @@ object CompletionProviderTests extends SimpleIOSuite {
     assertNoDiff(result, expected)
   }
 }
+ */
