@@ -62,6 +62,8 @@ final case class WithSource[+A](
 
 object WithSource {
 
+  def liftValue[A](value: A): WithSource[A] = liftId(value)
+
   val liftId: Id ~> WithSource =
     new (Id ~> WithSource) {
 

@@ -4,8 +4,11 @@ import cats.Id
 import playground.smithyql.Query
 import weaver._
 import cats.implicits._
+import playground.Assertions._
+import com.softwaremill.diffx.generic.auto._
+import cats.effect.IO
 
-object ParserTests extends FunSuite {
+object ParserTests extends SimpleIOSuite {
 
   def parsingTest(
     name: TestName,
@@ -15,16 +18,58 @@ object ParserTests extends FunSuite {
   )(
     implicit loc: SourceLocation
   ): Unit =
-    test(name) {
+    test(name) { (_, l) =>
+      implicit val log = l
       SmithyQLParser.parse(input) match {
-        case Left(e)  => failure(s"Parsing failed: ${e.msg}")
-        case Right(v) => assert(v == expected)
+        case Left(e)  => IO(failure(s"Parsing failed: ${e.msg}"))
+        case Right(v) => assertNoDiff(v, expected)
+      }
+    }
+
+  def parsingTestFull(
+    name: TestName,
+    input: String,
+  )(
+    expected: Query[WithSource]
+  )(
+    implicit loc: SourceLocation
+  ): Unit =
+    test(name) { (_, l) =>
+      implicit val log = l
+      SmithyQLParser.parseFull(input) match {
+        case Left(e)  => IO(failure(s"Parsing failed: ${e.msg}"))
+        case Right(v) => assertNoDiff(v, expected)
       }
     }
 
   import DSL._
 
   parsingTest("simple call, dense", "hello{}")("hello".call())
+  parsingTestFull("simple call, dense", "hello{}")(
+    Query[WithSource](
+      useClause = WithSource.liftValue(None).withRange(SourceRange(Position(0), Position(0))),
+      operationName = WithSource
+        .liftValue(
+          QueryOperationName(
+            identifier = None,
+            operationName = WithSource
+              .liftValue(OperationName[WithSource]("hello"))
+              .withRange(SourceRange(Position(0), Position(5))),
+          )
+        )
+        .withRange(SourceRange(Position(0), Position(5))),
+      input = WithSource
+        .liftValue(
+          Struct(
+            WithSource
+              .liftValue(Struct.Fields[WithSource](Nil))
+              .withRange(SourceRange(Position(6), Position(6)))
+          )
+        )
+        .withRange(SourceRange(Position(6), Position(6))),
+    )
+  )
+
   parsingTest("simple call, space in object", "hello{ }")("hello".call())
   parsingTest("simple call, trailing/leading space", " hello{} ")("hello".call())
   parsingTest("simple call, sparse", " hello { } ")("hello".call())
