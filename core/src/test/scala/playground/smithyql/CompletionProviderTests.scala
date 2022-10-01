@@ -3,7 +3,6 @@ package playground.smithyql
 import cats.Id
 import cats.data.NonEmptyList
 import cats.implicits._
-import com.softwaremill.diffx.generic.auto._
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._

@@ -5,7 +5,6 @@ import playground.smithyql.Query
 import weaver._
 import cats.implicits._
 import playground.Assertions._
-import com.softwaremill.diffx.generic.auto._
 import cats.effect.IO
 
 object ParserTests extends SimpleIOSuite {
@@ -18,11 +17,10 @@ object ParserTests extends SimpleIOSuite {
   )(
     implicit loc: SourceLocation
   ): Unit =
-    test(name) { (_, l) =>
-      implicit val log = l
+    pureTest(name) {
       SmithyQLParser.parse(input) match {
-        case Left(e)  => IO(failure(s"Parsing failed: ${e.msg}"))
-        case Right(v) => assertNoDiff(v, expected)
+        case Left(e)  => failure(s"Parsing failed: ${e.msg}")
+        case Right(v) => assert(v == expected)
       }
     }
 
