@@ -52,20 +52,32 @@ val commonSettings = Seq(
   mimaFailOnNoPrevious := false,
 )
 
-lazy val pluginCore = project.settings(
-  name := "plugin-core",
+def module(name: String) = Project(name, file("modules") / name)
+  .settings(
+    commonSettings
+  )
+
+lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  commonSettings,
   mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
 )
 
-lazy val ast = project.settings(
-  commonSettings
-)
+lazy val ast = module("ast")
 
-lazy val core = project
+lazy val source = module("source")
+  .dependsOn(ast)
+
+lazy val parser = module("parser")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-parse" % "0.3.8"
+    )
+  )
+  .dependsOn(ast, source)
+
+lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.3.14",
@@ -73,24 +85,18 @@ lazy val core = project
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
-      "org.typelevel" %% "cats-parse" % "0.3.8",
       "org.typelevel" %% "paiges-cats" % "0.4.2",
       "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
     ),
-    commonSettings,
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .enablePlugins(Smithy4sCodegenPlugin)
-  .dependsOn(pluginCore, ast)
+  .dependsOn(pluginCore, ast, source, parser % "test->compile")
 
-lazy val languageSupport = project
-  .settings(
-    name := "language-support",
-    commonSettings,
-  )
-  .dependsOn(core % "test->test;compile->compile")
+lazy val languageSupport = module("language-support")
+  .dependsOn(core % "test->test;compile->compile", parser)
 
-lazy val lsp = project
+lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
@@ -100,7 +106,6 @@ lazy val lsp = project
       "io.get-coursier" %% "coursier" % "2.0.16",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
-    commonSettings,
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version),
   )
@@ -114,4 +119,4 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
   )
-  .aggregate(ast, core, languageSupport, lsp, pluginCore)
+  .aggregate(ast, core, languageSupport, parser, lsp, pluginCore)
