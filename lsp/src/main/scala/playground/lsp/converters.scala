@@ -6,23 +6,23 @@ import com.google.gson.JsonElement
 import io.circe.Json
 import io.circe.JsonNumber
 import org.eclipse.lsp4j
-import playground.CodeLens
 import playground.CompilationError
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
-import playground.DocumentSymbol
-import playground.SymbolKind
-import playground.smithyql.CompletionItem
-import playground.smithyql.CompletionItemKind
-import playground.smithyql.InsertText
+import playground.DocumentReference.SameFile
+import playground.RelativeLocation
+import playground.language.CodeLens
+import playground.language.CompletionItem
+import playground.language.CompletionItemKind
+import playground.language.DocumentSymbol
+import playground.language.InsertText
+import playground.language.SymbolKind
+import playground.language.TextEdit
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
-import playground.smithyql.TextEdit
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.DocumentReference.SameFile
-import playground.RelativeLocation
 
 object converters {
 

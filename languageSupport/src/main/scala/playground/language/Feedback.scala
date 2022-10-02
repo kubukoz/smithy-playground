@@ -1,4 +1,4 @@
-package playground
+package playground.language
 
 trait Feedback[F[_]] {
   def showInfoMessage(msg: String): F[Unit]

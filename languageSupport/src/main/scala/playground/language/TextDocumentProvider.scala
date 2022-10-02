@@ -1,4 +1,4 @@
-package playground
+package playground.language
 
 trait TextDocumentProvider[F[_]] {
   def get(uri: String): F[String]

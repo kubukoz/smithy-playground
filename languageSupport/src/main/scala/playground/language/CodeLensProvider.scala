@@ -1,9 +1,11 @@
-package playground
+package playground.language
 
 import playground.smithyql.SourceRange
 import playground.smithyql.SmithyQLParser
 import cats.implicits._
-import types._
+import playground.types._
+import playground.Compiler
+import playground.Runner
 
 trait CodeLensProvider[F[_]] {
   def provide(documentUri: String, documentText: String): List[CodeLens]

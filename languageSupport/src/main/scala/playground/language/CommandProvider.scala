@@ -1,11 +1,13 @@
-package playground
+package playground.language
 
 import cats.MonadThrow
 import cats.implicits._
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
-
+import playground.Compiler
+import playground.Runner
 import scala.collection.immutable.ListMap
+import playground.CompilationFailed
 
 trait CommandProvider[F[_]] {
   def runCommand(name: String, args: List[String]): F[Unit]

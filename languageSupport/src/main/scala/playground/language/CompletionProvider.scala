@@ -1,23 +1,22 @@
-package playground
+package playground.language
 
 import cats.Id
 import cats.data.NonEmptyList
 import cats.implicits._
-import playground.smithyql.CompletionItem
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.Root
 import playground.smithyql.NodeContext.^^:
 import playground.smithyql.OperationName
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.Query
 import playground.smithyql.RangeIndex
 import playground.smithyql.SmithyQLParser
 import playground.smithyql.WithSource
 import smithy4s.dynamic.DynamicSchemaIndex
 
-import smithyql.CompletionVisitor
-import smithyql.CompletionResolver
-import playground.smithyql.Query
+import playground.smithyql.syntax._
+import playground.MultiServiceResolver
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]

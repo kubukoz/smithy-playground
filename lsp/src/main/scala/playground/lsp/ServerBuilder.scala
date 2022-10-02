@@ -11,7 +11,7 @@ import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
-import playground.CommandResultReporter
+import playground.language.CommandResultReporter
 import playground.Runner
 import playground.TextDocumentManager
 import playground.std.StdlibRuntime

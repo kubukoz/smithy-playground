@@ -116,7 +116,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   @JsonRequest("smithyql/runQuery")
   def runQuery(params: RunQueryParams): CompletableFuture[Object] = executeCommand(
     new ExecuteCommandParams()
-      .tap(_.setCommand(playground.Command.RUN_QUERY))
+      .tap(_.setCommand(playground.language.Command.RUN_QUERY))
       .tap(_.setArguments(List(new JsonPrimitive(params.uri): Object).asJava))
   )
 

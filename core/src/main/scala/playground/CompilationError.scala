@@ -89,10 +89,10 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case Message(text)                  => text
-      case DeprecatedItem(info)           => "Deprecated" + CompletionItem.deprecationString(info)
-      case InvalidUUID                    => "Invalid UUID"
-      case InvalidBlob                    => "Invalid blob, expected base64-encoded string"
+      case Message(text)        => text
+      case DeprecatedItem(info) => "Deprecated" + CompilationErrorDetails.deprecationString(info)
+      case InvalidUUID          => "Invalid UUID"
+      case InvalidBlob          => "Invalid blob, expected base64-encoded string"
       case ConflictingServiceReference(_) => "Conflicting service references"
 
       case NumberOutOfRange(value, expectedType) => s"Number out of range for $expectedType: $value"
@@ -149,6 +149,13 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 }
 
 object CompilationErrorDetails {
+
+  def deprecationString(info: api.Deprecated): String = {
+    val reasonString = info.message.foldMap(": " + _)
+    val sinceString = info.since.foldMap(" (since " + _ + ")")
+
+    sinceString ++ reasonString
+  }
 
   val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
     case ResolutionFailure.AmbiguousService(knownServices) =>

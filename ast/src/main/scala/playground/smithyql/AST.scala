@@ -1,18 +1,15 @@
 package playground.smithyql
 
-import cats.Functor
-import cats.implicits._
-import cats.~>
 import cats.Applicative
-import cats.data.NonEmptyList
-import smithy4s.ShapeId
-import cats.Show
-import cats.kernel.Eq
-import cats.Id
-import playground.ServiceNameExtractor
-import smithy4s.Service
-import cats.kernel.Order
 import cats.Apply
+import cats.Functor
+import cats.Id
+import cats.Show
+import cats.data.NonEmptyList
+import cats.implicits._
+import cats.kernel.Eq
+import cats.kernel.Order
+import cats.~>
 
 sealed trait AST[F[_]] extends Product with Serializable {
   def mapK[G[_]: Functor](fk: F ~> G): AST[G]
@@ -52,8 +49,6 @@ final case class OperationName[F[_]](text: String) extends AST[F] {
 final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: String) {
   def renderNamespace: String = segments.mkString_(".")
   def render: String = renderNamespace + "#" + selection
-
-  def toShapeId: ShapeId = ShapeId(segments.mkString_("."), selection)
 }
 
 object QualifiedIdentifier {
@@ -63,15 +58,6 @@ object QualifiedIdentifier {
 
     apply(NonEmptyList.fromListUnsafe(all.dropRight(1)), all.last)
   }
-
-  def fromShapeId(shapeId: ShapeId): QualifiedIdentifier = QualifiedIdentifier(
-    shapeId.namespace.split("\\.").toList.toNel.getOrElse(sys.error("impossible! " + shapeId)),
-    shapeId.name,
-  )
-
-  def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
-  ): QualifiedIdentifier = ServiceNameExtractor.fromService(service)
 
   implicit val show: Show[QualifiedIdentifier] = Show.fromToString
 

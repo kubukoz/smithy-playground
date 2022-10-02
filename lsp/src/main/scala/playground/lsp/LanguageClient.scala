@@ -12,7 +12,7 @@ import org.eclipse.lsp4j.ConfigurationItem
 import org.eclipse.lsp4j.ConfigurationParams
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
-import playground.Feedback
+import playground.language.Feedback
 import playground.lsp.util.KleisliOps
 
 import java.util.concurrent.CompletableFuture

@@ -1,4 +1,4 @@
-package playground.smithyql
+package playground.language
 
 import cats.Id
 import cats.data.NonEmptyList
@@ -6,12 +6,17 @@ import cats.implicits._
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._
-import playground.CompletionProvider
+import playground.smithyql.OperationName
 import playground.std.ClockGen
 import playground.std.RandomGen
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
 import weaver._
+
+import playground.smithyql.syntax._
+import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.Position
+import Diffs._
 
 object CompletionProviderTests extends SimpleIOSuite {
 

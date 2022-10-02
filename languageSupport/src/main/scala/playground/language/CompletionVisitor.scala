@@ -1,11 +1,25 @@
-package playground.smithyql
+package playground.language
 
+import cats.Id
 import cats.data.NonEmptyList
 import cats.implicits._
 import org.typelevel.paiges.Doc
+import playground.ServiceNameExtractor
 import playground.TextUtils
-import playground.smithyql.CompletionItem.InsertUseClause.NotRequired
-import playground.smithyql.CompletionItem.InsertUseClause.Required
+import playground.language.CompletionItem.InsertUseClause.NotRequired
+import playground.language.CompletionItem.InsertUseClause.Required
+import playground.smithyql.Formatter
+import playground.smithyql.NodeContext
+import playground.smithyql.NodeContext.PathEntry
+import playground.smithyql.NodeContext.Root
+import playground.smithyql.NodeContext.^^:
+import playground.smithyql.OperationName
+import playground.smithyql.Position
+import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.UseClause
+import playground.smithyql.WithSource
+import smithy.api
+import smithy4s.Bijection
 import smithy4s.Endpoint
 import smithy4s.Hints
 import smithy4s.Lazy
@@ -19,27 +33,12 @@ import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema.EnumerationSchema
-import smithy4s.schema.Schema.LazySchema
-import smithy4s.schema.Schema.MapSchema
-import smithy4s.schema.Schema.PrimitiveSchema
-import smithy4s.schema.Schema.StructSchema
-import smithy4s.schema.Schema.RefinementSchema
-import smithy4s.schema.Schema.UnionSchema
+import smithy4s.schema.Schema._
 import smithy4s.schema.SchemaAlt
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
-import smithy.api
-import smithy4s.Bijection
-import smithy4s.schema.Schema.BijectionSchema
-
-import NodeContext.PathEntry
-import NodeContext.^^:
-import NodeContext.Root
-import cats.Id
-import playground.ServiceNameExtractor
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: NodeContext): List[CompletionItem]

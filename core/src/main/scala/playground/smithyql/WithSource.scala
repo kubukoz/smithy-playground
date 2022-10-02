@@ -46,6 +46,7 @@ final case class SourceRange(start: Position, end: Position) {
 
 object SourceRange {
   implicit val show: Show[SourceRange] = Show.fromToString
+  def empty(position: Position): SourceRange = SourceRange(position, position)
 }
 
 final case class WithSource[+A](

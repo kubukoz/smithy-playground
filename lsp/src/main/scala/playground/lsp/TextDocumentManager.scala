@@ -9,6 +9,7 @@ import fs2.io.file.Path
 
 import java.net.URI
 import java.nio.file.Paths
+import playground.language.TextDocumentProvider
 
 trait TextDocumentManager[F[_]] extends TextDocumentProvider[F] {
   def put(uri: String, text: String): F[Unit]

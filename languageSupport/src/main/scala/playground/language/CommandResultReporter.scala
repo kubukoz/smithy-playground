@@ -1,4 +1,4 @@
-package playground
+package playground.language
 
 import cats.Id
 import cats.Monad
@@ -10,7 +10,8 @@ import playground.smithyql.InputNode
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 
-import Runner.Issue.ProtocolIssues
+import playground.Runner.Issue.ProtocolIssues
+import playground.CompiledInput
 
 trait CommandResultReporter[F[_]] {
   type RequestId

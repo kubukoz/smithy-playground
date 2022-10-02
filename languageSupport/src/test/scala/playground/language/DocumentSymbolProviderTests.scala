@@ -1,10 +1,11 @@
-package playground
+package playground.language
 
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
 import weaver._
 
-import Assertions._
+import playground.Assertions._
+import Diffs._
 
 object DocumentSymbolProviderTests extends SimpleIOSuite {
 

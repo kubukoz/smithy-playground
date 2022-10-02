@@ -38,7 +38,7 @@ ThisBuild / crossScalaVersions := Seq("2.13.8")
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-effect" % "3.3.14",
+    "org.typelevel" %% "cats-core" % "2.8.0",
     "com.disneystreaming" %% "weaver-cats" % "0.7.15" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.7.15" % Test,
     "com.disneystreaming" %% "weaver-scalacheck" % "0.7.15" % Test,
@@ -61,9 +61,14 @@ lazy val pluginCore = project.settings(
   mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
 )
 
+lazy val ast = project.settings(
+  commonSettings
+)
+
 lazy val core = project
   .settings(
     libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "3.3.14",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
@@ -76,7 +81,14 @@ lazy val core = project
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .enablePlugins(Smithy4sCodegenPlugin)
-  .dependsOn(pluginCore)
+  .dependsOn(pluginCore, ast)
+
+lazy val languageSupport = project
+  .settings(
+    name := "language-support",
+    commonSettings,
+  )
+  .dependsOn(core % "test->test;compile->compile")
 
 lazy val lsp = project
   .settings(
@@ -93,7 +105,7 @@ lazy val lsp = project
     buildInfoKeys ++= Seq(version),
   )
   .enablePlugins(BuildInfoPlugin)
-  .dependsOn(core)
+  .dependsOn(languageSupport)
 
 lazy val root = project
   .in(file("."))
@@ -102,4 +114,4 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
   )
-  .aggregate(core, lsp, pluginCore)
+  .aggregate(ast, core, languageSupport, lsp, pluginCore)

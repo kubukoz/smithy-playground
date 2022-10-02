@@ -1,4 +1,4 @@
-package playground.smithyql
+package playground.language
 
 import cats.implicits._
 import demo.smithy.Good
@@ -7,15 +7,15 @@ import demo.smithy.HasNewtypes
 import demo.smithy.Hero
 import demo.smithy.IntSet
 import demo.smithy.Ints
+import demo.smithy.MyInstant
 import demo.smithy.MyInt
 import demo.smithy.MyString
 import demo.smithy.Power
 import demo.smithy.PowerMap
-import playground.smithyql.InsertText.JustString
+import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.PathEntry._
 import smithy.api.TimestampFormat
 import smithy4s.Hints
-import demo.smithy.MyInstant
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
 import weaver._
@@ -193,7 +193,7 @@ object CompletionTests extends FunSuite {
     val extractQuote = """\"(.*)\"""".r
 
     val inserts = completions.map(_.insertText).foldMap {
-      case JustString(extractQuote(value)) =>
+      case InsertText.JustString(extractQuote(value)) =>
         assert(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
       case s => failure("unexpected insert text: " + s)
     }
@@ -210,8 +210,9 @@ object CompletionTests extends FunSuite {
     )
 
     val inserts = completions.map(_.insertText).foldMap {
-      case JustString(value) => assert(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
-      case s                 => failure("unexpected insert text: " + s)
+      case InsertText.JustString(value) =>
+        assert(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
+      case s => failure("unexpected insert text: " + s)
     }
 
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
@@ -223,7 +224,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Schema.uuid, NodeContext.Root.inQuotes)
 
     val inserts = completions.map(_.insertText).foldMap {
-      case JustString(value) =>
+      case InsertText.JustString(value) =>
         val parsed = Either.catchNonFatal(UUID.fromString(value))
         assert(parsed.isRight)
 

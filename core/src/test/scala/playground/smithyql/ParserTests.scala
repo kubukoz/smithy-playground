@@ -42,10 +42,9 @@ object ParserTests extends SimpleIOSuite {
 
   import DSL._
 
-  parsingTest("simple call, dense", "hello{}")("hello".call())
-  parsingTestFull("simple call, dense", "hello{}")(
+  parsingTestFull("simple call", "hello {}")(
     Query[WithSource](
-      useClause = WithSource.liftValue(None).withRange(SourceRange(Position(0), Position(0))),
+      useClause = WithSource.liftValue(None),
       operationName = WithSource
         .liftValue(
           QueryOperationName(
@@ -61,7 +60,32 @@ object ParserTests extends SimpleIOSuite {
           Struct(
             WithSource
               .liftValue(Struct.Fields[WithSource](Nil))
-              .withRange(SourceRange(Position(6), Position(6)))
+              .withRange(SourceRange.empty(Position(7)))
+          )
+        )
+        .withRange(SourceRange.empty(Position(7))),
+    )
+  )
+
+  parsingTestFull("simple call, dense", "hello{}")(
+    Query[WithSource](
+      useClause = WithSource.liftValue(None),
+      operationName = WithSource
+        .liftValue(
+          QueryOperationName(
+            identifier = None,
+            operationName = WithSource
+              .liftValue(OperationName[WithSource]("hello"))
+              .withRange(SourceRange(Position(0), Position(5))),
+          )
+        )
+        .withRange(SourceRange(Position(0), Position(5))),
+      input = WithSource
+        .liftValue(
+          Struct(
+            WithSource
+              .liftValue(Struct.Fields[WithSource](Nil))
+              .withRange(SourceRange.empty(Position(6)))
           )
         )
         .withRange(SourceRange(Position(6), Position(6))),

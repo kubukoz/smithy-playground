@@ -6,7 +6,7 @@ import fs2.io.file.Path
 import playground.BuildConfig
 import playground.BuildConfigDecoder
 import playground.ModelReader
-import playground.TextDocumentProvider
+import playground.language.TextDocumentProvider
 import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
 

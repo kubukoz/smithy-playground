@@ -1,22 +1,21 @@
 package playground
 
+import cats.Id
 import cats.effect.IO
+import cats.implicits._
 import com.softwaremill.diffx.Diff
+import com.softwaremill.diffx.ShowConfig
+import playground.smithyql._
 import weaver.Expectations
 import weaver.Log
 import weaver.SourceLocation
-import com.softwaremill.diffx.ShowConfig
-import playground.smithyql._
-import cats.Id
-import cats.implicits._
 
 object Assertions extends Expectations.Helpers {
 
   import com.softwaremill.diffx.generic.auto._
+
   implicit val diffSourceRange: Diff[SourceRange] = Diff.derivedDiff
   implicit val diffQueryWithSource: Diff[Query[WithSource]] = Diff.derivedDiff
-  implicit val diffDocumentSymbol: Diff[DocumentSymbol] = Diff.derivedDiff
-  implicit val diffCompletionItem: Diff[CompletionItem] = Diff.derivedDiff
 
   def assertNoDiff[A: Diff](
     actual: A,

@@ -1,4 +1,4 @@
-package playground
+package playground.language
 
 import cats.data.Ior
 import cats.data.IorNel
@@ -11,7 +11,13 @@ import playground.smithyql.WithSource
 import playground.smithyql.SourceRange
 import playground.smithyql.Position
 
-import types._
+import playground.types._
+import playground.Compiler
+import playground.Runner
+import playground.CompilationError
+import playground.CompilationFailed
+import playground.CompilationErrorDetails
+import playground.DiagnosticSeverity
 
 trait DiagnosticProvider[F[_]] {
 

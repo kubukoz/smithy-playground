@@ -1,4 +1,4 @@
-package playground
+package playground.language
 
 import playground.smithyql.InputNode
 import playground.smithyql.Listed
