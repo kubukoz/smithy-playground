@@ -1,4 +1,4 @@
-package playground.smithyql
+package playground.smithyql.parser
 
 import cats.Show
 import weaver._
@@ -6,6 +6,10 @@ import weaver.scalacheck.Checkers
 
 import weaver.scalacheck.CheckConfig
 import playground.smithyql.parser.SmithyQLParser
+import playground.smithyql.Query
+import playground.smithyql.WithSource
+import playground.smithyql.Struct
+import playground.smithyql.Comment
 
 object CommentParsingTests extends SimpleIOSuite with Checkers {
 
@@ -37,34 +41,6 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
           Comment(" before value"),
           Comment(" after value"),
           Comment("after trailing comma, technically this is part of the struct"),
-          Comment("  after whole thing"),
-        )
-      ),
-    )
-  }
-
-  pureTest("Comments aren't lost when formatting") {
-    val result = SmithyQLParser
-      .parseFull(Examples.fullOfComments)
-      .map(playground.smithyql.Formatter.format(_, 80))
-      .flatMap(SmithyQLParser.parseFull)
-
-    assert.eql(
-      result.map(WithSource.allQueryComments),
-      Right(
-        List(
-          Comment(" before use clause"),
-          Comment(" before op"),
-          Comment(" after op"),
-          Comment(" before key"),
-          Comment(" after key"),
-          Comment("  before value"),
-          Comment("  after value"),
-          Comment(" before another key"),
-          Comment(" after second key"),
-          Comment(" before value"),
-          Comment(" after value"),
-          Comment(" after trailing comma, technically this is part of the struct"),
           Comment("  after whole thing"),
         )
       ),

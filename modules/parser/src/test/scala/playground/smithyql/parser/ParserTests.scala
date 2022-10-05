@@ -1,12 +1,13 @@
-package playground.smithyql
+package playground.smithyql.parser
 
 import cats.Id
-import playground.smithyql.Query
 import weaver._
 import cats.implicits._
-import playground.Assertions._
 import cats.effect.IO
 import playground.smithyql.parser.SmithyQLParser
+import playground.smithyql.Diffs._
+import playground.smithyql._
+import playground.Assertions._
 
 object ParserTests extends SimpleIOSuite {
 

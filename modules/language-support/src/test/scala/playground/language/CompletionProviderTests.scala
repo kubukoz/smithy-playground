@@ -16,7 +16,8 @@ import weaver._
 import playground.smithyql.syntax._
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Position
-import Diffs._
+import playground.language.Diffs._
+import playground.smithyql.Diffs._
 
 object CompletionProviderTests extends SimpleIOSuite {
 

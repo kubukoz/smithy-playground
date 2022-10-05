@@ -5,6 +5,7 @@ import weaver.scalacheck.Checkers
 
 import DSL._
 import playground.smithyql.parser.SmithyQLParser
+import playground.smithyql.parser.Examples
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 
@@ -116,4 +117,33 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |
       |}
       |""".stripMargin)
+
+  pureTest("Comments aren't lost when formatting") {
+    val result = SmithyQLParser
+      .parseFull(Examples.fullOfComments)
+      .map(playground.smithyql.Formatter.format(_, 80))
+      .flatMap(SmithyQLParser.parseFull)
+
+    assert.eql(
+      result.map(WithSource.allQueryComments),
+      Right(
+        List(
+          Comment(" before use clause"),
+          Comment(" before op"),
+          Comment(" after op"),
+          Comment(" before key"),
+          Comment(" after key"),
+          Comment("  before value"),
+          Comment("  after value"),
+          Comment(" before another key"),
+          Comment(" after second key"),
+          Comment(" before value"),
+          Comment(" after value"),
+          Comment(" after trailing comma, technically this is part of the struct"),
+          Comment("  after whole thing"),
+        )
+      ),
+    )
+  }
+
 }

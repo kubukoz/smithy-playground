@@ -42,6 +42,7 @@ val commonSettings = Seq(
     "com.disneystreaming" %% "weaver-cats" % "0.7.15" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.7.15" % Test,
     "com.disneystreaming" %% "weaver-scalacheck" % "0.7.15" % Test,
+    "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
@@ -75,7 +76,10 @@ lazy val parser = module("parser")
       "org.typelevel" %% "cats-parse" % "0.3.8"
     )
   )
-  .dependsOn(ast, source)
+  .dependsOn(
+    ast % "test->test;compile->compile",
+    source % "test->test;compile->compile",
+  )
 
 lazy val core = module("core")
   .settings(
@@ -86,12 +90,16 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
       "org.typelevel" %% "paiges-cats" % "0.4.2",
-      "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .enablePlugins(Smithy4sCodegenPlugin)
-  .dependsOn(pluginCore, ast, source, parser % "test->compile")
+  .dependsOn(
+    pluginCore,
+    ast,
+    source % "test->test;compile->compile",
+    parser % "test->compile;test->test",
+  )
 
 lazy val languageSupport = module("language-support")
   .dependsOn(core % "test->test;compile->compile", parser)

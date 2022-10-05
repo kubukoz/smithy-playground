@@ -12,11 +12,6 @@ import weaver.SourceLocation
 
 object Assertions extends Expectations.Helpers {
 
-  import com.softwaremill.diffx.generic.auto._
-
-  implicit val diffSourceRange: Diff[SourceRange] = Diff.derivedDiff
-  implicit val diffQueryWithSource: Diff[Query[WithSource]] = Diff.derivedDiff
-
   def assertNoDiff[A: Diff](
     actual: A,
     expected: A,

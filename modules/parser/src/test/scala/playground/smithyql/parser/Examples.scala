@@ -1,4 +1,4 @@
-package playground.smithyql
+package playground.smithyql.parser
 
 object Examples {
   val fullOfComments = """
