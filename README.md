@@ -25,6 +25,5 @@ Currently available as a LSP server with a client implementation for VS Code.
 }
 ```
 
-3. Reload the window / open the project with this file again
 4. Open/create a .smithyql file
 5. You should see output in the "Smithy Playground" panel, and after a while syntax/error highlighting in the open .smithyql files.
