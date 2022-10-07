@@ -74,7 +74,7 @@ lazy val core = project
     ),
     commonSettings,
     Smithy4sCodegenPlugin.defaultSettings(Test),
-    // avoids redundant codegen in tests. Workaround for https://github.com/disneystreaming/smithy4s/issues/500
+    // avoids redundant codegen in tests. Temporary workaround for https://github.com/disneystreaming/smithy4s/issues/500
     Test / smithy4sLocalJars := Nil,
   )
   .enablePlugins(Smithy4sCodegenPlugin)
