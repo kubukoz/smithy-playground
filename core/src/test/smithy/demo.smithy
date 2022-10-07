@@ -250,3 +250,13 @@ structure Person {
   @required name: String,
   age: Integer
 }
+
+
+@mixin
+structure SampleMixin {
+  @required id: String
+}
+
+structure HasMixin with [SampleMixin] {
+  @required name: String
+}

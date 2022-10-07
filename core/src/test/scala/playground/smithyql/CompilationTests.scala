@@ -19,6 +19,7 @@ import demo.smithy.MyInstant
 import demo.smithy.Person
 import demo.smithy.Power
 import demo.smithy.StringWithLength
+import demo.smithy.HasMixin
 import org.scalacheck.Arbitrary
 import playground.CompilationError
 import playground.CompilationErrorDetails
@@ -41,7 +42,6 @@ import software.amazon.smithy.model.{Model => SModel}
 import weaver._
 import weaver.scalacheck.Checkers
 
-import java.nio.file.Paths
 import java.time
 import java.util.UUID
 
@@ -58,7 +58,6 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   val dynamicModel = {
     val model = SModel
       .assembler()
-      .addImport(Paths.get("core/src/test/smithy/demo.smithy"))
       .discoverModels()
       .assemble()
       .unwrap()
@@ -432,6 +431,45 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         )
       )
     )
+  }
+
+  pureTest("Missing fields in struct with mixins") {
+    val result = compile[HasMixin] {
+      WithSource.liftId {
+        struct("name" -> "foo").mapK(WithSource.liftId)
+      }
+    }
+
+    val expected = Ior.left(
+      NonEmptyChain.of(
+        CompilationError.error(
+          CompilationErrorDetails.MissingField("id"),
+          SourceRange(Position(0), Position(0)),
+        )
+      )
+    )
+
+    assert(result == expected)
+  }
+
+  pureTest("Missing fields in struct with mixins - dynamic") {
+    val result =
+      compile {
+        WithSource.liftId {
+          struct("name" -> "foo").mapK(WithSource.liftId)
+        }
+      }(dynamicSchemaFor[HasMixin])
+
+    val expected = Ior.left(
+      NonEmptyChain.of(
+        CompilationError.error(
+          CompilationErrorDetails.MissingField("id"),
+          SourceRange(Position(0), Position(0)),
+        )
+      )
+    )
+
+    assert(result == expected)
   }
 
   pureTest("Missing fields in struct - 1 already present") {

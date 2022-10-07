@@ -22,7 +22,7 @@
       "name": "Server",
       "buildTarget": "lsp",
       "hostName": "localhost",
-      "port": 5005
+      "port": 5010
     }
   ]
 }
