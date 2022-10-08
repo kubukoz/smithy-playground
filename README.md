@@ -49,31 +49,29 @@ CreateHero {
     },
   },
   friends = [
-       {
-        bad = {
-          evilName = "Vader",
-          powerLevel = 9001,
-        },
+    {
+      bad = {
+        evilName = "Vader",
+        powerLevel = 9001,
       },
-    ],
+    },
+  ],
   doc = [
-       "this is a document, so you can do pretty much anything here",
-       null,
-       false,
-       42,
-       {
-        nested = "key",
-      },
-       [
-
-        ],
-    ],
+    "this is a document, so you can do pretty much anything here",
+    null,
+    false,
+    42,
+    {
+      nested = "key",
+    },
+    [ ],
+  ],
   hasNewtypes = {
     anInstant = "2022-10-08T00:46:31.378493Z",
     anUUID = "cd4f93e0-fd11-41f0-8f13-44f66e1f0997",
     power = "FIRE",
     powerMap = {
-      ICE = {
+      FIRE = {
         good = {
           howGood = 10,
         },
