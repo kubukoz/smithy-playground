@@ -86,7 +86,7 @@ It uses a "standard library" of smithy-playground, which is always available.
 
 ## Running queries
 
-The runner needs a base URL to target with its queries. This defaults to `http://localhost:8080` and can be configured in the extention's preferences:
+The runner needs a base URL to target with its queries. This defaults to `http://localhost:8080` and can be configured in the extention's preferences (a more first-class solution is planned):
 
 ![preferences](./images/prefs.png)
 
