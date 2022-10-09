@@ -1,3 +1,5 @@
+use service demo.smithy#DemoService
+
 
 // CreateSubscription {
 //   subscription = {
@@ -12,4 +14,9 @@ CreateHero {
       howGood = 10,
     },
   },
+  intSet = [
+       1,
+       2,
+       1,
+    ],
 }
