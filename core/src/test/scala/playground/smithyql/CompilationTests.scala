@@ -675,6 +675,41 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     }
   }
 
+  test("set of ints has warnings when duplicates are found - dynamic") {
+    forall { (range1: SourceRange, range2: SourceRange, range3: SourceRange) =>
+      val actual =
+        compile(
+          WithSource.liftId(
+            Listed[WithSource](
+              WithSource.liftId(
+                List(
+                  WithSource.liftId(IntLiteral[WithSource]("1")).withRange(range1),
+                  WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range2),
+                  WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range3),
+                )
+              )
+            )
+          )
+        )(asDocument(dynamicSchemaFor[IntSet]))
+
+      assert(
+        actual == Ior.both(
+          NonEmptyChain(
+            CompilationError.warning(
+              CompilationErrorDetails.DuplicateItem,
+              range2,
+            ),
+            CompilationError.warning(
+              CompilationErrorDetails.DuplicateItem,
+              range3,
+            ),
+          ),
+          Document.array(Document.fromInt(1), Document.fromInt(2)),
+        )
+      )
+    }
+  }
+
   pureTest("set of struct fails when duplicates are found") {
 
     val item = struct("good" -> struct("howGood" -> 42))
@@ -706,13 +741,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           item,
         ).mapK(WithSource.liftId)
       )
-    )(Schema.set(asDocument(dynamicSchemaFor[Hero])))
+    )(asDocument(dynamicSchemaFor[FriendSet]))
       .leftMap(_.map(_.err))
 
     assert(
       compiledFailures == Ior.both(
         NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem),
-        Set(Document.obj("good" -> Document.obj("howGood" -> Document.fromInt(42)))),
+        Document.array(Document.obj("good" -> Document.obj("howGood" -> Document.fromInt(42)))),
       )
     )
   }
