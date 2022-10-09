@@ -144,7 +144,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   ): QueryCompiler[C[A]] = {
     val base =
       if (hints.has(api.UniqueItems))
-        uniqueCollection(member)
+        uniqueListOf(member)
       else
         listOf(member)
 
@@ -156,7 +156,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     }
   }
 
-  private def uniqueCollection[A](member: Schema[A]): QueryCompiler[List[A]] = {
+  private def uniqueListOf[A](member: Schema[A]): QueryCompiler[List[A]] = {
     val memberToDoc = Document.Encoder.fromSchema(member)
 
     listWithPos(member.compile(this)).emap { items =>
