@@ -32,8 +32,8 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "2.13.8"
-ThisBuild / crossScalaVersions := Seq("2.13.8")
+ThisBuild / scalaVersion := "2.13.10"
+ThisBuild / crossScalaVersions := Seq("2.13.10")
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
@@ -45,8 +45,8 @@ val commonSettings = Seq(
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
-  scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
+  scalacOptions += "-Wnonunit-statement",
   scalacOptions ++= Seq("-Xsource:3.0"),
   javacOptions ++= Seq("-source", "8", "-target", "8"),
   mimaFailOnNoPrevious := false,
