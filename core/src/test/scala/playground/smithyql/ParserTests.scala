@@ -136,8 +136,11 @@ object ParserTests extends FunSuite {
     world
     =
     "bar"
-    }
-  }""",
+    }""",
+  )(
+    "hello".call(
+      "world" -> "bar"
+    )
   )
 
   parsingTest("struct with bool", "hello { verbose = true }")(
