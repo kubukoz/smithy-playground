@@ -205,8 +205,11 @@ object ParserTests extends SimpleIOSuite {
     world
     =
     "bar"
-    }
-  }""",
+    }""",
+  )(
+    "hello".call(
+      "world" -> "bar"
+    )
   )
 
   parsingTest("struct with bool", "hello { verbose = true }")(

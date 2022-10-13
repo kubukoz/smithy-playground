@@ -175,8 +175,7 @@ structure Subscription {
   createdAt: Timestamp,
   status: SubscriptionStatus,
   skus: Skus,
-  // recursive calls are currently not working - todo https://github.com/disneystreaming/smithy4s/issues/181
-  // next: Subscription
+  next: Subscription
 }
 
 list Skus {
@@ -249,4 +248,14 @@ structure HasDefault {
 structure Person {
   @required name: String,
   age: Integer
+}
+
+
+@mixin
+structure SampleMixin {
+  @required id: String
+}
+
+structure HasMixin with [SampleMixin] {
+  @required name: String
 }

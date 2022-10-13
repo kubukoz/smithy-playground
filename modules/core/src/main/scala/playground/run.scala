@@ -16,7 +16,6 @@ import cats.implicits._
 import cats.~>
 import org.http4s.Uri
 import org.http4s.client.Client
-import org.http4s.implicits._
 import playground._
 import playground.plugins.PlaygroundPlugin
 import playground.smithyql.InputNode
@@ -372,15 +371,15 @@ object Runner {
       ): IorNel[Issue, smithy4s.Interpreter[Op, F]] =
         Either
           .catchNonFatal {
-            builder(service).client(
-              dynamicBaseUri[F](
-                baseUri.flatTap { uri =>
-                  std.Console[F].println(s"Using base URI: $uri")
-                }
-              ).apply(client),
-              // this will be overridden by the middleware
-              uri"http://example.com",
-            )
+            builder(service)
+              .client(
+                dynamicBaseUri[F](
+                  baseUri.flatTap { uri =>
+                    std.Console[F].println(s"Using base URI: $uri")
+                  }
+                ).apply(client)
+              )
+              .use
           }
           .leftMap(Issue.Other(_))
           .flatMap {

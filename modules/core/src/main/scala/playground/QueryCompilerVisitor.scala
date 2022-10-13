@@ -141,34 +141,45 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     hints: Hints,
     tag: CollectionTag[C],
     member: Schema[A],
-  ): QueryCompiler[C[A]] =
+  ): QueryCompiler[C[A]] = {
+    val base =
+      if (hints.has(api.UniqueItems))
+        uniqueListOf(member)
+      else
+        listOf(member)
+
     tag match {
-      case SetTag =>
-        val memberToDoc = Document.Encoder.fromSchema(member)
-
-        listWithPos(member.compile(this)).emap { items =>
-          val success = items.map(_._1).toSet
-
-          val duplications = items
-            .groupBy { case (v, _) => memberToDoc.encode(v) }
-            .map(_._2)
-            .filter(_.sizeIs > 1)
-            .flatMap(_.map(_._2))
-            // todo: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
-            .map(CompilationError.warning(CompilationErrorDetails.DuplicateItem, _))
-            .toList
-            .pipe(NonEmptyChain.fromSeq(_))
-
-          duplications match {
-            case None         => success.rightIor
-            case Some(errors) => Ior.both(errors, success)
-          }
-        }
-
-      case ListTag       => listOf(member)
-      case IndexedSeqTag => listOf(member).map(_.toIndexedSeq)
-      case VectorTag     => listOf(member).map(_.toVector)
+      case ListTag       => base
+      case SetTag        => base.map(_.toSet)
+      case IndexedSeqTag => base.map(_.toIndexedSeq)
+      case VectorTag     => base.map(_.toVector)
     }
+  }
+
+  private def uniqueListOf[A](member: Schema[A]): QueryCompiler[List[A]] = {
+    val memberToDoc = Document.Encoder.fromSchema(member)
+
+    listWithPos(member.compile(this)).emap { items =>
+      val itemsGrouped = items
+        .groupBy { case (v, _) => memberToDoc.encode(v) }
+
+      val duplications = itemsGrouped
+        .map(_._2)
+        .filter(_.sizeIs > 1)
+        .flatMap(_.map(_._2))
+        // todo: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
+        .map(CompilationError.warning(CompilationErrorDetails.DuplicateItem, _))
+        .toList
+        .pipe(NonEmptyChain.fromSeq(_))
+
+      val success = itemsGrouped.map(_._2.head._1).toList
+
+      duplications match {
+        case None         => success.rightIor
+        case Some(errors) => Ior.both(errors, success)
+      }
+    }
+  }
 
   private def listOf[A](member: Schema[A]) = listWithPos(member.compile(this)).map(_.map(_._1))
 
