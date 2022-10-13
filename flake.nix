@@ -13,9 +13,21 @@
           inherit system;
           overlays = [ jvm ];
         };
+        grammar = pkgs.stdenv.mkDerivation {
+          pname = "tree-sitter-smithyql";
+          version = "0.0.0";
+          src = ./tree-sitter-smithyql;
+          buildPhase = ''
+            cc src/parser.c -o parser.so -Isrc -shared
+          '';
+          installPhase = ''
+            mkdir -p $out
+            cp parser.so $out/parser
+          '';
+        };
       in
       {
-        devShell = pkgs.mkShell {
+        devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.yarn
             pkgs.nodejs-14_x
@@ -25,6 +37,7 @@
             pkgs.tree-sitter
           ];
         };
+        packages.grammar = grammar;
       }
     );
 }

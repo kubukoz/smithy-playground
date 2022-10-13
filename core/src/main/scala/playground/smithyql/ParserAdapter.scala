@@ -1,8 +1,5 @@
 package playground.smithyql
 
-import ai.serenade.treesitter.Languages
-import ai.serenade.treesitter.Node
-import ai.serenade.treesitter.Parser
 import cats.Id
 import cats.Monad
 import cats.StackSafeMonad
@@ -11,11 +8,11 @@ import cats.implicits._
 
 import java.io.Closeable
 import scala.util.Using
-import ai.serenade.treesitter.TreeSitter
+import org.polyvariant.treesitter4s.Node
+import org.polyvariant.treesitter4s.bindings.TreeSitterInstance
+import org.polyvariant.treesitter4s.bindings.kernel.Language
 
 object ParserAdapter {
-
-  System.load("/Users/kubukoz/projects/java-tree-sitter/out.dylib")
 
   implicit object CloseableIsReleasable extends Using.Releasable[Closeable] {
     def release(resource: Closeable): Unit = resource.close()
@@ -116,8 +113,7 @@ object ParserAdapter {
 
     def decode(node: Node, text: String): A
 
-    def text: NodeDecoder[String] =
-      (node, src) => src.substring(node.getStartByte(), node.getEndByte())
+    def text: NodeDecoder[String] = (node, _) => node.source
 
     def firstMatch[B](implicit ev: A <:< List[B]): NodeDecoder[Option[B]] = this.map {
       _.headOption
@@ -139,7 +135,7 @@ object ParserAdapter {
       (node, text) =>
         NodeDecoder
           .children
-          .map(_.filter(_.getType() == tpe))
+          .map(_.filter(_.tpe == tpe))
           .map(_.map(this.decode(_, text)))
           .decode(node, text)
 
@@ -163,11 +159,10 @@ object ParserAdapter {
 
       }
 
-    val children: NodeDecoder[List[Node]] =
-      (node, _) => List.tabulate(node.getChildCount())(node.getChild(_))
+    val children: NodeDecoder[List[Node]] = (node, _) => node.children
 
     val childTypes: NodeDecoder[String] = children
-      .map(_.map(_.getType()).mkString(", "))
+      .map(_.map(_.tpe).mkString(", "))
 
     def union[A](decoders: (String, NodeDecoder[A])*): NodeDecoder[A] =
       (node, text) =>
@@ -248,12 +243,10 @@ object ParserAdapter {
   }
 
   def parse(s: String) = {
-    val p = new Parser()
-    p.setLanguage(Languages.smithyql())
-    Using.resource(p.parseString(s)) { tree =>
-      println(tree.getRootNode().getChildByFieldName("operation_name").getType())
-      OpDecoders.op.decode(tree.getRootNode(), s)
-    }
+    val p = TreeSitterInstance.make(SmithyQLLanguageBindings.SmithyQL)
+    val tree = p.parse(s)
+    println(tree.rootNode.get.children.find(_.tpe == "top_level_statement").get.children.map(_.tpe))
+    // OpDecoders.op.decode(tree.rootNode.get, s)
   }
 
 }
