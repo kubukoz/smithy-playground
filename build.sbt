@@ -73,7 +73,7 @@ lazy val core = project
       "org.typelevel" %% "cats-parse" % "0.3.8",
       "org.typelevel" %% "paiges-cats" % "0.4.2",
       "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
-      "org.polyvariant.treesitter4s" %% "bindings" % "0.1.0-2-36a569a-SNAPSHOT",
+      "org.polyvariant.treesitter4s" %% "bindings" % "0.2-296386b-SNAPSHOT",
     ),
     commonSettings,
     Smithy4sCodegenPlugin.defaultSettings(Test),
