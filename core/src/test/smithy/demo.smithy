@@ -175,8 +175,7 @@ structure Subscription {
   createdAt: Timestamp,
   status: SubscriptionStatus,
   skus: Skus,
-  // recursive calls are currently not working - todo https://github.com/disneystreaming/smithy4s/issues/181
-  // next: Subscription
+  next: Subscription
 }
 
 list Skus {
