@@ -51,7 +51,7 @@ val commonSettings = Seq(
   scalacOptions ++= Seq("-Xsource:3.0"),
   javacOptions ++= Seq("-source", "8", "-target", "8"),
   mimaFailOnNoPrevious := false,
-  resolvers += Resolver.mavenLocal,
+  resolvers += "Sonatype S01 snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
 )
 
 lazy val pluginCore = project.settings(
