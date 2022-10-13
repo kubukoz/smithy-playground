@@ -10,7 +10,6 @@ import java.io.Closeable
 import scala.util.Using
 import org.polyvariant.treesitter4s.Node
 import org.polyvariant.treesitter4s.bindings.TreeSitterInstance
-import org.polyvariant.treesitter4s.bindings.kernel.Language
 
 object ParserAdapter {
 

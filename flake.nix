@@ -17,12 +17,13 @@
           pname = "tree-sitter-smithyql";
           version = "0.0.0";
           src = ./tree-sitter-smithyql;
+          buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
           buildPhase = ''
+            tree-sitter generate
             cc src/parser.c -o parser.so -Isrc -shared
           '';
           installPhase = ''
-            mkdir -p $out
-            cp parser.so $out/parser
+            cp parser.so $out
           '';
         };
       in
@@ -38,6 +39,25 @@
           ];
         };
         packages.grammar = grammar;
+        packages.grammar-all = pkgs.linkFarm "grammar-all" [
+          {
+            name = "darwin-x86_64/libtree-sitter-smithyql.dylib";
+            path = self.packages.x86_64-darwin.grammar;
+          }
+          {
+            name = "darwin-aarch64/libtree-sitter-smithyql.dylib";
+            path = self.packages.aarch64-darwin.grammar;
+          }
+          {
+            name = "linux-x86_64/libtree-sitter-smithyql.so";
+            path = self.packages.x86_64-linux.grammar;
+          }
+          {
+            name = "linux-aarch64/libtree-sitter-smithyql.so";
+            path = self.packages.aarch64-linux.grammar;
+          }
+
+        ];
       }
     );
 }
