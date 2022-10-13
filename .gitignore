@@ -7,3 +7,4 @@
 **/node_modules
 tree-sitter-smithyql/build
 tree-sitter-smithyql/*.wasm
+smithyql-log.txt

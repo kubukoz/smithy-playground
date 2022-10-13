@@ -19,6 +19,7 @@ import demo.smithy.MyInstant
 import demo.smithy.Person
 import demo.smithy.Power
 import demo.smithy.StringWithLength
+import demo.smithy.HasMixin
 import org.scalacheck.Arbitrary
 import playground.CompilationError
 import playground.CompilationErrorDetails
@@ -41,7 +42,6 @@ import software.amazon.smithy.model.{Model => SModel}
 import weaver._
 import weaver.scalacheck.Checkers
 
-import java.nio.file.Paths
 import java.time
 import java.util.UUID
 
@@ -58,7 +58,6 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   val dynamicModel = {
     val model = SModel
       .assembler()
-      .addImport(Paths.get("core/src/test/smithy/demo.smithy"))
       .discoverModels()
       .assemble()
       .unwrap()
@@ -434,6 +433,45 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("Missing fields in struct with mixins") {
+    val result = compile[HasMixin] {
+      WithSource.liftId {
+        struct("name" -> "foo").mapK(WithSource.liftId)
+      }
+    }
+
+    val expected = Ior.left(
+      NonEmptyChain.of(
+        CompilationError.error(
+          CompilationErrorDetails.MissingField("id"),
+          SourceRange(Position(0), Position(0)),
+        )
+      )
+    )
+
+    assert(result == expected)
+  }
+
+  pureTest("Missing fields in struct with mixins - dynamic") {
+    val result =
+      compile {
+        WithSource.liftId {
+          struct("name" -> "foo").mapK(WithSource.liftId)
+        }
+      }(dynamicSchemaFor[HasMixin])
+
+    val expected = Ior.left(
+      NonEmptyChain.of(
+        CompilationError.error(
+          CompilationErrorDetails.MissingField("id"),
+          SourceRange(Position(0), Position(0)),
+        )
+      )
+    )
+
+    assert(result == expected)
+  }
+
   pureTest("Missing fields in struct - 1 already present") {
     assert(
       compile[Bad] {
@@ -637,6 +675,41 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     }
   }
 
+  test("set of ints has warnings when duplicates are found - dynamic") {
+    forall { (range1: SourceRange, range2: SourceRange, range3: SourceRange) =>
+      val actual =
+        compile(
+          WithSource.liftId(
+            Listed[WithSource](
+              WithSource.liftId(
+                List(
+                  WithSource.liftId(IntLiteral[WithSource]("1")).withRange(range1),
+                  WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range2),
+                  WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range3),
+                )
+              )
+            )
+          )
+        )(asDocument(dynamicSchemaFor[IntSet]))
+
+      assert(
+        actual == Ior.both(
+          NonEmptyChain(
+            CompilationError.warning(
+              CompilationErrorDetails.DuplicateItem,
+              range2,
+            ),
+            CompilationError.warning(
+              CompilationErrorDetails.DuplicateItem,
+              range3,
+            ),
+          ),
+          Document.array(Document.fromInt(1), Document.fromInt(2)),
+        )
+      )
+    }
+  }
+
   pureTest("set of struct fails when duplicates are found") {
 
     val item = struct("good" -> struct("howGood" -> 42))
@@ -668,13 +741,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           item,
         ).mapK(WithSource.liftId)
       )
-    )(Schema.set(asDocument(dynamicSchemaFor[Hero])))
+    )(asDocument(dynamicSchemaFor[FriendSet]))
       .leftMap(_.map(_.err))
 
     assert(
       compiledFailures == Ior.both(
         NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem),
-        Set(Document.obj("good" -> Document.obj("howGood" -> Document.fromInt(42)))),
+        Document.array(Document.obj("good" -> Document.obj("howGood" -> Document.fromInt(42)))),
       )
     )
   }

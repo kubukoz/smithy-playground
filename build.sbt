@@ -32,8 +32,8 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "2.13.8"
-ThisBuild / crossScalaVersions := Seq("2.13.8")
+ThisBuild / scalaVersion := "2.13.10"
+ThisBuild / crossScalaVersions := Seq("2.13.10")
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
@@ -45,8 +45,8 @@ val commonSettings = Seq(
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
-  scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
+  scalacOptions += "-Wnonunit-statement",
   scalacOptions ++= Seq("-Xsource:3.0"),
   javacOptions ++= Seq("-source", "8", "-target", "8"),
   mimaFailOnNoPrevious := false,
@@ -85,7 +85,7 @@ lazy val lsp = project
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.15.0",
-      "io.circe" %% "circe-core" % "0.14.2",
+      "io.circe" %% "circe-core" % "0.14.3",
       "org.http4s" %% "http4s-ember-client" % "0.23.15",
       "io.get-coursier" %% "coursier" % "2.0.16",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
