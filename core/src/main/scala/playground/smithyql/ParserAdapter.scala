@@ -244,7 +244,7 @@ object ParserAdapter {
   def parse(s: String) = {
     val p = TreeSitterInstance.make(SmithyQLLanguageBindings.SmithyQL)
     val tree = p.parse(s)
-    println(tree.rootNode.get.children.find(_.tpe == "top_level_statement").get.children.map(_.tpe))
+    println(tree.rootNode.get.fields.keySet)
     // OpDecoders.op.decode(tree.rootNode.get, s)
   }
 
