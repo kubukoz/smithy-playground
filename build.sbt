@@ -59,6 +59,7 @@ def module(name: String) = Project(name, file("modules") / name)
     commonSettings
   )
 
+// Plugin interface. Keeps binary compatibility guarantees (mostly tied to smithy4s's bincompat).
 lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
@@ -66,11 +67,14 @@ lazy val pluginCore = module("plugin-core").settings(
   mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
 )
 
+// AST of SmithyQL language (plus DSL and minor utilities for building these)
 lazy val ast = module("ast")
 
+// Source code model (comments, locations, etc.)
 lazy val source = module("source")
   .dependsOn(ast)
 
+// Parser interface / implementation
 lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
@@ -82,6 +86,9 @@ lazy val parser = module("parser")
     source % "test->test;compile->compile",
   )
 
+// Most of the core functionality of SmithyQL (compilation, analysis, evaluation)
+// Formatter is also included (used for rendering in completions etc.)
+// also: SmithyQL standard library
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
@@ -102,9 +109,11 @@ lazy val core = module("core")
     parser % "test->compile;test->test",
   )
 
+// LSP-like interfaces like CodeLensProvider, which are later adapted into actual lsp
 lazy val languageSupport = module("language-support")
   .dependsOn(core % "test->test;compile->compile", parser)
 
+// Adapters for language services to LSP, actual LSP server binding, entrypoint
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
