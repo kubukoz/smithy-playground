@@ -46,6 +46,7 @@ val commonSettings = Seq(
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
+  scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
   scalacOptions += "-Wnonunit-statement",
   scalacOptions ++= Seq("-Xsource:3.0"),
