@@ -128,4 +128,4 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
   )
-  .aggregate(ast, core, languageSupport, parser, lsp, pluginCore)
+  .aggregate(ast, source, core, languageSupport, parser, lsp, pluginCore)
