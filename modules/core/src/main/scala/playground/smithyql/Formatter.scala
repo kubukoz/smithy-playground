@@ -3,6 +3,7 @@ package playground.smithyql
 import org.typelevel.paiges.Doc
 import cats.implicits._
 
+// note: formatter could be moved to a new module that's used by core
 object Formatter {
 
   def format(
