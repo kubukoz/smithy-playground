@@ -73,7 +73,7 @@ object SmithyQLParser {
 
     def withComments[A](
       p: Parser[A]
-    ): Parser[T[A]] = ((comments ~ Parser.index).with1 ~ p ~ (Parser.index ~ comments)).map {
+    ): Parser[T[A]] = ((comments ~ Parser.index).soft.with1 ~ p ~ (Parser.index ~ comments)).map {
       case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
         val range = SourceRange(Position(indexBefore), Position(indexAfter))
         WithSource(
@@ -154,16 +154,18 @@ object SmithyQLParser {
         tokens.withRange(qualifiedIdent)
     }.map(UseClause.apply[T])
 
-    val intLiteral = tokens
-      .number
-      .map(IntLiteral[T](_))
+    val intLiteral = tokens.withComments {
+      tokens
+        .number
+        .map(IntLiteral[T](_))
+    }
 
-    val boolLiteral = tokens.bool.map(BooleanLiteral[T](_))
+    val boolLiteral = tokens.withComments(tokens.bool.map(BooleanLiteral[T](_)))
 
-    val stringLiteral = tokens.stringLiteral.map(StringLiteral[T](_))
-    val nullLiteral = tokens.nullLiteral.map(_ => NullLiteral[T]())
+    val stringLiteral = tokens.withComments(tokens.stringLiteral.map(StringLiteral[T](_)))
+    val nullLiteral = tokens.withComments(tokens.nullLiteral.map(_ => NullLiteral[T]()))
 
-    lazy val node: Parser[InputNode[T]] = Parser.defer {
+    lazy val node: Parser[T[InputNode[T]]] = Parser.defer {
       intLiteral |
         boolLiteral |
         stringLiteral |
@@ -184,14 +186,13 @@ object SmithyQLParser {
         .orElse(Parser.pure(Nil))
     }
 
-    lazy val struct: Parser[Struct[T]] = {
+    lazy val struct: Parser[T[Struct[T]]] = tokens.withComments {
       type TField = Binding[T]
 
       val field: Parser[TField] =
         (
-          // sussy backtrack, but it works
-          ident.map(_.map(Identifier.apply)).backtrack <* tokens.equalsSign,
-          tokens.withComments(node),
+          ident.map(_.map(Identifier.apply)) <* tokens.equalsSign,
+          node,
         ).mapN(Binding.apply[T])
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
@@ -222,13 +223,13 @@ object SmithyQLParser {
     }
 
     // this is mostly copy-pasted from structs, might not work lmao
-    lazy val listed: Parser[Listed[T]] = {
+    lazy val listed: Parser[T[Listed[T]]] = tokens.withComments {
       type TField = T[InputNode[T]]
 
-      val field: Parser[TField] = tokens.withComments(node)
+      val field: Parser[TField] = node
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
-      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field.backtrack)
+      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
 
       tokens.openBracket *>
         (
@@ -282,17 +283,12 @@ object SmithyQLParser {
     }
 
     (useClauseWithSource.with1 ~
-      queryOperationName ~ struct ~ tokens.comments)
-      .map { case (((useClause, opName), input), commentsAfter) =>
+      queryOperationName ~ struct)
+      .map { case ((useClause, opName), input) =>
         Query(
           useClause,
           opName,
-          WithSource(
-            commentsLeft = Nil,
-            commentsRight = commentsAfter,
-            range = input.fields.range,
-            value = input,
-          ),
+          input,
         )
       }
   }
