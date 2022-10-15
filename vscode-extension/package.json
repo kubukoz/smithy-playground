@@ -2,7 +2,7 @@
   "name": "smithy-playground",
   "displayName": "Smithy Playground",
   "description": "Experimental integration for queries in the Smithy language.",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "engines": {
     "vscode": "^1.69.0"
   },
@@ -38,11 +38,17 @@
         "path": "./grammar.tmLanguage.json"
       }
     ],
-    "commands": {
-      "command": "smithyql.runQuery",
-      "title": "Run Smithy Query",
-      "enablement": "editorLangId == 'smithyql'"
-    },
+    "commands": [
+      {
+        "command": "smithyql.runQuery",
+        "title": "Smithy Playground: Run SmithyQL Query",
+        "enablement": "editorLangId == 'smithyql'"
+      },
+      {
+        "command": "smithyql.restart",
+        "title": "Smithy Playground: Restart server"
+      }
+    ],
     "keybindings": {
       "command": "smithyql.runQuery",
       "key": "ctrl+cmd+enter"
