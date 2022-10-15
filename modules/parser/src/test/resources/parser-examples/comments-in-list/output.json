@@ -1,0 +1,172 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 0
+      }
+    },
+    "value": null
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 2
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 0
+          },
+          "end": {
+            "index": 2
+          }
+        },
+        "value": {
+          "text": "op"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 3
+      },
+      "end": {
+        "index": 117
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 4
+          },
+          "end": {
+            "index": 116
+          }
+        },
+        "value": {
+          "value": [
+            {
+              "identifier": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 7
+                  },
+                  "end": {
+                    "index": 11
+                  }
+                },
+                "value": {
+                  "text": "data"
+                }
+              },
+              "value": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 14
+                  },
+                  "end": {
+                    "index": 115
+                  }
+                },
+                "value": {
+                  "Listed": {
+                    "values": {
+                      "commentsLeft": [],
+                      "commentsRight": [],
+                      "range": {
+                        "start": {
+                          "index": 15
+                        },
+                        "end": {
+                          "index": 114
+                        }
+                      },
+                      "value": [
+                        {
+                          "commentsLeft": [
+                            {
+                              "text": "before elem 1"
+                            }
+                          ],
+                          "commentsRight": [
+                            {
+                              "text": "after elem 1"
+                            }
+                          ],
+                          "range": {
+                            "start": {
+                              "index": 40
+                            },
+                            "end": {
+                              "index": 41
+                            }
+                          },
+                          "value": {
+                            "IntLiteral": {
+                              "value": "1"
+                            }
+                          }
+                        },
+                        {
+                          "commentsLeft": [
+                            {
+                              "text": "before elem 2"
+                            }
+                          ],
+                          "commentsRight": [
+                            {
+                              "text": "after elem 2"
+                            }
+                          ],
+                          "range": {
+                            "start": {
+                              "index": 91
+                            },
+                            "end": {
+                              "index": 92
+                            }
+                          },
+                          "value": {
+                            "IntLiteral": {
+                              "value": "2"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

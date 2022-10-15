@@ -1,0 +1,125 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 0
+      }
+    },
+    "value": null
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 2
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 0
+          },
+          "end": {
+            "index": 2
+          }
+        },
+        "value": {
+          "text": "op"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 3
+      },
+      "end": {
+        "index": 35
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 4
+          },
+          "end": {
+            "index": 34
+          }
+        },
+        "value": {
+          "value": [
+            {
+              "identifier": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 7
+                  },
+                  "end": {
+                    "index": 11
+                  }
+                },
+                "value": {
+                  "text": "data"
+                }
+              },
+              "value": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 14
+                  },
+                  "end": {
+                    "index": 33
+                  }
+                },
+                "value": {
+                  "Listed": {
+                    "values": {
+                      "commentsLeft": [],
+                      "commentsRight": [
+                        {
+                          "text": "in list"
+                        }
+                      ],
+                      "range": {
+                        "start": {
+                          "index": 15
+                        },
+                        "end": {
+                          "index": 32
+                        }
+                      },
+                      "value": []
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

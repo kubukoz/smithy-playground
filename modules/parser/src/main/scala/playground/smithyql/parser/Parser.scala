@@ -111,6 +111,20 @@ object SmithyQLParser {
         )
     }
 
+    def withRange0[A](
+      p: Parser0[A]
+    ): Parser0[T[A]] = (Parser.index ~ p ~ Parser.index).map {
+      case ((indexBefore, v), indexAfter) =>
+        val range = SourceRange(Position(indexBefore), Position(indexAfter))
+
+        WithSource(
+          commentsLeft = Nil,
+          commentsRight = Nil,
+          range = range,
+          value = v,
+        )
+    }
+
     private[SmithyQLParser] val rawIdentifier =
       (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
         .map { case (ch, s) => s.prepended(ch) }
@@ -244,6 +258,15 @@ object SmithyQLParser {
       // field, then optional whitespace, then optional coma, then optionally more `fields`
       val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
 
+      /*
+
+      tokens
+        .withRange0(fields)
+        .with1
+        .between(tokens.openBracket, tokens.closeBracket)
+        .map(Listed.apply[T](_))
+    }
+       */
       tokens.openBracket *>
         (
           Parser.index ~
