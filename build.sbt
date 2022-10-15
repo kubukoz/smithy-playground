@@ -39,9 +39,9 @@ val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-core" % "2.8.0",
-    "com.disneystreaming" %% "weaver-cats" % "0.7.15" % Test,
-    "com.disneystreaming" %% "weaver-discipline" % "0.7.15" % Test,
-    "com.disneystreaming" %% "weaver-scalacheck" % "0.7.15" % Test,
+    "com.disneystreaming" %% "weaver-cats" % "0.8.0" % Test,
+    "com.disneystreaming" %% "weaver-discipline" % "0.8.0" % Test,
+    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.0" % Test,
     "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
@@ -133,9 +133,9 @@ lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.15.0",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.16.0",
       "io.circe" %% "circe-core" % "0.14.3",
-      "org.http4s" %% "http4s-ember-client" % "0.23.15",
+      "org.http4s" %% "http4s-ember-client" % "0.23.16",
       "io.get-coursier" %% "coursier" % "2.0.16",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
