@@ -86,8 +86,20 @@ lazy val parser = module("parser")
     source % "test->test;compile->compile",
   )
 
+// Formatter for the SmithyQL language constructs
+lazy val formatter = module("formatter")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "paiges-cats" % "0.4.2"
+    )
+  )
+  .dependsOn(
+    ast,
+    source,
+    parser % "test->test",
+  )
+
 // Most of the core functionality of SmithyQL (compilation, analysis, evaluation)
-// Formatter is also included (used for rendering in completions etc.)
 // also: SmithyQL standard library
 lazy val core = module("core")
   .settings(
@@ -97,7 +109,6 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
-      "org.typelevel" %% "paiges-cats" % "0.4.2",
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
@@ -107,6 +118,7 @@ lazy val core = module("core")
     ast,
     source % "test->test;compile->compile",
     parser % "test->compile;test->test",
+    formatter,
   )
 
 // LSP-like interfaces like CodeLensProvider, which are later adapted into actual lsp
@@ -137,4 +149,4 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
   )
-  .aggregate(ast, source, core, languageSupport, parser, lsp, pluginCore)
+  .aggregate(ast, source, core, parser, formatter, languageSupport, lsp, pluginCore)

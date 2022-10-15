@@ -5,6 +5,7 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import playground.CompilationErrorDetails._
 import playground.smithyql._
+import playground.smithyql.format.Formatter
 import smithy.api
 import smithy.api.TimestampFormat
 

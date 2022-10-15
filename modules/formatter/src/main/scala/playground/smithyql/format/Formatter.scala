@@ -1,7 +1,8 @@
-package playground.smithyql
+package playground.smithyql.format
 
 import org.typelevel.paiges.Doc
 import cats.implicits._
+import playground.smithyql._
 
 // note: formatter could be moved to a new module that's used by core
 object Formatter {
