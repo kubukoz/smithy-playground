@@ -1,11 +1,12 @@
-package playground.smithyql
+package playground.smithyql.format
 
 import weaver._
 import weaver.scalacheck.Checkers
 
-import DSL._
 import playground.smithyql.parser.SmithyQLParser
 import playground.smithyql.parser.Examples
+import playground.smithyql._
+import DSL._
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 
@@ -19,7 +20,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
     implicit loc: SourceLocation
   ) =
     pureTest(label) {
-      val result = playground.smithyql.Formatter.format(q, 80)
+      val result = playground.smithyql.format.Formatter.format(q, 80)
       assert.eql(result, expected)
     }
 
@@ -121,7 +122,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
   pureTest("Comments aren't lost when formatting") {
     val result = SmithyQLParser
       .parseFull(Examples.fullOfComments)
-      .map(playground.smithyql.Formatter.format(_, 80))
+      .map(playground.smithyql.format.Formatter.format(_, 80))
       .flatMap(SmithyQLParser.parseFull)
 
     assert.eql(

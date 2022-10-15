@@ -8,7 +8,6 @@ import playground.ServiceNameExtractor
 import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
 import playground.language.CompletionItem.InsertUseClause.Required
-import playground.smithyql.Formatter
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.PathEntry
 import playground.smithyql.NodeContext.Root
@@ -39,6 +38,7 @@ import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
+import playground.smithyql.format.Formatter
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: NodeContext): List[CompletionItem]

@@ -26,13 +26,13 @@ import playground.TextDocumentManager
 import playground.language.TextDocumentProvider
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.util.KleisliOps
-import playground.smithyql.Formatter
 import playground.types._
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 import playground.smithyql.parser.SmithyQLParser
+import playground.smithyql.format.Formatter
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]

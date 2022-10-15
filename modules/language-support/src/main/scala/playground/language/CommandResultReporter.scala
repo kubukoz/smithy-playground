@@ -5,7 +5,7 @@ import cats.Monad
 import cats.data.NonEmptyList
 import cats.effect.kernel.Ref
 import cats.implicits._
-import playground.smithyql.Formatter
+import playground.smithyql.format.Formatter
 import playground.smithyql.InputNode
 import playground.smithyql.Query
 import playground.smithyql.WithSource
