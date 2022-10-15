@@ -5,7 +5,11 @@
         "text": " before use clause"
       }
     ],
-    "commentsRight": [],
+    "commentsRight": [
+      {
+        "text": " before op"
+      }
+    ],
     "range": {
       "start": {
         "index": 22
@@ -34,11 +38,7 @@
     }
   },
   "operationName": {
-    "commentsLeft": [
-      {
-        "text": " before op"
-      }
-    ],
+    "commentsLeft": [],
     "commentsRight": [
       {
         "text": " after op"

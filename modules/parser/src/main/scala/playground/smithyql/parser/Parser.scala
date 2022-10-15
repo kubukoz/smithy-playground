@@ -84,6 +84,19 @@ object SmithyQLParser {
         )
     }
 
+    def withComments0[A](
+      p: Parser0[A]
+    ): Parser0[T[A]] = ((comments ~ Parser.index).soft ~ p ~ (Parser.index ~ comments)).map {
+      case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
+        val range = SourceRange(Position(indexBefore), Position(indexAfter))
+        WithSource(
+          commentsLeft = commentsBefore,
+          commentsRight = commentsAfter,
+          range = range,
+          value = v,
+        )
+    }
+
     def withRange[A](
       p: Parser[A]
     ): Parser[T[A]] = (Parser.index.with1 ~ p ~ Parser.index).map {
@@ -254,16 +267,8 @@ object SmithyQLParser {
         }
     }
 
-    val useClauseWithSource: Parser0[WithSource[Option[UseClause[WithSource]]]] =
-      (tokens.comments ~ Parser.index ~ useClause.? ~ Parser.index).map {
-        case (((commentsBefore, indexBefore), useClause), indexAfter) =>
-          WithSource(
-            commentsBefore,
-            Nil,
-            SourceRange(Position(indexBefore), Position(indexAfter)),
-            useClause,
-          )
-      }
+    val useClauseWithSource: Parser0[WithSource[Option[UseClause[WithSource]]]] = tokens
+      .withComments0(useClause.?)
 
     val queryOperationName: Parser[T[QueryOperationName[WithSource]]] = {
 
@@ -282,15 +287,14 @@ object SmithyQLParser {
       }
     }
 
-    (useClauseWithSource.with1 ~
-      queryOperationName ~ struct)
-      .map { case ((useClause, opName), input) =>
+    (useClauseWithSource.with1 ~ queryOperationName ~ struct).map {
+      case ((useClause, opName), input) =>
         Query(
           useClause,
           opName,
           input,
         )
-      }
+    }
   }
 
 }
