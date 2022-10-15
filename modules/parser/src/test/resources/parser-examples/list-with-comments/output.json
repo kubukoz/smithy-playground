@@ -1,0 +1,183 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 5
+      },
+      "end": {
+        "index": 5
+      }
+    },
+    "value": null
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 5
+      },
+      "end": {
+        "index": 10
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 5
+          },
+          "end": {
+            "index": 10
+          }
+        },
+        "value": {
+          "text": "hello"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 12
+      },
+      "end": {
+        "index": 234
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 12
+          },
+          "end": {
+            "index": 234
+          }
+        },
+        "value": {
+          "value": [
+            {
+              "identifier": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 13
+                  },
+                  "end": {
+                    "index": 19
+                  }
+                },
+                "value": {
+                  "text": "values"
+                }
+              },
+              "value": {
+                "commentsLeft": [
+                  {
+                    "text": "before list"
+                  }
+                ],
+                "commentsRight": [
+                  {
+                    "text": "after list"
+                  }
+                ],
+                "range": {
+                  "start": {
+                    "index": 50
+                  },
+                  "end": {
+                    "index": 213
+                  }
+                },
+                "value": {
+                  "Listed": {
+                    "values": {
+                      "commentsLeft": [],
+                      "commentsRight": [],
+                      "range": {
+                        "start": {
+                          "index": 51
+                        },
+                        "end": {
+                          "index": 212
+                        }
+                      },
+                      "value": [
+                        {
+                          "commentsLeft": [
+                            {
+                              "text": "before first elem"
+                            }
+                          ],
+                          "commentsRight": [
+                            {
+                              "text": "after first elem"
+                            }
+                          ],
+                          "range": {
+                            "start": {
+                              "index": 86
+                            },
+                            "end": {
+                              "index": 89
+                            }
+                          },
+                          "value": {
+                            "IntLiteral": {
+                              "value": "420"
+                            }
+                          }
+                        },
+                        {
+                          "commentsLeft": [
+                            {
+                              "text": "before second elem"
+                            }
+                          ],
+                          "commentsRight": [
+                            {
+                              "text": "after second elem,"
+                            },
+                            {
+                              "text": "after trailing comma"
+                            }
+                          ],
+                          "range": {
+                            "start": {
+                              "index": 146
+                            },
+                            "end": {
+                              "index": 150
+                            }
+                          },
+                          "value": {
+                            "IntLiteral": {
+                              "value": "2137"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

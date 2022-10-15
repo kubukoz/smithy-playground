@@ -1,0 +1,91 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 31
+      }
+    },
+    "value": {
+      "identifier": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 12
+          },
+          "end": {
+            "index": 31
+          }
+        },
+        "value": {
+          "segments": ["com1", "example2"],
+          "selection": "Demo3"
+        }
+      }
+    }
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 32
+      },
+      "end": {
+        "index": 37
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 32
+          },
+          "end": {
+            "index": 37
+          }
+        },
+        "value": {
+          "text": "hello"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 39
+      },
+      "end": {
+        "index": 39
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 39
+          },
+          "end": {
+            "index": 39
+          }
+        },
+        "value": {
+          "value": []
+        }
+      }
+    }
+  }
+}
