@@ -38,10 +38,11 @@ ThisBuild / crossScalaVersions := Seq("2.13.10")
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-effect" % "3.3.14",
+    "org.typelevel" %% "cats-core" % "2.8.0",
     "com.disneystreaming" %% "weaver-cats" % "0.7.15" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.7.15" % Test,
     "com.disneystreaming" %% "weaver-scalacheck" % "0.7.15" % Test,
+    "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
@@ -54,34 +55,69 @@ val commonSettings = Seq(
   resolvers += "Sonatype S01 snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
 )
 
-lazy val pluginCore = project.settings(
-  name := "plugin-core",
+def module(name: String) = Project(name, file("modules") / name)
+  .settings(
+    commonSettings
+  )
+
+// Plugin interface. Keeps binary compatibility guarantees (mostly tied to smithy4s's bincompat).
+lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  commonSettings,
   mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
 )
 
-lazy val core = project
+// AST of SmithyQL language (plus DSL and minor utilities for building these)
+lazy val ast = module("ast")
+
+// Source code model (comments, locations, etc.)
+lazy val source = module("source")
+  .dependsOn(ast)
+
+// Parser interface / implementation
+lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-parse" % "0.3.8",
+      "org.polyvariant.treesitter4s" %% "bindings" % "0.2-296386b-SNAPSHOT",
+    )
+  )
+  .dependsOn(
+    ast % "test->test;compile->compile",
+    source % "test->test;compile->compile",
+  )
+
+// Most of the core functionality of SmithyQL (compilation, analysis, evaluation)
+// Formatter is also included (used for rendering in completions etc.)
+// also: SmithyQL standard library
+lazy val core = module("core")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-effect" % "3.3.14",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
-      "org.typelevel" %% "cats-parse" % "0.3.8",
       "org.typelevel" %% "paiges-cats" % "0.4.2",
       "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
-      "org.polyvariant.treesitter4s" %% "bindings" % "0.2-296386b-SNAPSHOT",
     ),
-    commonSettings,
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .enablePlugins(Smithy4sCodegenPlugin)
-  .dependsOn(pluginCore)
+  .dependsOn(
+    pluginCore,
+    ast,
+    source % "test->test;compile->compile",
+    parser % "test->compile;test->test",
+  )
 
-lazy val lsp = project
+// LSP-like interfaces like CodeLensProvider, which are later adapted into actual lsp
+lazy val languageSupport = module("language-support")
+  .dependsOn(core % "test->test;compile->compile", parser)
+
+// Adapters for language services to LSP, actual LSP server binding, entrypoint
+lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
@@ -91,12 +127,11 @@ lazy val lsp = project
       "io.get-coursier" %% "coursier" % "2.0.16",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
-    commonSettings,
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version),
   )
   .enablePlugins(BuildInfoPlugin)
-  .dependsOn(core)
+  .dependsOn(languageSupport)
 
 lazy val root = project
   .in(file("."))
@@ -105,4 +140,4 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
   )
-  .aggregate(core, lsp, pluginCore)
+  .aggregate(ast, source, core, languageSupport, parser, lsp, pluginCore)
