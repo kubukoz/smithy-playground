@@ -39,9 +39,9 @@ val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-effect" % "3.3.14",
-    "com.disneystreaming" %% "weaver-cats" % "0.8.0" % Test,
-    "com.disneystreaming" %% "weaver-discipline" % "0.8.0" % Test,
-    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.0" % Test,
+    "com.disneystreaming" %% "weaver-cats" % "0.7.15" % Test,
+    "com.disneystreaming" %% "weaver-discipline" % "0.7.15" % Test,
+    "com.disneystreaming" %% "weaver-scalacheck" % "0.7.15" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
