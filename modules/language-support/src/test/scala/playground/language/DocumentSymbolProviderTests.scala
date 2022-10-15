@@ -56,7 +56,7 @@ object DocumentSymbolProviderTests extends SimpleIOSuite {
         "hello",
         SymbolKind.Function,
         "hello",
-        "hello { ",
+        "hello { }",
       ),
     )
 
@@ -71,7 +71,7 @@ object DocumentSymbolProviderTests extends SimpleIOSuite {
         "hello",
         SymbolKind.Function,
         selectionRangeText = "hello",
-        rangeText = "hello { greeting = 42 ",
+        rangeText = "hello { greeting = 42 }",
         List(
           dsl.symbol(
             "greeting",
@@ -95,7 +95,7 @@ object DocumentSymbolProviderTests extends SimpleIOSuite {
         "q",
         SymbolKind.Function,
         selectionRangeText = "q",
-        rangeText = "q { a = { b = { c = { d = 42, }, }, }, ",
+        rangeText = "q { a = { b = { c = { d = 42, }, }, }, }",
         List(
           dsl.symbol(
             "a",
