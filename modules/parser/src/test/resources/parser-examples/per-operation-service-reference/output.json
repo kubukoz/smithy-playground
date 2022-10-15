@@ -1,0 +1,89 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 0
+      }
+    },
+    "value": null
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 21
+      }
+    },
+    "value": {
+      "identifier": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 0
+          },
+          "end": {
+            "index": 15
+          }
+        },
+        "value": {
+          "segments": ["com", "aws"],
+          "selection": "Kinesis"
+        }
+      },
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 16
+          },
+          "end": {
+            "index": 21
+          }
+        },
+        "value": {
+          "text": "hello"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 23
+      },
+      "end": {
+        "index": 23
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 23
+          },
+          "end": {
+            "index": 23
+          }
+        },
+        "value": {
+          "value": []
+        }
+      }
+    }
+  }
+}

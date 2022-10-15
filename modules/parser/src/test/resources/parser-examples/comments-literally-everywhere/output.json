@@ -1,0 +1,212 @@
+{
+  "useClause": {
+    "commentsLeft": [
+      {
+        "text": " before use clause"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 22
+      },
+      "end": {
+        "index": 50
+      }
+    },
+    "value": {
+      "identifier": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 34
+          },
+          "end": {
+            "index": 50
+          }
+        },
+        "value": {
+          "segments": ["some", "api"],
+          "selection": "Service"
+        }
+      }
+    }
+  },
+  "operationName": {
+    "commentsLeft": [
+      {
+        "text": " before op"
+      }
+    ],
+    "commentsRight": [
+      {
+        "text": " after op"
+      }
+    ],
+    "range": {
+      "start": {
+        "index": 64
+      },
+      "end": {
+        "index": 66
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 64
+          },
+          "end": {
+            "index": 66
+          }
+        },
+        "value": {
+          "text": "op"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [
+      {
+        "text": "  after whole thing"
+      }
+    ],
+    "range": {
+      "start": {
+        "index": 81
+      },
+      "end": {
+        "index": 381
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [
+          {
+            "text": "after trailing comma, technically this is part of the struct"
+          }
+        ],
+        "range": {
+          "start": {
+            "index": 81
+          },
+          "end": {
+            "index": 381
+          }
+        },
+        "value": {
+          "value": [
+            {
+              "identifier": {
+                "commentsLeft": [
+                  {
+                    "text": "before key"
+                  }
+                ],
+                "commentsRight": [
+                  {
+                    "text": " after key"
+                  }
+                ],
+                "range": {
+                  "start": {
+                    "index": 100
+                  },
+                  "end": {
+                    "index": 108
+                  }
+                },
+                "value": {
+                  "text": "firstKey"
+                }
+              },
+              "value": {
+                "commentsLeft": [
+                  {
+                    "text": "  before value"
+                  }
+                ],
+                "commentsRight": [
+                  {
+                    "text": "  after value"
+                  }
+                ],
+                "range": {
+                  "start": {
+                    "index": 155
+                  },
+                  "end": {
+                    "index": 167
+                  }
+                },
+                "value": {
+                  "StringLiteral": {
+                    "value": "firstValue"
+                  }
+                }
+              }
+            },
+            {
+              "identifier": {
+                "commentsLeft": [
+                  {
+                    "text": " before another key"
+                  }
+                ],
+                "commentsRight": [
+                  {
+                    "text": " after second key"
+                  }
+                ],
+                "range": {
+                  "start": {
+                    "index": 218
+                  },
+                  "end": {
+                    "index": 227
+                  }
+                },
+                "value": {
+                  "text": "secondKey"
+                }
+              },
+              "value": {
+                "commentsLeft": [
+                  {
+                    "text": " before value"
+                  }
+                ],
+                "commentsRight": [
+                  {
+                    "text": " after value"
+                  }
+                ],
+                "range": {
+                  "start": {
+                    "index": 278
+                  },
+                  "end": {
+                    "index": 291
+                  }
+                },
+                "value": {
+                  "StringLiteral": {
+                    "value": "secondValue"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

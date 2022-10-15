@@ -1,0 +1,156 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 0
+      }
+    },
+    "value": null
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 5
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 0
+          },
+          "end": {
+            "index": 5
+          }
+        },
+        "value": {
+          "text": "hello"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 7
+      },
+      "end": {
+        "index": 37
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 7
+          },
+          "end": {
+            "index": 37
+          }
+        },
+        "value": {
+          "value": [
+            {
+              "identifier": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 8
+                  },
+                  "end": {
+                    "index": 14
+                  }
+                },
+                "value": {
+                  "text": "values"
+                }
+              },
+              "value": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 17
+                  },
+                  "end": {
+                    "index": 36
+                  }
+                },
+                "value": {
+                  "Listed": {
+                    "values": {
+                      "commentsLeft": [],
+                      "commentsRight": [],
+                      "range": {
+                        "start": {
+                          "index": 18
+                        },
+                        "end": {
+                          "index": 35
+                        }
+                      },
+                      "value": [
+                        {
+                          "commentsLeft": [],
+                          "commentsRight": [],
+                          "range": {
+                            "start": {
+                              "index": 18
+                            },
+                            "end": {
+                              "index": 25
+                            }
+                          },
+                          "value": {
+                            "StringLiteral": {
+                              "value": "hello"
+                            }
+                          }
+                        },
+                        {
+                          "commentsLeft": [],
+                          "commentsRight": [],
+                          "range": {
+                            "start": {
+                              "index": 27
+                            },
+                            "end": {
+                              "index": 34
+                            }
+                          },
+                          "value": {
+                            "StringLiteral": {
+                              "value": "world"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

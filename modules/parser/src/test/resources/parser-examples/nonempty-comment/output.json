@@ -1,0 +1,78 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 0
+      }
+    },
+    "value": null
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 5
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 0
+          },
+          "end": {
+            "index": 5
+          }
+        },
+        "value": {
+          "text": "hello"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 7
+      },
+      "end": {
+        "index": 25
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [
+          {
+            "text": " hello"
+          }
+        ],
+        "range": {
+          "start": {
+            "index": 7
+          },
+          "end": {
+            "index": 25
+          }
+        },
+        "value": {
+          "value": []
+        }
+      }
+    }
+  }
+}

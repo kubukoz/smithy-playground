@@ -1,0 +1,113 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 3
+      },
+      "end": {
+        "index": 3
+      }
+    },
+    "value": null
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 3
+      },
+      "end": {
+        "index": 8
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 3
+          },
+          "end": {
+            "index": 8
+          }
+        },
+        "value": {
+          "text": "hello"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 10
+      },
+      "end": {
+        "index": 56
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 10
+          },
+          "end": {
+            "index": 56
+          }
+        },
+        "value": {
+          "value": [
+            {
+              "identifier": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 13
+                  },
+                  "end": {
+                    "index": 18
+                  }
+                },
+                "value": {
+                  "text": "world"
+                }
+              },
+              "value": {
+                "commentsLeft": [
+                  {
+                    "text": "this is a comment"
+                  }
+                ],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 48
+                  },
+                  "end": {
+                    "index": 53
+                  }
+                },
+                "value": {
+                  "StringLiteral": {
+                    "value": "bar"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
