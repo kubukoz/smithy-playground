@@ -114,13 +114,15 @@ Here's a more verbose description of the SmithyQL syntax.
 
 ### Literals
 
-In general, in SmithyQL, value literals look a bit like a mix of JSON and Nix. We have:
+In general, in SmithyQL, value literals look very similar to JSON, with minor differences. They are also very similar to [Smithy's node values](https://awslabs.github.io/smithy/2.0/spec/model.html#node-value).
+
+We have:
 
 - string literals: `"like this"`
 - numeric literals: `2137`, `42.0`, `4e10` - following the JSON spec of numbers
 - booleans: `true`, `false`
 - lists: `[ true, false, ]`
-- structures: `{ k: "value", k2: true, k3: [ 10, 20, ], }`
+- structures: `{ k: "value", k2: true, k3: [ 10, 20, ], }` - note that keys aren't quoted, unlike in JSON
 - null, but it's not what you think: the `null` literal only typechecks as a Smithy `Document`,
   and corresponds to the [Null document](https://awslabs.github.io/smithy/2.0/spec/simple-types.html?highlight=null#document).
 
