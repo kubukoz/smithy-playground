@@ -7,9 +7,9 @@ import cats.implicits._
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
-import playground.Compiler
+import playground.OperationCompiler
 import playground.DiagnosticSeverity
-import playground.Runner
+import playground.OperationRunner
 import playground.smithyql.Position
 import playground.smithyql.Query
 import playground.smithyql.SourceRange
@@ -30,8 +30,8 @@ trait DiagnosticProvider[F[_]] {
 object DiagnosticProvider {
 
   def instance[F[_]](
-    compiler: Compiler[IorThrow],
-    runner: Runner.Resolver[F],
+    compiler: OperationCompiler[IorThrow],
+    runner: OperationRunner.Resolver[F],
   ): DiagnosticProvider[F] =
     new DiagnosticProvider[F] {
 
@@ -53,7 +53,7 @@ object DiagnosticProvider {
           case Left(e) =>
             val pos = parsed.operationName.range
 
-            Runner.Issue.squash(e) match {
+            OperationRunner.Issue.squash(e) match {
               case Left(ps) =>
                 List(
                   info(

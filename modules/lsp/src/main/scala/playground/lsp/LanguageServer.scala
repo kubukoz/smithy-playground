@@ -15,7 +15,7 @@ import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
-import playground.Runner
+import playground.OperationRunner
 import playground.TextDocumentManager
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
@@ -69,7 +69,7 @@ object LanguageServer {
     F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
   ](
     dsi: DynamicSchemaIndex,
-    runner: Runner.Resolver[F],
+    runner: OperationRunner.Resolver[F],
   )(
     implicit sup: Supervisor[F]
   ): LanguageServer[F] =
@@ -80,7 +80,7 @@ object LanguageServer {
           def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
         }
 
-      val compiler = playground.Compiler.fromSchemaIndex(dsi)
+      val compiler = playground.OperationCompiler.fromSchemaIndex(dsi)
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
       val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)

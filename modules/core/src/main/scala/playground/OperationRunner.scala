@@ -4,7 +4,6 @@ import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 import cats.Defer
 import cats.Id
-import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Concurrent
@@ -13,21 +12,17 @@ import cats.effect.Resource
 import cats.effect.implicits._
 import cats.effect.std
 import cats.implicits._
-import cats.~>
 import org.http4s.Uri
 import org.http4s.client.Client
 import playground._
 import playground.plugins.PlaygroundPlugin
 import playground.smithyql.InputNode
-import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 import playground.std.Stdlib
 import playground.std.StdlibRuntime
-import smithy.api
 import smithy.api.ProtocolDefinition
-import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.ShapeId
 import smithy4s.aws.AwsCall
@@ -38,205 +33,17 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
+
 import smithyql.syntax._
 
-import types._
-
-trait CompiledInput {
-  type _Op[_, _, _, _, _]
-  type I
-  type E
-  type O
-  def input: I
-  def catchError: Throwable => Option[E]
-  def writeError: Option[NodeEncoder[E]]
-  def writeOutput: NodeEncoder[O]
-  def serviceId: QualifiedIdentifier
-  def wrap(i: I): _Op[I, E, O, _, _]
-}
-
-object CompiledInput {
-
-  type Aux[_I, _E, _O, Op[_, _, _, _, _]] =
-    CompiledInput {
-      type _Op[__I, __E, __O, __SE, __SO] = Op[__I, __E, __O, __SE, __SO]
-      type I = _I
-      type E = _E
-      type O = _O
-    }
-
-}
-
-trait Compiler[F[_]] { self =>
-  def compile(q: Query[WithSource]): F[CompiledInput]
-
-  def mapK[G[_]](fk: F ~> G): Compiler[G] =
-    new Compiler[G] {
-      def compile(q: Query[WithSource]): G[CompiledInput] = fk(self.compile(q))
-    }
-
-}
-
-object Compiler {
-
-  def fromSchemaIndex(
-    dsi: DynamicSchemaIndex
-  ): Compiler[Ior[Throwable, *]] = {
-    val services: Map[QualifiedIdentifier, Compiler[Ior[Throwable, *]]] =
-      dsi
-        .allServices
-        .map { svc =>
-          QualifiedIdentifier
-            .forService(svc.service) -> Compiler.fromService[svc.Alg, svc.Op](svc.service)
-        }
-        .toMap
-
-    new MultiServiceCompiler(services)
-  }
-
-  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
-  ): Compiler[Ior[Throwable, *]] = new ServiceCompiler(service)
-
-}
-
-final case class CompilationFailed(errors: NonEmptyList[CompilationError]) extends Throwable
-
-object CompilationFailed {
-  def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
-}
-
-private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  service: Service[Alg, Op]
-) extends Compiler[Ior[Throwable, *]] {
-
-  private def compileEndpoint[In, Err, Out](
-    e: Endpoint[Op, In, Err, Out, _, _]
-  ): WithSource[InputNode[WithSource]] => IorNel[CompilationError, CompiledInput] = {
-    val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
-    val outputEncoder = NodeEncoder.derive(e.output)
-    val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
-
-    ast =>
-      inputCompiler
-        .compile(ast)
-        .leftMap(_.toNonEmptyList)
-        .map { compiled =>
-          new CompiledInput {
-            type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
-            type I = In
-            type E = Err
-            type O = Out
-            val input: I = compiled
-            val serviceId: QualifiedIdentifier = QualifiedIdentifier.forService(service)
-
-            def wrap(i: In): Op[In, Err, Out, _, _] = e.wrap(i)
-            val writeOutput: NodeEncoder[Out] = outputEncoder
-            val writeError: Option[NodeEncoder[Err]] = errorEncoder
-            val catchError: Throwable => Option[Err] = err => e.errorable.flatMap(_.liftError(err))
-          }
-        }
-  }
-
-  private val endpoints = service
-    .endpoints
-    .groupByNel(_.name)
-    .map(_.map(_.head).map(e => (e, compileEndpoint(e))))
-
-  private def operationNotFound(q: Query[WithSource]): CompilationError = CompilationError.error(
-    CompilationErrorDetails
-      .OperationNotFound(
-        q.operationName.value.operationName.value.mapK(WithSource.unwrap),
-        endpoints.keys.map(OperationName[Id](_)).toList,
-      ),
-    q.operationName.range,
-  )
-
-  private def deprecationWarnings(q: Query[WithSource]) =
-    q.useClause.value match {
-      // If the use clause is present, in normal flow it's 100% safe to assume that it matches this compiler's service.
-      case Some(useClause) =>
-        service
-          .hints
-          .get(api.Deprecated)
-          .map { info =>
-            CompilationError.deprecation(info, useClause.identifier.range)
-          }
-          .toBothLeft(())
-          .toIorNel
-
-      case None => Ior.right(())
-    }
-
-  private def deprecatedOperationCheck(
-    q: Query[WithSource],
-    endpoint: Endpoint[Op, _, _, _, _, _],
-  ) =
-    endpoint
-      .hints
-      .get(api.Deprecated)
-      .map { info =>
-        CompilationError.deprecation(info, q.operationName.range)
-      }
-      .toBothLeft(())
-      .toIorNel
-
-  private def seal[A](
-    result: IorNel[CompilationError, A]
-  ): IorNel[CompilationError, A] = result.fold(
-    Ior.left(_),
-    Ior.right(_),
-    (e, a) =>
-      if (e.exists(_.isError))
-        Ior.left(e)
-      else
-        Ior.both(e, a),
-  )
-
-  def compile(q: Query[WithSource]): Ior[Throwable, CompiledInput] = {
-    val compiled =
-      endpoints
-        .get(q.operationName.value.operationName.value.text)
-        .toRightIor(NonEmptyList.one(operationNotFound(q)))
-        .flatTap { case (e, _) => deprecatedOperationCheck(q, e) }
-        .flatMap(_._2.apply(q.input)) <& deprecationWarnings(q)
-
-    seal(compiled).leftMap(CompilationFailed(_))
-  }
-
-}
-
-private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  services: Map[QualifiedIdentifier, Compiler[Ior[Throwable, *]]]
-) extends Compiler[Ior[Throwable, *]] {
-
-  private def getService(
-    q: Query[WithSource]
-  ): Either[Throwable, Compiler[Ior[Throwable, *]]] = MultiServiceResolver
-    .resolveService(
-      q.mapK(WithSource.unwrap).collectServiceIdentifiers,
-      services,
-    )
-    .leftMap { rf =>
-      CompilationFailed.one(
-        ResolutionFailure.toCompilationError(rf, q)
-      )
-    }
-
-  def compile(
-    q: Query[WithSource]
-  ): Ior[Throwable, CompiledInput] = getService(q).fold(Ior.left(_), _.compile(q))
-
-}
-
-trait Runner[F[_]] {
+trait OperationRunner[F[_]] {
   def run(q: CompiledInput): F[InputNode[Id]]
 }
 
-object Runner {
+object OperationRunner {
 
   trait Resolver[F[_]] {
-    def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]]
+    def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]]
   }
 
   sealed trait Issue extends Product with Serializable
@@ -310,7 +117,7 @@ object Runner {
         .allServices
         .map { svc =>
           QualifiedIdentifier.forService(svc.service) ->
-            Runner.forService[svc.Alg, svc.Op, F](
+            OperationRunner.forService[svc.Alg, svc.Op, F](
               svc.service,
               client,
               baseUri,
@@ -322,7 +129,7 @@ object Runner {
         .toMap
 
     new Resolver[F] {
-      def get(q: Query[WithSource]): IorNel[Issue, Runner[F]] = MultiServiceResolver
+      def get(q: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = MultiServiceResolver
         .resolveService(
           q.mapK(WithSource.unwrap).collectServiceIdentifiers,
           runners,
@@ -430,7 +237,7 @@ object Runner {
         q.writeOutput.toNode(response)
       }
 
-      val runners: NonEmptyList[IorNel[Issue, Runner[F]]] = NonEmptyList
+      val runners: NonEmptyList[IorNel[Issue, OperationRunner[F]]] = NonEmptyList
         .of(
           simpleFromBuilder(SimpleRestJsonBuilder),
           awsInterpreter,
@@ -439,7 +246,7 @@ object Runner {
         .append(stdlibRunner)
         .map(
           _.map { interpreter =>
-            new Runner[F] {
+            new OperationRunner[F] {
               def run(q: CompiledInput): F[InputNode[Id]] = perform[q.I, q.E, q.O](
                 interpreter,
                 // note: this is safe... for real
@@ -449,11 +256,11 @@ object Runner {
           }
         )
 
-      val getInternal: IorNel[Issue, Runner[F]] = runners.reduce(
-        IorUtils.orElseCombine[NonEmptyList[Issue], Runner[F]]
+      val getInternal: IorNel[Issue, OperationRunner[F]] = runners.reduce(
+        IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]]
       )
 
-      def get(parsed: Query[WithSource]): IorNel[Issue, Runner[F]] = getInternal
+      def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = getInternal
     }
 
   def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
