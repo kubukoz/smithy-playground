@@ -3,8 +3,8 @@ package playground.language
 import cats.MonadThrow
 import cats.implicits._
 import playground.smithyql.WithSource
-import playground.Compiler
-import playground.Runner
+import playground.OperationCompiler
+import playground.OperationRunner
 import scala.collection.immutable.ListMap
 import playground.CompilationFailed
 import playground.smithyql.parser.SourceParser
@@ -17,8 +17,8 @@ trait CommandProvider[F[_]] {
 object CommandProvider {
 
   def instance[F[_]: MonadThrow: TextDocumentProvider: CommandResultReporter](
-    compiler: Compiler[F],
-    runner: Runner.Resolver[F],
+    compiler: OperationCompiler[F],
+    runner: OperationRunner.Resolver[F],
   ): CommandProvider[F] =
     new CommandProvider[F] {
 
@@ -32,7 +32,7 @@ object CommandProvider {
               runner
                 .get(parsed)
                 .toEither
-                .leftMap(Runner.Issue.squash(_))
+                .leftMap(OperationRunner.Issue.squash(_))
                 .leftMap {
                   case Left(protocols) => CommandResultReporter[F].onUnsupportedProtocol(protocols)
                   case Right(others)   => CommandResultReporter[F].onIssues(others)

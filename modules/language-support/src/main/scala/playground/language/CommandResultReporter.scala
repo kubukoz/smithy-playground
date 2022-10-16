@@ -10,7 +10,7 @@ import playground.smithyql.InputNode
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 
-import playground.Runner.Issue.ProtocolIssues
+import playground.OperationRunner.Issue.ProtocolIssues
 import playground.CompiledInput
 
 trait CommandResultReporter[F[_]] {
