@@ -7,7 +7,8 @@ import playground.Compiler
 import playground.Runner
 import scala.collection.immutable.ListMap
 import playground.CompilationFailed
-import playground.smithyql.parser.SmithyQLParser
+import playground.smithyql.parser.SourceParser
+import playground.smithyql.Query
 
 trait CommandProvider[F[_]] {
   def runCommand(name: String, args: List[String]): F[Unit]
@@ -24,8 +25,8 @@ object CommandProvider {
       private def runQuery(documentUri: String): F[Unit] = TextDocumentProvider[F]
         .get(documentUri)
         .flatMap { documentText =>
-          SmithyQLParser
-            .parseFull(documentText)
+          SourceParser[Query]
+            .parse(documentText)
             .liftTo[F]
             .flatMap { parsed =>
               runner

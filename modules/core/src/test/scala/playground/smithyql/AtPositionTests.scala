@@ -1,9 +1,9 @@
 package playground.smithyql
 
 import weaver._
-import playground.smithyql.parser.SmithyQLParser
 import playground.Assertions._
 import playground.Diffs._
+import playground.smithyql.parser.SourceParser
 
 object AtPositionTests extends FunSuite {
 
@@ -18,8 +18,8 @@ object AtPositionTests extends FunSuite {
   def locateAtCursor(text: String) = {
     val (extracted, position) = extractCursor(text)
     val parsed =
-      SmithyQLParser
-        .parseFull(extracted)
+      SourceParser[Query]
+        .parse(extracted)
         .toTry
         .get
 

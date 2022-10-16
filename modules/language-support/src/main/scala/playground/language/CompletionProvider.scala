@@ -3,6 +3,7 @@ package playground.language
 import cats.Id
 import cats.data.NonEmptyList
 import cats.implicits._
+import playground.MultiServiceResolver
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.Root
 import playground.smithyql.NodeContext.^^:
@@ -12,11 +13,9 @@ import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.RangeIndex
 import playground.smithyql.WithSource
-import smithy4s.dynamic.DynamicSchemaIndex
-
+import playground.smithyql.parser.SourceParser
 import playground.smithyql.syntax._
-import playground.MultiServiceResolver
-import playground.smithyql.parser.SmithyQLParser
+import smithy4s.dynamic.DynamicSchemaIndex
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -103,7 +102,7 @@ object CompletionProvider {
       }
 
     (doc, pos) =>
-      SmithyQLParser.parseFull(doc) match {
+      SourceParser[Query].parse(doc) match {
         case Left(_) if doc.isBlank() => completeAnyOperationName
 
         case Left(_) =>

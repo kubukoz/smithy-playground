@@ -3,10 +3,10 @@ package playground.smithyql.format
 import weaver._
 import weaver.scalacheck.Checkers
 
-import playground.smithyql.parser.SmithyQLParser
 import playground.smithyql.parser.Examples
 import playground.smithyql._
 import DSL._
+import playground.smithyql.parser.SourceParser
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 
@@ -24,7 +24,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       assert.eql(result, expected)
     }
 
-  def parse(s: String): Query[WithSource] = SmithyQLParser.parseFull(s).toTry.get
+  def parse(s: String): Query[WithSource] = SourceParser[Query].parse(s).toTry.get
 
   formattingTest("string list with no comments") {
     "hello"
@@ -120,10 +120,10 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |""".stripMargin)
 
   pureTest("Comments aren't lost when formatting") {
-    val result = SmithyQLParser
-      .parseFull(Examples.fullOfComments)
+    val result = SourceParser[Query]
+      .parse(Examples.fullOfComments)
       .map(playground.smithyql.format.Formatter.format(_, 80))
-      .flatMap(SmithyQLParser.parseFull)
+      .flatMap(SourceParser[Query].parse)
 
     assert.eql(
       result.map(WithSource.allQueryComments),

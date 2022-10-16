@@ -46,7 +46,7 @@ import java.time
 import java.util.UUID
 
 import Arbitraries._
-import playground.smithyql.parser.SmithyQLParser
+import playground.smithyql.parser.SourceParser
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -851,10 +851,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     .Compiler
     .fromService(service)
     .compile(
-      SmithyQLParser
-        .parseFull(q)
-        .toTry
-        .get
+      SourceParser[Query].parse(q).toTry.get
     )
 
   pureTest("deprecated service's use clause") {
