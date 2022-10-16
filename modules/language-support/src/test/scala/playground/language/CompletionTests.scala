@@ -21,6 +21,9 @@ import smithy4s.schema.Schema
 import weaver._
 
 import java.util.UUID
+import demo.smithy.Friends
+import playground.Assertions._
+import playground.language.Diffs._
 
 object CompletionTests extends FunSuite {
 
@@ -28,6 +31,13 @@ object CompletionTests extends FunSuite {
     schema: Schema[_],
     ctx: NodeContext,
   ): List[CompletionItem] = schema.compile(CompletionVisitor).getCompletions(ctx)
+
+  test("completions on list items that are structs") {
+
+    val completions = getCompletions(Friends.schema, NodeContext.Root)
+
+    assertNoDiff(completions, Nil)
+  }
 
   test("completions on struct are empty without StructBody") {
 

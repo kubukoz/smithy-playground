@@ -45,6 +45,11 @@ trait CompletionResolver[+A] {
   def retag[B]: CompletionResolver[B] = getCompletions(_)
 }
 
+object CompletionResolver {
+  def routed[A](f: NodeContext => CompletionResolver[A]): CompletionResolver[A] =
+    ctx => f(ctx).getCompletions(ctx)
+}
+
 final case class CompletionItem(
   kind: CompletionItemKind,
   label: String,
@@ -369,8 +374,21 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   ): CompletionResolver[List[A]] = {
     val memberInstance = member.compile(this)
 
+    val aList = CompletionItem(
+      kind = CompletionItemKind.Constant /* todo */,
+      label = "[]",
+      insertText = InsertText.SnippetString("[$0]"),
+      detail = "todo",
+      description = Some("todo"),
+      deprecated = false,
+      // todo
+      docs = None,
+      extraTextEdits = Nil,
+    )
+
     {
       case PathEntry.CollectionEntry(_) ^^: rest => memberInstance.getCompletions(rest)
+      case Root                                  => List(aList)
       case _                                     =>
         // other contexts are invalid
         Nil
@@ -426,9 +444,22 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     fields: Vector[SchemaField[S, _]],
     make: IndexedSeq[Any] => S,
   ): CompletionResolver[S] = {
+
+    val aStruct = CompletionItem(
+      kind = CompletionItemKind.Constant /* todo */,
+      label = "{}",
+      insertText = InsertText.SnippetString("{$0}"),
+      detail = "todo",
+      description = Some("todo"),
+      deprecated = false,
+      // todo
+      docs = None,
+      extraTextEdits = Nil,
+    )
+
     val compiledFields = fields.map(field => (field.mapK(this), field.instance))
 
-    structLike(
+    val byStructShape = structLike(
       inBody =
         compiledFields
           // todo: filter out present fields
@@ -443,6 +474,12 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
             }
             .foldMap(_.instance.getCompletions(rest)),
     )
+
+    // todo this doesn't work
+    CompletionResolver.routed {
+      case Root => _ => List(aStruct)
+      case _    => byStructShape
+    }
   }
 
   override def union[U](

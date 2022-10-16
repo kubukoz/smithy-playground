@@ -23,8 +23,23 @@ operation DeprecatedOperation {
 @simpleRestJson
 service DemoService {
   version: "0.0.1",
-  operations: [CreateHero, GetPowers, CreateSubscription],
+  operations: [CreateHero, GetPowers, CreateSubscription, CreateList],
   errors: [GenericServerError]
+}
+
+@http(uri: "/list", method: "POST")
+operation CreateList {
+  input := {
+    items: Items,
+    lists: Lists
+  }
+}
+
+list Lists { member: Items }
+list Items { member: Item }
+
+structure Item {
+  @required name: String
 }
 
 @simpleRestJson
