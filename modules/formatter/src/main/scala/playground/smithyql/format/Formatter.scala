@@ -60,7 +60,6 @@ object Formatter {
   def renderKey(k: WithSource[Identifier]): Doc =
     comments(k.commentsLeft) +
       Doc.text(k.value.text) +
-      Doc.space +
       comments(k.commentsRight)
 
   def renderValue(v: WithSource[InputNode[WithSource]]): Doc = {

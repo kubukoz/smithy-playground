@@ -55,7 +55,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |""".stripMargin)
 
   formattingTest("int list with lots of comments") {
-    parse("""hello { input =
+    parse("""hello { input :
       //this is a list
       [
         //list elems can be anything
