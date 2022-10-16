@@ -1,6 +1,5 @@
 use service demo.smithy#DemoService
 
-
 // CreateSubscription {
 //   subscription = {
 //     id = "subscription_id",
@@ -8,13 +7,15 @@ use service demo.smithy#DemoService
 //     createdAt = "2020-04-01T00:00:00Z",
 //   }
 // }
+
 CreateHero {
-  hero = {
-    good = {
-      howGood = 10,
+  hero: {
+    good: // bgasdfasldf
+    {
+      howGood: 10,
     },
   },
-  intSet = [
+  intSet: [
        1,
        2,
        1,

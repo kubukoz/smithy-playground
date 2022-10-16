@@ -1,5 +1,4 @@
 
   hello {
-    world = "bar",
+    world: "bar",
   }
-  

@@ -50,7 +50,7 @@
         "index": 6
       },
       "end": {
-        "index": 33
+        "index": 32
       }
     },
     "value": {
@@ -62,7 +62,7 @@
             "index": 7
           },
           "end": {
-            "index": 32
+            "index": 31
           }
         },
         "value": {
@@ -88,10 +88,10 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 17
+                    "index": 16
                   },
                   "end": {
-                    "index": 31
+                    "index": 30
                   }
                 },
                 "value": {
@@ -101,10 +101,10 @@
                       "commentsRight": [],
                       "range": {
                         "start": {
-                          "index": 18
+                          "index": 17
                         },
                         "end": {
-                          "index": 30
+                          "index": 29
                         }
                       },
                       "value": [
@@ -113,10 +113,10 @@
                           "commentsRight": [],
                           "range": {
                             "start": {
-                              "index": 18
+                              "index": 17
                             },
                             "end": {
-                              "index": 22
+                              "index": 21
                             }
                           },
                           "value": {
@@ -130,10 +130,10 @@
                           "commentsRight": [],
                           "range": {
                             "start": {
-                              "index": 24
+                              "index": 23
                             },
                             "end": {
-                              "index": 29
+                              "index": 28
                             }
                           },
                           "value": {

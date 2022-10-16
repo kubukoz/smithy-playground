@@ -33,7 +33,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       )
       .mapK(WithSource.liftId)
   }("""hello {
-      |  values = [
+      |  values: [
       |       "hello",
       |       "world",
       |    ],
@@ -47,7 +47,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       )
       .mapK(WithSource.liftId)
   }("""hello {
-      |  values = [
+      |  values: [
       |       42,
       |       10,
       |    ],
@@ -55,7 +55,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |""".stripMargin)
 
   formattingTest("int list with lots of comments") {
-    parse("""hello { input =
+    parse("""hello { input :
       //this is a list
       [
         //list elems can be anything
@@ -68,7 +68,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       ,
     }""")
   }("""hello {
-      |  input = // this is a list
+      |  input: // this is a list
       |    [
       |      // list elems can be anything
       |       {

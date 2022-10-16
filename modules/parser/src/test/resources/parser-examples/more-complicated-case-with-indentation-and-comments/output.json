@@ -50,7 +50,7 @@
         "index": 12
       },
       "end": {
-        "index": 228
+        "index": 220
       }
     },
     "value": {
@@ -66,7 +66,7 @@
             "index": 13
           },
           "end": {
-            "index": 227
+            "index": 219
           }
         },
         "value": {
@@ -92,10 +92,10 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 27
+                    "index": 26
                   },
                   "end": {
-                    "index": 225
+                    "index": 217
                   }
                 },
                 "value": {
@@ -106,13 +106,13 @@
                           "text": "foo"
                         },
                         {
-                          "text": "    bad = {"
+                          "text": "    bad: {"
                         },
                         {
-                          "text": "      evilName = \"evil\","
+                          "text": "      evilName: \"evil\","
                         },
                         {
-                          "text": "      powerLevel = 9001,"
+                          "text": "      powerLevel: 9001,"
                         },
                         {
                           "text": "    },"
@@ -121,10 +121,10 @@
                       "commentsRight": [],
                       "range": {
                         "start": {
-                          "index": 28
+                          "index": 27
                         },
                         "end": {
-                          "index": 224
+                          "index": 216
                         }
                       },
                       "value": {
@@ -135,10 +135,10 @@
                               "commentsRight": [],
                               "range": {
                                 "start": {
-                                  "index": 116
+                                  "index": 112
                                 },
                                 "end": {
-                                  "index": 120
+                                  "index": 116
                                 }
                               },
                               "value": {
@@ -150,10 +150,10 @@
                               "commentsRight": [],
                               "range": {
                                 "start": {
-                                  "index": 123
+                                  "index": 118
                                 },
                                 "end": {
-                                  "index": 220
+                                  "index": 212
                                 }
                               },
                               "value": {
@@ -163,10 +163,10 @@
                                     "commentsRight": [],
                                     "range": {
                                       "start": {
-                                        "index": 124
+                                        "index": 119
                                       },
                                       "end": {
-                                        "index": 219
+                                        "index": 211
                                       }
                                     },
                                     "value": {
@@ -177,10 +177,10 @@
                                             "commentsRight": [],
                                             "range": {
                                               "start": {
-                                                "index": 131
+                                                "index": 126
                                               },
                                               "end": {
-                                                "index": 138
+                                                "index": 133
                                               }
                                             },
                                             "value": {
@@ -199,10 +199,10 @@
                                             "commentsRight": [],
                                             "range": {
                                               "start": {
-                                                "index": 168
+                                                "index": 162
                                               },
                                               "end": {
-                                                "index": 171
+                                                "index": 165
                                               }
                                             },
                                             "value": {
@@ -217,15 +217,15 @@
                                             "commentsLeft": [],
                                             "commentsRight": [
                                               {
-                                                "text": "foo = \"a\""
+                                                "text": "foo: \"a\""
                                               }
                                             ],
                                             "range": {
                                               "start": {
-                                                "index": 179
+                                                "index": 173
                                               },
                                               "end": {
-                                                "index": 189
+                                                "index": 183
                                               }
                                             },
                                             "value": {
@@ -237,10 +237,10 @@
                                             "commentsRight": [],
                                             "range": {
                                               "start": {
-                                                "index": 211
+                                                "index": 203
                                               },
                                               "end": {
-                                                "index": 213
+                                                "index": 205
                                               }
                                             },
                                             "value": {

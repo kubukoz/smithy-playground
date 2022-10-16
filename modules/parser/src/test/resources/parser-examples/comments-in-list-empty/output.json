@@ -50,7 +50,7 @@
         "index": 3
       },
       "end": {
-        "index": 35
+        "index": 34
       }
     },
     "value": {
@@ -62,7 +62,7 @@
             "index": 4
           },
           "end": {
-            "index": 34
+            "index": 33
           }
         },
         "value": {
@@ -88,10 +88,10 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 14
+                    "index": 13
                   },
                   "end": {
-                    "index": 33
+                    "index": 32
                   }
                 },
                 "value": {
@@ -105,10 +105,10 @@
                       "commentsRight": [],
                       "range": {
                         "start": {
-                          "index": 15
+                          "index": 14
                         },
                         "end": {
-                          "index": 32
+                          "index": 31
                         }
                       },
                       "value": []

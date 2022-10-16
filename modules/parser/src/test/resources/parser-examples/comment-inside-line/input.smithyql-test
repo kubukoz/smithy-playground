@@ -1,6 +1,5 @@
 
   hello //foo
     {
-    world = "bar"
+    world: "bar"
     }
-    

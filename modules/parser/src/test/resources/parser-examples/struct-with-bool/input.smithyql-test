@@ -1,1 +1,1 @@
-hello { verbose = true }
+hello { verbose: true }

@@ -50,7 +50,7 @@
         "index": 3
       },
       "end": {
-        "index": 117
+        "index": 116
       }
     },
     "value": {
@@ -62,7 +62,7 @@
             "index": 4
           },
           "end": {
-            "index": 116
+            "index": 115
           }
         },
         "value": {
@@ -88,10 +88,10 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 14
+                    "index": 13
                   },
                   "end": {
-                    "index": 115
+                    "index": 114
                   }
                 },
                 "value": {
@@ -105,10 +105,10 @@
                       "commentsRight": [],
                       "range": {
                         "start": {
-                          "index": 15
+                          "index": 14
                         },
                         "end": {
-                          "index": 114
+                          "index": 113
                         }
                       },
                       "value": [
@@ -121,10 +121,10 @@
                           ],
                           "range": {
                             "start": {
-                              "index": 40
+                              "index": 39
                             },
                             "end": {
-                              "index": 41
+                              "index": 40
                             }
                           },
                           "value": {
@@ -146,10 +146,10 @@
                           ],
                           "range": {
                             "start": {
-                              "index": 91
+                              "index": 90
                             },
                             "end": {
-                              "index": 92
+                              "index": 91
                             }
                           },
                           "value": {

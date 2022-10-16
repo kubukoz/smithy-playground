@@ -50,7 +50,7 @@
         "index": 11
       },
       "end": {
-        "index": 235
+        "index": 234
       }
     },
     "value": {
@@ -62,7 +62,7 @@
             "index": 12
           },
           "end": {
-            "index": 234
+            "index": 233
           }
         },
         "value": {
@@ -96,10 +96,10 @@
                 ],
                 "range": {
                   "start": {
-                    "index": 50
+                    "index": 49
                   },
                   "end": {
-                    "index": 213
+                    "index": 212
                   }
                 },
                 "value": {
@@ -113,10 +113,10 @@
                       "commentsRight": [],
                       "range": {
                         "start": {
-                          "index": 51
+                          "index": 50
                         },
                         "end": {
-                          "index": 212
+                          "index": 211
                         }
                       },
                       "value": [
@@ -129,10 +129,10 @@
                           ],
                           "range": {
                             "start": {
-                              "index": 86
+                              "index": 85
                             },
                             "end": {
-                              "index": 89
+                              "index": 88
                             }
                           },
                           "value": {
@@ -157,10 +157,10 @@
                           ],
                           "range": {
                             "start": {
-                              "index": 146
+                              "index": 145
                             },
                             "end": {
-                              "index": 150
+                              "index": 149
                             }
                           },
                           "value": {

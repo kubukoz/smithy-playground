@@ -22,7 +22,7 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
             case StructBody         => ".{}"
             case Quotes             => ".\"\""
           }
-          .mkString_(".input", "", "")
+          .mkString_("")
 
     }
 

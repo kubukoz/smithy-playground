@@ -126,6 +126,7 @@ object SmithyQLParser {
 
     def punctuation(c: Char): Parser[Unit] = char(c)
 
+    val colon = punctuation(':')
     val equalsSign = punctuation('=')
     val dot = punctuation('.')
     val comma = punctuation(',')
@@ -198,7 +199,7 @@ object SmithyQLParser {
 
       val field: Parser[TField] =
         (
-          ident.map(_.map(Identifier.apply)) <* tokens.equalsSign,
+          ident.map(_.map(Identifier.apply)) <* tokens.colon.orElse(tokens.equalsSign),
           tokens.withComments(node),
         ).mapN(Binding.apply[T])
 

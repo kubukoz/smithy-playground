@@ -115,7 +115,7 @@ object CompletionProvider {
             .build(q)
             .findAtPosition(pos)
             .map(_.ctx)
-          // println("matchingNode: " + matchingNode.map(_.render))
+          // System.err.println("matchingNode: " + matchingNode.map(_.render))
 
           val serviceIdOpt =
             MultiServiceResolver
