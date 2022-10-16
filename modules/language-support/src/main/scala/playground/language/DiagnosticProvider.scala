@@ -4,7 +4,6 @@ import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
-import cats.parse.Parser.Expectation.InRange
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
@@ -100,25 +99,12 @@ object DiagnosticProvider {
 
         base
           .leftMap {
-            case ParsingFailure(e, _) =>
+            case pf @ ParsingFailure(e, _) =>
               val range = SourceRange(Position(e.failedAtOffset), Position(e.failedAtOffset))
 
-              val oneOfInfix =
-                if (e.expected.size > 1)
-                  "one of "
-                else
-                  ""
-
               NonEmptyList.one {
-                error(
-                  s"Parsing failure: expected $oneOfInfix" + e
-                    .expected
-                    .map {
-                      case InRange(_, lower, upper) if lower == upper => lower.toString
-                      case InRange(_, lower, upper)                   => s"one of $lower-$upper"
-                      case msg                                        => msg.toString()
-                    }
-                    .mkString_(", "),
+                CompilationError.error(
+                  CompilationErrorDetails.ParseError(pf.expectationString),
                   range,
                 )
               }

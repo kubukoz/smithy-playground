@@ -6,6 +6,7 @@ import cats.parse.Parser
 import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import playground.smithyql._
+import cats.parse.Parser.Expectation.OneOfStr
 
 trait SourceParser[Alg[_[_]]] {
   def parse(s: String): Either[ParsingFailure, Alg[WithSource]]
@@ -38,25 +39,31 @@ case class ParsingFailure(underlying: Parser.Error, text: String) extends Except
 
   override def getMessage: String = msg
 
+  private def showExpectation(e: Parser.Expectation): String =
+    e match {
+      case OneOfStr(_, List(str))             => str
+      case OneOfStr(_, strs)                  => strs.mkString(" OR ")
+      case InRange(_, 'A', 'Z')               => "an uppercase letter"
+      case InRange(_, 'a', 'z')               => "a lowercase letter"
+      case InRange(_, '0', '9')               => "digit"
+      case InRange(_, from, to) if from == to => s"$from"
+      case InRange(_, from, to)               => s"one of $from - $to"
+      case e                                  => e.toString
+    }
+
+  def expectationString: String = underlying
+    .expected
+    .map(showExpectation)
+    .mkString_(" OR ")
+
   def msg: String = {
     val (valid, failed) = text.splitAt(
       underlying.failedAtOffset
     )
 
-    def showExpectation(e: Parser.Expectation): String =
-      e match {
-        case InRange(_, '0', '9')               => "digit"
-        case InRange(_, from, to) if from == to => s"'$from'"
-        case InRange(_, from, to)               => s"'$from' - '$to'"
-        case e                                  => e.toString
-      }
-
     def prep(s: String): String = s.replace(' ', '·').replace("\n", "⏎\n")
 
-    s"${Console.GREEN}${prep(valid)}${Console.RESET}${Console.YELLOW}${prep(failed)}${Console.RESET} - expected ${underlying
-        .expected
-        .map(showExpectation)
-        .mkString_("/")} at offset ${underlying.failedAtOffset}"
+    s"${Console.GREEN}${prep(valid)}${Console.RESET}${Console.YELLOW}${prep(failed)}${Console.RESET} - expected $expectationString at offset ${underlying.failedAtOffset}"
   }
 
 }

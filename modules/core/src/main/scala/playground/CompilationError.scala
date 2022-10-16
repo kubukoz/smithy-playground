@@ -90,7 +90,8 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case Message(text)        => text
+      case Message(text)                 => text
+      case ParseError(expectationString) => s"Parsing failure: expected ${expectationString}"
       case DeprecatedItem(info) => "Deprecated" + CompilationErrorDetails.deprecationString(info)
       case InvalidUUID          => "Invalid UUID"
       case InvalidBlob          => "Invalid blob, expected base64-encoded string"
@@ -167,6 +168,8 @@ object CompilationErrorDetails {
       CompilationErrorDetails.ConflictingServiceReference(refs)
 
   }
+
+  final case class ParseError(expectationString: String) extends CompilationErrorDetails
 
   // todo: remove
   final case class Message(text: String) extends CompilationErrorDetails
