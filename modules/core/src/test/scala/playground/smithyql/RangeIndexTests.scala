@@ -11,11 +11,10 @@ object RangeIndexTests extends SimpleIOSuite {
 
   private def rangeIndex(q: String) = SmithyQLParser.parseFull(q).liftTo[IO].map(RangeIndex.build)
 
-  test("simple program range index") { (_, l) =>
-    implicit val log = l
+  test("simple program range index") {
 
     val q = """hello { isTest = true }"""
-    rangeIndex(q).flatMap { i =>
+    rangeIndex(q).map { i =>
       val result = i.findAtPosition(Position("hello { is".length))
 
       assertNoDiff(

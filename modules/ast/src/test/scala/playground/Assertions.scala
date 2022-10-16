@@ -1,13 +1,11 @@
 package playground
 
 import cats.Id
-import cats.effect.IO
 import cats.implicits._
 import com.softwaremill.diffx.Diff
 import com.softwaremill.diffx.ShowConfig
 import playground.smithyql._
 import weaver.Expectations
-import weaver.Log
 import weaver.SourceLocation
 
 object Assertions extends Expectations.Helpers {
@@ -16,12 +14,11 @@ object Assertions extends Expectations.Helpers {
     actual: A,
     expected: A,
   )(
-    implicit loc: SourceLocation,
-    log: Log[IO],
-  ): IO[Expectations] =
+    implicit loc: SourceLocation
+  ): Expectations =
     Diff[A].apply(expected, actual) match {
-      case d if d.isIdentical => IO.pure(success)
-      case d                  => log.info(d.show()(ShowConfig.dark)).as(failure("Diff failed"))
+      case d if d.isIdentical => success
+      case d => failure("Diff failed: " + Console.RESET + d.show()(ShowConfig.dark))
     }
 
   def compareQuery(

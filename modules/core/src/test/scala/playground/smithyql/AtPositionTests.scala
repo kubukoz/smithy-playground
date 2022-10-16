@@ -5,7 +5,7 @@ import playground.smithyql.parser.SmithyQLParser
 import playground.Assertions._
 import playground.Diffs._
 
-object AtPositionTests extends SimpleIOSuite {
+object AtPositionTests extends FunSuite {
 
   val CURSOR = """<<HERE>>"""
 
@@ -29,8 +29,7 @@ object AtPositionTests extends SimpleIOSuite {
       .map(_.ctx)
   }
 
-  test("atPosition - 1 level deep") { (_, l) =>
-    implicit val log = l
+  test("atPosition - 1 level deep") {
     val actual = locateAtCursor(
       s"""Operation { root = { ${CURSOR}mid = { child = "hello", }, }, }"""
     )
@@ -48,8 +47,7 @@ object AtPositionTests extends SimpleIOSuite {
     )
   }
 
-  test("atPosition - 2 levels deep") { (_, l) =>
-    implicit val log = l
+  test("atPosition - 2 levels deep") {
     val actual = locateAtCursor(
       s"""Operation { root = { mid = {${CURSOR} child = "hello", }, }, }"""
     )
@@ -69,8 +67,7 @@ object AtPositionTests extends SimpleIOSuite {
     )
   }
 
-  test("atPosition - on operation") { (_, l) =>
-    implicit val log = l
+  test("atPosition - on operation") {
     val actual = locateAtCursor(
       s"""Operat${CURSOR}ion { root = { mid = { child = "hello", }, }, }"""
     )
@@ -83,8 +80,7 @@ object AtPositionTests extends SimpleIOSuite {
     )
   }
 
-  test("atPosition - on list") { (_, l) =>
-    implicit val log = l
+  test("atPosition - on list") {
     val actual = locateAtCursor(
       s"""Operation { root = ${CURSOR}[ { mid = { inner = "hello", }, } ],  }"""
     )
@@ -99,8 +95,7 @@ object AtPositionTests extends SimpleIOSuite {
     )
   }
 
-  test("atPosition - inside list") { (_, l) =>
-    implicit val log = l
+  test("atPosition - inside list") {
     val actual = locateAtCursor(
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
@@ -118,8 +113,7 @@ object AtPositionTests extends SimpleIOSuite {
     )
   }
 
-  test("atPosition - on item in list") { (_, l) =>
-    implicit val log = l
+  test("atPosition - on item in list") {
     val actual = locateAtCursor(
       s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
     )
@@ -136,8 +130,7 @@ object AtPositionTests extends SimpleIOSuite {
     assertNoDiff(actual, Some(expected))
   }
 
-  test("atPosition - on nested item in list") { (_, l) =>
-    implicit val log = l
+  test("atPosition - on nested item in list") {
     val actual = locateAtCursor(
       s"""Operation { root = [ {}, { mid = { ${CURSOR} inner = "hello", }, } ],  }"""
     )
@@ -158,8 +151,7 @@ object AtPositionTests extends SimpleIOSuite {
     )
   }
 
-  test("atPosition - around struct ") { (_, l) =>
-    implicit val log = l
+  test("atPosition - around struct ") {
     val actual = locateAtCursor(
       s"""Operation { root = $CURSOR{ }, }"""
     )
@@ -172,8 +164,7 @@ object AtPositionTests extends SimpleIOSuite {
     )
   }
 
-  test("atPosition - in struct") { (_, l) =>
-    implicit val log = l
+  test("atPosition - in struct") {
     val actual = locateAtCursor(
       s"""Operation { root = {$CURSOR}, }"""
     )
@@ -186,8 +177,7 @@ object AtPositionTests extends SimpleIOSuite {
     )
   }
 
-  test("atPosition - on field outside quotes") { (_, l) =>
-    implicit val log = l
+  test("atPosition - on field outside quotes") {
     val actual = locateAtCursor(
       s"""Operation { field = $CURSOR"", }"""
     )
@@ -199,8 +189,7 @@ object AtPositionTests extends SimpleIOSuite {
 
   }
 
-  test("atPosition - on string field in quotes") { (_, l) =>
-    implicit val log = l
+  test("atPosition - on string field in quotes") {
     val actual = locateAtCursor(
       s"""Operation { field = "$CURSOR", }"""
     )

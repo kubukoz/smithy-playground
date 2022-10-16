@@ -39,8 +39,7 @@ object ParserTests extends SimpleIOSuite {
     val testBase = Path.fromNioPath(baseDir) / testName
     val outputPath = testBase / "output.json"
 
-    test(testName) { (_, l) =>
-      implicit val log = l
+    test(testName) {
 
       val inputIO = readText(testBase / "input.smithyql-test")
 
@@ -52,7 +51,8 @@ object ParserTests extends SimpleIOSuite {
           case Left(e) => failure(s"Parsing failed: ${e.msg}").pure[IO]
           case Right(v) =>
             outputIO
-              .flatMap { expected =>
+              .map { expected =>
+                // ignore("todo").unlessA(testName.contains("service-reference")) *>
                 assertNoDiff(v, expected)
               }
               .recoverWith { case _: NoSuchFileException =>
