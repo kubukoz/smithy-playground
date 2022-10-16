@@ -1,5 +1,5 @@
 
-    hello { values =
+    hello { values:
          //before list
      [
          //before first elem

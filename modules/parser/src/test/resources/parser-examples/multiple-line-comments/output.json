@@ -50,7 +50,7 @@
         "index": 9
       },
       "end": {
-        "index": 67
+        "index": 66
       }
     },
     "value": {
@@ -69,7 +69,7 @@
             "index": 10
           },
           "end": {
-            "index": 66
+            "index": 65
           }
         },
         "value": {
@@ -95,10 +95,10 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 58
+                    "index": 57
                   },
                   "end": {
-                    "index": 63
+                    "index": 62
                   }
                 },
                 "value": {

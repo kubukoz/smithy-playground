@@ -1,1 +1,1 @@
-hello { values = ["hello", "world",] }
+hello { values: ["hello", "world",] }

@@ -1,16 +1,16 @@
 
 CreateHero { //bar
-hero = { //foo
-//    bad = {
-//      evilName = "evil",
-//      powerLevel = 9001,
+hero: { //foo
+//    bad: {
+//      evilName: "evil",
+//      powerLevel: 9001,
 //    },
-    good = {
-      howGood = //100
+    good: {
+      howGood: //100
       //  200,
       200,
-      anotherKey//foo = "a"
-        = 42,
+      anotherKey//foo: "a"
+       : 42,
     },
   },
 }
