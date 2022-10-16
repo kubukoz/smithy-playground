@@ -3,16 +3,17 @@ package playground.language
 import playground.smithyql.InputNode
 import playground.smithyql.Listed
 import playground.smithyql.OperationName
+import playground.smithyql.Query
 import playground.smithyql.SourceRange
 import playground.smithyql.Struct
 import playground.smithyql.UseClause
 import playground.smithyql.WithSource
-import playground.smithyql.parser.SmithyQLParser
+import playground.smithyql.parser.SourceParser
 
 object DocumentSymbolProvider {
 
   def make(text: String): List[DocumentSymbol] =
-    SmithyQLParser.parseFull(text) match {
+    SourceParser[Query].parse(text) match {
       case Left(_) => Nil
       case Right(q) =>
         findInUseClause(q.useClause) ++

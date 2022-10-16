@@ -1,0 +1,52 @@
+{
+  "fields": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 11
+      }
+    },
+    "value": {
+      "value": [
+        {
+          "identifier": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 2
+              },
+              "end": {
+                "index": 3
+              }
+            },
+            "value": {
+              "text": "a"
+            }
+          },
+          "value": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 5
+              },
+              "end": {
+                "index": 10
+              }
+            },
+            "value": {
+              "IntLiteral": {
+                "value": "21.37"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

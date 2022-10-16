@@ -5,19 +5,19 @@ import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.parse.Parser.Expectation.InRange
-import playground.smithyql.Query
-import playground.smithyql.WithSource
-import playground.smithyql.SourceRange
-import playground.smithyql.Position
-
-import playground.types._
-import playground.Compiler
-import playground.Runner
 import playground.CompilationError
-import playground.CompilationFailed
 import playground.CompilationErrorDetails
+import playground.CompilationFailed
+import playground.Compiler
 import playground.DiagnosticSeverity
-import playground.smithyql.parser.SmithyQLParser
+import playground.Runner
+import playground.smithyql.Position
+import playground.smithyql.Query
+import playground.smithyql.SourceRange
+import playground.smithyql.WithSource
+import playground.smithyql.parser.ParsingFailure
+import playground.smithyql.parser.SourceParser
+import playground.types._
 
 trait DiagnosticProvider[F[_]] {
 
@@ -88,8 +88,8 @@ object DiagnosticProvider {
       ): IorNel[CompilationError, Query[WithSource]] = {
         val defaultRange = SourceRange(Position.origin, Position(documentText.size))
 
-        val base: Ior[Throwable, Query[WithSource]] = SmithyQLParser
-          .parseFull(documentText)
+        val base: Ior[Throwable, Query[WithSource]] = SourceParser[Query]
+          .parse(documentText)
           .fold(
             // If parsing fails, fail
             Ior.left(_),
@@ -100,7 +100,7 @@ object DiagnosticProvider {
 
         base
           .leftMap {
-            case SmithyQLParser.ParsingFailure(e, _) =>
+            case ParsingFailure(e, _) =>
               val range = SourceRange(Position(e.failedAtOffset), Position(e.failedAtOffset))
 
               val oneOfInfix =
