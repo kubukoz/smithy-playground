@@ -87,6 +87,14 @@ object WithSource {
 
   implicit def showWithSource[A]: Show[WithSource[A]] = Show.fromToString
 
+  def allSourceComments(sf: SourceFile[WithSource]): List[Comment] =
+    sf.prelude.useClause.map(_.allComments(_ => Nil)).orEmpty ++
+      sf.statements.flatMap(allStatementComments)
+
+  def allStatementComments(
+    s: Statement[WithSource]
+  ): List[Comment] = s.fold(_.query.allComments(allQueryComments))
+
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
     def comments(node: InputNode[WithSource]): List[Comment] = node.fold(

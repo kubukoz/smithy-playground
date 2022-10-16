@@ -134,7 +134,7 @@ object Parsers {
         listed
     }
 
-    def trailingCommaSeparated0[A](
+    private def trailingCommaSeparated0[A](
       parser: Parser[A]
     ): Parser0[List[A]] = Defer[Parser0].fix[List[A]] { self =>
       val moreFields: Parser0[List[A]] = (tokens.comma *> self).orElse(
@@ -183,10 +183,7 @@ object Parsers {
         .map(Listed.apply[T](_))
     }
 
-    val useClauseWithSource: Parser0[WithSource[Option[UseClause[WithSource]]]] = tokens
-      .withComments0(useClause.?)
-
-    val queryOperationName: Parser[T[QueryOperationName[WithSource]]] = {
+    val queryOperationName: Parser[QueryOperationName[T]] = {
 
       val serviceRef = tokens.withRange(qualifiedIdent <* tokens.whitespace) <* tokens.dot
 
@@ -194,23 +191,25 @@ object Parsers {
 
       val sr = (serviceRef <* tokens.whitespace).?
 
-      tokens.withComments {
-        (
-          sr.with1 ~
-            operationName
-        ).map(QueryOperationName.apply[WithSource].tupled)
-      }
+      (
+        sr.with1 ~
+          operationName
+      ).map(QueryOperationName.apply[WithSource].tupled)
     }
 
     val query: Parser[Query[T]] =
-      (useClauseWithSource.with1 ~ queryOperationName ~ tokens.withComments(struct)).map {
-        case ((useClause, opName), input) =>
-          Query(
-            useClause,
-            opName,
-            input,
-          )
+      (tokens.withComments(queryOperationName), tokens.withComments(struct)).mapN {
+        Query.apply(WithSource.liftId(Option.empty[UseClause[T]]), _, _)
       }
+
+    val runQuery: Parser[RunQuery[T]] = tokens.withRange(query).map(RunQuery(_))
+
+    val statement: Parser[Statement[T]] = runQuery
+
+    val prelude = tokens.withComments(useClause).?.map(Prelude.apply)
+
+    val sourceFile: Parser0[SourceFile[T]] = (prelude, statement.rep0)
+      .mapN(SourceFile.apply[T])
 
   }
 

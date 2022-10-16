@@ -1,72 +1,83 @@
 {
-  "useClause": {
-    "commentsLeft": [],
-    "commentsRight": [],
-    "range": {
-      "start": {
-        "index": 1
+  "useClause" : {
+    "commentsLeft" : [
+    ],
+    "commentsRight" : [
+    ],
+    "range" : {
+      "start" : {
+        "index" : 0
       },
-      "end": {
-        "index": 1
+      "end" : {
+        "index" : 0
       }
     },
-    "value": null
+    "value" : null
   },
-  "operationName": {
-    "commentsLeft": [],
-    "commentsRight": [],
-    "range": {
-      "start": {
-        "index": 1
+  "operationName" : {
+    "commentsLeft" : [
+    ],
+    "commentsRight" : [
+    ],
+    "range" : {
+      "start" : {
+        "index" : 1
       },
-      "end": {
-        "index": 12
+      "end" : {
+        "index" : 12
       }
     },
-    "value": {
-      "identifier": null,
-      "operationName": {
-        "commentsLeft": [],
-        "commentsRight": [],
-        "range": {
-          "start": {
-            "index": 1
+    "value" : {
+      "identifier" : null,
+      "operationName" : {
+        "commentsLeft" : [
+        ],
+        "commentsRight" : [
+        ],
+        "range" : {
+          "start" : {
+            "index" : 1
           },
-          "end": {
-            "index": 12
+          "end" : {
+            "index" : 12
           }
         },
-        "value": {
-          "text": "hello_world"
+        "value" : {
+          "text" : "hello_world"
         }
       }
     }
   },
-  "input": {
-    "commentsLeft": [],
-    "commentsRight": [],
-    "range": {
-      "start": {
-        "index": 13
+  "input" : {
+    "commentsLeft" : [
+    ],
+    "commentsRight" : [
+    ],
+    "range" : {
+      "start" : {
+        "index" : 13
       },
-      "end": {
-        "index": 16
+      "end" : {
+        "index" : 16
       }
     },
-    "value": {
-      "fields": {
-        "commentsLeft": [],
-        "commentsRight": [],
-        "range": {
-          "start": {
-            "index": 14
+    "value" : {
+      "fields" : {
+        "commentsLeft" : [
+        ],
+        "commentsRight" : [
+        ],
+        "range" : {
+          "start" : {
+            "index" : 14
           },
-          "end": {
-            "index": 15
+          "end" : {
+            "index" : 15
           }
         },
-        "value": {
-          "value": []
+        "value" : {
+          "value" : [
+          ]
         }
       }
     }

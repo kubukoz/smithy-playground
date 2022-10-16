@@ -8,6 +8,7 @@ import playground.smithyql.WithSource
 import weaver._
 import weaver.scalacheck.CheckConfig
 import weaver.scalacheck.Checkers
+import playground.smithyql.SourceFile
 
 object CommentParsingTests extends SimpleIOSuite with Checkers {
 
@@ -24,7 +25,7 @@ object CommentParsingTests extends SimpleIOSuite with Checkers {
 
   pureTest("Comments from entire query are retained while parsing") {
     assert.eql(
-      SourceParser[Query].parse(Examples.fullOfComments).map(WithSource.allQueryComments),
+      SourceParser[SourceFile].parse(Examples.fullOfComments).map(WithSource.allSourceComments),
       Right(
         List(
           Comment(" before use clause"),

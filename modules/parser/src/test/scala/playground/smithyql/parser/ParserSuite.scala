@@ -60,7 +60,13 @@ trait ParserSuite extends SimpleIOSuite {
           )
 
           val outputIO = readText(outputPath)
-            .flatMap(io.circe.parser.decode[Alg[WithSource]](_).liftTo[IO])
+            .flatMap(
+              io.circe
+                .parser
+                .decode[Alg[WithSource]](_)
+                .leftMap(de => new Throwable(de.show))
+                .liftTo[IO]
+            )
 
           inputIO.flatMap { input =>
             SourceParser[Alg].parse(input) match {

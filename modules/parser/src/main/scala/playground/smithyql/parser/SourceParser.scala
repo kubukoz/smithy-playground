@@ -33,6 +33,11 @@ object SourceParser {
   implicit val structParser: SourceParser[Struct] = fromCatsParseParser(Parsers.parsers.struct)
 
   implicit val queryParser: SourceParser[Query] = fromCatsParseParser(Parsers.parsers.query)
+
+  implicit val sourceFileParser: SourceParser[SourceFile] = fromCatsParseParser(
+    Parsers.parsers.sourceFile
+  )
+
 }
 
 case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {

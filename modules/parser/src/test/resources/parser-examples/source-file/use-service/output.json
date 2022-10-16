@@ -1,0 +1,148 @@
+{
+  "prelude" : {
+    "useClause" : {
+      "commentsLeft" : [
+        {
+          "text" : "comment before use clause"
+        }
+      ],
+      "commentsRight" : [
+      ],
+      "range" : {
+        "start" : {
+          "index" : 28
+        },
+        "end" : {
+          "index" : 48
+        }
+      },
+      "value" : {
+        "identifier" : {
+          "commentsLeft" : [
+          ],
+          "commentsRight" : [
+          ],
+          "range" : {
+            "start" : {
+              "index" : 40
+            },
+            "end" : {
+              "index" : 48
+            }
+          },
+          "value" : {
+            "segments" : [
+              "com"
+            ],
+            "selection" : "Demo"
+          }
+        }
+      }
+    }
+  },
+  "statements" : [
+    {
+      "RunQuery" : {
+        "query" : {
+          "commentsLeft" : [
+          ],
+          "commentsRight" : [
+          ],
+          "range" : {
+            "start" : {
+              "index" : 49
+            },
+            "end" : {
+              "index" : 58
+            }
+          },
+          "value" : {
+            "useClause" : {
+              "commentsLeft" : [
+              ],
+              "commentsRight" : [
+              ],
+              "range" : {
+                "start" : {
+                  "index" : 0
+                },
+                "end" : {
+                  "index" : 0
+                }
+              },
+              "value" : null
+            },
+            "operationName" : {
+              "commentsLeft" : [
+              ],
+              "commentsRight" : [
+              ],
+              "range" : {
+                "start" : {
+                  "index" : 49
+                },
+                "end" : {
+                  "index" : 54
+                }
+              },
+              "value" : {
+                "identifier" : null,
+                "operationName" : {
+                  "commentsLeft" : [
+                  ],
+                  "commentsRight" : [
+                  ],
+                  "range" : {
+                    "start" : {
+                      "index" : 49
+                    },
+                    "end" : {
+                      "index" : 54
+                    }
+                  },
+                  "value" : {
+                    "text" : "hello"
+                  }
+                }
+              }
+            },
+            "input" : {
+              "commentsLeft" : [
+              ],
+              "commentsRight" : [
+              ],
+              "range" : {
+                "start" : {
+                  "index" : 55
+                },
+                "end" : {
+                  "index" : 57
+                }
+              },
+              "value" : {
+                "fields" : {
+                  "commentsLeft" : [
+                  ],
+                  "commentsRight" : [
+                  ],
+                  "range" : {
+                    "start" : {
+                      "index" : 56
+                    },
+                    "end" : {
+                      "index" : 56
+                    }
+                  },
+                  "value" : {
+                    "value" : [
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
