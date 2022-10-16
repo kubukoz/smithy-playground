@@ -2,8 +2,10 @@ package playground.smithyql
 
 import weaver._
 import playground.smithyql.parser.SmithyQLParser
+import playground.Assertions._
+import playground.Diffs._
 
-object AtPositionTests extends FunSuite {
+object AtPositionTests extends SimpleIOSuite {
 
   val CURSOR = """<<HERE>>"""
 
@@ -27,34 +29,34 @@ object AtPositionTests extends FunSuite {
       .map(_.ctx)
   }
 
-  def assertFound(actual: Option[NodeContext], expected: NodeContext) =
-    assert(actual == Some(expected)) &&
-      assert.eql(actual.map(_.render), Some(expected.render))
-
-  test("atPosition - 1 level deep") {
+  test("atPosition - 1 level deep") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { root = { ${CURSOR}mid = { child = "hello", }, }, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext
           .Root
           .inOperationInput
           .inStructBody
           .inStructValue("root")
           .inStructBody
-      )
+      ),
     )
   }
 
-  test("atPosition - 2 levels deep") {
+  test("atPosition - 2 levels deep") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { root = { mid = {${CURSOR} child = "hello", }, }, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext
           .Root
           .inOperationInput
@@ -63,37 +65,42 @@ object AtPositionTests extends FunSuite {
           .inStructBody
           .inStructValue("mid")
           .inStructBody
-      )
+      ),
     )
   }
 
-  test("atPosition - on operation") {
+  test("atPosition - on operation") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operat${CURSOR}ion { root = { mid = { child = "hello", }, }, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext.Root.inOperationName
-      )
+      ),
     )
   }
 
-  test("atPosition - on list") {
+  test("atPosition - on list") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { root = ${CURSOR}[ { mid = { inner = "hello", }, } ],  }"""
     )
 
     val expected = NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         expected
-      )
+      ),
     )
   }
 
-  test("atPosition - inside list") {
+  test("atPosition - inside list") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
@@ -105,14 +112,14 @@ object AtPositionTests extends FunSuite {
       .inStructValue("root")
       .inCollectionEntry(None)
 
-    assert(
-      actual == Some(
-        expected
-      )
+    assertNoDiff(
+      actual,
+      Some(expected),
     )
   }
 
-  test("atPosition - on item in list") {
+  test("atPosition - on item in list") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
     )
@@ -125,16 +132,19 @@ object AtPositionTests extends FunSuite {
         .inStructValue("root")
         .inCollectionEntry(Some(0))
         .inStructBody
-    assert(actual == Some(expected))
+
+    assertNoDiff(actual, Some(expected))
   }
 
-  test("atPosition - on nested item in list") {
+  test("atPosition - on nested item in list") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { root = [ {}, { mid = { ${CURSOR} inner = "hello", }, } ],  }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext
           .Root
           .inOperationInput
@@ -144,55 +154,62 @@ object AtPositionTests extends FunSuite {
           .inStructBody
           .inStructValue("mid")
           .inStructBody
-      )
+      ),
     )
   }
 
-  test("atPosition - around struct ") {
+  test("atPosition - around struct ") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { root = $CURSOR{ }, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
-      )
+      ),
     )
   }
 
-  test("atPosition - in struct") {
+  test("atPosition - in struct") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { root = {$CURSOR}, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext.Root.inOperationInput.inStructBody.inStructValue("root").inStructBody
-      )
+      ),
     )
   }
 
-  test("atPosition - on field outside quotes") {
+  test("atPosition - on field outside quotes") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { field = $CURSOR"", }"""
     )
 
-    assertFound(
+    assertNoDiff(
       actual,
-      NodeContext.Root.inOperationInput.inStructBody.inStructValue("field"),
+      Some(NodeContext.Root.inOperationInput.inStructBody.inStructValue("field")),
     )
 
   }
 
-  test("atPosition - on string field in quotes") {
+  test("atPosition - on string field in quotes") { (_, l) =>
+    implicit val log = l
     val actual = locateAtCursor(
       s"""Operation { field = "$CURSOR", }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext.Root.inOperationInput.inStructBody.inStructValue("field").inQuotes
-      )
+      ),
     )
   }
 }

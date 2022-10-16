@@ -97,12 +97,12 @@
                 "value": {
                   "Listed": {
                     "values": {
-                      "commentsLeft": [],
-                      "commentsRight": [
+                      "commentsLeft": [
                         {
                           "text": "in list"
                         }
                       ],
+                      "commentsRight": [],
                       "range": {
                         "start": {
                           "index": 15

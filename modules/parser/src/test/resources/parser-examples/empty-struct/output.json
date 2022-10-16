@@ -55,12 +55,12 @@
     },
     "value": {
       "fields": {
-        "commentsLeft": [],
-        "commentsRight": [
+        "commentsLeft": [
           {
             "text": "hello"
           }
         ],
+        "commentsRight": [],
         "range": {
           "start": {
             "index": 7

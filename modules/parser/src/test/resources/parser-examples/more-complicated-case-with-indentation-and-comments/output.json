@@ -55,7 +55,11 @@
     },
     "value": {
       "fields": {
-        "commentsLeft": [],
+        "commentsLeft": [
+          {
+            "text": "bar"
+          }
+        ],
         "commentsRight": [],
         "range": {
           "start": {
@@ -69,11 +73,7 @@
           "value": [
             {
               "identifier": {
-                "commentsLeft": [
-                  {
-                    "text": "bar"
-                  }
-                ],
+                "commentsLeft": [],
                 "commentsRight": [],
                 "range": {
                   "start": {
@@ -101,7 +101,23 @@
                 "value": {
                   "Struct": {
                     "fields": {
-                      "commentsLeft": [],
+                      "commentsLeft": [
+                        {
+                          "text": "foo"
+                        },
+                        {
+                          "text": "    bad = {"
+                        },
+                        {
+                          "text": "      evilName = \"evil\","
+                        },
+                        {
+                          "text": "      powerLevel = 9001,"
+                        },
+                        {
+                          "text": "    },"
+                        }
+                      ],
                       "commentsRight": [],
                       "range": {
                         "start": {
@@ -115,23 +131,7 @@
                         "value": [
                           {
                             "identifier": {
-                              "commentsLeft": [
-                                {
-                                  "text": "foo"
-                                },
-                                {
-                                  "text": "    bad = {"
-                                },
-                                {
-                                  "text": "      evilName = \"evil\","
-                                },
-                                {
-                                  "text": "      powerLevel = 9001,"
-                                },
-                                {
-                                  "text": "    },"
-                                }
-                              ],
+                              "commentsLeft": [],
                               "commentsRight": [],
                               "range": {
                                 "start": {

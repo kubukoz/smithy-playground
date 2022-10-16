@@ -105,7 +105,11 @@
                 "value": {
                   "Listed": {
                     "values": {
-                      "commentsLeft": [],
+                      "commentsLeft": [
+                        {
+                          "text": "before first elem"
+                        }
+                      ],
                       "commentsRight": [],
                       "range": {
                         "start": {
@@ -117,11 +121,7 @@
                       },
                       "value": [
                         {
-                          "commentsLeft": [
-                            {
-                              "text": "before first elem"
-                            }
-                          ],
+                          "commentsLeft": [],
                           "commentsRight": [
                             {
                               "text": "after first elem"

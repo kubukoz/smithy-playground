@@ -125,6 +125,13 @@ object SmithyQLParser {
         )
     }
 
+    // A bit of a hack: replace the ranges of the given parser's WithSource
+    // with ones containing the whole parser.
+    // It's a short-term solution as the real one would involve adding new syntax nodes keeping the ranges.
+    def expandRange0[S](p: Parser0[T[S]]): Parser0[T[S]] = tokens.withRange0(p).map { forRange =>
+      forRange.value.withRange(forRange.range)
+    }
+
     private[SmithyQLParser] val rawIdentifier =
       (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
         .map { case (ch, s) => s.prepended(ch) }
@@ -223,30 +230,15 @@ object SmithyQLParser {
         ).mapN(Binding.apply[T])
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
-      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
+      val fields: Parser0[Struct.Fields[T]] = trailingCommaSeparated0(field).map(
+        Struct.Fields[T](_)
+      )
 
-      tokens.openBrace *>
-        (
-          Parser.index ~
-            // fields always start with whitespace/comments, so we don't catch that here
-            fields ~
-            tokens.comments ~
-            (Parser.index <*
-              tokens.closeBrace)
-        ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
-          val fieldsResult = Struct.Fields.fromSeq(fieldsR)
-
-          val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
-
-          Struct {
-            WithSource(
-              commentsLeft = Nil,
-              commentsRight = commentsBeforeEnd,
-              range = range,
-              value = fieldsResult,
-            )
-          }
-        }
+      tokens
+        .expandRange0(tokens.withComments0(fields))
+        .with1
+        .between(tokens.openBrace, tokens.closeBrace)
+        .map(Struct.apply[T](_))
     }
 
     // this is mostly copy-pasted from structs, might not work lmao
@@ -258,15 +250,13 @@ object SmithyQLParser {
       // field, then optional whitespace, then optional coma, then optionally more `fields`
       val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
 
-      /*
-
       tokens
-        .withRange0(fields)
+        .expandRange0(tokens.withComments0(fields))
         .with1
         .between(tokens.openBracket, tokens.closeBracket)
         .map(Listed.apply[T](_))
     }
-       */
+    /*
       tokens.openBracket *>
         (
           Parser.index ~
@@ -288,7 +278,7 @@ object SmithyQLParser {
             )
           }
         }
-    }
+     */
 
     val useClauseWithSource: Parser0[WithSource[Option[UseClause[WithSource]]]] = tokens
       .withComments0(useClause.?)

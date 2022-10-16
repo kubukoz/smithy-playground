@@ -43,6 +43,7 @@ val commonSettings = Seq(
     "com.disneystreaming" %% "weaver-discipline" % "0.8.0" % Test,
     "com.disneystreaming" %% "weaver-scalacheck" % "0.8.0" % Test,
     "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
+    "com.softwaremill.diffx" %% "diffx-cats" % "0.7.1" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,

@@ -55,7 +55,14 @@
     },
     "value": {
       "fields": {
-        "commentsLeft": [],
+        "commentsLeft": [
+          {
+            "text": "this is a comment"
+          },
+          {
+            "text": "this too"
+          }
+        ],
         "commentsRight": [],
         "range": {
           "start": {
@@ -69,14 +76,7 @@
           "value": [
             {
               "identifier": {
-                "commentsLeft": [
-                  {
-                    "text": "this is a comment"
-                  },
-                  {
-                    "text": "this too"
-                  }
-                ],
+                "commentsLeft": [],
                 "commentsRight": [],
                 "range": {
                   "start": {
