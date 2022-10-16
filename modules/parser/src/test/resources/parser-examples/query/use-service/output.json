@@ -7,7 +7,7 @@
         "index": 0
       },
       "end": {
-        "index": 28
+        "index": 20
       }
     },
     "value": {
@@ -19,11 +19,11 @@
             "index": 12
           },
           "end": {
-            "index": 28
+            "index": 20
           }
         },
         "value": {
-          "segments": ["com", "example"],
+          "segments": ["com"],
           "selection": "Demo"
         }
       }
@@ -34,10 +34,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 29
+        "index": 21
       },
       "end": {
-        "index": 34
+        "index": 26
       }
     },
     "value": {
@@ -47,10 +47,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 29
+            "index": 21
           },
           "end": {
-            "index": 34
+            "index": 26
           }
         },
         "value": {
@@ -64,10 +64,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 35
+        "index": 27
       },
       "end": {
-        "index": 37
+        "index": 29
       }
     },
     "value": {
@@ -76,10 +76,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 36
+            "index": 28
           },
           "end": {
-            "index": 36
+            "index": 28
           }
         },
         "value": {

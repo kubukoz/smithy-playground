@@ -5,18 +5,19 @@ import playground.smithyql.Query
 import playground.smithyql.WithSource
 import playground.smithyql.Listed
 import playground.smithyql.Struct
+import playground.smithyql.UseClause
 
 object Codecs {
 
   import io.circe.generic.auto._
+  import io.circe.generic.semiauto._
 
-  implicit val listedWithSourceCodec: Codec[Listed[WithSource]] =
-    io.circe.generic.semiauto.deriveCodec
+  implicit val useClauseWithSourceCodec: Codec[UseClause[WithSource]] = deriveCodec
 
-  implicit val structWithSourceCodec: Codec[Struct[WithSource]] =
-    io.circe.generic.semiauto.deriveCodec
+  implicit val listedWithSourceCodec: Codec[Listed[WithSource]] = deriveCodec
 
-  implicit val queryWithSourceCodec: Codec[Query[WithSource]] =
-    io.circe.generic.semiauto.deriveCodec
+  implicit val structWithSourceCodec: Codec[Struct[WithSource]] = deriveCodec
+
+  implicit val queryWithSourceCodec: Codec[Query[WithSource]] = deriveCodec
 
 }
