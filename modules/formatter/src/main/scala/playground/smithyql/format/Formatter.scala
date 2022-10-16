@@ -110,7 +110,7 @@ object Formatter {
     val v = binding.value
 
     renderKey(k) +
-      Doc.char('=') +
+      Doc.char(':') +
       renderValue(v)
   }
 

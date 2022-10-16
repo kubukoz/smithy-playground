@@ -12,7 +12,7 @@ op
   //before key
   firstKey
   // after key
-   =
+   :
     //  before value
      "firstValue"
     //  after value
@@ -20,7 +20,7 @@ op
   // before another key
   secondKey
   // after second key
-  =
+  :
     // before value
     "secondValue"
     // after value
