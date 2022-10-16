@@ -47,15 +47,19 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 10
+        "index": 9
       },
       "end": {
-        "index": 64
+        "index": 65
       }
     },
     "value": {
       "fields": {
-        "commentsLeft": [],
+        "commentsLeft": [
+          {
+            "text": "this is a comment"
+          }
+        ],
         "commentsRight": [],
         "range": {
           "start": {
@@ -69,11 +73,7 @@
           "value": [
             {
               "identifier": {
-                "commentsLeft": [
-                  {
-                    "text": "this is a comment"
-                  }
-                ],
+                "commentsLeft": [],
                 "commentsRight": [],
                 "range": {
                   "start": {

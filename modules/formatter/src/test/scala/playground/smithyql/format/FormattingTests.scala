@@ -70,8 +70,8 @@ object FormattingTests extends SimpleIOSuite with Checkers {
   }("""hello {
       |  input = // this is a list
       |    [
-      |       // list elems can be anything
-      |      {
+      |      // list elems can be anything
+      |       {
       |
       |      }
       |      // and can have comments afterwards
@@ -94,8 +94,8 @@ object FormattingTests extends SimpleIOSuite with Checkers {
     hello { }""")
   }("""// before clause
       |use service com.example#Service
-      |
       |// after clause
+      |
       |hello {
       |
       |}

@@ -47,10 +47,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 12
+        "index": 11
       },
       "end": {
-        "index": 234
+        "index": 235
       }
     },
     "value": {
@@ -105,7 +105,11 @@
                 "value": {
                   "Listed": {
                     "values": {
-                      "commentsLeft": [],
+                      "commentsLeft": [
+                        {
+                          "text": "before first elem"
+                        }
+                      ],
                       "commentsRight": [],
                       "range": {
                         "start": {
@@ -117,11 +121,7 @@
                       },
                       "value": [
                         {
-                          "commentsLeft": [
-                            {
-                              "text": "before first elem"
-                            }
-                          ],
+                          "commentsLeft": [],
                           "commentsRight": [
                             {
                               "text": "after first elem"

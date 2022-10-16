@@ -4,10 +4,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 3
+        "index": 0
       },
       "end": {
-        "index": 3
+        "index": 0
       }
     },
     "value": null
@@ -17,10 +17,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 3
+        "index": 0
       },
       "end": {
-        "index": 8
+        "index": 2
       }
     },
     "value": {
@@ -30,14 +30,14 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 3
+            "index": 0
           },
           "end": {
-            "index": 8
+            "index": 2
           }
         },
         "value": {
-          "text": "hello"
+          "text": "op"
         }
       }
     }
@@ -47,10 +47,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 9
+        "index": 3
       },
       "end": {
-        "index": 33
+        "index": 35
       }
     },
     "value": {
@@ -59,10 +59,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 10
+            "index": 4
           },
           "end": {
-            "index": 32
+            "index": 34
           }
         },
         "value": {
@@ -73,14 +73,14 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 15
+                    "index": 7
                   },
                   "end": {
-                    "index": 20
+                    "index": 11
                   }
                 },
                 "value": {
-                  "text": "world"
+                  "text": "data"
                 }
               },
               "value": {
@@ -88,15 +88,31 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 23
+                    "index": 14
                   },
                   "end": {
-                    "index": 28
+                    "index": 33
                   }
                 },
                 "value": {
-                  "StringLiteral": {
-                    "value": "bar"
+                  "Listed": {
+                    "values": {
+                      "commentsLeft": [
+                        {
+                          "text": "in list"
+                        }
+                      ],
+                      "commentsRight": [],
+                      "range": {
+                        "start": {
+                          "index": 15
+                        },
+                        "end": {
+                          "index": 32
+                        }
+                      },
+                      "value": []
+                    }
                   }
                 }
               }

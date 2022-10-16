@@ -5,7 +5,11 @@
         "text": " before use clause"
       }
     ],
-    "commentsRight": [],
+    "commentsRight": [
+      {
+        "text": " before op"
+      }
+    ],
     "range": {
       "start": {
         "index": 22
@@ -34,11 +38,7 @@
     }
   },
   "operationName": {
-    "commentsLeft": [
-      {
-        "text": " before op"
-      }
-    ],
+    "commentsLeft": [],
     "commentsRight": [
       {
         "text": " after op"
@@ -80,15 +80,19 @@
     ],
     "range": {
       "start": {
-        "index": 81
+        "index": 80
       },
       "end": {
-        "index": 381
+        "index": 382
       }
     },
     "value": {
       "fields": {
-        "commentsLeft": [],
+        "commentsLeft": [
+          {
+            "text": "before key"
+          }
+        ],
         "commentsRight": [
           {
             "text": "after trailing comma, technically this is part of the struct"
@@ -106,11 +110,7 @@
           "value": [
             {
               "identifier": {
-                "commentsLeft": [
-                  {
-                    "text": "before key"
-                  }
-                ],
+                "commentsLeft": [],
                 "commentsRight": [
                   {
                     "text": " after key"

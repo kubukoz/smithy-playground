@@ -20,7 +20,7 @@
         "index": 0
       },
       "end": {
-        "index": 5
+        "index": 2
       }
     },
     "value": {
@@ -33,11 +33,11 @@
             "index": 0
           },
           "end": {
-            "index": 5
+            "index": 2
           }
         },
         "value": {
-          "text": "hello"
+          "text": "op"
         }
       }
     }
@@ -47,10 +47,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 6
+        "index": 3
       },
       "end": {
-        "index": 38
+        "index": 117
       }
     },
     "value": {
@@ -59,10 +59,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 7
+            "index": 4
           },
           "end": {
-            "index": 37
+            "index": 116
           }
         },
         "value": {
@@ -73,14 +73,14 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 8
+                    "index": 7
                   },
                   "end": {
-                    "index": 14
+                    "index": 11
                   }
                 },
                 "value": {
-                  "text": "values"
+                  "text": "data"
                 }
               },
               "value": {
@@ -88,57 +88,73 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 17
+                    "index": 14
                   },
                   "end": {
-                    "index": 36
+                    "index": 115
                   }
                 },
                 "value": {
                   "Listed": {
                     "values": {
-                      "commentsLeft": [],
+                      "commentsLeft": [
+                        {
+                          "text": "before elem 1"
+                        }
+                      ],
                       "commentsRight": [],
                       "range": {
                         "start": {
-                          "index": 18
+                          "index": 15
                         },
                         "end": {
-                          "index": 35
+                          "index": 114
                         }
                       },
                       "value": [
                         {
                           "commentsLeft": [],
-                          "commentsRight": [],
+                          "commentsRight": [
+                            {
+                              "text": "after elem 1"
+                            }
+                          ],
                           "range": {
                             "start": {
-                              "index": 18
+                              "index": 40
                             },
                             "end": {
-                              "index": 25
+                              "index": 41
                             }
                           },
                           "value": {
-                            "StringLiteral": {
-                              "value": "hello"
+                            "IntLiteral": {
+                              "value": "1"
                             }
                           }
                         },
                         {
-                          "commentsLeft": [],
-                          "commentsRight": [],
+                          "commentsLeft": [
+                            {
+                              "text": "before elem 2"
+                            }
+                          ],
+                          "commentsRight": [
+                            {
+                              "text": "after elem 2"
+                            }
+                          ],
                           "range": {
                             "start": {
-                              "index": 27
+                              "index": 91
                             },
                             "end": {
-                              "index": 34
+                              "index": 92
                             }
                           },
                           "value": {
-                            "StringLiteral": {
-                              "value": "world"
+                            "IntLiteral": {
+                              "value": "2"
                             }
                           }
                         }

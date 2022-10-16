@@ -39,17 +39,17 @@ object SmithyQLParser {
 
       def prep(s: String): String = s.replace(' ', '·').replace("\n", "\\n\n")
 
-      s"$valid${Console.RED}$failed${Console.RESET} - expected ${underlying
-          .expected
-          .map(showExpectation)
-          .mkString_("/")} after ${Console.BLUE}${prep(
+      s"$valid${Console.RED}$failed${Console.RESET} - ${Console.GREEN}${prep(
           text.take(
             underlying.failedAtOffset
           )
-        )}${Console.RESET}, got ${Console.YELLOW}\"${prep(
+        )}${Console.RESET}${Console.YELLOW}${prep(
           failed
             .take(10)
-        )}\"${Console.RESET} instead"
+        )}${Console.RESET} - expected ${underlying
+          .expected
+          .map(showExpectation)
+          .mkString_("/")} at offset ${underlying.failedAtOffset}"
     }
 
   }
@@ -71,31 +71,36 @@ object SmithyQLParser {
       .repSep0(whitespace)
       .surroundedBy(whitespace)
 
-    def withComments[A](
-      p: Parser[A]
-    ): Parser[T[A]] = ((comments ~ Parser.index).with1 ~ p ~ (Parser.index ~ comments)).map {
-      case (((commentsBefore, indexBefore), v), (indexAfter, commentsAfter)) =>
-        val range = SourceRange(Position(indexBefore), Position(indexAfter))
-        WithSource(
-          commentsLeft = commentsBefore,
-          commentsRight = commentsAfter,
-          range = range,
-          value = v,
-        )
+    val pos = Parser.index.map(Position(_))
+
+    def mergeComments[A]: (((List[Comment], T[A]), List[Comment])) => T[A] = {
+      case ((commentsBefore, v), commentsAfter) => v.withComments(commentsBefore, commentsAfter)
     }
 
-    def withRange[A](
-      p: Parser[A]
-    ): Parser[T[A]] = (Parser.index.with1 ~ p ~ Parser.index).map {
-      case ((indexBefore, v), indexAfter) =>
-        val range = SourceRange(Position(indexBefore), Position(indexAfter))
+    def mergeRange[
+      A
+    ]: (((Position, A), Position)) => T[A] = { case ((indexBefore, v), indexAfter) =>
+      val range = SourceRange(indexBefore, indexAfter)
 
-        WithSource(
-          commentsLeft = Nil,
-          commentsRight = Nil,
-          range = range,
-          value = v,
-        )
+      WithSource.liftId(v).withRange(range)
+    }
+
+    def withComments[A](
+      p: Parser[A]
+    ): Parser[T[A]] = (comments.soft.with1 ~ withRange(p) ~ comments).map(mergeComments)
+
+    def withComments0[A](
+      p: Parser0[A]
+    ): Parser0[T[A]] = (comments.soft ~ withRange0(p) ~ comments).map(mergeComments)
+
+    def withRange[A](p: Parser[A]): Parser[T[A]] = (pos.with1 ~ p ~ pos).map(mergeRange)
+    def withRange0[A](p: Parser0[A]): Parser0[T[A]] = (pos ~ p ~ pos).map(mergeRange)
+
+    // A bit of a hack: replace the ranges of the given parser's WithSource
+    // with ones containing the whole parser.
+    // It's a short-term solution as the real one would involve adding new syntax nodes keeping the ranges.
+    def expandRange0[S](p: Parser0[T[S]]): Parser0[T[S]] = tokens.withRange0(p).map { forRange =>
+      forRange.value.withRange(forRange.range)
     }
 
     private[SmithyQLParser] val rawIdentifier =
@@ -141,12 +146,18 @@ object SmithyQLParser {
     val ident: Parser[T[String]] = tokens.withComments(tokens.identifier)
 
     // doesn't accept comments
-    val qualifiedIdent: Parser[QualifiedIdentifier] =
-      (
-        rawIdent.repSep(tokens.dot.surroundedBy(tokens.whitespace).backtrack),
-        tokens.hash.surroundedBy(tokens.whitespace) *> rawIdent,
-      ).mapN(QualifiedIdentifier.apply)
+    val qualifiedIdent: Parser[QualifiedIdentifier] = {
+      val segments =
+        rawIdent.repSep(
+          // soft: allows backtracking if dot isn't present (for operation names)
+          tokens.whitespace.soft *> tokens.dot *> tokens.whitespace
+        ) <* tokens.whitespace
 
+      (
+        // soft: allows backtracking if hash isn't present (for operation names)
+        segments.soft ~ (tokens.hash *> tokens.whitespace *> rawIdent),
+      ).map(QualifiedIdentifier.apply.tupled)
+    }
     val useClause: Parser[UseClause[T]] = {
       string("use") *>
         string("service")
@@ -154,9 +165,7 @@ object SmithyQLParser {
         tokens.withRange(qualifiedIdent)
     }.map(UseClause.apply[T])
 
-    val intLiteral = tokens
-      .number
-      .map(IntLiteral[T](_))
+    val intLiteral = tokens.number.map(IntLiteral[T](_))
 
     val boolLiteral = tokens.bool.map(BooleanLiteral[T](_))
 
@@ -189,36 +198,20 @@ object SmithyQLParser {
 
       val field: Parser[TField] =
         (
-          // sussy backtrack, but it works
-          ident.map(_.map(Identifier.apply)).backtrack <* tokens.equalsSign,
+          ident.map(_.map(Identifier.apply)) <* tokens.equalsSign,
           tokens.withComments(node),
         ).mapN(Binding.apply[T])
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
-      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
+      val fields: Parser0[Struct.Fields[T]] = trailingCommaSeparated0(field).map(
+        Struct.Fields[T](_)
+      )
 
-      tokens.openBrace *>
-        (
-          Parser.index ~
-            // fields always start with whitespace/comments, so we don't catch that here
-            fields ~
-            tokens.comments ~
-            (Parser.index <*
-              tokens.closeBrace)
-        ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
-          val fieldsResult = Struct.Fields.fromSeq(fieldsR)
-
-          val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
-
-          Struct {
-            WithSource(
-              commentsLeft = Nil,
-              commentsRight = commentsBeforeEnd,
-              range = range,
-              value = fieldsResult,
-            )
-          }
-        }
+      tokens
+        .expandRange0(tokens.withComments0(fields))
+        .with1
+        .between(tokens.openBrace, tokens.closeBrace)
+        .map(Struct.apply[T](_))
     }
 
     // this is mostly copy-pasted from structs, might not work lmao
@@ -228,73 +221,42 @@ object SmithyQLParser {
       val field: Parser[TField] = tokens.withComments(node)
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
-      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field.backtrack)
+      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
 
-      tokens.openBracket *>
-        (
-          Parser.index ~
-            // fields always start with whitespace/comments, so we don't catch that here
-            fields ~
-            tokens.comments ~
-            (Parser.index <*
-              tokens.closeBracket)
-        ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
-          val fieldsResult = fieldsR
-          val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
-
-          Listed {
-            WithSource(
-              commentsLeft = Nil,
-              commentsRight = commentsBeforeEnd,
-              range = range,
-              value = fieldsResult,
-            )
-          }
-        }
+      tokens
+        .expandRange0(tokens.withComments0(fields))
+        .with1
+        .between(tokens.openBracket, tokens.closeBracket)
+        .map(Listed.apply[T](_))
     }
 
-    val useClauseWithSource: Parser0[WithSource[Option[UseClause[WithSource]]]] =
-      (tokens.comments ~ Parser.index ~ useClause.? ~ Parser.index).map {
-        case (((commentsBefore, indexBefore), useClause), indexAfter) =>
-          WithSource(
-            commentsBefore,
-            Nil,
-            SourceRange(Position(indexBefore), Position(indexAfter)),
-            useClause,
-          )
-      }
+    val useClauseWithSource: Parser0[WithSource[Option[UseClause[WithSource]]]] = tokens
+      .withComments0(useClause.?)
 
     val queryOperationName: Parser[T[QueryOperationName[WithSource]]] = {
 
-      val serviceRef =
-        tokens
-          .withRange(
-            qualifiedIdent.backtrack <* tokens.whitespace
-          ) <* tokens.dot
+      val serviceRef = tokens.withRange(qualifiedIdent <* tokens.whitespace) <* tokens.dot
 
       val operationName = tokens.withRange(rawIdent).map(_.map(OperationName[WithSource](_)))
 
+      val sr = (serviceRef <* tokens.whitespace).?
+
       tokens.withComments {
-        ((serviceRef <* tokens.whitespace).?.with1 ~ operationName).map {
-          QueryOperationName.apply[WithSource].tupled
-        }
+        (
+          sr.with1 ~
+            operationName
+        ).map(QueryOperationName.apply[WithSource].tupled)
       }
     }
 
-    (useClauseWithSource.with1 ~
-      queryOperationName ~ struct ~ tokens.comments)
-      .map { case (((useClause, opName), input), commentsAfter) =>
+    (useClauseWithSource.with1 ~ queryOperationName ~ tokens.withComments(struct)).map {
+      case ((useClause, opName), input) =>
         Query(
           useClause,
           opName,
-          WithSource(
-            commentsLeft = Nil,
-            commentsRight = commentsAfter,
-            range = input.fields.range,
-            value = input,
-          ),
+          input,
         )
-      }
+    }
   }
 
 }
