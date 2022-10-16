@@ -1,0 +1,50 @@
+{
+  "values": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 8
+      }
+    },
+    "value": [
+      {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 1
+          },
+          "end": {
+            "index": 4
+          }
+        },
+        "value": {
+          "StringLiteral": {
+            "value": "a"
+          }
+        }
+      },
+      {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 6
+          },
+          "end": {
+            "index": 8
+          }
+        },
+        "value": {
+          "IntLiteral": {
+            "value": "10"
+          }
+        }
+      }
+    ]
+  }
+}
