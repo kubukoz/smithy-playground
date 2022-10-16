@@ -33,7 +33,8 @@ trait ParserSuite extends SimpleIOSuite {
       .drain
 
   def loadParserTests[Alg[_[_]]: SourceParser](
-    prefix: String
+    prefix: String,
+    trimWhitespace: Boolean = false,
   )(
     implicit codec: Codec[Alg[WithSource]],
     diff: Diff[Alg[WithSource]],
@@ -50,7 +51,12 @@ trait ParserSuite extends SimpleIOSuite {
 
         test(testName) {
 
-          val inputIO = readText(testBase / "input.smithyql-test")
+          val inputIO = readText(testBase / "input.smithyql-test").map(
+            if (trimWhitespace)
+              _.strip
+            else
+              identity
+          )
 
           val outputIO = readText(outputPath)
             .flatMap(io.circe.parser.decode[Alg[WithSource]](_).liftTo[IO])
