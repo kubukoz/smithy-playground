@@ -256,29 +256,6 @@ object SmithyQLParser {
         .between(tokens.openBracket, tokens.closeBracket)
         .map(Listed.apply[T](_))
     }
-    /*
-      tokens.openBracket *>
-        (
-          Parser.index ~
-            // fields always start with whitespace/comments, so we don't catch that here
-            fields ~
-            tokens.comments ~
-            (Parser.index <*
-              tokens.closeBracket)
-        ).map { case (((indexInside, fieldsR), commentsBeforeEnd), indexBeforeExit) =>
-          val fieldsResult = fieldsR
-          val range = SourceRange(Position(indexInside), Position(indexBeforeExit))
-
-          Listed {
-            WithSource(
-              commentsLeft = Nil,
-              commentsRight = commentsBeforeEnd,
-              range = range,
-              value = fieldsResult,
-            )
-          }
-        }
-     */
 
     val useClauseWithSource: Parser0[WithSource[Option[UseClause[WithSource]]]] = tokens
       .withComments0(useClause.?)
