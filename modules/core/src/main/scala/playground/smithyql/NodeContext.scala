@@ -7,8 +7,6 @@ import cats.data.Chain.==:
 // The path to a position in the parsed source
 sealed trait NodeContext extends Product with Serializable with NodeContext.PathEntry.TraversalOps {
 
-  override def toString(): String = render
-
   def render: String =
     this match {
       case NodeContext.Impl(context) =>

@@ -99,22 +99,22 @@ object RangeIndex {
   private def findInStruct(
     struct: Struct[WithSource],
     ctx: NodeContext,
-  ): List[ContextRange] = {
+  ): List[ContextRange] =
     // Struct fields that allow nesting in them
-    val inFields = struct
-      .fields
-      .value
-      .value
-      .flatMap { binding =>
-        findInNode(binding.value, ctx.inStructValue(binding.identifier.value.text))
-      }
+    {
+      val inFields = struct
+        .fields
+        .value
+        .value
+        .flatMap { binding =>
+          findInNode(binding.value, ctx.inStructValue(binding.identifier.value.text))
+        }
 
-    ContextRange(struct.fields.range, ctx) :: inFields
-  }
+      ContextRange(struct.fields.range, ctx) :: inFields
+    }
 
 }
 
 case class ContextRange(range: SourceRange, ctx: NodeContext) {
   def render: String = ctx.render + " -> " + range.render
-  override def toString: String = render
 }
