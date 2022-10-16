@@ -848,7 +848,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   )(
     q: String
   ) = playground
-    .Compiler
+    .OperationCompiler
     .fromService(service)
     .compile(
       SourceParser[Query].parse(q).toTry.get

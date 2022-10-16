@@ -3,8 +3,8 @@ package playground.language
 import playground.smithyql.SourceRange
 import cats.implicits._
 import playground.types._
-import playground.Compiler
-import playground.Runner
+import playground.OperationCompiler
+import playground.OperationRunner
 import playground.smithyql.parser.SourceParser
 import playground.smithyql.Query
 
@@ -15,8 +15,8 @@ trait CodeLensProvider[F[_]] {
 object CodeLensProvider {
 
   def instance[F[_]](
-    compiler: Compiler[IorThrow],
-    runner: Runner.Resolver[F],
+    compiler: OperationCompiler[IorThrow],
+    runner: OperationRunner.Resolver[F],
   ): CodeLensProvider[F] =
     new CodeLensProvider[F] {
 
