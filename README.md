@@ -42,37 +42,37 @@ Here's a more verbose example showcasing most of the language syntax. `DemoServi
 use service demo.smithy#DemoService
 
 CreateHero {
-  hero = {
-    good = {
-      howGood = 42,
+  hero: {
+    good: {
+      howGood: 42,
     },
   },
-  friends = [
+  friends: [
     {
-      bad = {
-        evilName = "Vader",
-        powerLevel = 9001,
+      bad: {
+        evilName: "Vader",
+        powerLevel: 9001,
       },
     },
   ],
-  doc = [
+  doc: [
     "this is a document, so you can do pretty much anything here",
     null,
     false,
     42,
     {
-      nested = "key",
+      nested: "key",
     },
     [ ],
   ],
-  hasNewtypes = {
-    anInstant = "2022-10-08T00:46:31.378493Z",
-    anUUID = "cd4f93e0-fd11-41f0-8f13-44f66e1f0997",
-    power = "FIRE",
-    powerMap = {
-      FIRE = {
-        good = {
-          howGood = 10,
+  hasNewtypes: {
+    anInstant: "2022-10-08T00:46:31.378493Z",
+    anUUID: "cd4f93e0-fd11-41f0-8f13-44f66e1f0997",
+    power: "FIRE",
+    powerMap: {
+      FIRE: {
+        good: {
+          howGood: 10,
         },
       },
     },
@@ -120,7 +120,7 @@ In general, in SmithyQL, value literals look a bit like a mix of JSON and Nix. W
 - numeric literals: `2137`, `42.0`, `4e10` - following the JSON spec of numbers
 - booleans: `true`, `false`
 - lists: `[ true, false, ]`
-- structures: `{ k = "value", k2 = true, k3 = [ 10, 20, ], }`
+- structures: `{ k: "value", k2: true, k3: [ 10, 20, ], }`
 - null, but it's not what you think: the `null` literal only typechecks as a Smithy `Document`,
   and corresponds to the [Null document](https://awslabs.github.io/smithy/2.0/spec/simple-types.html?highlight=null#document).
 
@@ -148,14 +148,14 @@ union A {
 }
 ```
 
-to get a value corresponding to the `f` case, you should do something like `{ f = 40 }`.
+to get a value corresponding to the `f` case, you should do something like `{ f: 40 }`.
 
 - enums: Smithy enums are written as string literals using the name of the enum value.
 
 ```
 enum Temperature {
-  HOT = "Hot",
-  COLD = "Cold"
+  HOT: "Hot",
+  COLD: "Cold"
 }
 ```
 
