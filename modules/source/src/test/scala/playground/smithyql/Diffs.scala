@@ -8,5 +8,6 @@ object Diffs {
 
   implicit val diffSourceRange: Diff[SourceRange] = Diff.derivedDiff
   implicit def diffListedWithSource: Diff[Listed[WithSource]] = Diff.derivedDiff
+  implicit val diffStructWithSource: Diff[Struct[WithSource]] = Diff.derivedDiff
   implicit val diffQueryWithSource: Diff[Query[WithSource]] = Diff.derivedDiff
 }

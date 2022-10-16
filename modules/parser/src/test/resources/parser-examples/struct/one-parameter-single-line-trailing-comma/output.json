@@ -1,0 +1,52 @@
+{
+  "fields": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 16
+      }
+    },
+    "value": {
+      "value": [
+        {
+          "identifier": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 2
+              },
+              "end": {
+                "index": 7
+              }
+            },
+            "value": {
+              "text": "world"
+            }
+          },
+          "value": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 9
+              },
+              "end": {
+                "index": 14
+              }
+            },
+            "value": {
+              "StringLiteral": {
+                "value": "bar"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

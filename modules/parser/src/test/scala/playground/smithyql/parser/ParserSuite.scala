@@ -34,6 +34,7 @@ trait ParserSuite extends SimpleIOSuite {
 
   def loadParserTests[Alg[_[_]]: SourceParser](
     prefix: String,
+    // this isn't on by default because whitespace in full files (currently, 1-1 mapping to queries) is significant and should not be trimmed before parsing.
     trimWhitespace: Boolean = false,
   )(
     implicit codec: Codec[Alg[WithSource]],

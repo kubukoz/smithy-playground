@@ -23,8 +23,9 @@ object SourceParser {
         .parseAll(s)
         .leftMap(ParsingFailure(_, s))
 
-  implicit val queryParser: SourceParser[Query] = fromCatsParseParser(Parsers.parsers.query)
   implicit val listedParser: SourceParser[Listed] = fromCatsParseParser(Parsers.parsers.listed)
+  implicit val structParser: SourceParser[Struct] = fromCatsParseParser(Parsers.parsers.struct)
+  implicit val queryParser: SourceParser[Query] = fromCatsParseParser(Parsers.parsers.query)
 }
 
 case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {

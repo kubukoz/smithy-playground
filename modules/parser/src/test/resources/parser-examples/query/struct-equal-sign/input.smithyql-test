@@ -1,4 +1,0 @@
-hello {
-  // Testing for legacy syntax support
-  arg = "value"
-}

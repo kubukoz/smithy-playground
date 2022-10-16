@@ -1,0 +1,122 @@
+{
+  "fields": {
+    "commentsLeft": [
+      {
+        "text": "before key"
+      }
+    ],
+    "commentsRight": [
+      {
+        "text": "after trailing comma, technically this is part of the struct"
+      }
+    ],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 299
+      }
+    },
+    "value": {
+      "value": [
+        {
+          "identifier": {
+            "commentsLeft": [],
+            "commentsRight": [
+              {
+                "text": " after key"
+              }
+            ],
+            "range": {
+              "start": {
+                "index": 20
+              },
+              "end": {
+                "index": 28
+              }
+            },
+            "value": {
+              "text": "firstKey"
+            }
+          },
+          "value": {
+            "commentsLeft": [
+              {
+                "text": "  before value"
+              }
+            ],
+            "commentsRight": [
+              {
+                "text": "  after value"
+              }
+            ],
+            "range": {
+              "start": {
+                "index": 74
+              },
+              "end": {
+                "index": 86
+              }
+            },
+            "value": {
+              "StringLiteral": {
+                "value": "firstValue"
+              }
+            }
+          }
+        },
+        {
+          "identifier": {
+            "commentsLeft": [
+              {
+                "text": " before another key"
+              }
+            ],
+            "commentsRight": [
+              {
+                "text": " after second key"
+              }
+            ],
+            "range": {
+              "start": {
+                "index": 137
+              },
+              "end": {
+                "index": 146
+              }
+            },
+            "value": {
+              "text": "secondKey"
+            }
+          },
+          "value": {
+            "commentsLeft": [
+              {
+                "text": " before value"
+              }
+            ],
+            "commentsRight": [
+              {
+                "text": " after value"
+              }
+            ],
+            "range": {
+              "start": {
+                "index": 196
+              },
+              "end": {
+                "index": 209
+              }
+            },
+            "value": {
+              "StringLiteral": {
+                "value": "secondValue"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

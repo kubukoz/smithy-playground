@@ -1,0 +1,56 @@
+{
+  "fields": {
+    "commentsLeft": [
+      {
+        "text": " Testing for legacy syntax support"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 57
+      }
+    },
+    "value": {
+      "value": [
+        {
+          "identifier": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 43
+              },
+              "end": {
+                "index": 46
+              }
+            },
+            "value": {
+              "text": "arg"
+            }
+          },
+          "value": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 49
+              },
+              "end": {
+                "index": 56
+              }
+            },
+            "value": {
+              "StringLiteral": {
+                "value": "value"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
