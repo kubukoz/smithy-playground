@@ -61,6 +61,12 @@ final case class WithSource[+A](
     commentsLeft ++ valueComments(value) ++ commentsRight
 
   def withRange(range: SourceRange): WithSource[A] = copy(range = range)
+
+  def withComments(
+    commentsLeft: List[Comment],
+    commentsRight: List[Comment],
+  ): WithSource[A] = copy(commentsLeft = commentsLeft, commentsRight = commentsRight)
+
 }
 
 object WithSource {

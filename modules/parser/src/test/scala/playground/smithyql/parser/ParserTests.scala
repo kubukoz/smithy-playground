@@ -52,7 +52,6 @@ object ParserTests extends SimpleIOSuite {
           case Right(v) =>
             outputIO
               .map { expected =>
-                // ignore("todo").unlessA(testName.contains("service-reference")) *>
                 assertNoDiff(v, expected)
               }
               .recoverWith { case _: NoSuchFileException =>
