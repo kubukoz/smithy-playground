@@ -14,7 +14,7 @@ import weaver._
 import java.nio.file.NoSuchFileException
 import java.nio.file.Paths
 
-abstract class ParserSuite extends SimpleIOSuite {
+trait ParserSuite extends SimpleIOSuite {
 
   private def readText(path: Path) =
     Files[IO]
