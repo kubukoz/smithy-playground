@@ -51,16 +51,9 @@ case class ParsingFailure(underlying: Parser.Error, text: String) extends Except
         case e                                  => e.toString
       }
 
-    def prep(s: String): String = s.replace(' ', '·').replace("\n", "\\n\n")
+    def prep(s: String): String = s.replace(' ', '·').replace("\n", "⏎\n")
 
-    s"$valid${Console.RED}$failed${Console.RESET} - ${Console.GREEN}${prep(
-        text.take(
-          underlying.failedAtOffset
-        )
-      )}${Console.RESET}${Console.YELLOW}${prep(
-        failed
-          .take(10)
-      )}${Console.RESET} - expected ${underlying
+    s"${Console.GREEN}${prep(valid)}${Console.RESET}${Console.YELLOW}${prep(failed)}${Console.RESET} - expected ${underlying
         .expected
         .map(showExpectation)
         .mkString_("/")} at offset ${underlying.failedAtOffset}"

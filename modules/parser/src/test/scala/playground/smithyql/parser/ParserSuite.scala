@@ -64,7 +64,9 @@ trait ParserSuite extends SimpleIOSuite {
 
           inputIO.flatMap { input =>
             SourceParser[Alg].parse(input) match {
-              case Left(e) => failure(s"Parsing failed: ${e.msg}").pure[IO]
+              case Left(e) =>
+                failure(s"Parsing failed: \n==========\n${e.msg}\n==========").pure[IO]
+
               case Right(v) =>
                 outputIO
                   .map { expected =>
