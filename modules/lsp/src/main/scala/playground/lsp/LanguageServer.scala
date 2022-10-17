@@ -34,6 +34,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.language.Uri
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -98,10 +99,12 @@ object LanguageServer {
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
           .tap(_.setDocumentSymbolProvider(true))
 
+        val wsf = params.getWorkspaceFolders().asScala.toList.map(_.getUri()).map(Uri(_))
+
         LanguageClient[F]
           .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
           ServerLoader[F]
-            .prepare
+            .prepare(wsf.some)
             .flatMap { prepped =>
               ServerLoader[F].perform(prepped.params).flatTap { stats =>
                 LanguageClient[F]
@@ -124,24 +127,24 @@ object LanguageServer {
           Applicative[F].unit
         else
           TextDocumentManager[F].put(
-            params.getTextDocument().getUri(),
+            Uri(params.getTextDocument().getUri()),
             changesAsList.head.getText(),
           )
       }
 
       def didOpen(params: DidOpenTextDocumentParams): F[Unit] = TextDocumentManager[F].put(
-        params.getTextDocument().getUri(),
+        Uri(params.getTextDocument().getUri()),
         params.getTextDocument().getText(),
       )
 
       def didSave(
         params: DidSaveTextDocumentParams
       ): F[Unit] = TextDocumentManager[F]
-        .remove(params.getTextDocument().getUri())
+        .remove(Uri(params.getTextDocument().getUri()))
 
       def didClose(
         params: DidCloseTextDocumentParams
-      ): F[Unit] = TextDocumentManager[F].remove(params.getTextDocument().getUri())
+      ): F[Unit] = TextDocumentManager[F].remove(Uri(params.getTextDocument().getUri()))
 
       private val getFormatterWidth: F[Int] = LanguageClient[F]
         .configuration[Int]("smithyql.formatter.maxWidth")
@@ -149,7 +152,7 @@ object LanguageServer {
       def formatting(
         params: DocumentFormattingParams
       ): F[List[TextEdit]] = TextDocumentProvider[F]
-        .get(params.getTextDocument().getUri())
+        .get(Uri(params.getTextDocument().getUri()))
         .flatMap { text =>
           getFormatterWidth
             .map { maxWidth =>
@@ -178,7 +181,7 @@ object LanguageServer {
       def completion(
         position: CompletionParams
       ): F[Either[List[CompletionItem], CompletionList]] = TextDocumentManager[F]
-        .get(position.getTextDocument().getUri())
+        .get(Uri(position.getTextDocument().getUri()))
         .map { documentText =>
           completionProvider
             .provide(
@@ -194,7 +197,7 @@ object LanguageServer {
       ): F[DocumentDiagnosticReport] = {
         val documentUri = params.getTextDocument().getUri()
         TextDocumentManager[F]
-          .get(documentUri)
+          .get(Uri(documentUri))
           .map { documentText =>
             val diags = diagnosticProvider.getDiagnostics(
               params.getTextDocument().getUri(),
@@ -204,7 +207,7 @@ object LanguageServer {
             new DocumentDiagnosticReport(
               new RelatedFullDocumentDiagnosticReport(
                 diags
-                  .map(converters.toLSP.diagnostic(documentText, documentUri, _))
+                  .map(converters.toLSP.diagnostic(documentText, Uri(documentUri), _))
                   .asJava
               )
             )
@@ -213,25 +216,26 @@ object LanguageServer {
 
       def codeLens(
         params: CodeLensParams
-      ): F[List[CodeLens]] = TextDocumentManager[F].get(params.getTextDocument().getUri()).map {
-        documentText =>
+      ): F[List[CodeLens]] = TextDocumentManager[F]
+        .get(Uri(params.getTextDocument().getUri()))
+        .map { documentText =>
           lensProvider
             .provide(
-              documentUri = params.getTextDocument.getUri(),
+              documentUri = Uri(params.getTextDocument.getUri()),
               documentText = documentText,
             )
             .map(converters.toLSP.codeLens(documentText, _))
-      }
+        }
 
       def documentSymbol(params: DocumentSymbolParams): F[List[DocumentSymbol]] =
-        TextDocumentManager[F].get(params.getTextDocument().getUri()).map { text =>
+        TextDocumentManager[F].get(Uri(params.getTextDocument().getUri())).map { text =>
           DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(text, _))
         }
 
       def didChangeWatchedFiles(
         params: DidChangeWatchedFilesParams
       ): F[Unit] = ServerLoader[F]
-        .prepare
+        .prepare(workspaceFolders = None)
         .flatMap {
           case prepared if !prepared.isChanged =>
             LanguageClient[F].showInfoMessage(

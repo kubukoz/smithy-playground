@@ -22,7 +22,7 @@ object CommandProvider {
   ): CommandProvider[F] =
     new CommandProvider[F] {
 
-      private def runQuery(documentUri: String): F[Unit] = TextDocumentProvider[F]
+      private def runQuery(documentUri: Uri): F[Unit] = TextDocumentProvider[F]
         .get(documentUri)
         .flatMap { documentText =>
           SourceParser[Query]
@@ -67,7 +67,7 @@ object CommandProvider {
 
       private val commandMap: Map[String, List[String] => F[Unit]] = ListMap(
         Command.RUN_QUERY -> {
-          case documentUri :: Nil => runQuery(documentUri)
+          case documentUri :: Nil => runQuery(Uri(documentUri))
           case s => new Throwable("Unsupported arguments: " + s).raiseError[F, Unit]
         }
       )

@@ -117,7 +117,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   def runQuery(params: RunQueryParams): CompletableFuture[Object] = executeCommand(
     new ExecuteCommandParams()
       .tap(_.setCommand(playground.language.Command.RUN_QUERY))
-      .tap(_.setArguments(List(new JsonPrimitive(params.uri): Object).asJava))
+      .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))
   )
 
   @JsonRequest("exit")

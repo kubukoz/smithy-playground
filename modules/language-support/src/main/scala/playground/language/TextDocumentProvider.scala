@@ -1,8 +1,8 @@
 package playground.language
 
 trait TextDocumentProvider[F[_]] {
-  def get(uri: String): F[String]
-  def getOpt(uri: String): F[Option[String]]
+  def get(uri: Uri): F[String]
+  def getOpt(uri: Uri): F[Option[String]]
 }
 
 object TextDocumentProvider {

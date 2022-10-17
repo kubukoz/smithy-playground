@@ -84,20 +84,19 @@ object Main extends IOApp.Simple {
       }
   }
 
-  private def makeServer[F[_]: Async: std.Console](
-    implicit lc: LanguageClient[F]
-  ): Resource[F, LanguageServer[F]] = TextDocumentManager
-    .instance[F]
-    .toResource
-    .flatMap { implicit tdm =>
-      implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
+  def makeServer[F[_]: LanguageClient: Async: std.Console]: Resource[F, LanguageServer[F]] =
+    TextDocumentManager
+      .instance[F]
+      .toResource
+      .flatMap { implicit tdm =>
+        implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
 
-      ServerBuilder
-        .instance[F]
-        .evalMap { implicit builder =>
-          ServerLoader.instance[F]
-        }
-        .map(_.server)
-    }
+        ServerBuilder
+          .instance[F]
+          .evalMap { implicit builder =>
+            ServerLoader.instance[F]
+          }
+          .map(_.server)
+      }
 
 }

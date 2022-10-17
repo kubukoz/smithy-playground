@@ -9,9 +9,10 @@ import playground.ModelReader
 import playground.language.TextDocumentProvider
 import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
+import playground.language.Uri
 
 trait BuildLoader[F[_]] {
-  def load: F[BuildLoader.Loaded]
+  def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded]
 
   def buildSchemaIndex(info: BuildLoader.Loaded): F[DynamicSchemaIndex]
 
@@ -20,26 +21,27 @@ trait BuildLoader[F[_]] {
 object BuildLoader {
   def apply[F[_]](implicit F: BuildLoader[F]): BuildLoader[F] = F
 
-  case class Loaded(config: BuildConfig, configFilePath: Path)
+  case class Loaded(config: BuildConfig, configFilePath: Path, workspaceFolders: List[Uri])
 
   object Loaded {
     // Path is irrelevant when no imports are provided.
-    val default: Loaded = Loaded(BuildConfig(), Path("/"))
+    val default: Loaded = Loaded(BuildConfig(), Path("/"), Nil)
   }
 
   def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
     new BuildLoader[F] {
 
-      def load: F[BuildLoader.Loaded] = {
+      def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded] = {
         val configFiles = List(
           "build/smithy-dependencies.json",
           ".smithy.json",
           "smithy-build.json",
         )
 
+        // For now, we only support a single workspace folder.
         fs2
           .Stream
-          .emit(Path("."))
+          .emit(workspaceFolders.head.toPath)
           .flatMap { folder =>
             fs2
               .Stream
@@ -48,12 +50,7 @@ object BuildLoader {
           }
           .evalMap(filePath =>
             TextDocumentProvider[F]
-              .getOpt(
-                filePath
-                  .toNioPath
-                  .toUri()
-                  .toString()
-              )
+              .getOpt(Uri.fromPath(filePath))
               .map(_.tupleRight(filePath))
           )
           .unNone
@@ -71,8 +68,7 @@ object BuildLoader {
             BuildConfigDecoder
               .decode(fileContents.getBytes())
               .liftTo[F]
-              .tupleRight(filePath)
-              .map(BuildLoader.Loaded.apply.tupled)
+              .map(BuildLoader.Loaded.apply(_, filePath, workspaceFolders))
           }
       }
 

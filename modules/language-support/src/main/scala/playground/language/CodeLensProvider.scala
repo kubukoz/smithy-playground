@@ -9,7 +9,7 @@ import playground.smithyql.parser.SourceParser
 import playground.smithyql.Query
 
 trait CodeLensProvider[F[_]] {
-  def provide(documentUri: String, documentText: String): List[CodeLens]
+  def provide(documentUri: Uri, documentText: String): List[CodeLens]
 }
 
 object CodeLensProvider {
@@ -20,7 +20,7 @@ object CodeLensProvider {
   ): CodeLensProvider[F] =
     new CodeLensProvider[F] {
 
-      def provide(documentUri: String, documentText: String): List[CodeLens] =
+      def provide(documentUri: Uri, documentText: String): List[CodeLens] =
         SourceParser[Query].parse(documentText) match {
           case Right(parsed) if runner.get(parsed).toEither.isRight =>
             compiler
@@ -31,7 +31,7 @@ object CodeLensProvider {
                   Command(
                     title = "Run query",
                     command = Command.RUN_QUERY,
-                    args = documentUri :: Nil,
+                    args = documentUri.toString :: Nil,
                   ),
                 )
               }
