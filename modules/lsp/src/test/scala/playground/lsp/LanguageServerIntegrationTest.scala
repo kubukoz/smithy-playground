@@ -17,6 +17,8 @@ import weaver._
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import org.eclipse.lsp4j.DocumentSymbolParams
+import org.eclipse.lsp4j.SymbolKind
 
 object LanguageServerIntegrationTest extends IOSuite {
 
@@ -121,6 +123,20 @@ object LanguageServerIntegrationTest extends IOSuite {
         assert(diagnosticItems.size == 1) &&
         assert(diagnosticItems.head.getSeverity() == DiagnosticSeverity.Error) &&
         assert(diagnosticItems.head.getMessage.contains("Parsing failure"))
+      }
+  }
+
+  test("document symbols") { f =>
+    f.server
+      .documentSymbol(
+        new DocumentSymbolParams(
+          new TextDocumentIdentifier(
+            (f.workspaceDir.toPath / "demo.smithyql").toNioPath.toUri().toString()
+          )
+        )
+      )
+      .map { symbols =>
+        assert.eql(symbols.map(_.getName()), List("playground.std#Random", "NextUUID"))
       }
   }
 }
