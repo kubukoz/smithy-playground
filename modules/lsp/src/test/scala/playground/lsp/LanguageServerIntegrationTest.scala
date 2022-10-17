@@ -6,6 +6,7 @@ import cats.effect.implicits._
 import org.eclipse.lsp4j.CompletionParams
 import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.DocumentDiagnosticParams
+import org.eclipse.lsp4j.DocumentSymbolParams
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
@@ -17,8 +18,6 @@ import weaver._
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import org.eclipse.lsp4j.DocumentSymbolParams
-import org.eclipse.lsp4j.SymbolKind
 
 object LanguageServerIntegrationTest extends IOSuite {
 
@@ -41,7 +40,7 @@ object LanguageServerIntegrationTest extends IOSuite {
   def makeServer(
     workspaceDir: Uri
   ): Resource[IO, Fixture] = TestClient.forIO.toResource.flatMap { implicit client =>
-    Main
+    MainServer
       .makeServer[IO]
       .evalTap(_.initialize(initParams(workspaceDir)))
       .map { server =>
