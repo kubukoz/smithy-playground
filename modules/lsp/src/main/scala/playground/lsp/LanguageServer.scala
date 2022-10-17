@@ -35,6 +35,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 import playground.language.Uri
+import com.google.gson.JsonPrimitive
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -54,6 +55,7 @@ trait LanguageServer[F[_]] {
   ): F[Unit]
 
   def executeCommand(params: ExecuteCommandParams): F[Unit]
+  def runQuery(params: RunQueryParams): F[Unit]
   def shutdown: F[Unit]
   def exit: F[Unit]
 }
@@ -278,6 +280,12 @@ object LanguageServer {
           case s                 => new Throwable("Unsupported arg: " + s).raiseError[F, String]
         }
         .flatMap(commandProvider.runCommand(params.getCommand(), _))
+
+      def runQuery(params: RunQueryParams): F[Unit] = executeCommand(
+        new ExecuteCommandParams()
+          .tap(_.setCommand(playground.language.Command.RUN_QUERY))
+          .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))
+      )
 
       def exit: F[Unit] = Applicative[F].unit
     }

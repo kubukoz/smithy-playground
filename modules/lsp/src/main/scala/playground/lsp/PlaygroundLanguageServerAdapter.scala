@@ -3,7 +3,6 @@ package playground.lsp
 import cats.Functor
 import cats.effect.std.Dispatcher
 import cats.implicits._
-import com.google.gson.JsonPrimitive
 import org.eclipse.lsp4j._
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter
@@ -13,7 +12,6 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
-import scala.util.chaining._
 
 final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   impl: LanguageServer[F]
@@ -114,11 +112,8 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
     )
 
   @JsonRequest("smithyql/runQuery")
-  def runQuery(params: RunQueryParams): CompletableFuture[Object] = executeCommand(
-    new ExecuteCommandParams()
-      .tap(_.setCommand(playground.language.Command.RUN_QUERY))
-      .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))
-  )
+  def runQuery(params: RunQueryParams): CompletableFuture[Object] = d
+    .unsafeToCompletableFuture(impl.runQuery(params).as(null: Object))
 
   @JsonRequest("exit")
   def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))

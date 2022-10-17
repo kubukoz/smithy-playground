@@ -75,9 +75,9 @@ object LanguageServerIntegrationTest extends IOSuite {
     )
 
     // logs produced during an implicit initialization in the resource setup
-    f.client.getLogs.map { logs =>
+    f.client.getEvents.map { events =>
       assert.same(
-        logs,
+        events,
         initLogs,
       )
     }
@@ -136,6 +136,24 @@ object LanguageServerIntegrationTest extends IOSuite {
       )
       .map { symbols =>
         assert.eql(symbols.map(_.getName()), List("playground.std#Random", "NextUUID"))
+      }
+  }
+
+  test("smithyql/runQuery (in memory)") { f =>
+    f.client
+      .withClearEvents {
+        f.server
+          .runQuery(
+            RunQueryParams(
+              Uri((f.workspaceDir.toPath / "demo.smithyql").toNioPath.toUri().toString())
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.eql(evs.size, 3) &&
+        assert.same(evs.head, TestClient.OutputPanelShow) &&
+        assert(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
+        assert(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID"))
       }
   }
 }
