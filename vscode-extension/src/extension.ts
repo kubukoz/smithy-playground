@@ -67,6 +67,13 @@ export function activate(context: ExtensionContext) {
     }
   );
 
+  const registerRestartCommand = commands.registerCommand(
+    "smithyql.restart",
+    () => {
+      lspClient.restart();
+    }
+  );
+
   const registerOutputPanelNotification = lspClient.onNotification(
     "smithyql/showOutputPanel",
     (_) => lspClient.outputChannel.show(true)
@@ -77,6 +84,7 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     lspClient,
     registerRunCommand,
+    registerRestartCommand,
     registerOutputPanelNotification
   );
 }

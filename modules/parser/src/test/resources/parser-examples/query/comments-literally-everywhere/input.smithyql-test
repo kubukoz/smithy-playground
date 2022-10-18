@@ -1,0 +1,10 @@
+
+// before use clause
+use service some.api#Service
+// before op
+op
+// after op
+ {
+
+ }
+//  after whole thing

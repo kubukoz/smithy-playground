@@ -1,0 +1,113 @@
+{
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 3
+      },
+      "end": {
+        "index": 3
+      }
+    },
+    "value": null
+  },
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [
+      {
+        "text": "foo"
+      }
+    ],
+    "range": {
+      "start": {
+        "index": 3
+      },
+      "end": {
+        "index": 8
+      }
+    },
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 3
+          },
+          "end": {
+            "index": 8
+          }
+        },
+        "value": {
+          "text": "hello"
+        }
+      }
+    }
+  },
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 19
+      },
+      "end": {
+        "index": 43
+      }
+    },
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 20
+          },
+          "end": {
+            "index": 42
+          }
+        },
+        "value": {
+          "value": [
+            {
+              "identifier": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 25
+                  },
+                  "end": {
+                    "index": 30
+                  }
+                },
+                "value": {
+                  "text": "world"
+                }
+              },
+              "value": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 32
+                  },
+                  "end": {
+                    "index": 37
+                  }
+                },
+                "value": {
+                  "StringLiteral": {
+                    "value": "bar"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

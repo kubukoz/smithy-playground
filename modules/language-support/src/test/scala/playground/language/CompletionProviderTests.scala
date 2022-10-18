@@ -53,8 +53,7 @@ object CompletionProviderTests extends SimpleIOSuite {
     assert(result == expected)
   }
 
-  test("completing empty file") { (_, log) =>
-    implicit val l = log
+  pureTest("completing empty file") {
 
     val service = wrap(DemoServiceGen)
     val random = wrap(RandomGen)
@@ -155,8 +154,7 @@ object CompletionProviderTests extends SimpleIOSuite {
     }
   }
 
-  test("completing operation - use clause exists, multiple services available") { (_, log) =>
-    implicit val l = log
+  pureTest("completing operation - use clause exists, multiple services available") {
     val clock = wrap(ClockGen)
     val random = wrap(RandomGen)
     val provider = CompletionProvider.forServices(List(clock, random))

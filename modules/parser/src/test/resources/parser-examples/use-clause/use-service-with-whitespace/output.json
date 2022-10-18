@@ -1,0 +1,18 @@
+{
+  "identifier": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 12
+      },
+      "end": {
+        "index": 35
+      }
+    },
+    "value": {
+      "segments": ["com1", "example2"],
+      "selection": "Demo3"
+    }
+  }
+}

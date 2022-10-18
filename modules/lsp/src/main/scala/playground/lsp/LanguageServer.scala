@@ -15,24 +15,25 @@ import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
+import playground.OperationRunner
+import playground.TextDocumentManager
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
 import playground.language.CommandResultReporter
 import playground.language.CompletionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbolProvider
-import playground.Runner
-import playground.TextDocumentManager
 import playground.language.TextDocumentProvider
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.util.KleisliOps
-import playground.smithyql.Formatter
+import playground.smithyql.Query
+import playground.smithyql.format.Formatter
+import playground.smithyql.parser.SourceParser
 import playground.types._
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.smithyql.parser.SmithyQLParser
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -68,7 +69,7 @@ object LanguageServer {
     F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
   ](
     dsi: DynamicSchemaIndex,
-    runner: Runner.Resolver[F],
+    runner: OperationRunner.Resolver[F],
   )(
     implicit sup: Supervisor[F]
   ): LanguageServer[F] =
@@ -79,7 +80,7 @@ object LanguageServer {
           def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
         }
 
-      val compiler = playground.Compiler.fromSchemaIndex(dsi)
+      val compiler = playground.OperationCompiler.fromSchemaIndex(dsi)
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
       val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)
@@ -152,8 +153,8 @@ object LanguageServer {
         .flatMap { text =>
           getFormatterWidth
             .map { maxWidth =>
-              SmithyQLParser
-                .parseFull(text)
+              SourceParser[Query]
+                .parse(text)
                 .map { parsed =>
                   val formatted = Formatter.format(parsed, maxWidth)
 

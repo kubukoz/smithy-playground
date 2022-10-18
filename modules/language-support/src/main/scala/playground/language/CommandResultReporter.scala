@@ -5,12 +5,12 @@ import cats.Monad
 import cats.data.NonEmptyList
 import cats.effect.kernel.Ref
 import cats.implicits._
-import playground.smithyql.Formatter
+import playground.smithyql.format.Formatter
 import playground.smithyql.InputNode
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 
-import playground.Runner.Issue.ProtocolIssues
+import playground.OperationRunner.Issue.ProtocolIssues
 import playground.CompiledInput
 
 trait CommandResultReporter[F[_]] {

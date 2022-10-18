@@ -1,0 +1,18 @@
+{
+  "identifier": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 12
+      },
+      "end": {
+        "index": 47
+      }
+    },
+    "value": {
+      "segments": ["com", "example", "kubukoz", "playground"],
+      "selection": "Demo"
+    }
+  }
+}

@@ -7,7 +7,7 @@ import weaver._
 import playground.Assertions._
 import playground.language.Diffs._
 
-object DocumentSymbolProviderTests extends SimpleIOSuite {
+object DocumentSymbolProviderTests extends FunSuite {
 
   def makeDSL(documentText: String) = new DocumentDSL(documentText)
 
@@ -39,8 +39,7 @@ object DocumentSymbolProviderTests extends SimpleIOSuite {
 
   }
 
-  test("hello world with use clause") { (_, log) =>
-    implicit val l = log
+  test("hello world with use clause") {
     val dsl = makeDSL("""use service pkg#World
                         |hello { }""".stripMargin)
 
@@ -56,22 +55,21 @@ object DocumentSymbolProviderTests extends SimpleIOSuite {
         "hello",
         SymbolKind.Function,
         "hello",
-        "hello { ",
+        "hello { }",
       ),
     )
 
     assertNoDiff(dsl.symbols, expected)
   }
 
-  test("hello world with one field") { (_, log) =>
-    implicit val l = log
+  test("hello world with one field") {
     val dsl = makeDSL("""hello { greeting = 42 }""")
     val expected = List(
       dsl.symbol(
         "hello",
         SymbolKind.Function,
         selectionRangeText = "hello",
-        rangeText = "hello { greeting = 42 ",
+        rangeText = "hello { greeting = 42 }",
         List(
           dsl.symbol(
             "greeting",
@@ -86,8 +84,7 @@ object DocumentSymbolProviderTests extends SimpleIOSuite {
     assertNoDiff(dsl.symbols, expected)
   }
 
-  test("nesting in structs") { (_, log) =>
-    implicit val l = log
+  test("nesting in structs") {
     val dsl = makeDSL("""q { a = { b = { c = { d = 42, }, }, }, }""")
 
     val expected = List(
@@ -95,7 +92,7 @@ object DocumentSymbolProviderTests extends SimpleIOSuite {
         "q",
         SymbolKind.Function,
         selectionRangeText = "q",
-        rangeText = "q { a = { b = { c = { d = 42, }, }, }, ",
+        rangeText = "q { a = { b = { c = { d = 42, }, }, }, }",
         List(
           dsl.symbol(
             "a",

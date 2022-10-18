@@ -1,7 +1,9 @@
 package playground.smithyql
 
 import weaver._
-import playground.smithyql.parser.SmithyQLParser
+import playground.Assertions._
+import playground.Diffs._
+import playground.smithyql.parser.SourceParser
 
 object AtPositionTests extends FunSuite {
 
@@ -16,8 +18,8 @@ object AtPositionTests extends FunSuite {
   def locateAtCursor(text: String) = {
     val (extracted, position) = extractCursor(text)
     val parsed =
-      SmithyQLParser
-        .parseFull(extracted)
+      SourceParser[Query]
+        .parse(extracted)
         .toTry
         .get
 
@@ -27,24 +29,21 @@ object AtPositionTests extends FunSuite {
       .map(_.ctx)
   }
 
-  def assertFound(actual: Option[NodeContext], expected: NodeContext) =
-    assert(actual == Some(expected)) &&
-      assert.eql(actual.map(_.render), Some(expected.render))
-
   test("atPosition - 1 level deep") {
     val actual = locateAtCursor(
       s"""Operation { root = { ${CURSOR}mid = { child = "hello", }, }, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext
           .Root
           .inOperationInput
           .inStructBody
           .inStructValue("root")
           .inStructBody
-      )
+      ),
     )
   }
 
@@ -53,8 +52,9 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = { mid = {${CURSOR} child = "hello", }, }, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext
           .Root
           .inOperationInput
@@ -63,7 +63,7 @@ object AtPositionTests extends FunSuite {
           .inStructBody
           .inStructValue("mid")
           .inStructBody
-      )
+      ),
     )
   }
 
@@ -72,10 +72,11 @@ object AtPositionTests extends FunSuite {
       s"""Operat${CURSOR}ion { root = { mid = { child = "hello", }, }, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext.Root.inOperationName
-      )
+      ),
     )
   }
 
@@ -86,10 +87,11 @@ object AtPositionTests extends FunSuite {
 
     val expected = NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         expected
-      )
+      ),
     )
   }
 
@@ -105,10 +107,9 @@ object AtPositionTests extends FunSuite {
       .inStructValue("root")
       .inCollectionEntry(None)
 
-    assert(
-      actual == Some(
-        expected
-      )
+    assertNoDiff(
+      actual,
+      Some(expected),
     )
   }
 
@@ -125,7 +126,8 @@ object AtPositionTests extends FunSuite {
         .inStructValue("root")
         .inCollectionEntry(Some(0))
         .inStructBody
-    assert(actual == Some(expected))
+
+    assertNoDiff(actual, Some(expected))
   }
 
   test("atPosition - on nested item in list") {
@@ -133,8 +135,9 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ {}, { mid = { ${CURSOR} inner = "hello", }, } ],  }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext
           .Root
           .inOperationInput
@@ -144,7 +147,7 @@ object AtPositionTests extends FunSuite {
           .inStructBody
           .inStructValue("mid")
           .inStructBody
-      )
+      ),
     )
   }
 
@@ -153,10 +156,11 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = $CURSOR{ }, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
-      )
+      ),
     )
   }
 
@@ -165,10 +169,11 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = {$CURSOR}, }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext.Root.inOperationInput.inStructBody.inStructValue("root").inStructBody
-      )
+      ),
     )
   }
 
@@ -177,9 +182,9 @@ object AtPositionTests extends FunSuite {
       s"""Operation { field = $CURSOR"", }"""
     )
 
-    assertFound(
+    assertNoDiff(
       actual,
-      NodeContext.Root.inOperationInput.inStructBody.inStructValue("field"),
+      Some(NodeContext.Root.inOperationInput.inStructBody.inStructValue("field")),
     )
 
   }
@@ -189,10 +194,11 @@ object AtPositionTests extends FunSuite {
       s"""Operation { field = "$CURSOR", }"""
     )
 
-    assert(
-      actual == Some(
+    assertNoDiff(
+      actual,
+      Some(
         NodeContext.Root.inOperationInput.inStructBody.inStructValue("field").inQuotes
-      )
+      ),
     )
   }
 }
