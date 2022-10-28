@@ -231,9 +231,9 @@ object OperationRunner {
         )
 
       private def perform[I, E, O](
-        FunctorInterpreter: FunctorInterpreter[Op, F],
+        interpreter: FunctorInterpreter[Op, F],
         q: CompiledInput.Aux[I, E, O, Op],
-      ) = Defer[F].defer(FunctorInterpreter(q.wrap(q.input))).map { response =>
+      ) = Defer[F].defer(interpreter(q.wrap(q.input))).map { response =>
         q.writeOutput.toNode(response)
       }
 
