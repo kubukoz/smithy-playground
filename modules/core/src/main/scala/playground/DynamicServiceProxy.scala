@@ -6,23 +6,24 @@ import smithy4s.Document
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.schema.Schema
+import smithy4s.kinds._
 
 class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   service: Service[Alg, Op]
 ) {
 
   def tryProxy[AlgStatic[_[_, _, _, _, _]], OpStatic[_, _, _, _, _], F[_]: MonadThrow](
-    interp: smithy4s.Monadic[AlgStatic, F]
+    interp: FunctorAlgebra[AlgStatic, F]
   )(
     implicit serviceStatic: Service[AlgStatic, OpStatic]
-  ): Option[smithy4s.Interpreter[Op, F]] =
+  ): Option[FunctorInterpreter[Op, F]] =
     Option.when(service.id == serviceStatic.id)(proxy(interp)(serviceStatic))
 
   def proxy[AlgStatic[_[_, _, _, _, _]], OpStatic[_, _, _, _, _], F[_]: MonadThrow](
-    interp: smithy4s.Monadic[AlgStatic, F]
+    interp: FunctorAlgebra[AlgStatic, F]
   )(
     serviceStatic: Service[AlgStatic, OpStatic]
-  ): smithy4s.Interpreter[Op, F] = {
+  ): FunctorInterpreter[Op, F] = {
     val grp = serviceStatic.endpoints.groupBy(_.id).fmap(_.head)
 
     type Proxy[I, E, O, SE, EO] = I => F[O]
@@ -36,7 +37,7 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
     val endpointMapping =
       new (smithy4s.Transformation[Endpoint[Op, *, *, *, *, *], Proxy]) {
-        private val trans = serviceStatic.asTransformation(interp)
+        private val trans = serviceStatic.toPolyFunction(interp)
 
         private def applyWithStatic[I, E, O, SI, SO, STI, STE, STO, STSI, STSO](
           endpoint: Endpoint[Op, I, E, O, SI, SO],
@@ -74,7 +75,7 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       }
         .precompute(service.endpoints)
 
-    new smithy4s.Interpreter[Op, F] {
+    new FunctorInterpreter[Op, F] {
       def apply[I, E, O, SI, SO](op: Op[I, E, O, SI, SO]): F[O] = {
         val (input, endpoint) = service.endpoint(op)
         endpointMapping(endpoint)(input)

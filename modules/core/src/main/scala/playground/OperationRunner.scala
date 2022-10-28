@@ -33,7 +33,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
-
+import smithy4s.kinds._
 import smithyql.syntax._
 
 trait OperationRunner[F[_]] {
@@ -175,7 +175,7 @@ object OperationRunner {
 
       private def simpleFromBuilder(
         builder: SimpleProtocolBuilder[_]
-      ): IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+      ): IorNel[Issue, FunctorInterpreter[Op, F]] =
         Either
           .catchNonFatal {
             builder(service)
@@ -192,11 +192,11 @@ object OperationRunner {
           .flatMap {
             _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
           }
-          .map(service.asTransformation)
+          .map(service.toPolyFunction)
           .toIor
           .toIorNel
 
-      private def stdlibRunner: IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+      private def stdlibRunner: IorNel[Issue, FunctorInterpreter[Op, F]] =
         smithy4s
           .checkProtocol(
             service,
@@ -214,13 +214,13 @@ object OperationRunner {
             .toIorNel
         }
 
-      val awsInterpreter: IorNel[Issue, smithy4s.Interpreter[Op, F]] = AwsClient
+      val awsFunctorInterpreter: IorNel[Issue, FunctorInterpreter[Op, F]] = AwsClient
         .prepare(service)
         .as {
-          liftInterpreterResource(
+          liftFunctorInterpreterResource(
             awsEnv
               .flatMap(AwsClient(service, _))
-              .map(flattenAwsInterpreter(_, service))
+              .map(flattenAwsFunctorInterpreter(_, service))
           )
         }
         .toIor
@@ -231,24 +231,24 @@ object OperationRunner {
         )
 
       private def perform[I, E, O](
-        interpreter: smithy4s.Interpreter[Op, F],
+        FunctorInterpreter: FunctorInterpreter[Op, F],
         q: CompiledInput.Aux[I, E, O, Op],
-      ) = Defer[F].defer(interpreter(q.wrap(q.input))).map { response =>
+      ) = Defer[F].defer(FunctorInterpreter(q.wrap(q.input))).map { response =>
         q.writeOutput.toNode(response)
       }
 
       val runners: NonEmptyList[IorNel[Issue, OperationRunner[F]]] = NonEmptyList
         .of(
           simpleFromBuilder(SimpleRestJsonBuilder),
-          awsInterpreter,
+          awsFunctorInterpreter,
         )
         .concat(plugins.flatMap(_.http4sBuilders).map(simpleFromBuilder))
         .append(stdlibRunner)
         .map(
-          _.map { interpreter =>
+          _.map { FunctorInterpreter =>
             new OperationRunner[F] {
               def run(q: CompiledInput): F[InputNode[Id]] = perform[q.I, q.E, q.O](
-                interpreter,
+                FunctorInterpreter,
                 // note: this is safe... for real
                 q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
               )
@@ -263,12 +263,12 @@ object OperationRunner {
       def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = getInternal
     }
 
-  def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
+  def flattenAwsFunctorInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
     alg: AwsClient[Alg, F],
     service: Service[Alg, Op],
-  ): smithy4s.Interpreter[Op, F] = service
-    .asTransformation(alg)
-    .andThen(new smithy4s.Interpreter[AwsCall[F, *, *, *, *, *], F] {
+  ): FunctorInterpreter[Op, F] = service
+    .toPolyFunction(alg)
+    .andThen(new FunctorInterpreter[AwsCall[F, *, *, *, *, *], F] {
 
       def apply[I, E, O, SI, SO](
         fa: AwsCall[F, I, E, O, SI, SO]
@@ -278,11 +278,15 @@ object OperationRunner {
 
     })
 
-  def liftInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
-    interpreterR: Resource[F, smithy4s.Interpreter[Op, F]]
-  ): smithy4s.Interpreter[Op, F] =
-    new smithy4s.Interpreter[Op, F] {
-      def apply[I, E, O, SI, SO](fa: Op[I, E, O, SI, SO]): F[O] = interpreterR.use(_.apply(fa))
+  def liftFunctorInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
+    FunctorInterpreterR: Resource[F, FunctorInterpreter[Op, F]]
+  ): FunctorInterpreter[Op, F] =
+    new FunctorInterpreter[Op, F] {
+
+      def apply[I, E, O, SI, SO](
+        fa: Op[I, E, O, SI, SO]
+      ): F[O] = FunctorInterpreterR.use(_.apply(fa))
+
     }
 
 }
