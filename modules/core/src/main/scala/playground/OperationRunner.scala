@@ -214,13 +214,13 @@ object OperationRunner {
             .toIorNel
         }
 
-      val awsFunctorInterpreter: IorNel[Issue, FunctorInterpreter[Op, F]] = AwsClient
+      val awsInterpreter: IorNel[Issue, FunctorInterpreter[Op, F]] = AwsClient
         .prepare(service)
         .as {
           liftFunctorInterpreterResource(
             awsEnv
               .flatMap(AwsClient(service, _))
-              .map(flattenAwsFunctorInterpreter(_, service))
+              .map(flattenAwsInterpreter(_, service))
           )
         }
         .toIor
@@ -240,15 +240,15 @@ object OperationRunner {
       val runners: NonEmptyList[IorNel[Issue, OperationRunner[F]]] = NonEmptyList
         .of(
           simpleFromBuilder(SimpleRestJsonBuilder),
-          awsFunctorInterpreter,
+          awsInterpreter,
         )
         .concat(plugins.flatMap(_.http4sBuilders).map(simpleFromBuilder))
         .append(stdlibRunner)
         .map(
-          _.map { FunctorInterpreter =>
+          _.map { interpreter =>
             new OperationRunner[F] {
               def run(q: CompiledInput): F[InputNode[Id]] = perform[q.I, q.E, q.O](
-                FunctorInterpreter,
+                interpreter,
                 // note: this is safe... for real
                 q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
               )
@@ -263,7 +263,7 @@ object OperationRunner {
       def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = getInternal
     }
 
-  def flattenAwsFunctorInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
+  def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
     alg: AwsClient[Alg, F],
     service: Service[Alg, Op],
   ): FunctorInterpreter[Op, F] = service
@@ -279,13 +279,13 @@ object OperationRunner {
     })
 
   def liftFunctorInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
-    FunctorInterpreterR: Resource[F, FunctorInterpreter[Op, F]]
+    fir: Resource[F, FunctorInterpreter[Op, F]]
   ): FunctorInterpreter[Op, F] =
     new FunctorInterpreter[Op, F] {
 
       def apply[I, E, O, SI, SO](
         fa: Op[I, E, O, SI, SO]
-      ): F[O] = FunctorInterpreterR.use(_.apply(fa))
+      ): F[O] = fir.use(_.apply(fa))
 
     }
 
