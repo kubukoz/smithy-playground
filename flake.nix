@@ -13,6 +13,7 @@
           inherit system;
           overlays = [ jvm ];
         };
+        suffix = system: (pkgs.lib.systems.elaborate system).extensions.sharedLibrary;
         grammar = pkgs.stdenv.mkDerivation {
           pname = "tree-sitter-smithyql";
           version = "0.0.0";
@@ -20,10 +21,10 @@
           buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
           buildPhase = ''
             tree-sitter generate
-            cc src/parser.c -o parser.so -Isrc -shared
+            cc src/parser.c -o libtree-sitter-smithyql${suffix system} -Isrc -shared
           '';
           installPhase = ''
-            cp parser.so $out
+            cp libtree-sitter-smithyql${suffix system} $out
           '';
         };
       in
@@ -39,25 +40,21 @@
           ];
         };
         packages.grammar = grammar;
-        packages.grammar-all = pkgs.linkFarm "grammar-all" [
-          {
-            name = "darwin-x86_64/libtree-sitter-smithyql.dylib";
-            path = self.packages.x86_64-darwin.grammar;
-          }
-          {
-            name = "darwin-aarch64/libtree-sitter-smithyql.dylib";
-            path = self.packages.aarch64-darwin.grammar;
-          }
-          {
-            name = "linux-x86_64/libtree-sitter-smithyql.so";
-            path = self.packages.x86_64-linux.grammar;
-          }
-          {
-            name = "linux-aarch64/libtree-sitter-smithyql.so";
-            path = self.packages.aarch64-linux.grammar;
-          }
-
-        ];
+        packages.grammar-all =
+          let system-mappings = {
+            "darwin-x86_64" = "x86_64-darwin";
+            "darwin-aarch64" = "aarch64-darwin";
+            "linux-x86_64" = "x86_64-linux";
+            "linux-aarch64" = "aarch64-linux";
+          }; in
+          pkgs.linkFarm "grammar-all" (pkgs.lib.mapAttrsToList
+            (jna-system: nix-system:
+              let suffix = (pkgs.lib.systems.elaborate nix-system).extensions.sharedLibrary; in
+              {
+                name = "${jna-system}/libtree-sitter-smithyql${suffix}";
+                path = self.packages.${nix-system}.grammar;
+              })
+            system-mappings);
       }
     );
 }
