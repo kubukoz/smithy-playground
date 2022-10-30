@@ -13,21 +13,61 @@
           inherit system;
           overlays = [ jvm ];
         };
-        suffix = system: (pkgs.lib.systems.elaborate system).extensions.sharedLibrary;
-        grammar = pkgs.stdenv.mkDerivation {
-          pname = "tree-sitter-smithyql";
-          version = "0.0.0";
-          src = ./tree-sitter-smithyql;
-          buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
-          FILENAME = "libtree-sitter-smithyql${suffix system}";
-          buildPhase = ''
-            tree-sitter generate
-            cc src/parser.c -o $FILENAME -Isrc -shared
-          '';
-          installPhase = ''
-            cp $FILENAME $out
-          '';
-        };
+        grammar =
+          let
+            rename-grammar = grammar:
+              let inherit (grammar) pname; in
+              pkgs.stdenv.mkDerivation {
+                inherit pname;
+                inherit (grammar) version;
+                buildCommand =
+                  if pkgs.stdenv.isDarwin then ''
+                    mkdir -p $out/lib
+                    cp ${grammar}/parser $out/lib/lib${pname}.dylib
+                    chmod +w $out/lib/lib${pname}.dylib
+                    install_name_tool -id lib${pname}.dylib $out/lib/lib${pname}.dylib
+                  '' else ''
+                    mkdir -p $out/lib
+                    cp ${grammar}/parser $out/lib/lib${pname}.so
+                  '';
+              };
+
+            tree-sitter-smithyql = pkgs.stdenv.mkDerivation {
+              pname = "tree-sitter-smithyql";
+              version = "0.0.0";
+              src = ./tree-sitter-smithyql;
+              buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
+              buildPhase = ''
+                tree-sitter generate
+                cc src/parser.c -o parser -Isrc -shared
+              '';
+              installPhase = ''
+                mkdir -p $out
+                cp parser $out/parser
+              '';
+            };
+          in
+          rename-grammar tree-sitter-smithyql;
+
+        make-grammar-resources =
+          { package
+          , system-mappings ? {
+              "darwin-x86_64" = "x86_64-darwin";
+              "darwin-aarch64" = "aarch64-darwin";
+              "linux-x86_64" = "x86_64-linux";
+              "linux-aarch64" = "aarch64-linux";
+            }
+          }: pkgs.linkFarm "${(package system).name}-all" (pkgs.lib.mapAttrsToList
+            (jna-system: nix-system:
+            let
+              suffix = (pkgs.lib.systems.elaborate nix-system).extensions.sharedLibrary;
+              pkg = package nix-system;
+            in
+            {
+              name = "${jna-system}";
+              path = "${pkg}/lib";
+            })
+            system-mappings);
       in
       {
         devShells.default = pkgs.mkShell {
@@ -41,21 +81,9 @@
           ];
         };
         packages.grammar = grammar;
-        packages.grammar-all =
-          let system-mappings = {
-            "darwin-x86_64" = "x86_64-darwin";
-            "darwin-aarch64" = "aarch64-darwin";
-            "linux-x86_64" = "x86_64-linux";
-            "linux-aarch64" = "aarch64-linux";
-          }; in
-          pkgs.linkFarm "grammar-all" (pkgs.lib.mapAttrsToList
-            (jna-system: nix-system:
-              let suffix = (pkgs.lib.systems.elaborate nix-system).extensions.sharedLibrary; in
-              {
-                name = "${jna-system}/${self.packages.${nix-system}.grammar.FILENAME}";
-                path = self.packages.${nix-system}.grammar;
-              })
-            system-mappings);
+        packages.grammar-all = make-grammar-resources {
+          package = system: self.packages.${system}.grammar;
+        };
       }
     );
 }
