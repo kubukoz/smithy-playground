@@ -3,7 +3,7 @@ package playground.smithyql;
 import com.sun.jna.Library;
 import com.sun.jna.NativeLibrary;
 import com.sun.jna.Native;
-import org.polyvariant.treesitter4s.bindings.kernel.Language;
+import org.polyvariant.treesitter4s.Language;
 
 public class SmithyQLLanguageBindings {
 

@@ -19,12 +19,13 @@
           version = "0.0.0";
           src = ./tree-sitter-smithyql;
           buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
+          FILENAME = "libtree-sitter-smithyql${suffix system}";
           buildPhase = ''
             tree-sitter generate
-            cc src/parser.c -o libtree-sitter-smithyql${suffix system} -Isrc -shared
+            cc src/parser.c -o $FILENAME -Isrc -shared
           '';
           installPhase = ''
-            cp libtree-sitter-smithyql${suffix system} $out
+            cp $FILENAME $out
           '';
         };
       in
@@ -51,7 +52,7 @@
             (jna-system: nix-system:
               let suffix = (pkgs.lib.systems.elaborate nix-system).extensions.sharedLibrary; in
               {
-                name = "${jna-system}/libtree-sitter-smithyql${suffix}";
+                name = "${jna-system}/${self.packages.${nix-system}.grammar.FILENAME}";
                 path = self.packages.${nix-system}.grammar;
               })
             system-mappings);
