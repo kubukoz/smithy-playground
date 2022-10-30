@@ -13,41 +13,24 @@
           inherit system;
           overlays = [ jvm ];
         };
-        grammar =
-          let
-            rename-grammar = grammar:
-              let inherit (grammar) pname; in
-              pkgs.stdenv.mkDerivation {
-                inherit pname;
-                inherit (grammar) version;
-                buildCommand =
-                  if pkgs.stdenv.isDarwin then ''
-                    mkdir -p $out/lib
-                    cp ${grammar}/parser $out/lib/lib${pname}.dylib
-                    chmod +w $out/lib/lib${pname}.dylib
-                    install_name_tool -id lib${pname}.dylib $out/lib/lib${pname}.dylib
-                  '' else ''
-                    mkdir -p $out/lib
-                    cp ${grammar}/parser $out/lib/lib${pname}.so
-                  '';
-              };
 
-            tree-sitter-smithyql = pkgs.stdenv.mkDerivation {
-              pname = "tree-sitter-smithyql";
-              version = "0.0.0";
-              src = ./tree-sitter-smithyql;
-              buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
-              buildPhase = ''
-                tree-sitter generate
-                cc src/parser.c -o parser -Isrc -shared
+        # begin library code
+        rename-grammar = grammar:
+          let inherit (grammar) pname; in
+          pkgs.stdenv.mkDerivation {
+            inherit pname;
+            inherit (grammar) version;
+            buildCommand =
+              if pkgs.stdenv.isDarwin then ''
+                mkdir -p $out/lib
+                cp ${grammar}/parser $out/lib/lib${pname}.dylib
+                chmod +w $out/lib/lib${pname}.dylib
+                install_name_tool -id lib${pname}.dylib $out/lib/lib${pname}.dylib
+              '' else ''
+                mkdir -p $out/lib
+                cp ${grammar}/parser $out/lib/lib${pname}.so
               '';
-              installPhase = ''
-                mkdir -p $out
-                cp parser $out/parser
-              '';
-            };
-          in
-          rename-grammar tree-sitter-smithyql;
+          };
 
         make-grammar-resources =
           { package
@@ -68,6 +51,7 @@
               path = "${pkg}/lib";
             })
             system-mappings);
+        # end library code
       in
       {
         devShells.default = pkgs.mkShell {
@@ -80,7 +64,20 @@
             pkgs.tree-sitter
           ];
         };
-        packages.grammar = grammar;
+        packages.grammar = rename-grammar (pkgs.stdenv.mkDerivation {
+          pname = "tree-sitter-smithyql";
+          version = "0.0.0";
+          src = ./tree-sitter-smithyql;
+          buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
+          buildPhase = ''
+            tree-sitter generate
+            cc src/parser.c -o parser -Isrc -shared
+          '';
+          installPhase = ''
+            mkdir -p $out
+            cp parser $out/parser
+          '';
+        });
         packages.grammar-all = make-grammar-resources {
           package = system: self.packages.${system}.grammar;
         };
