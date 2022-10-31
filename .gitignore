@@ -10,3 +10,5 @@ tree-sitter-smithyql/*.wasm
 tree-sitter-smithyql/src
 tree-sitter-smithyql/bindings
 smithyql-log.txt
+
+result

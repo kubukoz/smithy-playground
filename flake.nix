@@ -15,20 +15,21 @@
         };
 
         # begin library code
-        rename-grammar = grammar:
-          let inherit (grammar) pname; in
-          pkgs.stdenv.mkDerivation {
-            inherit pname;
-            inherit (grammar) version;
-            buildCommand =
-              if pkgs.stdenv.isDarwin then ''
+        rename-grammar = { system, lib, stdenv, libcxxabi, libcxx, grammar, library-name }:
+          stdenv.mkDerivation {
+            inherit (grammar) pname version;
+            src = grammar;
+            buildPhase =
+              if stdenv.isDarwin then ''
+                install_name_tool -id lib${library-name}.dylib parser
+                install_name_tool -change ${libcxxabi}/lib/libc++abi.1.dylib @loader_path/libc++abi.1.dylib parser
+                install_name_tool -change ${libcxx}/lib/libc++.1.0.dylib @loader_path/libc++.1.0.dylib parser
+              '' else "true";
+            installPhase =
+              let suffix = (lib.systems.elaborate system).extensions.sharedLibrary; in
+              ''
                 mkdir -p $out/lib
-                cp ${grammar}/parser $out/lib/lib${pname}.dylib
-                chmod +w $out/lib/lib${pname}.dylib
-                install_name_tool -id lib${pname}.dylib $out/lib/lib${pname}.dylib
-              '' else ''
-                mkdir -p $out/lib
-                cp ${grammar}/parser $out/lib/lib${pname}.so
+                cp parser $out/lib/lib${library-name}${suffix}
               '';
           };
 
@@ -64,22 +65,32 @@
             pkgs.tree-sitter
           ];
         };
-        packages.grammar = rename-grammar (pkgs.stdenv.mkDerivation {
-          pname = "tree-sitter-smithyql";
+        packages.grammar-generated = pkgs.stdenv.mkDerivation {
+          pname = "tree-sitter-smithyql-generated";
           version = "0.0.0";
           src = ./tree-sitter-smithyql;
           buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
           buildPhase = ''
             tree-sitter generate
-            cc src/parser.c -o parser -Isrc -shared
           '';
           installPhase = ''
-            mkdir -p $out
-            cp parser $out/parser
+            cp -r . $out
           '';
-        });
+        };
+        packages.grammar =
+          let base = self.packages.${system}.grammar-generated; in
+          pkgs.callPackage "${nixpkgs}/pkgs/development/tools/parsing/tree-sitter/grammar.nix" { } {
+            language = "smithyql";
+            inherit (base) version;
+            source = base;
+          };
         packages.grammar-all = make-grammar-resources {
-          package = system: self.packages.${system}.grammar;
+          package = system:
+            let pkgs = import nixpkgs { inherit system; }; in
+            pkgs.callPackage rename-grammar {
+              grammar = self.packages.${system}.grammar;
+              library-name = "tree-sitter-smithyql";
+            };
         };
       }
     );
