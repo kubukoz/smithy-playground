@@ -26,6 +26,8 @@ import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 import org.http4s.server.Server
+import org.eclipse.lsp4j.CodeLensParams
+import org.eclipse.lsp4j.Command
 
 object LanguageServerIntegrationTest extends IOSuite {
 
@@ -148,6 +150,31 @@ object LanguageServerIntegrationTest extends IOSuite {
       }
   }
 
+  test("lens provider (run query)") { f =>
+    f.server
+      .codeLens(
+        new CodeLensParams(
+          new TextDocumentIdentifier(
+            Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value
+          )
+        )
+      )
+      .map { lenses =>
+        assert.same(
+          lenses.map(_.getCommand()),
+          List(
+            new Command(
+              "Run query",
+              "smithyql.runQuery",
+              List(
+                Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value: Object
+              ).asJava,
+            )
+          ),
+        )
+      }
+  }
+
   test("smithyql/runQuery (in memory)") { f =>
     f.client
       .scoped {
@@ -219,4 +246,5 @@ object LanguageServerIntegrationTest extends IOSuite {
         assert(hasMatchingLog)
       }
   }
+
 }

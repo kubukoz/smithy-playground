@@ -31,7 +31,7 @@ object CodeLensProvider {
                   Command(
                     title = "Run query",
                     command = Command.RUN_QUERY,
-                    args = documentUri.toString :: Nil,
+                    args = documentUri.value :: Nil,
                   ),
                 )
               }
