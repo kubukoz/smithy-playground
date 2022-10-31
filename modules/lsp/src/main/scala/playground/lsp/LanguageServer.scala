@@ -149,7 +149,7 @@ object LanguageServer {
       ): F[Unit] = TextDocumentManager[F].remove(Uri(params.getTextDocument().getUri()))
 
       private val getFormatterWidth: F[Int] = LanguageClient[F]
-        .configuration[Int]("smithyql.formatter.maxWidth")
+        .configuration(ConfigurationValue.maxWidth)
 
       def formatting(
         params: DocumentFormattingParams

@@ -3,6 +3,7 @@ package playground.lsp
 import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.implicits._
+import com.comcast.ip4s._
 import org.eclipse.lsp4j.CompletionParams
 import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.DocumentDiagnosticParams
@@ -12,12 +13,19 @@ import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.eclipse.lsp4j.WorkspaceFolder
+import org.http4s.ember.server.EmberServerBuilder
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
+import smithy4s.http4s.SimpleRestJsonBuilder
+import weather.GetWeatherOutput
+import weather.GoodWeather
+import weather.Weather
+import weather.WeatherService
 import weaver._
-
+import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import org.http4s.server.Server
 
 object LanguageServerIntegrationTest extends IOSuite {
 
@@ -70,7 +78,7 @@ object LanguageServerIntegrationTest extends IOSuite {
         ),
       TestClient.MessageLog(
         MessageType.Info,
-        "Loaded Smithy Playground server with 0 imports, 0 dependencies and 0 plugins",
+        "Loaded Smithy Playground server with 1 imports, 0 dependencies and 0 plugins",
       ),
     )
 
@@ -88,7 +96,7 @@ object LanguageServerIntegrationTest extends IOSuite {
       .completion(
         new CompletionParams(
           new TextDocumentIdentifier(
-            (f.workspaceDir.toPath / "empty.smithyql").toNioPath.toUri().toString()
+            Uri.fromPath(f.workspaceDir.toPath / "empty.smithyql").value
           ),
           new Position(0, 0),
         )
@@ -99,6 +107,7 @@ object LanguageServerIntegrationTest extends IOSuite {
             e.map(_.getLabel()),
             List(
               "NextUUID",
+              "GetWeather",
               "CurrentTimestamp",
             ),
           )
@@ -130,7 +139,7 @@ object LanguageServerIntegrationTest extends IOSuite {
       .documentSymbol(
         new DocumentSymbolParams(
           new TextDocumentIdentifier(
-            (f.workspaceDir.toPath / "demo.smithyql").toNioPath.toUri().toString()
+            Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value
           )
         )
       )
@@ -141,11 +150,11 @@ object LanguageServerIntegrationTest extends IOSuite {
 
   test("smithyql/runQuery (in memory)") { f =>
     f.client
-      .withClearEvents {
+      .scoped {
         f.server
           .runQuery(
             RunQueryParams(
-              Uri((f.workspaceDir.toPath / "demo.smithyql").toNioPath.toUri().toString())
+              Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql")
             )
           ) *> f.client.getEvents
       }
@@ -154,6 +163,60 @@ object LanguageServerIntegrationTest extends IOSuite {
         assert.same(evs.head, TestClient.OutputPanelShow) &&
         assert(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
         assert(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID"))
+      }
+  }
+
+  val fakeServer: Resource[IO, Server] =
+    EmberServerBuilder
+      .default[IO]
+      // deliberately not exposing on 0.0.0.0
+      // as there's no need
+      .withHost(host"localhost")
+      .withPort(port"0")
+      .withShutdownTimeout(1.second)
+      .withHttpApp(
+        SimpleRestJsonBuilder
+          .routes(
+            new WeatherService[IO] {
+
+              def getWeather(city: String): IO[GetWeatherOutput] = IO.pure(
+                GetWeatherOutput(Weather.GoodCase(GoodWeather(reallyGood = Some(true))))
+              )
+
+            }
+          )
+          .make
+          .toTry
+          .get
+          .orNotFound
+      )
+      .build
+
+  test("HTTP calls using configured base uri") { f =>
+    fakeServer
+      .use { httpServer =>
+        val env = f
+          .client
+          .scoped
+          .compose(
+            f.client.withConfiguration(ConfigurationValue.baseUri(httpServer.baseUri))
+          )
+
+        env {
+          f.server
+            .runQuery(
+              RunQueryParams(
+                Uri.fromPath(f.workspaceDir.toPath / "http-demo.smithyql")
+              )
+            ) *> f.client.getEvents
+        }
+      }
+      .map { events =>
+        val hasMatchingLog = events
+          .collect { case l: TestClient.OutputLog => l }
+          .exists(_.text.contains("Succeeded GetWeather"))
+
+        assert(hasMatchingLog)
       }
   }
 }

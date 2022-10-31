@@ -137,11 +137,13 @@ lazy val lsp = module("lsp")
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.16.0",
       "io.circe" %% "circe-core" % "0.14.3",
       "org.http4s" %% "http4s-ember-client" % "0.23.16",
+      "org.http4s" %% "http4s-ember-server" % "0.23.16" % Test,
       "io.get-coursier" %% "coursier" % "2.0.16",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version),
+    Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(languageSupport)

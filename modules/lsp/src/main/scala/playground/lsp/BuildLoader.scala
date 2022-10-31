@@ -94,6 +94,7 @@ object BuildLoader {
               dependencies = loaded.config.mavenDependencies.combineAll,
               repositories = loaded.config.mavenRepositories.combineAll,
               transformers = Nil,
+              // todo: this should be false really
               discoverModels = true,
               localJars = Nil,
             )
