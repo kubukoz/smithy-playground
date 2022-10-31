@@ -33,7 +33,32 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "treesitter4s": "treesitter4s"
+      }
+    },
+    "treesitter4s": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1667181684,
+        "narHash": "sha256-ud9adK2h26/O7jzpMdd7jCCyg4qevk99zSjWuJ40w9g=",
+        "owner": "polyvariant",
+        "repo": "treesitter4s",
+        "rev": "cb1b99780cee5ede88194a4795e0e22cd49355df",
+        "type": "github"
+      },
+      "original": {
+        "owner": "polyvariant",
+        "ref": "native",
+        "repo": "treesitter4s",
+        "type": "github"
       }
     }
   },
