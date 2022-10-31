@@ -67,7 +67,7 @@ object CommandProvider {
 
       private val commandMap: Map[String, List[String] => F[Unit]] = ListMap(
         Command.RUN_QUERY -> {
-          case documentUri :: Nil => runQuery(Uri(documentUri))
+          case documentUri :: Nil => runQuery(Uri.fromUriString(documentUri))
           case s => new Throwable("Unsupported arguments: " + s).raiseError[F, Unit]
         }
       )

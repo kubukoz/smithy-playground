@@ -2,18 +2,18 @@ package playground.lsp
 
 import cats.effect.IO
 import cats.effect.Resource
-import cats.effect.implicits._
 import com.comcast.ip4s._
+import org.eclipse.lsp4j.CodeLensParams
+import org.eclipse.lsp4j.Command
 import org.eclipse.lsp4j.CompletionParams
 import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.DocumentDiagnosticParams
 import org.eclipse.lsp4j.DocumentSymbolParams
-import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.TextDocumentIdentifier
-import org.eclipse.lsp4j.WorkspaceFolder
 import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.server.Server
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import smithy4s.http4s.SimpleRestJsonBuilder
@@ -22,54 +22,17 @@ import weather.GoodWeather
 import weather.Weather
 import weather.WeatherService
 import weaver._
+
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
-import scala.util.chaining._
-import org.http4s.server.Server
-import org.eclipse.lsp4j.CodeLensParams
-import org.eclipse.lsp4j.Command
 
-object LanguageServerIntegrationTest extends IOSuite {
-
-  case class Fixture(
-    server: LanguageServer[IO],
-    client: TestClient[IO],
-    workspaceDir: Uri,
-  )
+object LanguageServerIntegrationTestSharedServer
+  extends IOSuite
+  with LanguageServerIntegrationTests {
 
   type Res = Fixture
 
-  def initParams(workspaceDir: Uri) = new InitializeParams().tap(
-    _.setWorkspaceFolders(
-      List(
-        new WorkspaceFolder(workspaceDir.value)
-      ).asJava
-    )
-  )
-
-  def makeServer(
-    workspaceDir: Uri
-  ): Resource[IO, Fixture] = TestClient.forIO.toResource.flatMap { implicit client =>
-    MainServer
-      .makeServer[IO]
-      .evalTap(_.initialize(initParams(workspaceDir)))
-      .map { server =>
-        Fixture(
-          server = server,
-          client = client,
-          workspaceDir = workspaceDir,
-        )
-      }
-  }
-
   def sharedResource: Resource[IO, Res] = makeServer(resourceUri("/test-workspace"))
-
-  def resourceUri(resourcePath: String): Uri = Uri(
-    Option(getClass.getResource(resourcePath))
-      .getOrElse(sys.error(s"oops, not found: resource $name"))
-      .toURI()
-      .toString()
-  )
 
   test("server init produces logs consistent with the workspace folder") { f =>
     val initLogs = List(
@@ -93,7 +56,7 @@ object LanguageServerIntegrationTest extends IOSuite {
     }
   }
 
-  test("completions") { f =>
+  test("completions").apply { f =>
     f.server
       .completion(
         new CompletionParams(

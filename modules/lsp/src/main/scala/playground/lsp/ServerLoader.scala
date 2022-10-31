@@ -48,26 +48,34 @@ object ServerLoader {
       val initial: State = apply(LanguageServer.notAvailable[F], none)
     }
 
-    Ref[F]
-      .of(State.initial)
-      .map[ServerLoader.Aux[F, BuildLoader.Loaded]] { stateRef =>
+    (
+      Ref[F]
+        .of(State.initial),
+      Ref[F].of(Option.empty[List[Uri]]),
+    )
+      .mapN[ServerLoader.Aux[F, BuildLoader.Loaded]] { (stateRef, workspaceFoldersRef) =>
         new ServerLoader[F] {
           type Params = BuildLoader.Loaded
 
           def prepare(
             workspaceFolders: Option[List[Uri]]
-          ): F[PrepareResult[Params]] = stateRef.get.flatMap { state =>
-            BuildLoader[F]
-              .load(
-                workspaceFolders
-                  .orElse(state.lastUsedConfig.map(_.workspaceFolders))
-                  .getOrElse(sys.error("FATAL: no workspace folders available"))
-              )
-              .map { case params =>
-                PrepareResult(params, !state.lastUsedConfig.contains(params.config))
-              }
-          }
+          ): F[PrepareResult[Params]] = workspaceFoldersRef
+            .modify { oldFolders =>
+              val newValue = workspaceFolders
+                .orElse(oldFolders)
+                .getOrElse(sys.error("FATAL: no workspace folders available"))
 
+              (newValue.some, newValue)
+            }
+            .flatMap { workspaceFolders =>
+              stateRef.get.flatMap { state =>
+                BuildLoader[F]
+                  .load(workspaceFolders)
+                  .map { case params =>
+                    PrepareResult(params, !state.lastUsedConfig.contains(params.config))
+                  }
+              }
+            }
           def perform(params: Params): F[WorkspaceStats] = ServerBuilder[F]
             .build(params, this)
             .map(server => State(server, Some(params)))

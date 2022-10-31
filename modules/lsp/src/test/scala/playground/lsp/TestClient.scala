@@ -18,6 +18,8 @@ object TestClient {
   sealed trait Event
   case class MessageLog(tpe: MessageType, msg: String) extends Event
   case object OutputPanelShow extends Event
+  case object RefreshCodeLenses extends Event
+  case object RefreshDiagnostics extends Event
   case class OutputLog(text: String) extends Event
 
   final case class State(log: Chain[Event], configuration: Map[String, Json]) {
@@ -40,7 +42,10 @@ object TestClient {
         s.copy(log = s.log.concat(Chain.fromSeq(events)))
       }
 
-      private def show(s: String) = IO.println(Console.GREEN + s + Console.RESET)
+      private def show(
+        s: String,
+        color: String = "",
+      ) = IO.println(color + s + Console.RESET)
 
       def showOutputPanel: IO[Unit] = show("showing output panel") *> append(OutputPanelShow)
 
@@ -53,14 +58,25 @@ object TestClient {
         .flatMap(_.configuration.get(v.key).liftTo[IO](new Throwable(s"key not found: ${v.key}")))
         .flatMap(_.as[A](v.codec).liftTo[IO])
 
-      def showMessage(tpe: MessageType, msg: String): IO[Unit] =
+      def showMessage(tpe: MessageType, msg: String): IO[Unit] = {
+        val color =
+          tpe match {
+            case MessageType.Error   => Console.MAGENTA
+            case MessageType.Warning => Console.YELLOW
+            case MessageType.Info    => Console.GREEN
+            case MessageType.Log     => ""
+          }
+
         show(
-          s"${tpe.name()} Message from server: $msg"
+          s = s"${tpe.name().toUpperCase()} Message from server: $msg",
+          color = color,
         ) *> append(MessageLog(tpe, msg))
+      }
+      def refreshDiagnostics: IO[Unit] =
+        show("Refreshing diagnostics...") *> append(RefreshDiagnostics)
 
-      def refreshDiagnostics: IO[Unit] = IO.stub
-
-      def refreshCodeLenses: IO[Unit] = IO.stub
+      def refreshCodeLenses: IO[Unit] =
+        show("Refreshing code lenses...") *> append(RefreshCodeLenses)
 
       def getEvents: IO[List[Event]] = state.get.map(_.log.toList)
 

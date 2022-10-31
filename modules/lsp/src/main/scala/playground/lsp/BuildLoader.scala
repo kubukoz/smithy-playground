@@ -21,11 +21,11 @@ trait BuildLoader[F[_]] {
 object BuildLoader {
   def apply[F[_]](implicit F: BuildLoader[F]): BuildLoader[F] = F
 
-  case class Loaded(config: BuildConfig, configFilePath: Path, workspaceFolders: List[Uri])
+  case class Loaded(config: BuildConfig, configFilePath: Path)
 
   object Loaded {
     // Path is irrelevant when no imports are provided.
-    val default: Loaded = Loaded(BuildConfig(), Path("/"), Nil)
+    val default: Loaded = Loaded(BuildConfig(), Path("/"))
   }
 
   def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
@@ -41,7 +41,9 @@ object BuildLoader {
         // For now, we only support a single workspace folder.
         fs2
           .Stream
-          .emit(workspaceFolders.head.toPath)
+          .emit(
+            workspaceFolders.headOption.getOrElse(sys.error("no workspace folders found")).toPath
+          )
           .flatMap { folder =>
             fs2
               .Stream
@@ -68,7 +70,7 @@ object BuildLoader {
             BuildConfigDecoder
               .decode(fileContents.getBytes())
               .liftTo[F]
-              .map(BuildLoader.Loaded.apply(_, filePath, workspaceFolders))
+              .map(BuildLoader.Loaded.apply(_, filePath))
           }
       }
 

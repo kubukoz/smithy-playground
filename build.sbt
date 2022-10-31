@@ -144,6 +144,7 @@ lazy val lsp = module("lsp")
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version),
     Smithy4sCodegenPlugin.defaultSettings(Test),
+    Test / smithy4sSmithyLibrary := false,
   )
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(languageSupport)
