@@ -47,15 +47,21 @@
             inherit (base) version;
             source = base;
           };
-        packages.grammar-all = pkgs.callPackage ts-lib.make-grammar-resources {
-          package = system:
-            let pkgs = import nixpkgs { inherit system; }; in
-            pkgs.callPackage ts-lib.rename-grammar {
-              pname = "tree-sitter-smithyql";
-              grammar = self.packages.${system}.grammar;
-              rename-dependencies = true;
-            };
-        };
+        packages.grammar-all =
+          pkgs.linkFarm "grammar-all" [
+            {
+              name = "modules/parser/src/main/resources";
+              path = pkgs.callPackage ts-lib.make-grammar-resources {
+                package = system:
+                  let pkgs = import nixpkgs { inherit system; }; in
+                  pkgs.callPackage ts-lib.rename-grammar {
+                    pname = "tree-sitter-smithyql";
+                    grammar = self.packages.${system}.grammar;
+                    rename-dependencies = true;
+                  };
+              };
+            }
+          ];
       }
     );
 }
