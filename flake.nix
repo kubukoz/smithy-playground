@@ -8,6 +8,8 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, treesitter4s, ... }@inputs:
+    let
+      ts-lib = treesitter4s.lib; in
     flake-utils.lib.eachDefaultSystem (
       system:
       let
@@ -16,7 +18,6 @@
           inherit system;
           overlays = [ jvm ];
         };
-        ts-lib = treesitter4s.lib;
       in
       {
         devShells.default = pkgs.mkShell {
