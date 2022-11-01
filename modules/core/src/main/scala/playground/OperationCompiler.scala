@@ -23,23 +23,19 @@ import types._
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
-  type I
   type E
   type O
-  def input: I
   def catchError: Throwable => Option[E]
   def writeError: Option[NodeEncoder[E]]
   def writeOutput: NodeEncoder[O]
-  def serviceId: QualifiedIdentifier
-  def wrap(i: I): _Op[I, E, O, _, _]
+  def op: _Op[_, E, O, _, _]
 }
 
 object CompiledInput {
 
-  type Aux[_I, _E, _O, Op[_, _, _, _, _]] =
+  type Aux[_E, _O, Op[_, _, _, _, _]] =
     CompiledInput {
       type _Op[__I, __E, __O, __SE, __SO] = Op[__I, __E, __O, __SE, __SO]
-      type I = _I
       type E = _E
       type O = _O
     }
@@ -103,13 +99,10 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
         .map { compiled =>
           new CompiledInput {
             type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
-            type I = In
             type E = Err
             type O = Out
-            val input: I = compiled
-            val serviceId: QualifiedIdentifier = QualifiedIdentifier.forService(service)
 
-            def wrap(i: In): Op[In, Err, Out, _, _] = e.wrap(i)
+            def op: Op[_, Err, Out, _, _] = e.wrap(compiled)
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
             val catchError: Throwable => Option[Err] = err => e.errorable.flatMap(_.liftError(err))

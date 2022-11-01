@@ -230,10 +230,10 @@ object OperationRunner {
             .map(Issue.InvalidProtocol(_, serviceProtocols))
         )
 
-      private def perform[I, E, O](
+      private def perform[E, O](
         interpreter: smithy4s.Interpreter[Op, F],
-        q: CompiledInput.Aux[I, E, O, Op],
-      ) = Defer[F].defer(interpreter(q.wrap(q.input))).map { response =>
+        q: CompiledInput.Aux[E, O, Op],
+      ) = Defer[F].defer(interpreter(q.op)).map { response =>
         q.writeOutput.toNode(response)
       }
 
@@ -247,10 +247,10 @@ object OperationRunner {
         .map(
           _.map { interpreter =>
             new OperationRunner[F] {
-              def run(q: CompiledInput): F[InputNode[Id]] = perform[q.I, q.E, q.O](
+              def run(q: CompiledInput): F[InputNode[Id]] = perform[q.E, q.O](
                 interpreter,
                 // note: this is safe... for real
-                q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
+                q.asInstanceOf[CompiledInput.Aux[q.E, q.O, Op]],
               )
             }
           }
