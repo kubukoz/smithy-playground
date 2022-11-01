@@ -11,6 +11,7 @@ import playground.smithyql.Query
 import playground.FileCompiler
 import playground.smithyql.SourceFile
 import playground.CompiledInput
+import playground.smithyql.parser.ParsingFailure
 
 trait CommandProvider[F[_]] {
   def runCommand(name: String, args: List[String]): F[Unit]
@@ -67,9 +68,9 @@ object CommandProvider {
                     )
                   }
                 }
-                .recoverWith { case _: CompilationFailed =>
-                  CommandResultReporter[F].onCompilationFailed
-                }
+            }
+            .recoverWith { case _: CompilationFailed | _: ParsingFailure =>
+              CommandResultReporter[F].onCompilationFailed
             }
         }
 
