@@ -25,7 +25,7 @@ object CommandProvider {
   ): CommandProvider[F] =
     new CommandProvider[F] {
 
-      private def runOneQuery(q: Query[WithSource], input: CompiledInput): F[Unit] =
+      private def runCompiledQuery(q: Query[WithSource], input: CompiledInput): F[Unit] =
         runner
           .get(q)
           .toEither
@@ -44,6 +44,7 @@ object CommandProvider {
                   .run(input)
                   .flatMap {
                     CommandResultReporter[F].onQuerySuccess(idQuery, requestId, _)
+
                   }
                   .handleErrorWith {
                     CommandResultReporter[F].onQueryFailure(_, input, requestId)
@@ -52,31 +53,30 @@ object CommandProvider {
           }
           .merge
 
-      private def runQuery(documentUri: Uri): F[Unit] = TextDocumentProvider[F]
-        .get(documentUri)
-        .flatMap { documentText =>
-          SourceParser[SourceFile]
-            .parse(documentText)
-            .liftTo[F]
-            .flatMap { file =>
-              compiler
-                .compile(file)
-                .flatMap { compiledInputs =>
-                  file.statements.zip(compiledInputs).traverse_ { case (stat, input) =>
-                    stat.fold(
-                      runQuery = rq => runOneQuery(rq.query.value, input)
-                    )
-                  }
-                }
-            }
-            .recoverWith { case _: CompilationFailed | _: ParsingFailure =>
-              CommandResultReporter[F].onCompilationFailed
-            }
-        }
+      private def runCompiledFile(
+        file: SourceFile[WithSource],
+        compiledInputs: List[CompiledInput],
+      ): F[Unit] = file.statements.zip(compiledInputs).traverse_ { case (stat, input) =>
+        stat.fold(
+          runQuery = rq => runCompiledQuery(rq.query.value, input)
+        )
+      }
+
+      private def runFile(documentUri: Uri): F[Unit] = {
+        for {
+          documentText <- TextDocumentProvider[F].get(documentUri)
+          file <- SourceParser[SourceFile].parse(documentText).liftTo[F]
+          compiledInputs <- compiler.compile(file)
+          _ <- CommandResultReporter[F].onFileCompiled
+          _ <- runCompiledFile(file, compiledInputs)
+        } yield ()
+      }.recoverWith { case _: CompilationFailed | _: ParsingFailure =>
+        CommandResultReporter[F].onCompilationFailed
+      }
 
       private val commandMap: Map[String, List[String] => F[Unit]] = ListMap(
         Command.RUN_QUERY -> {
-          case documentUri :: Nil => runQuery(Uri.fromUriString(documentUri))
+          case documentUri :: Nil => runFile(Uri.fromUriString(documentUri))
           case s => new Throwable("Unsupported arguments: " + s).raiseError[F, Unit]
         }
       )

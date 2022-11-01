@@ -18,7 +18,7 @@ trait CommandResultReporter[F[_]] {
   def onUnsupportedProtocol(issues: ProtocolIssues): F[Unit]
   def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
   def onCompilationFailed: F[Unit]
-  // todo: split out onFileCompiled
+  def onFileCompiled: F[Unit]
   def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
   def onQuerySuccess(parsed: Query[Id], requestId: RequestId, output: InputNode[Id]): F[Unit]
   def onQueryFailure(e: Throwable, compiled: CompiledInput, requestId: RequestId): F[Unit]
@@ -59,14 +59,17 @@ object CommandResultReporter {
         "Couldn't run query because of compilation errors."
       )
 
-      def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId] =
-        Feedback[F].showOutputPanel *>
-          requestCounter.updateAndGet(_ + 1).flatTap { requestId =>
-            Feedback[F]
-              .logOutput(
-                s"// Calling ${parsed.operationName.operationName.text} ($requestId)"
-              )
-          }
+      def onFileCompiled: F[Unit] = Feedback[F].showOutputPanel
+
+      def onQueryCompiled(
+        parsed: Query[Id],
+        compiled: CompiledInput,
+      ): F[RequestId] = requestCounter.updateAndGet(_ + 1).flatTap { requestId =>
+        Feedback[F]
+          .logOutput(
+            s"// Calling ${parsed.operationName.operationName.text} ($requestId)"
+          )
+      }
 
       def onQuerySuccess(parsed: Query[Id], requestId: RequestId, out: InputNode[Id]): F[Unit] =
         Feedback[F].logOutput(
