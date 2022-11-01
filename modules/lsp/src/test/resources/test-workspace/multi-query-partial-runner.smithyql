@@ -1,0 +1,7 @@
+playground.std#Random.NextUUID {
+
+}
+
+noop#NoRunnerService.Noop {
+
+}

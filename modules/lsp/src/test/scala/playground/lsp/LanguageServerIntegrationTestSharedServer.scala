@@ -155,6 +155,7 @@ object LanguageServerIntegrationTestSharedServer
         assert(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID"))
       }
   }
+
   test("smithyql/runQuery (in memory, multiple queries)") { f =>
     f.client
       .scoped {
@@ -175,6 +176,28 @@ object LanguageServerIntegrationTestSharedServer
         ) &&
         assert(
           evs(4).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded CurrentTimestamp")
+        )
+      }
+  }
+
+  test("smithyql/runQuery (in memory, multiple queries, one without runner)") { f =>
+    f.client
+      .scoped {
+        f.server
+          .runQuery(
+            RunQueryParams(
+              Uri.fromPath(f.workspaceDir.toPath / "multi-query-partial-runner.smithyql")
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.eql(evs.size, 1) &&
+        assert.same(evs(0).asInstanceOf[TestClient.MessageLog].tpe, MessageType.Error) &&
+        assert(
+          evs(0)
+            .asInstanceOf[TestClient.MessageLog]
+            .msg
+            .contains("The service uses an unsupported protocol.")
         )
       }
   }

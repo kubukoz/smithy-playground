@@ -21,7 +21,7 @@ trait CommandResultReporter[F[_]] {
   def onFileCompiled: F[Unit]
   def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
   def onQuerySuccess(parsed: Query[Id], requestId: RequestId, output: InputNode[Id]): F[Unit]
-  def onQueryFailure(e: Throwable, compiled: CompiledInput, requestId: RequestId): F[Unit]
+  def onQueryFailure(compiled: CompiledInput, requestId: RequestId, e: Throwable): F[Unit]
 }
 
 object CommandResultReporter {
@@ -77,7 +77,7 @@ object CommandResultReporter {
             + writeOutput(out)
         )
 
-      def onQueryFailure(e: Throwable, compiled: CompiledInput, requestId: Int): F[Unit] = {
+      def onQueryFailure(compiled: CompiledInput, requestId: Int, e: Throwable): F[Unit] = {
         val rendered =
           compiled
             .catchError(e)
