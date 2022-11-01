@@ -155,6 +155,30 @@ object LanguageServerIntegrationTestSharedServer
         assert(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID"))
       }
   }
+  test("smithyql/runQuery (in memory, multiple queries)") { f =>
+    f.client
+      .scoped {
+        f.server
+          .runQuery(
+            RunQueryParams(
+              Uri.fromPath(f.workspaceDir.toPath / "multi-query.smithyql")
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.eql(evs.size, 6) &&
+        assert.same(evs(0), TestClient.OutputPanelShow) &&
+        assert(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
+        assert(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID")) &&
+        assert.same(evs(3), TestClient.OutputPanelShow) &&
+        assert(
+          evs(4).asInstanceOf[TestClient.OutputLog].text.contains("Calling CurrentTimestamp")
+        ) &&
+        assert(
+          evs(5).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded CurrentTimestamp")
+        )
+      }
+  }
 
   val fakeServer: Resource[IO, Server] =
     EmberServerBuilder

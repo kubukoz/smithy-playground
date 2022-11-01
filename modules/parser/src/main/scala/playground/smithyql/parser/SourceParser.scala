@@ -10,6 +10,7 @@ import cats.parse.Parser.Expectation.OneOfStr
 
 trait SourceParser[Alg[_[_]]] {
   def parse(s: String): Either[ParsingFailure, Alg[WithSource]]
+  def map[Alg2[_[_]]](f: Alg[WithSource] => Alg2[WithSource]): SourceParser[Alg2] = parse(_).map(f)
 }
 
 object SourceParser {
@@ -36,7 +37,28 @@ object SourceParser {
 
   implicit val sourceFileParser: SourceParser[SourceFile] = fromCatsParseParser(
     Parsers.parsers.sourceFile
-  )
+  ).map { file =>
+    // workaround: passing prelude's useClause to all queries
+    file.copy(
+      statements = file.statements.map { s =>
+        s.fold(
+          runQuery =
+            rq =>
+              RunQuery[WithSource](
+                rq.query
+                  .map(
+                    _.copy(useClause =
+                      file
+                        .prelude
+                        .useClause
+                        .fold(WithSource.liftId(Option.empty[UseClause[WithSource]]))(_.map(_.some))
+                    )
+                  )
+              )
+        )
+      }
+    )
+  }
 
 }
 

@@ -12,9 +12,12 @@ import cats.tagless.FunctorK
 import cats.tagless.implicits._
 import cats.~>
 import com.google.gson.JsonElement
+import com.google.gson.JsonPrimitive
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
+import playground.CompilationFailed
+import playground.FileCompiler
 import playground.OperationRunner
 import playground.TextDocumentManager
 import playground.language.CodeLensProvider
@@ -24,6 +27,7 @@ import playground.language.CompletionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbolProvider
 import playground.language.TextDocumentProvider
+import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.util.KleisliOps
 import playground.smithyql.Query
@@ -34,8 +38,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.language.Uri
-import com.google.gson.JsonPrimitive
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -84,11 +86,15 @@ object LanguageServer {
         }
 
       val compiler = playground.OperationCompiler.fromSchemaIndex(dsi)
+      @deprecated
+      val compilerOld = compiler.mapK(CompilationFailed.wrapK)
+      val fileCompiler = FileCompiler.instance(compiler).mapK(CompilationFailed.wrapK)
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
-      val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)
-      val lensProvider = CodeLensProvider.instance(compiler, runner)
-      val commandProvider = CommandProvider.instance[F](compiler.mapK(iorToF), runner)
+      val diagnosticProvider = DiagnosticProvider.instance(compilerOld, runner)
+      val lensProvider = CodeLensProvider.instance(compilerOld, runner)
+      val commandProvider = CommandProvider
+        .instance[F](fileCompiler.mapK(iorToF), runner)
 
       def initialize(
         params: InitializeParams

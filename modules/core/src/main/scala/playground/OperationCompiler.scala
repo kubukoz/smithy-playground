@@ -20,6 +20,9 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import smithyql.syntax._
 import types._
+import playground.smithyql.SourceFile
+import playground.smithyql.UseClause
+import cats.Parallel
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -42,6 +45,32 @@ object CompiledInput {
 
 }
 
+trait FileCompiler[F[_]] {
+  def compile(f: SourceFile[WithSource]): F[List[CompiledInput]]
+  def mapK[G[_]](fk: F ~> G): FileCompiler[G] = f => fk(compile(f))
+}
+
+object FileCompiler {
+
+  def instance[F[_]: Parallel](opCompiler: OperationCompiler[F]): FileCompiler[F] =
+    new FileCompiler[F] {
+
+      def compile(
+        f: SourceFile[WithSource]
+      ): F[List[CompiledInput]] = f.statements.parTraverse {
+        _.fold(runQuery =>
+          opCompiler.compile(
+            runQuery
+              .query
+              .value
+          )
+        )
+      }
+
+    }
+
+}
+
 trait OperationCompiler[F[_]] { self =>
   def compile(q: Query[WithSource]): F[CompiledInput]
 
@@ -56,8 +85,8 @@ object OperationCompiler {
 
   def fromSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): OperationCompiler[Ior[Throwable, *]] = {
-    val services: Map[QualifiedIdentifier, OperationCompiler[Ior[Throwable, *]]] =
+  ): OperationCompiler[IorNel[CompilationError, *]] = {
+    val services: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
       dsi
         .allServices
         .map { svc =>
@@ -71,7 +100,19 @@ object OperationCompiler {
 
   def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     service: Service[Alg, Op]
-  ): OperationCompiler[Ior[Throwable, *]] = new ServiceCompiler(service)
+  ): OperationCompiler[IorNel[CompilationError, *]] = new ServiceCompiler(service)
+
+  def seal[A](
+    result: IorNel[CompilationError, A]
+  ): IorNel[CompilationError, A] = result.fold(
+    Ior.left(_),
+    Ior.right(_),
+    (e, a) =>
+      if (e.exists(_.isError))
+        Ior.left(e)
+      else
+        Ior.both(e, a),
+  )
 
 }
 
@@ -79,11 +120,21 @@ final case class CompilationFailed(errors: NonEmptyList[CompilationError]) exten
 
 object CompilationFailed {
   def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
+
+  val wrapK: IorNel[CompilationError, *] ~> IorThrow =
+    new (IorNel[CompilationError, *] ~> IorThrow) {
+
+      def apply[A](
+        fa: Ior[NonEmptyList[CompilationError], A]
+      ): IorThrow[A] = OperationCompiler.seal(fa).leftMap(CompilationFailed(_))
+
+    }
+
 }
 
 private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   service: Service[Alg, Op]
-) extends OperationCompiler[Ior[Throwable, *]] {
+) extends OperationCompiler[IorNel[CompilationError, *]] {
 
   private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
@@ -102,7 +153,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
             type E = Err
             type O = Out
 
-            def op: Op[_, Err, Out, _, _] = e.wrap(compiled)
+            val op: Op[_, Err, Out, _, _] = e.wrap(compiled)
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
             val catchError: Throwable => Option[Err] = err => e.errorable.flatMap(_.liftError(err))
@@ -153,50 +204,32 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       .toBothLeft(())
       .toIorNel
 
-  private def seal[A](
-    result: IorNel[CompilationError, A]
-  ): IorNel[CompilationError, A] = result.fold(
-    Ior.left(_),
-    Ior.right(_),
-    (e, a) =>
-      if (e.exists(_.isError))
-        Ior.left(e)
-      else
-        Ior.both(e, a),
-  )
-
-  def compile(q: Query[WithSource]): Ior[Throwable, CompiledInput] = {
-    val compiled =
-      endpoints
-        .get(q.operationName.value.operationName.value.text)
-        .toRightIor(NonEmptyList.one(operationNotFound(q)))
-        .flatTap { case (e, _) => deprecatedOperationCheck(q, e) }
-        .flatMap(_._2.apply(q.input)) <& deprecationWarnings(q)
-
-    seal(compiled).leftMap(CompilationFailed(_))
-  }
+  def compile(q: Query[WithSource]): IorNel[CompilationError, CompiledInput] =
+    endpoints
+      .get(q.operationName.value.operationName.value.text)
+      .toRightIor(NonEmptyList.one(operationNotFound(q)))
+      .flatTap { case (e, _) => deprecatedOperationCheck(q, e) }
+      .flatMap(_._2.apply(q.input)) <& deprecationWarnings(q)
 
 }
 
 private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  services: Map[QualifiedIdentifier, OperationCompiler[Ior[Throwable, *]]]
-) extends OperationCompiler[Ior[Throwable, *]] {
+  services: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]]
+) extends OperationCompiler[IorNel[CompilationError, *]] {
 
   private def getService(
     q: Query[WithSource]
-  ): Either[Throwable, OperationCompiler[Ior[Throwable, *]]] = MultiServiceResolver
+  ): Either[CompilationError, OperationCompiler[IorNel[CompilationError, *]]] = MultiServiceResolver
     .resolveService(
       q.mapK(WithSource.unwrap).collectServiceIdentifiers,
       services,
     )
     .leftMap { rf =>
-      CompilationFailed.one(
-        ResolutionFailure.toCompilationError(rf, q)
-      )
+      ResolutionFailure.toCompilationError(rf, q)
     }
 
   def compile(
     q: Query[WithSource]
-  ): Ior[Throwable, CompiledInput] = getService(q).fold(Ior.left(_), _.compile(q))
+  ): IorNel[CompilationError, CompiledInput] = getService(q).fold(Ior.leftNel(_), _.compile(q))
 
 }

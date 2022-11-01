@@ -12,6 +12,7 @@ import demo.smithy.Good
 import demo.smithy.HasConstraintFields
 import demo.smithy.HasDefault
 import demo.smithy.HasDeprecations
+import demo.smithy.HasMixin
 import demo.smithy.Hero
 import demo.smithy.IntSet
 import demo.smithy.Ints
@@ -19,14 +20,15 @@ import demo.smithy.MyInstant
 import demo.smithy.Person
 import demo.smithy.Power
 import demo.smithy.StringWithLength
-import demo.smithy.HasMixin
 import org.scalacheck.Arbitrary
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
 import playground.DiagnosticTag
+import playground.OperationCompiler
 import playground.QueryCompiler
 import playground.QueryCompilerVisitor
+import playground.smithyql.parser.SourceParser
 import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.ByteArray
@@ -46,7 +48,6 @@ import java.time
 import java.util.UUID
 
 import Arbitraries._
-import playground.smithyql.parser.SourceParser
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -848,10 +849,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   )(
     q: String
   ) = playground
-    .OperationCompiler
-    .fromService(service)
+    .FileCompiler
+    .instance(OperationCompiler.fromService(service))
+    .mapK(CompilationFailed.wrapK)
     .compile(
-      SourceParser[Query].parse(q).toTry.get
+      SourceParser[SourceFile].parse(q).toTry.get
     )
 
   pureTest("deprecated service's use clause") {

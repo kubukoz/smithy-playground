@@ -207,9 +207,12 @@ object OperationRunner {
           .toIorNel *> {
           val proxy = new DynamicServiceProxy[Alg, Op](service)
 
-          proxy
-            .tryProxy(StdlibRuntime[F].random)
-            .orElse(proxy.tryProxy(StdlibRuntime[F].clock))
+          NonEmptyList
+            .of(
+              proxy.tryProxy(StdlibRuntime[F].random),
+              proxy.tryProxy(StdlibRuntime[F].clock),
+            )
+            .reduceK // orElse
             .toRightIor(Issue.Other(new Throwable("unknown standard service")))
             .toIorNel
         }

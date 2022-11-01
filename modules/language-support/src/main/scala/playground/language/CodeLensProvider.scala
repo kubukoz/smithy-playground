@@ -47,5 +47,6 @@ case class CodeLens(range: SourceRange, command: Command)
 case class Command(title: String, command: String, args: List[String])
 
 object Command {
+  // todo: needs rename everywhere (including UI)
   val RUN_QUERY: String = "smithyql.runQuery"
 }
