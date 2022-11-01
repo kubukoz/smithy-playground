@@ -134,18 +134,6 @@ object Parsers {
         listed
     }
 
-    private def trailingCommaSeparated0[A](
-      parser: Parser[A]
-    ): Parser0[List[A]] = Defer[Parser0].fix[List[A]] { self =>
-      val moreFields: Parser0[List[A]] = (tokens.comma *> self).orElse(
-        Parser.pure(Nil)
-      )
-
-      (parser ~ moreFields)
-        .map { case (h, t) => h :: t }
-        .orElse(Parser.pure(Nil))
-    }
-
     lazy val struct: Parser[Struct[T]] = {
       type TField = Binding[T]
 
@@ -156,9 +144,9 @@ object Parsers {
         ).mapN(Binding.apply[T])
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
-      val fields: Parser0[Struct.Fields[T]] = trailingCommaSeparated0(field).map(
-        Struct.Fields[T](_)
-      )
+      val fields: Parser0[Struct.Fields[T]] = field
+        .repSep0WithTrailing(tokens.comma)
+        .map(Struct.Fields[T](_))
 
       tokens
         .expandRange0(tokens.withComments0(fields))
@@ -174,7 +162,7 @@ object Parsers {
       val field: Parser[TField] = tokens.withComments(node)
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
-      val fields: Parser0[List[TField]] = trailingCommaSeparated0(field)
+      val fields: Parser0[List[TField]] = field.repSep0WithTrailing(tokens.comma)
 
       tokens
         .expandRange0(tokens.withComments0(fields))
@@ -210,6 +198,20 @@ object Parsers {
 
     val sourceFile: Parser0[SourceFile[T]] = (prelude, statement.rep0)
       .mapN(SourceFile.apply[T])
+
+    implicit class ParserOps[A](parser: Parser[A]) {
+
+      // like repSep0, but allows a trailing occurrence of the separator
+      // if there's at least one occurrence of the main parser/
+      def repSep0WithTrailing(
+        sep: Parser[Unit]
+      ): Parser0[List[A]] = Defer[Parser0].fix[List[A]] { self =>
+        (parser ~ (sep *> self).orElse(Parser.pure(Nil)))
+          .map { case (h, t) => h :: t }
+          .orElse(Parser.pure(Nil))
+      }
+
+    }
 
   }
 
