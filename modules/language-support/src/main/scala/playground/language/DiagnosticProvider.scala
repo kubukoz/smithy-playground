@@ -61,8 +61,8 @@ object DiagnosticProvider {
                         .supported
                         .map(_.show)
                         .mkString_(", ")}.
-                   |Found protocols: ${ps.found.map(_.show).mkString(", ")}
-                   |Running queries will not be possible.""".stripMargin,
+                       |Found protocols: ${ps.found.map(_.show).mkString(", ")}
+                       |Running queries will not be possible.""".stripMargin,
                     pos,
                   )
                 )
@@ -73,7 +73,7 @@ object DiagnosticProvider {
                     List(
                       info(
                         s"""Service unsupported. Running queries will not be possible.
-                       |Details: $e""".stripMargin,
+                           |Details: $e""".stripMargin,
                         pos,
                       )
                     )

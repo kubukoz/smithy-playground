@@ -4,14 +4,11 @@ import cats.Show
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.implicits._
-import cats.effect.kernel.Async
 import cats.effect.kernel.Deferred
-import cats.effect.kernel.Resource
 import cats.effect.std
 import cats.effect.std.Dispatcher
 import cats.implicits._
 import org.eclipse.lsp4j.launch.LSPLauncher
-import playground.TextDocumentManager
 
 import java.io.File
 import java.io.FileOutputStream
@@ -64,7 +61,8 @@ object Main extends IOApp.Simple {
   ) = Deferred[IO, LanguageClient[IO]].toResource.flatMap { clientRef =>
     implicit val lc: LanguageClient[IO] = LanguageClient.defer(clientRef.get)
 
-    makeServer[IO]
+    MainServer
+      .makeServer[IO]
       .flatMap { server =>
         Dispatcher[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
       }
@@ -83,21 +81,5 @@ object Main extends IOApp.Simple {
             .as(launcher)
       }
   }
-
-  private def makeServer[F[_]: Async: std.Console](
-    implicit lc: LanguageClient[F]
-  ): Resource[F, LanguageServer[F]] = TextDocumentManager
-    .instance[F]
-    .toResource
-    .flatMap { implicit tdm =>
-      implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
-
-      ServerBuilder
-        .instance[F]
-        .evalMap { implicit builder =>
-          ServerLoader.instance[F]
-        }
-        .map(_.server)
-    }
 
 }

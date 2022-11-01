@@ -9,9 +9,10 @@ import playground.ModelReader
 import playground.language.TextDocumentProvider
 import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
+import playground.language.Uri
 
 trait BuildLoader[F[_]] {
-  def load: F[BuildLoader.Loaded]
+  def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded]
 
   def buildSchemaIndex(info: BuildLoader.Loaded): F[DynamicSchemaIndex]
 
@@ -30,16 +31,19 @@ object BuildLoader {
   def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
     new BuildLoader[F] {
 
-      def load: F[BuildLoader.Loaded] = {
+      def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded] = {
         val configFiles = List(
           "build/smithy-dependencies.json",
           ".smithy.json",
           "smithy-build.json",
         )
 
+        // For now, we only support a single workspace folder.
         fs2
           .Stream
-          .emit(Path("."))
+          .emit(
+            workspaceFolders.headOption.getOrElse(sys.error("no workspace folders found")).toPath
+          )
           .flatMap { folder =>
             fs2
               .Stream
@@ -48,12 +52,7 @@ object BuildLoader {
           }
           .evalMap(filePath =>
             TextDocumentProvider[F]
-              .getOpt(
-                filePath
-                  .toNioPath
-                  .toUri()
-                  .toString()
-              )
+              .getOpt(Uri.fromPath(filePath))
               .map(_.tupleRight(filePath))
           )
           .unNone
@@ -71,8 +70,7 @@ object BuildLoader {
             BuildConfigDecoder
               .decode(fileContents.getBytes())
               .liftTo[F]
-              .tupleRight(filePath)
-              .map(BuildLoader.Loaded.apply.tupled)
+              .map(BuildLoader.Loaded.apply(_, filePath))
           }
       }
 
@@ -98,6 +96,7 @@ object BuildLoader {
               dependencies = loaded.config.mavenDependencies.combineAll,
               repositories = loaded.config.mavenRepositories.combineAll,
               transformers = Nil,
+              // todo: this should be false really
               discoverModels = true,
               localJars = Nil,
             )
