@@ -86,6 +86,7 @@ object OperationRunner {
 
   }
 
+  // todo: move to middlewares in server builder?
   def dynamicBaseUri[F[_]: MonadCancelThrow](getUri: F[Uri]): Client[F] => Client[F] =
     client =>
       Client[F] { req =>
