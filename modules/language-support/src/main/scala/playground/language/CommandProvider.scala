@@ -60,7 +60,12 @@ object CommandProvider {
       ): F[List[OperationRunner[F]]] = file
         .statements
         .map(_.fold(_.query.value))
-        .parTraverse(runner.get(_).toEither /* should this toEither be called later? */ )
+        // keeping toEither on this level for now:
+        // - if we had a Both, we can ignore the errors.
+        // - if we had a Left/Right, that'll still be the case
+        // hoping that we won't need non-protocol Runner.Issues in the current form once this lands:
+        // https://github.com/disneystreaming/smithy4s/issues/501
+        .parTraverse(runner.get(_).toEither)
         .leftMap(RunErrors(_))
         .liftTo[F]
 

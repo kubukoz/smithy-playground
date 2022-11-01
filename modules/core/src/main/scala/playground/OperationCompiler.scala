@@ -21,7 +21,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithyql.syntax._
 import types._
 import playground.smithyql.SourceFile
-import playground.smithyql.UseClause
 import cats.Parallel
 
 trait CompiledInput {
