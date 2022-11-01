@@ -19,7 +19,7 @@ trait CommandResultReporter[F[_]] {
   def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
   def onCompilationFailed: F[Unit]
   def onFileCompiled: F[Unit]
-  def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
+  def onQueryStart(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
   def onQuerySuccess(parsed: Query[Id], requestId: RequestId, output: InputNode[Id]): F[Unit]
   def onQueryFailure(compiled: CompiledInput, requestId: RequestId, e: Throwable): F[Unit]
 }
@@ -61,7 +61,7 @@ object CommandResultReporter {
 
       def onFileCompiled: F[Unit] = Feedback[F].showOutputPanel
 
-      def onQueryCompiled(
+      def onQueryStart(
         parsed: Query[Id],
         compiled: CompiledInput,
       ): F[RequestId] = requestCounter.updateAndGet(_ + 1).flatTap { requestId =>

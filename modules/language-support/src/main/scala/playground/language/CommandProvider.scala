@@ -15,6 +15,7 @@ import playground.smithyql.parser.SourceParser
 
 import scala.collection.immutable.ListMap
 import cats.data.NonEmptyList
+import playground.FileRunner
 
 trait CommandProvider[F[_]] {
   def runCommand(name: String, args: List[String]): F[Unit]
@@ -24,7 +25,7 @@ object CommandProvider {
 
   def instance[F[_]: MonadThrow: TextDocumentProvider: CommandResultReporter](
     compiler: FileCompiler[F],
-    runner: OperationRunner.Resolver[F],
+    runner: FileRunner.Resolver[F],
   ): CommandProvider[F] =
     new CommandProvider[F] {
 
@@ -43,7 +44,7 @@ object CommandProvider {
         input: CompiledInput,
         runner: OperationRunner[F],
       ): F[Unit] = CommandResultReporter[F]
-        .onQueryCompiled(q, input)
+        .onQueryStart(q, input)
         .flatMap { requestId =>
           runner
             .run(input)
@@ -54,20 +55,6 @@ object CommandProvider {
               CommandResultReporter[F].onQueryFailure(input, requestId, _)
             }
         }
-
-      private def getRunners(
-        file: SourceFile[WithSource]
-      ): F[List[OperationRunner[F]]] = file
-        .statements
-        .map(_.fold(_.query.value))
-        // keeping toEither on this level for now:
-        // - if we had a Both, we can ignore the errors.
-        // - if we had a Left/Right, that'll still be the case
-        // hoping that we won't need non-protocol Runner.Issues in the current form once this lands:
-        // https://github.com/disneystreaming/smithy4s/issues/501
-        .parTraverse(runner.get(_).toEither)
-        .leftMap(RunErrors(_))
-        .liftTo[F]
 
       private def runCompiledFile(
         file: SourceFile[WithSource],
@@ -97,7 +84,7 @@ object CommandProvider {
           documentText <- TextDocumentProvider[F].get(documentUri)
           file <- SourceParser[SourceFile].parse(documentText).liftTo[F]
           compiledInputs <- compiler.compile(file)
-          runners <- getRunners(file)
+          runners <- runner.get(file).leftMap(RunErrors(_)).liftTo[F]
           _ <- runCompiledFile(file, compiledInputs, runners)
         } yield ()
       }.recoverWith {

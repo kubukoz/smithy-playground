@@ -38,6 +38,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.FileRunner
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -89,12 +90,14 @@ object LanguageServer {
       @deprecated
       val compilerOld = compiler.mapK(CompilationFailed.wrapK)
       val fileCompiler = FileCompiler.instance(compiler).mapK(CompilationFailed.wrapK)
+      val fileRunner = FileRunner.instance(runner)
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
       val diagnosticProvider = DiagnosticProvider.instance(compilerOld, runner)
       val lensProvider = CodeLensProvider.instance(compilerOld, runner)
+
       val commandProvider = CommandProvider
-        .instance[F](fileCompiler.mapK(iorToF), runner)
+        .instance[F](fileCompiler.mapK(iorToF), fileRunner)
 
       def initialize(
         params: InitializeParams

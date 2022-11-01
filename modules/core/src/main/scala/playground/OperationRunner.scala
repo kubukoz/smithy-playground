@@ -111,24 +111,27 @@ object OperationRunner {
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
-  ): Resolver[F] = {
-    val runners: Map[QualifiedIdentifier, Resolver[F]] =
-      dsi
-        .allServices
-        .map { svc =>
-          QualifiedIdentifier.forService(svc.service) ->
-            OperationRunner.forService[svc.Alg, svc.Op, F](
-              svc.service,
-              client,
-              baseUri,
-              awsEnv,
-              dsi.getSchema,
-              plugins,
-            )
-        }
-        .toMap
+  ): Map[QualifiedIdentifier, Resolver[F]] =
+    dsi
+      .allServices
+      .map { svc =>
+        QualifiedIdentifier.forService(svc.service) ->
+          OperationRunner.forService[svc.Alg, svc.Op, F](
+            svc.service,
+            client,
+            baseUri,
+            awsEnv,
+            dsi.getSchema,
+            plugins,
+          )
+      }
+      .toMap
 
+  def merge[F[_]](
+    runners: Map[QualifiedIdentifier, Resolver[F]]
+  ): Resolver[F] =
     new Resolver[F] {
+
       def get(q: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = MultiServiceResolver
         .resolveService(
           q.mapK(WithSource.unwrap).collectServiceIdentifiers,
@@ -146,8 +149,8 @@ object OperationRunner {
         .leftMap(Issue.Other(_))
         .toIorNel
         .flatMap(_.get(q))
+
     }
-  }
 
   def forService[
     Alg[_[_, _, _, _, _]],
