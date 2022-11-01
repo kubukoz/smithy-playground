@@ -23,6 +23,7 @@ import playground.smithyql.SourceRange
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import playground.language.Uri
 
 object converters {
 
@@ -111,7 +112,7 @@ object converters {
         })
     }
 
-    def diagnostic(doc: String, documentUri: String, diag: CompilationError): lsp4j.Diagnostic =
+    def diagnostic(doc: String, documentUri: Uri, diag: CompilationError): lsp4j.Diagnostic =
       new lsp4j.Diagnostic()
         .tap(_.setRange(toLSP.range(doc, diag.range)))
         .tap(_.setMessage(diag.err.render))
@@ -148,10 +149,10 @@ object converters {
           )
         )
 
-    private def location(doc: String, documentUri: String, loc: RelativeLocation): lsp4j.Location =
+    private def location(doc: String, documentUri: Uri, loc: RelativeLocation): lsp4j.Location =
       new lsp4j.Location(
         loc.document match {
-          case SameFile => documentUri
+          case SameFile => documentUri.value
         },
         range(doc, loc.range),
       )

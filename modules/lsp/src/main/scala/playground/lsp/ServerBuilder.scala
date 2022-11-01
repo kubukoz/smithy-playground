@@ -5,8 +5,6 @@ import cats.effect.kernel.Async
 import cats.effect.std
 import cats.effect.std.Supervisor
 import cats.implicits._
-import io.circe.Decoder
-import org.http4s.Uri
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
@@ -28,10 +26,6 @@ object ServerBuilder {
 
   def instance[F[_]: Async: LanguageClient: BuildLoader: std.Console] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
-
-    implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
-      Uri.fromString(_).leftMap(_.message)
-    )
 
     implicit val stdlibRuntime: StdlibRuntime[F] = StdlibRuntime.instance[F]
 
@@ -72,7 +66,7 @@ object ServerBuilder {
                                 dsi,
                                 client,
                                 LanguageClient[F]
-                                  .configuration[Uri]("smithyql.http.baseUrl"),
+                                  .configuration(ConfigurationValue.baseUri),
                                 awsEnv,
                                 plugins = plugins,
                               )
@@ -98,7 +92,7 @@ object ServerBuilder {
         Client[F] { request =>
           val updatedRequest =
             LanguageClient[F]
-              .configuration[String]("smithyql.http.authorizationHeader")
+              .configuration(ConfigurationValue.authorizationHeader)
               .flatMap {
                 case v if v.trim.isEmpty() => request.pure[F]
                 case v => Authorization.parse(v).liftTo[F].map(request.putHeaders(_))

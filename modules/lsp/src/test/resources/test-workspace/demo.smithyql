@@ -1,0 +1,5 @@
+use service playground.std#Random
+
+NextUUID {
+
+}

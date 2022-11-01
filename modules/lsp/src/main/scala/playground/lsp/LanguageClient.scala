@@ -7,7 +7,6 @@ import cats.tagless.Derive
 import cats.tagless.FunctorK
 import cats.tagless.implicits._
 import com.google.gson.JsonElement
-import io.circe.Decoder
 import org.eclipse.lsp4j.ConfigurationItem
 import org.eclipse.lsp4j.ConfigurationParams
 import org.eclipse.lsp4j.MessageParams
@@ -20,7 +19,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
 trait LanguageClient[F[_]] extends Feedback[F] {
-  def configuration[A: Decoder](section: String): F[A]
+  def configuration[A](v: ConfigurationValue[A]): F[A]
   def showMessage(tpe: MessageType, msg: String): F[Unit]
   def refreshDiagnostics: F[Unit]
   def refreshCodeLenses: F[Unit]
@@ -46,12 +45,10 @@ object LanguageClient {
         f: client.type => A
       ): F[A] = Async[F].delay(f(client))
 
-      def configuration[A: Decoder](
-        section: String
-      ): F[A] = withClientF(
+      def configuration[A](v: ConfigurationValue[A]): F[A] = withClientF(
         _.configuration(
           new ConfigurationParams(
-            (new ConfigurationItem().tap(_.setSection(section)) :: Nil).asJava
+            (new ConfigurationItem().tap(_.setSection(v.key)) :: Nil).asJava
           )
         )
       )
@@ -65,7 +62,7 @@ object LanguageClient {
           case e: JsonElement => converters.gsonToCirce(e)
           case e              => throw new RuntimeException(s"Unexpected configuration value: $e")
         }
-        .flatMap(_.as[A].liftTo[F])
+        .flatMap(_.as[A](v.codec).liftTo[F])
 
       def showMessage(tpe: MessageType, msg: String): F[Unit] = withClientSync(
         _.showMessage(new MessageParams(tpe, msg))
