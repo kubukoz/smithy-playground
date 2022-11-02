@@ -43,7 +43,7 @@ object LanguageServerIntegrationTestSharedServer
         ),
       TestClient.MessageLog(
         MessageType.Info,
-        "Loaded Smithy Playground server with 1 imports, 0 dependencies and 0 plugins",
+        "Loaded Smithy Playground server with 2 imports, 0 dependencies and 0 plugins",
       ),
     )
 
@@ -73,6 +73,7 @@ object LanguageServerIntegrationTestSharedServer
             List(
               "NextUUID",
               "GetWeather",
+              "Noop",
               "CurrentTimestamp",
             ),
           )
@@ -85,7 +86,7 @@ object LanguageServerIntegrationTestSharedServer
       .diagnostic(
         new DocumentDiagnosticParams(
           new TextDocumentIdentifier(
-            (f.workspaceDir.toPath / "empty.smithyql").toNioPath.toUri().toString()
+            (f.workspaceDir.toPath / "broken.smithyql").toNioPath.toUri().toString()
           )
         )
       )

@@ -10,12 +10,12 @@ import playground.smithyql.InputNode
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 
-import playground.OperationRunner.Issue.ProtocolIssues
 import playground.CompiledInput
+import playground.OperationRunner
 
 trait CommandResultReporter[F[_]] {
   type RequestId
-  def onUnsupportedProtocol(issues: ProtocolIssues): F[Unit]
+  def onUnsupportedProtocol(issues: OperationRunner.Issue.Squashed.ProtocolIssues): F[Unit]
   def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
   def onCompilationFailed: F[Unit]
   def onFileCompiled: F[Unit]
@@ -39,7 +39,7 @@ object CommandResultReporter {
       type RequestId = Int
 
       def onUnsupportedProtocol(
-        issues: ProtocolIssues
+        issues: OperationRunner.Issue.Squashed.ProtocolIssues
       ): F[Unit] = {
         val supportedString = issues.supported.map(_.show).mkString_(", ")
         val foundOnServiceString = issues.found.map(_.show).mkString(", ")

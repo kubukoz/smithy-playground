@@ -28,4 +28,5 @@ object Diffs {
 
   implicit val diffNodeContext: Diff[NodeContext] = Diff.derivedDiff
   implicit val diffContextRange: Diff[ContextRange] = Diff.derivedDiff
+  implicit val diffDiagnostic: Diff[CompilationError] = Diff.derivedDiff
 }

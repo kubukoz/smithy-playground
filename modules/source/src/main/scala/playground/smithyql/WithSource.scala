@@ -18,7 +18,9 @@ object Comment {
   implicit val eq: Eq[Comment] = Eq.by(_.text)
 }
 
-final case class Position(index: Int)
+final case class Position(index: Int) {
+  def moveRight(n: Int): Position = Position(index + n)
+}
 
 object Position {
   val origin: Position = Position(index = 0)

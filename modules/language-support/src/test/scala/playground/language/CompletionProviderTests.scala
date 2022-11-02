@@ -6,34 +6,23 @@ import cats.implicits._
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._
+import playground.language.Diffs._
 import playground.smithyql.OperationName
+import playground.smithyql.Position
+import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.syntax._
 import playground.std.ClockGen
 import playground.std.RandomGen
-import smithy4s.Service
-import smithy4s.dynamic.DynamicSchemaIndex
 import weaver._
 
-import playground.smithyql.syntax._
-import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.Position
-import playground.language.Diffs._
+import ServiceUtils.wrapService
 
 object CompletionProviderTests extends SimpleIOSuite {
-
-  private def wrap[Algg[_[_, _, _, _, _]], Opp[_, _, _, _, _]](
-    svc: Service[Algg, Opp]
-  ): DynamicSchemaIndex.ServiceWrapper =
-    new DynamicSchemaIndex.ServiceWrapper {
-      type Alg[Oppp[_, _, _, _, _]] = Algg[Oppp]
-
-      type Op[I, E, O, SE, SO] = Opp[I, E, O, SE, SO]
-      val service: Service[Alg, Op] = svc
-    }
 
   private val demoServiceId = QualifiedIdentifier.of("demo", "smithy", "DemoService")
 
   pureTest("completing existing use clause") {
-    val service = wrap(DemoServiceGen)
+    val service = wrapService(DemoServiceGen)
 
     val provider = CompletionProvider.forServices(List(service))
 
@@ -55,8 +44,8 @@ object CompletionProviderTests extends SimpleIOSuite {
 
   pureTest("completing empty file") {
 
-    val service = wrap(DemoServiceGen)
-    val random = wrap(RandomGen)
+    val service = wrapService(DemoServiceGen)
+    val random = wrapService(RandomGen)
 
     val provider = CompletionProvider.forServices(List(service, random))
 
@@ -103,7 +92,7 @@ object CompletionProviderTests extends SimpleIOSuite {
   }
 
   pureTest("completing empty file - one service exists") {
-    val random = wrap(RandomGen)
+    val random = wrapService(RandomGen)
     val provider = CompletionProvider.forServices(List(random))
 
     val result = provider.provide(
@@ -129,7 +118,7 @@ object CompletionProviderTests extends SimpleIOSuite {
 
   locally {
     // for some reason, this can't be defined within the test body.
-    val provider = CompletionProvider.forServices(List(wrap(DeprecatedServiceGen)))
+    val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
 
     pureTest("completing empty file - one (deprecated) service exists") {
       val result = provider
@@ -155,8 +144,8 @@ object CompletionProviderTests extends SimpleIOSuite {
   }
 
   pureTest("completing operation - use clause exists, multiple services available") {
-    val clock = wrap(ClockGen)
-    val random = wrap(RandomGen)
+    val clock = wrapService(ClockGen)
+    val random = wrapService(RandomGen)
     val provider = CompletionProvider.forServices(List(clock, random))
 
     val result = provider.provide(

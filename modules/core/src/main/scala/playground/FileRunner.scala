@@ -6,6 +6,8 @@ import cats.implicits._
 import playground._
 import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
+import playground.smithyql.SourceRange
+import cats.data.NonEmptyList
 
 object FileRunner {
 
@@ -14,18 +16,25 @@ object FileRunner {
 
     def get(
       file: SourceFile[WithSource]
-    ): EitherNel[OperationRunner.Issue, List[OperationRunner[F]]]
+    ): Either[NonEmptyList[(SourceRange, OperationRunner.Issue.Squashed)], List[OperationRunner[F]]]
 
   }
 
   def instance[F[_]](forOperation: OperationRunner.Resolver[F]): Resolver[F] =
     _.statements
-      .map(_.fold(_.query.value))
+      .map(_.fold(runQuery = _.query.value))
       // keeping toEither on this level for now:
       // - if we had a Both, we can ignore the errors.
       // - if we had a Left/Right, that'll still be the case
       // hoping that we won't need non-protocol Runner.Issues in the current form once this lands:
       // https://github.com/disneystreaming/smithy4s/issues/501
-      .parTraverse(forOperation.get(_).toEither)
+      .parTraverse { q =>
+        forOperation
+          .get(q)
+          .toEither
+          .leftMap(OperationRunner.Issue.squash(_))
+          .leftMap((q.operationName.range, _))
+          .toEitherNel
+      }
 
 }

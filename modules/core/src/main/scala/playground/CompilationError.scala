@@ -8,6 +8,7 @@ import playground.smithyql._
 import playground.smithyql.format.Formatter
 import smithy.api
 import smithy.api.TimestampFormat
+import smithy4s.ShapeId
 
 final case class CompilationError(
   err: CompilationErrorDetails,
@@ -28,6 +29,11 @@ object CompilationError {
     err: CompilationErrorDetails,
     range: SourceRange,
   ): CompilationError = default(err, range, DiagnosticSeverity.Error)
+
+  def info(
+    err: CompilationErrorDetails,
+    range: SourceRange,
+  ): CompilationError = default(err, range, DiagnosticSeverity.Information)
 
   def warning(
     err: CompilationErrorDetails,
@@ -90,7 +96,20 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case Message(text)                 => text
+      case Message(text) => text
+      case UnsupportedProtocols(supported, available) =>
+        val supportedString = supported.map(_.show).mkString_(", ")
+
+        val availableString =
+          if (available.isEmpty)
+            "<none>"
+          else
+            available.map(_.show).mkString(", ")
+
+        s"""Service doesn't support any of the available protocols: $supportedString.
+           |Found protocols: $availableString
+           |Running queries will not be possible.""".stripMargin
+
       case ParseError(expectationString) => s"Parsing failure: expected ${expectationString}"
       case DeprecatedItem(info) => "Deprecated" + CompilationErrorDetails.deprecationString(info)
       case InvalidUUID          => "Invalid UUID"
@@ -175,6 +194,11 @@ object CompilationErrorDetails {
   final case class Message(text: String) extends CompilationErrorDetails
   final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
     extends CompilationErrorDetails
+
+  final case class UnsupportedProtocols(
+    supported: NonEmptyList[ShapeId],
+    available: List[ShapeId],
+  ) extends CompilationErrorDetails
 
   final case class ConflictingServiceReference(refs: List[QualifiedIdentifier])
     extends CompilationErrorDetails

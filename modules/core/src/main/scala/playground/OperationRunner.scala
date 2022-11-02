@@ -52,7 +52,17 @@ object OperationRunner {
     final case class InvalidProtocol(supported: ShapeId, found: List[ShapeId]) extends Issue
     final case class Other(e: Throwable) extends Issue
 
-    final case class ProtocolIssues(supported: NonEmptyList[ShapeId], found: List[ShapeId])
+    sealed trait Squashed extends Product with Serializable
+
+    object Squashed {
+
+      final case class ProtocolIssues(
+        supported: NonEmptyList[ShapeId],
+        found: List[ShapeId],
+      ) extends Squashed
+
+      final case class OtherIssues(exceptions: NonEmptyList[Throwable]) extends Squashed
+    }
 
     // Either remove all protocol errors, or only keep those.
     // If there are any non-protocol errors, they'll be returned in Right.
@@ -60,7 +70,7 @@ object OperationRunner {
     // todo: this needs a cleanup
     def squash(
       issues: NonEmptyList[Issue]
-    ): Either[ProtocolIssues, NonEmptyList[Throwable]] = {
+    ): Squashed = {
       // todo: use nonEmptyPartition
       val (protocols, others) = issues.toList.partitionMap {
         case InvalidProtocol(p, _) => Left(p)
@@ -70,7 +80,7 @@ object OperationRunner {
       others.toNel match {
         case None =>
           // must be nonempty at this point
-          ProtocolIssues(
+          Squashed.ProtocolIssues(
             NonEmptyList.fromListUnsafe(protocols),
             issues
               .collectFirst { case InvalidProtocol(_, found) => found }
@@ -79,8 +89,8 @@ object OperationRunner {
                   "Impossible - no protocol issues found, can't extract available protocols"
                 )
               ),
-          ).asLeft
-        case Some(otherErrors) => otherErrors.asRight
+          )
+        case Some(otherErrors) => Squashed.OtherIssues(otherErrors)
       }
     }
 
@@ -112,21 +122,34 @@ object OperationRunner {
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
+  ): Map[QualifiedIdentifier, Resolver[F]] = forServices(
+    services = dsi.allServices,
+    getSchema = dsi.getSchema,
+    client = client,
+    baseUri = baseUri,
+    awsEnv = awsEnv,
+    plugins = plugins,
+  )
+
+  def forServices[F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+    services: List[DynamicSchemaIndex.ServiceWrapper],
+    getSchema: ShapeId => Option[Schema[_]],
+    client: Client[F],
+    baseUri: F[Uri],
+    awsEnv: Resource[F, AwsEnvironment[F]],
+    plugins: List[PlaygroundPlugin],
   ): Map[QualifiedIdentifier, Resolver[F]] =
-    dsi
-      .allServices
-      .map { svc =>
-        QualifiedIdentifier.forService(svc.service) ->
-          OperationRunner.forService[svc.Alg, svc.Op, F](
-            svc.service,
-            client,
-            baseUri,
-            awsEnv,
-            dsi.getSchema,
-            plugins,
-          )
-      }
-      .toMap
+    services.map { svc =>
+      QualifiedIdentifier.forService(svc.service) ->
+        OperationRunner.forService[svc.Alg, svc.Op, F](
+          svc.service,
+          client,
+          baseUri,
+          awsEnv,
+          getSchema,
+          plugins,
+        )
+    }.toMap
 
   def merge[F[_]](
     runners: Map[QualifiedIdentifier, Resolver[F]]

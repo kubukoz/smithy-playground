@@ -29,13 +29,15 @@ object CommandProvider {
   ): CommandProvider[F] =
     new CommandProvider[F] {
 
-      case class RunErrors(issues: NonEmptyList[OperationRunner.Issue]) extends Exception {
+      case class RunErrors(issues: NonEmptyList[OperationRunner.Issue.Squashed]) extends Exception {
 
-        def report: F[Unit] =
-          OperationRunner.Issue.squash(issues) match {
-            case Left(protocols) => CommandResultReporter[F].onUnsupportedProtocol(protocols)
-            case Right(others)   => CommandResultReporter[F].onIssues(others)
-          }
+        def report: F[Unit] = issues.traverse_ {
+          case p: OperationRunner.Issue.Squashed.ProtocolIssues =>
+            CommandResultReporter[F].onUnsupportedProtocol(p)
+
+          case OperationRunner.Issue.Squashed.OtherIssues(others) =>
+            CommandResultReporter[F].onIssues(others)
+        }
 
       }
 
@@ -84,7 +86,7 @@ object CommandProvider {
           documentText <- TextDocumentProvider[F].get(documentUri)
           file <- SourceParser[SourceFile].parse(documentText).liftTo[F]
           compiledInputs <- compiler.compile(file)
-          runners <- runner.get(file).leftMap(RunErrors(_)).liftTo[F]
+          runners <- runner.get(file).leftMap(_.map(_._2)).leftMap(RunErrors(_)).liftTo[F]
           _ <- runCompiledFile(file, compiledInputs, runners)
         } yield ()
       }.recoverWith {

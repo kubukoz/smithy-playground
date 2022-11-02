@@ -84,17 +84,18 @@ object OperationCompiler {
 
   def fromSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): OperationCompiler[IorNel[CompilationError, *]] = {
-    val services: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
-      dsi
-        .allServices
-        .map { svc =>
-          QualifiedIdentifier
-            .forService(svc.service) -> OperationCompiler.fromService[svc.Alg, svc.Op](svc.service)
-        }
-        .toMap
+  ): OperationCompiler[IorNel[CompilationError, *]] = fromServices(dsi.allServices)
 
-    new MultiServiceCompiler(services)
+  def fromServices(
+    services: List[DynamicSchemaIndex.ServiceWrapper]
+  ): OperationCompiler[IorNel[CompilationError, *]] = {
+    val serviceMap: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
+      services.map { svc =>
+        QualifiedIdentifier
+          .forService(svc.service) -> OperationCompiler.fromService[svc.Alg, svc.Op](svc.service)
+      }.toMap
+
+    new MultiServiceCompiler(serviceMap)
   }
 
   def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](

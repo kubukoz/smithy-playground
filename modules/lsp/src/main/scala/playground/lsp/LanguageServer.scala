@@ -93,7 +93,7 @@ object LanguageServer {
       val fileRunner = FileRunner.instance(runner)
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
-      val diagnosticProvider = DiagnosticProvider.instance(compilerOld, runner)
+      val diagnosticProvider = DiagnosticProvider.instance(fileCompiler, fileRunner)
       val lensProvider = CodeLensProvider.instance(compilerOld, runner)
 
       val commandProvider = CommandProvider
