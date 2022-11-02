@@ -1,109 +1,98 @@
 {
-  "prelude" : {
-    "useClause" : null
+  "prelude": {
+    "useClause": null
   },
-  "statements" : [
+  "statements": [
     {
-      "RunQuery" : {
-        "query" : {
-          "commentsLeft" : [
+      "RunQuery": {
+        "query": {
+          "commentsLeft": [
+            {
+              "text": " comment before query"
+            }
           ],
-          "commentsRight" : [
+          "commentsRight": [
+            {
+              "text": " after query"
+            }
           ],
-          "range" : {
-            "start" : {
-              "index" : 0
+          "range": {
+            "start": {
+              "index": 24
             },
-            "end" : {
-              "index" : 50
+            "end": {
+              "index": 34
             }
           },
-          "value" : {
-            "useClause" : {
-              "commentsLeft" : [
-              ],
-              "commentsRight" : [
-              ],
-              "range" : {
-                "start" : {
-                  "index" : 0
+          "value": {
+            "useClause": {
+              "commentsLeft": [],
+              "commentsRight": [],
+              "range": {
+                "start": {
+                  "index": 0
                 },
-                "end" : {
-                  "index" : 0
+                "end": {
+                  "index": 0
                 }
               },
-              "value" : null
+              "value": null
             },
-            "operationName" : {
-              "commentsLeft" : [
-                {
-                  "text" : " comment before query"
-                }
-              ],
-              "commentsRight" : [
-              ],
-              "range" : {
-                "start" : {
-                  "index" : 24
+            "operationName": {
+              "commentsLeft": [],
+              "commentsRight": [],
+              "range": {
+                "start": {
+                  "index": 24
                 },
-                "end" : {
-                  "index" : 29
+                "end": {
+                  "index": 29
                 }
               },
-              "value" : {
-                "identifier" : null,
-                "operationName" : {
-                  "commentsLeft" : [
-                  ],
-                  "commentsRight" : [
-                  ],
-                  "range" : {
-                    "start" : {
-                      "index" : 24
+              "value": {
+                "identifier": null,
+                "operationName": {
+                  "commentsLeft": [],
+                  "commentsRight": [],
+                  "range": {
+                    "start": {
+                      "index": 24
                     },
-                    "end" : {
-                      "index" : 29
+                    "end": {
+                      "index": 29
                     }
                   },
-                  "value" : {
-                    "text" : "hello"
+                  "value": {
+                    "text": "hello"
                   }
                 }
               }
             },
-            "input" : {
-              "commentsLeft" : [
-              ],
-              "commentsRight" : [
-                {
-                  "text" : " after query"
-                }
-              ],
-              "range" : {
-                "start" : {
-                  "index" : 30
+            "input": {
+              "commentsLeft": [],
+              "commentsRight": [],
+              "range": {
+                "start": {
+                  "index": 30
                 },
-                "end" : {
-                  "index" : 34
+                "end": {
+                  "index": 34
                 }
               },
-              "value" : {
-                "fields" : {
-                  "commentsLeft" : [
-                  ],
-                  "commentsRight" : [
-                  ],
-                  "range" : {
-                    "start" : {
-                      "index" : 31
+              "value": {
+                "fields": {
+                  "commentsLeft": [],
+                  "commentsRight": [],
+                  "range": {
+                    "start": {
+                      "index": 31
                     },
-                    "end" : {
-                      "index" : 33
+                    "end": {
+                      "index": 33
                     }
                   },
-                  "value" : {
-                    "value" : [
-                    ]
+                  "value": {
+                    "value": []
                   }
                 }
               }

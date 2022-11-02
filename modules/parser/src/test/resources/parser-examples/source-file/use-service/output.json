@@ -1,141 +1,144 @@
 {
-  "prelude" : {
-    "useClause" : {
-      "commentsLeft" : [
+  "prelude": {
+    "useClause": {
+      "commentsLeft": [
         {
-          "text" : "comment before use clause"
+          "text": "comment before use clause"
         }
       ],
-      "commentsRight" : [
-      ],
-      "range" : {
-        "start" : {
-          "index" : 28
+      "commentsRight": [],
+      "range": {
+        "start": {
+          "index": 28
         },
-        "end" : {
-          "index" : 48
+        "end": {
+          "index": 48
         }
       },
-      "value" : {
-        "identifier" : {
-          "commentsLeft" : [
-          ],
-          "commentsRight" : [
-          ],
-          "range" : {
-            "start" : {
-              "index" : 40
+      "value": {
+        "identifier": {
+          "commentsLeft": [],
+          "commentsRight": [],
+          "range": {
+            "start": {
+              "index": 40
             },
-            "end" : {
-              "index" : 48
+            "end": {
+              "index": 48
             }
           },
-          "value" : {
-            "segments" : [
-              "com"
-            ],
-            "selection" : "Demo"
+          "value": {
+            "segments": ["com"],
+            "selection": "Demo"
           }
         }
       }
     }
   },
-  "statements" : [
+  "statements": [
     {
-      "RunQuery" : {
-        "query" : {
-          "commentsLeft" : [
-          ],
-          "commentsRight" : [
-          ],
-          "range" : {
-            "start" : {
-              "index" : 49
+      "RunQuery": {
+        "query": {
+          "commentsLeft": [],
+          "commentsRight": [],
+          "range": {
+            "start": {
+              "index": 49
             },
-            "end" : {
-              "index" : 58
+            "end": {
+              "index": 57
             }
           },
-          "value" : {
-            "useClause" : {
-              "commentsLeft" : [
+          "value": {
+            "useClause": {
+              "commentsLeft": [
+                {
+                  "text": "comment before use clause"
+                }
               ],
-              "commentsRight" : [
-              ],
-              "range" : {
-                "start" : {
-                  "index" : 0
+              "commentsRight": [],
+              "range": {
+                "start": {
+                  "index": 28
                 },
-                "end" : {
-                  "index" : 0
+                "end": {
+                  "index": 48
                 }
               },
-              "value" : null
-            },
-            "operationName" : {
-              "commentsLeft" : [
-              ],
-              "commentsRight" : [
-              ],
-              "range" : {
-                "start" : {
-                  "index" : 49
-                },
-                "end" : {
-                  "index" : 54
-                }
-              },
-              "value" : {
-                "identifier" : null,
-                "operationName" : {
-                  "commentsLeft" : [
-                  ],
-                  "commentsRight" : [
-                  ],
-                  "range" : {
-                    "start" : {
-                      "index" : 49
+              "value": {
+                "identifier": {
+                  "commentsLeft": [],
+                  "commentsRight": [],
+                  "range": {
+                    "start": {
+                      "index": 40
                     },
-                    "end" : {
-                      "index" : 54
+                    "end": {
+                      "index": 48
                     }
                   },
-                  "value" : {
-                    "text" : "hello"
+                  "value": {
+                    "segments": ["com"],
+                    "selection": "Demo"
                   }
                 }
               }
             },
-            "input" : {
-              "commentsLeft" : [
-              ],
-              "commentsRight" : [
-              ],
-              "range" : {
-                "start" : {
-                  "index" : 55
+            "operationName": {
+              "commentsLeft": [],
+              "commentsRight": [],
+              "range": {
+                "start": {
+                  "index": 49
                 },
-                "end" : {
-                  "index" : 57
+                "end": {
+                  "index": 54
                 }
               },
-              "value" : {
-                "fields" : {
-                  "commentsLeft" : [
-                  ],
-                  "commentsRight" : [
-                  ],
-                  "range" : {
-                    "start" : {
-                      "index" : 56
+              "value": {
+                "identifier": null,
+                "operationName": {
+                  "commentsLeft": [],
+                  "commentsRight": [],
+                  "range": {
+                    "start": {
+                      "index": 49
                     },
-                    "end" : {
-                      "index" : 56
+                    "end": {
+                      "index": 54
                     }
                   },
-                  "value" : {
-                    "value" : [
-                    ]
+                  "value": {
+                    "text": "hello"
+                  }
+                }
+              }
+            },
+            "input": {
+              "commentsLeft": [],
+              "commentsRight": [],
+              "range": {
+                "start": {
+                  "index": 55
+                },
+                "end": {
+                  "index": 57
+                }
+              },
+              "value": {
+                "fields": {
+                  "commentsLeft": [],
+                  "commentsRight": [],
+                  "range": {
+                    "start": {
+                      "index": 56
+                    },
+                    "end": {
+                      "index": 56
+                    }
+                  },
+                  "value": {
+                    "value": []
                   }
                 }
               }

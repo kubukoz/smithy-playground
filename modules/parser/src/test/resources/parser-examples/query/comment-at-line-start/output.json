@@ -1,119 +1,106 @@
 {
-  "useClause" : {
-    "commentsLeft" : [
-    ],
-    "commentsRight" : [
-    ],
-    "range" : {
-      "start" : {
-        "index" : 0
+  "useClause": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
       },
-      "end" : {
-        "index" : 0
+      "end": {
+        "index": 0
       }
     },
-    "value" : null
+    "value": null
   },
-  "operationName" : {
-    "commentsLeft" : [
-    ],
-    "commentsRight" : [
+  "operationName": {
+    "commentsLeft": [],
+    "commentsRight": [
       {
-        "text" : "this is a comment"
+        "text": "this is a comment"
       }
     ],
-    "range" : {
-      "start" : {
-        "index" : 3
+    "range": {
+      "start": {
+        "index": 0
       },
-      "end" : {
-        "index" : 8
+      "end": {
+        "index": 5
       }
     },
-    "value" : {
-      "identifier" : null,
-      "operationName" : {
-        "commentsLeft" : [
-        ],
-        "commentsRight" : [
-        ],
-        "range" : {
-          "start" : {
-            "index" : 3
+    "value": {
+      "identifier": null,
+      "operationName": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 0
           },
-          "end" : {
-            "index" : 8
+          "end": {
+            "index": 5
           }
         },
-        "value" : {
-          "text" : "hello"
+        "value": {
+          "text": "hello"
         }
       }
     }
   },
-  "input" : {
-    "commentsLeft" : [
-    ],
-    "commentsRight" : [
-    ],
-    "range" : {
-      "start" : {
-        "index" : 33
+  "input": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 30
       },
-      "end" : {
-        "index" : 57
+      "end": {
+        "index": 54
       }
     },
-    "value" : {
-      "fields" : {
-        "commentsLeft" : [
-        ],
-        "commentsRight" : [
-        ],
-        "range" : {
-          "start" : {
-            "index" : 34
+    "value": {
+      "fields": {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 31
           },
-          "end" : {
-            "index" : 56
+          "end": {
+            "index": 53
           }
         },
-        "value" : {
-          "value" : [
+        "value": {
+          "value": [
             {
-              "identifier" : {
-                "commentsLeft" : [
-                ],
-                "commentsRight" : [
-                ],
-                "range" : {
-                  "start" : {
-                    "index" : 39
+              "identifier": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 36
                   },
-                  "end" : {
-                    "index" : 44
+                  "end": {
+                    "index": 41
                   }
                 },
-                "value" : {
-                  "text" : "world"
+                "value": {
+                  "text": "world"
                 }
               },
-              "value" : {
-                "commentsLeft" : [
-                ],
-                "commentsRight" : [
-                ],
-                "range" : {
-                  "start" : {
-                    "index" : 46
+              "value": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 43
                   },
-                  "end" : {
-                    "index" : 51
+                  "end": {
+                    "index": 48
                   }
                 },
-                "value" : {
-                  "StringLiteral" : {
-                    "value" : "bar"
+                "value": {
+                  "StringLiteral": {
+                    "value": "bar"
                   }
                 }
               }

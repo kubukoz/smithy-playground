@@ -38,8 +38,25 @@ object Parsers {
     }
 
     def withComments[A](
-      p: Parser[A]
-    ): Parser[T[A]] = (comments.soft.with1 ~ withRange(p) ~ comments).map(mergeComments)
+      p: Parser[A],
+      left: Boolean = true,
+      right: Boolean = true,
+    ): Parser[T[A]] = {
+
+      val lhs =
+        if (left)
+          comments
+        else
+          Parser.pure(Nil)
+
+      val rhs =
+        if (right)
+          comments
+        else
+          Parser.pure(Nil)
+
+      (lhs.soft.with1 ~ withRange(p) ~ rhs).map(mergeComments)
+    }
 
     def withComments0[A](
       p: Parser0[A]
@@ -186,11 +203,14 @@ object Parsers {
     }
 
     val query: Parser[Query[T]] =
-      (tokens.withComments(queryOperationName), tokens.withComments(struct)).mapN {
+      (
+        tokens.withComments(queryOperationName, left = false),
+        tokens.withComments(struct, right = false),
+      ).mapN {
         Query.apply(WithSource.liftId(Option.empty[UseClause[T]]), _, _)
       }
 
-    val runQuery: Parser[RunQuery[T]] = tokens.withRange(query).map(RunQuery(_))
+    val runQuery: Parser[RunQuery[T]] = tokens.withComments(query).map(RunQuery(_))
 
     val statement: Parser[Statement[T]] = runQuery
 

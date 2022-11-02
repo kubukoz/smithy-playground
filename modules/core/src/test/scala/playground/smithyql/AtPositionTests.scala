@@ -60,11 +60,11 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - between queries") {
     val actual = locateAtCursor(s"""op1 {}
+                                   |
                                    |$CURSOR
+                                   |
                                    |op2 {}""".stripMargin)
 
-    //  fails - most likely parser issue.
-    // ignoring LHS comments in op names / RHS comments in op inputs should do the trick
     assertNoDiff(actual, NodeContext.Root)
   }
 

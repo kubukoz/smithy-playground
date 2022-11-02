@@ -1,56 +1,51 @@
 {
-  "fields" : {
-    "commentsLeft" : [
-    ],
-    "commentsRight" : [
-    ],
-    "range" : {
-      "start" : {
-        "index" : 1
+  "fields": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
       },
-      "end" : {
-        "index" : 44
+      "end": {
+        "index": 44
       }
     },
-    "value" : {
-      "value" : [
+    "value": {
+      "value": [
         {
-          "identifier" : {
-            "commentsLeft" : [
-            ],
-            "commentsRight" : [
-            ],
-            "range" : {
-              "start" : {
-                "index" : 4
+          "identifier": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 4
               },
-              "end" : {
-                "index" : 9
+              "end": {
+                "index": 9
               }
             },
-            "value" : {
-              "text" : "world"
+            "value": {
+              "text": "world"
             }
           },
-          "value" : {
-            "commentsLeft" : [
+          "value": {
+            "commentsLeft": [
               {
-                "text" : "this is a comment"
+                "text": "this is a comment"
               }
             ],
-            "commentsRight" : [
-            ],
-            "range" : {
-              "start" : {
-                "index" : 36
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 36
               },
-              "end" : {
-                "index" : 41
+              "end": {
+                "index": 41
               }
             },
-            "value" : {
-              "StringLiteral" : {
-                "value" : "bar"
+            "value": {
+              "StringLiteral": {
+                "value": "bar"
               }
             }
           }
