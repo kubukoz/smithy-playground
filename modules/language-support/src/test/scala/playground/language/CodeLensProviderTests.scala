@@ -48,7 +48,7 @@ object CodeLensProviderTests extends FunSuite {
         CodeLens(
           range = input.rangeOf("playground.std#Random.NextUUID"),
           command = Command(
-            title = "Run query",
+            title = "Run SmithyQL file",
             command = Command.RUN_FILE,
             args = List("file://test.smithyql"),
           ),
@@ -68,7 +68,7 @@ object CodeLensProviderTests extends FunSuite {
         CodeLens(
           range = input.rangeOf("playground.std#Random.NextUUID"),
           command = Command(
-            title = "Run query",
+            title = "Run SmithyQL file",
             command = Command.RUN_FILE,
             args = List("file://test.smithyql"),
           ),
