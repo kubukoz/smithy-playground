@@ -193,6 +193,7 @@ final case class Identifier(text: String) extends AnyVal
 
 object Struct {
 
+  // todo: wrap each binding in F
   final case class Fields[F[_]](value: List[Binding[F]]) {
     def keys: List[F[Identifier]] = value.map(_.identifier)
 

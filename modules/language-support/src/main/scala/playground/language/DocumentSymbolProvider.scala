@@ -4,49 +4,54 @@ import playground.smithyql.InputNode
 import playground.smithyql.Listed
 import playground.smithyql.OperationName
 import playground.smithyql.Query
+import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
 import playground.smithyql.Struct
 import playground.smithyql.UseClause
 import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
+import playground.smithyql.Prelude
+import cats.implicits._
 
 object DocumentSymbolProvider {
 
   def make(text: String): List[DocumentSymbol] =
-    SourceParser[Query].parse(text) match {
+    SourceParser[SourceFile].parse(text) match {
       case Left(_) => Nil
-      case Right(q) =>
-        findInUseClause(q.useClause) ++
-          findInOperation(q.operationName.value.operationName, q.input)
+      case Right(sf) =>
+        findInPrelude(sf.prelude) ++
+          sf.queries.map(_.query).flatMap(findInQuery)
     }
 
-  private def findInUseClause(
-    clause: WithSource[Option[UseClause[WithSource]]]
-  ): List[DocumentSymbol] =
-    clause
-      .value
-      .map { useClause =>
-        DocumentSymbol(
-          useClause.identifier.value.render,
-          SymbolKind.Package,
-          useClause.identifier.range,
-          useClause.identifier.range,
-          Nil,
-        )
-      }
-      .toList
+  private def findInPrelude(
+    p: Prelude[WithSource]
+  ): List[DocumentSymbol] = p.useClause.foldMap(findInUseClause)
 
-  private def findInOperation(
-    op: WithSource[OperationName[WithSource]],
-    body: WithSource[Struct[WithSource]],
-  ): List[DocumentSymbol] =
+  private def findInQuery(wsq: WithSource[Query[WithSource]]): List[DocumentSymbol] = {
+    val q = wsq.value
+
     DocumentSymbol(
-      op.value.text,
+      q.operationName.value.operationName.value.text,
       SymbolKind.Function,
-      selectionRange = op.range,
-      range = op.range.fakeUnion(body.range),
-      children = findInStruct(body),
+      selectionRange = q.operationName.range,
+      range = wsq.range,
+      children = findInStruct(q.input),
     ) :: Nil
+  }
+
+  private def findInUseClause(
+    clause: WithSource[UseClause[WithSource]]
+  ): List[DocumentSymbol] = {
+    val useClause = clause.value
+
+    DocumentSymbol(
+      useClause.identifier.value.render,
+      SymbolKind.Package,
+      useClause.identifier.range,
+      useClause.identifier.range,
+      Nil,
+    ) :: Nil
+  }
 
   private def findInStruct(
     struct: WithSource[Struct[WithSource]]

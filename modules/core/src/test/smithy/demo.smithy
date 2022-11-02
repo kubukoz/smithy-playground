@@ -121,7 +121,7 @@ structure GenericServerError {
   msg: String
 }
 
-@http(method: "GET", uri: "/poweres")
+@http(method: "GET", uri: "/powers")
 @readonly
 operation GetPowers {
   output: GetPowersOutput,
