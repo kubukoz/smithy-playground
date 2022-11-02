@@ -5,17 +5,15 @@ import cats.Monad
 import cats.data.NonEmptyList
 import cats.effect.kernel.Ref
 import cats.implicits._
-import playground.smithyql.format.Formatter
+import playground.CompiledInput
 import playground.smithyql.InputNode
 import playground.smithyql.Query
 import playground.smithyql.WithSource
-
-import playground.CompiledInput
-import playground.OperationRunner
+import playground.smithyql.format.Formatter
 
 trait CommandResultReporter[F[_]] {
   type RequestId
-  def onUnsupportedProtocol(issues: OperationRunner.Issue.Squashed.ProtocolIssues): F[Unit]
+  def onUnsupportedProtocol: F[Unit]
   def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
   def onCompilationFailed: F[Unit]
   def onFileCompiled: F[Unit]
@@ -38,18 +36,10 @@ object CommandResultReporter {
 
       type RequestId = Int
 
-      def onUnsupportedProtocol(
-        issues: OperationRunner.Issue.Squashed.ProtocolIssues
-      ): F[Unit] = {
-        val supportedString = issues.supported.map(_.show).mkString_(", ")
-        val foundOnServiceString = issues.found.map(_.show).mkString(", ")
-
-        Feedback[F].showErrorMessage(
-          s"""The service uses an unsupported protocol.
-             |Supported protocols: $supportedString
-             |Found protocols: $foundOnServiceString""".stripMargin
-        )
-      }
+      def onUnsupportedProtocol: F[Unit] = Feedback[F].showErrorMessage(
+        """At least 1 service in the file uses an unsupported protocol.
+          |Check diagnostics/problems in the file.""".stripMargin
+      )
 
       def onIssues(issues: NonEmptyList[Throwable]): F[Unit] = Feedback[F].showErrorMessage(
         issues.map(_.toString).mkString_("\n\n")

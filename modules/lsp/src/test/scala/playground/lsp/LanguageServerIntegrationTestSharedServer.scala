@@ -181,7 +181,7 @@ object LanguageServerIntegrationTestSharedServer
       }
   }
 
-  test("smithyql/runQuery (in memory, multiple queries, one without runner)") { f =>
+  test("smithyql/runQuery (in memory, multiple queries, multiple without runner)") { f =>
     f.client
       .scoped {
         f.server
@@ -198,7 +198,7 @@ object LanguageServerIntegrationTestSharedServer
           evs(0)
             .asInstanceOf[TestClient.MessageLog]
             .msg
-            .contains("The service uses an unsupported protocol.")
+            .startsWith("At least 1 service in the file uses an unsupported protocol.")
         )
       }
   }

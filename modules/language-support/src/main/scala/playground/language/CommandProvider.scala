@@ -2,10 +2,12 @@ package playground.language
 
 import cats.Id
 import cats.MonadThrow
+import cats.data.NonEmptyList
 import cats.implicits._
 import playground.CompilationFailed
 import playground.CompiledInput
 import playground.FileCompiler
+import playground.FileRunner
 import playground.OperationRunner
 import playground.smithyql.Query
 import playground.smithyql.SourceFile
@@ -14,8 +16,6 @@ import playground.smithyql.parser.ParsingFailure
 import playground.smithyql.parser.SourceParser
 
 import scala.collection.immutable.ListMap
-import cats.data.NonEmptyList
-import playground.FileRunner
 
 trait CommandProvider[F[_]] {
   def runCommand(name: String, args: List[String]): F[Unit]
@@ -31,12 +31,19 @@ object CommandProvider {
 
       case class RunErrors(issues: NonEmptyList[OperationRunner.Issue.Squashed]) extends Exception {
 
-        def report: F[Unit] = issues.traverse_ {
-          case p: OperationRunner.Issue.Squashed.ProtocolIssues =>
-            CommandResultReporter[F].onUnsupportedProtocol(p)
+        def report: F[Unit] = {
+          val (protocolIssues, otherIssues) = issues.toList.partitionMap {
+            case p: OperationRunner.Issue.Squashed.ProtocolIssues => p.asLeft
 
-          case OperationRunner.Issue.Squashed.OtherIssues(others) =>
-            CommandResultReporter[F].onIssues(others)
+            case p: OperationRunner.Issue.Squashed.OtherIssues => p.asRight
+          }
+
+          CommandResultReporter[F]
+            .onUnsupportedProtocol
+            .whenA(protocolIssues.nonEmpty) *>
+            otherIssues.traverse_ { case OperationRunner.Issue.Squashed.OtherIssues(others) =>
+              CommandResultReporter[F].onIssues(others)
+            }
         }
 
       }
