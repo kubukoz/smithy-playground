@@ -5,7 +5,7 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import playground.MultiServiceResolver
 import playground.smithyql.NodeContext
-import playground.smithyql.NodeContext.Root
+import playground.smithyql.NodeContext.EmptyPath
 import playground.smithyql.NodeContext.^^:
 import playground.smithyql.OperationName
 import playground.smithyql.Position
@@ -113,14 +113,7 @@ object CompletionProvider {
           .toOption
 
       ctx match {
-        case NodeContext.PathEntry.AtUseClause ^^: Root =>
-          servicesById
-            .toList
-            .sortBy(_._1)
-            .map(CompletionItem.useServiceClause.tupled)
-            .toList
-
-        case NodeContext.PathEntry.AtOperationName ^^: Root =>
+        case NodeContext.PathEntry.AtOperationName ^^: EmptyPath =>
           completeOperationNameFor(q, serviceIdOpt)
 
         case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
@@ -148,7 +141,8 @@ object CompletionProvider {
           val matchingNode = RangeIndex
             .build(sf)
             .findAtPosition(pos)
-          // System.err.println("matchingNode: " + matchingNode.map(_.render))
+
+          // System.err.println("matchingNode: " + matchingNode.render)
 
           matchingNode match {
             case NodeContext.PathEntry.InQuery(n) ^^: rest =>
@@ -162,8 +156,15 @@ object CompletionProvider {
 
               completeInQuery(q, rest)
 
-            case Root => completeAnyOperationName
-            case _    => Nil
+            case NodeContext.PathEntry.AtUseClause ^^: EmptyPath =>
+              servicesById
+                .toList
+                .sortBy(_._1)
+                .map(CompletionItem.useServiceClause.tupled)
+                .toList
+
+            case EmptyPath => completeAnyOperationName
+            case _         => Nil
           }
 
       }

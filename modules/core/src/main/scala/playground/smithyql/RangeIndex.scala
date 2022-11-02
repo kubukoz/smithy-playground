@@ -11,9 +11,18 @@ object RangeIndex {
   def build(sf: SourceFile[WithSource]): RangeIndex =
     new RangeIndex {
 
-      // todo: add prelude ranges
-      private val allRanges: List[ContextRange] = sf.queries.zipWithIndex.flatMap {
-        case (rq, index) => findInQuery(rq.query, NodeContext.Root.inQuery(index))
+      private val allRanges: List[ContextRange] = {
+        val path = NodeContext.EmptyPath
+
+        val preludeRanges = sf.prelude.useClause.foldMap { uc =>
+          findInUseClause(uc, path.inUseClause)
+        }
+
+        val queryRanges = sf.queries.zipWithIndex.flatMap { case (rq, index) =>
+          findInQuery(rq.query, path.inQuery(index))
+        }
+
+        preludeRanges ++ queryRanges
       }
 
       // Console
@@ -32,7 +41,7 @@ object RangeIndex {
         .maxByOption(_.ctx.length)
         .map(_.ctx)
         // By default, we're on root level
-        .getOrElse(NodeContext.Root)
+        .getOrElse(NodeContext.EmptyPath)
 
     }
 
@@ -40,21 +49,14 @@ object RangeIndex {
     val qv = q.value
 
     List(ContextRange(q.range, path)) ++
-      findInUseClause(qv.useClause, path.inUseClause) ++
       findInOperationName(qv.operationName, path.inOperationName) ++
       findInNode(qv.input, path.inOperationInput)
   }
 
   private def findInUseClause(
-    useClauseOpt: WithSource[Option[UseClause[WithSource]]],
+    useClause: WithSource[UseClause[WithSource]],
     path: NodeContext,
-  ): List[ContextRange] =
-    useClauseOpt
-      .value
-      .map { useClause =>
-        ContextRange(useClause.identifier.range, path.inUseClause)
-      }
-      .toList
+  ): List[ContextRange] = ContextRange(useClause.value.identifier.range, path) :: Nil
 
   private def findInOperationName(
     operationName: WithSource[QueryOperationName[WithSource]],

@@ -58,10 +58,29 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
 object NodeContext {
 
   object ^^: {
+
+    /** Extractor for path entry prefixes. You can use this to assert on a prefix of a path (when
+      * you consider paths L->R). For example, in a file like "hello {}", the path at "hello" would
+      * be something like
+      *
+      * {{{EmptyPath.inQuery(0).inOperationName}}}
+      *
+      * which could be matched with the following pattern:
+      *
+      * {{{case InQuery(0) ^^: InOperationName ^^: EmptyPath}}}
+      *
+      * or, if you only want to match on a prefix and keep the rest up for more matching:
+      *
+      * {{{case InQuery(0) ^^: rest}}}
+      */
     def unapply(items: NodeContext): Option[(PathEntry, NodeContext)] = items.uncons
   }
 
-  val Root: NodeContext = Impl(Chain.nil)
+  val EmptyPath: NodeContext = Impl(Chain.nil)
+
+  // This is a bad name really, what it actually means is "empty path" or "no more path" (e.g. in extractors).
+  // todo: refactor usages to refer to EmptyPath
+  val Root: NodeContext = EmptyPath
 
   private final case class Impl(context: Chain[PathEntry]) extends NodeContext
 
