@@ -99,7 +99,7 @@ object CommandProvider {
       }
 
       private val commandMap: Map[String, List[String] => F[Unit]] = ListMap(
-        Command.RUN_QUERY -> {
+        Command.RUN_FILE -> {
           case documentUri :: Nil => runFile(Uri.fromUriString(documentUri))
           case s => new Throwable("Unsupported arguments: " + s).raiseError[F, Unit]
         }

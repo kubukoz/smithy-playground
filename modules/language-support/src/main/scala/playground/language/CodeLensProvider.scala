@@ -33,8 +33,8 @@ object CodeLensProvider {
                   CodeLens(
                     range = queries.head.query.value.operationName.range,
                     Command(
-                      title = "Run query",
-                      command = Command.RUN_QUERY,
+                      title = "Run SmithyQL file",
+                      command = Command.RUN_FILE,
                       args = documentUri.value :: Nil,
                     ),
                   ) :: Nil
@@ -52,6 +52,6 @@ case class CodeLens(range: SourceRange, command: Command)
 case class Command(title: String, command: String, args: List[String])
 
 object Command {
-  // todo: needs rename everywhere (including UI)
-  val RUN_QUERY: String = "smithyql.runQuery"
+  // Legacy value, kept for backwards compatibility with the language client
+  val RUN_FILE: String = "smithyql.runQuery"
 }

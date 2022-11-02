@@ -179,6 +179,8 @@ In this case, the syntax would be `"HOT"` or `"COLD"`.
 
 ### Queries
 
+<!-- todo: this isn't true anymore -->
+
 Currently, a SmithyQL file is a single Query. A Query is formed of the following:
 
 - (optional) a `use service` clause: `use service playground.std#Clock`

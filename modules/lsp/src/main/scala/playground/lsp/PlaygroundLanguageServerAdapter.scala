@@ -112,8 +112,8 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
     )
 
   @JsonRequest("smithyql/runQuery")
-  def runQuery(params: RunQueryParams): CompletableFuture[Object] = d
-    .unsafeToCompletableFuture(impl.runQuery(params).as(null: Object))
+  def runQuery(params: RunFileParams): CompletableFuture[Object] = d
+    .unsafeToCompletableFuture(impl.runFile(params).as(null: Object))
 
   @JsonRequest("exit")
   def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))

@@ -49,7 +49,7 @@ object CodeLensProviderTests extends FunSuite {
           range = input.rangeOf("playground.std#Random.NextUUID"),
           command = Command(
             title = "Run query",
-            command = Command.RUN_QUERY,
+            command = Command.RUN_FILE,
             args = List("file://test.smithyql"),
           ),
         )
@@ -69,7 +69,7 @@ object CodeLensProviderTests extends FunSuite {
           range = input.rangeOf("playground.std#Random.NextUUID"),
           command = Command(
             title = "Run query",
-            command = Command.RUN_QUERY,
+            command = Command.RUN_FILE,
             args = List("file://test.smithyql"),
           ),
         )

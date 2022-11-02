@@ -58,7 +58,7 @@ trait LanguageServer[F[_]] {
   ): F[Unit]
 
   def executeCommand(params: ExecuteCommandParams): F[Unit]
-  def runQuery(params: RunQueryParams): F[Unit]
+  def runFile(params: RunFileParams): F[Unit]
   def shutdown: F[Unit]
   def exit: F[Unit]
 }
@@ -296,9 +296,9 @@ object LanguageServer {
         }
         .flatMap(commandProvider.runCommand(params.getCommand(), _))
 
-      def runQuery(params: RunQueryParams): F[Unit] = executeCommand(
+      def runFile(params: RunFileParams): F[Unit] = executeCommand(
         new ExecuteCommandParams()
-          .tap(_.setCommand(playground.language.Command.RUN_QUERY))
+          .tap(_.setCommand(playground.language.Command.RUN_FILE))
           .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))
       )
 

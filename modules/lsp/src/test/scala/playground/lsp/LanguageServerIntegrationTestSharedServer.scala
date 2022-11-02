@@ -128,7 +128,7 @@ object LanguageServerIntegrationTestSharedServer
           lenses.map(_.getCommand()),
           List(
             new Command(
-              "Run query",
+              "Run SmithyQL file",
               "smithyql.runQuery",
               List(
                 Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value: Object
@@ -143,8 +143,8 @@ object LanguageServerIntegrationTestSharedServer
     f.client
       .scoped {
         f.server
-          .runQuery(
-            RunQueryParams(
+          .runFile(
+            RunFileParams(
               Uri.fromPath(f.workspaceDir.toPath / "empty.smithyql")
             )
           ) *> f.client.getEvents
@@ -161,8 +161,8 @@ object LanguageServerIntegrationTestSharedServer
     f.client
       .scoped {
         f.server
-          .runQuery(
-            RunQueryParams(
+          .runFile(
+            RunFileParams(
               Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql")
             )
           ) *> f.client.getEvents
@@ -181,8 +181,8 @@ object LanguageServerIntegrationTestSharedServer
     f.client
       .scoped {
         f.server
-          .runQuery(
-            RunQueryParams(
+          .runFile(
+            RunFileParams(
               Uri.fromPath(f.workspaceDir.toPath / "multi-query.smithyql")
             )
           ) *> f.client.getEvents
@@ -205,8 +205,8 @@ object LanguageServerIntegrationTestSharedServer
     f.client
       .scoped {
         f.server
-          .runQuery(
-            RunQueryParams(
+          .runFile(
+            RunFileParams(
               Uri.fromPath(f.workspaceDir.toPath / "multi-query-partial-runner.smithyql")
             )
           ) *> f.client.getEvents
@@ -261,8 +261,8 @@ object LanguageServerIntegrationTestSharedServer
 
         env {
           f.server
-            .runQuery(
-              RunQueryParams(
+            .runFile(
+              RunFileParams(
                 Uri.fromPath(f.workspaceDir.toPath / "http-demo.smithyql")
               )
             ) *> f.client.getEvents
