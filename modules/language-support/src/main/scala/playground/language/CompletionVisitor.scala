@@ -95,7 +95,7 @@ object CompletionItem {
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.Field,
     label = field.label,
-    insertText = InsertText.JustString(s"${field.label} = "),
+    insertText = InsertText.JustString(s"${field.label}: "),
     schema = schema,
   )
 
