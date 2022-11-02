@@ -70,20 +70,16 @@ object CommandProvider {
         compiledInputs: List[CompiledInput],
         runners: List[OperationRunner[F]],
       ): F[Unit] =
-        CommandResultReporter[F].onFileCompiled *>
+        CommandResultReporter[F].onFileCompiled(file.queries) *>
           file
-            .statements
+            .queries
             .zip(compiledInputs)
             .zip(runners)
-            .traverse { case ((stat, input), runner) =>
-              stat.fold(
-                runQuery =
-                  rq =>
-                    runCompiledQuery(
-                      rq.query.value.mapK(WithSource.unwrap),
-                      input,
-                      runner,
-                    )
+            .traverse { case ((rq, input), runner) =>
+              runCompiledQuery(
+                rq.query.value.mapK(WithSource.unwrap),
+                input,
+                runner,
               )
             }
             .void

@@ -70,6 +70,8 @@ final case class SourceFile[F[_]](
   statements: List[Statement[F]],
 ) extends AST[F] {
 
+  def queries: List[RunQuery[F]] = statements.flatMap(_.fold(_.some))
+
   def mapK[G[_]: Functor](
     fk: F ~> G
   ): AST[G] = SourceFile(

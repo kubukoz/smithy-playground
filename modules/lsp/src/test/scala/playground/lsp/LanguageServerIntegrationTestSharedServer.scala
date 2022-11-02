@@ -139,6 +139,24 @@ object LanguageServerIntegrationTestSharedServer
       }
   }
 
+  test("smithyql/runQuery (empty file)") { f =>
+    f.client
+      .scoped {
+        f.server
+          .runQuery(
+            RunQueryParams(
+              Uri.fromPath(f.workspaceDir.toPath / "empty.smithyql")
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.same(
+          evs,
+          List(TestClient.MessageLog(MessageType.Warning, "No operations to run in file")),
+        )
+      }
+  }
+
   test("smithyql/runQuery (in memory)") { f =>
     f.client
       .scoped {
@@ -157,6 +175,8 @@ object LanguageServerIntegrationTestSharedServer
       }
   }
 
+  // this and some others could become component tests for the runner...
+  // ...if we ever get any.
   test("smithyql/runQuery (in memory, multiple queries)") { f =>
     f.client
       .scoped {

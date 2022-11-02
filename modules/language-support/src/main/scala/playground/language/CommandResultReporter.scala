@@ -16,7 +16,7 @@ trait CommandResultReporter[F[_]] {
   def onUnsupportedProtocol: F[Unit]
   def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
   def onCompilationFailed: F[Unit]
-  def onFileCompiled: F[Unit]
+  def onFileCompiled(queries: List[Any]): F[Unit]
   def onQueryStart(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
   def onQuerySuccess(parsed: Query[Id], requestId: RequestId, output: InputNode[Id]): F[Unit]
   def onQueryFailure(compiled: CompiledInput, requestId: RequestId, e: Throwable): F[Unit]
@@ -49,7 +49,11 @@ object CommandResultReporter {
         "Couldn't run query because of compilation errors."
       )
 
-      def onFileCompiled: F[Unit] = Feedback[F].showOutputPanel
+      def onFileCompiled(queries: List[Any]): F[Unit] =
+        if (queries.nonEmpty)
+          Feedback[F].showOutputPanel
+        else
+          Feedback[F].showWarnMessage("No operations to run in file")
 
       def onQueryStart(
         parsed: Query[Id],
