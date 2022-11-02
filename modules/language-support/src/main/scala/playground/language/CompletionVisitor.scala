@@ -84,7 +84,7 @@ object CompletionItem {
     kind = CompletionItemKind.Module,
     label = ident.selection,
     insertText = InsertText.JustString(
-      Formatter.renderIdent(ident).render(Int.MaxValue)
+      Formatter.writeIdent(ident).render(Int.MaxValue)
     ),
     schema = Schema.unit.addHints(service.service.hints),
   ).copy(detail = describeService(service))
@@ -232,7 +232,7 @@ object CompletionItem {
           TextEdit
             .Insert(
               (
-                Formatter.renderUseClause(UseClause[Id](serviceId).mapK(WithSource.liftId)) + Doc
+                Formatter.writeUseClause(UseClause[Id](serviceId).mapK(WithSource.liftId)) + Doc
                   .hardLine
                   .repeat(2)
               ).render(Int.MaxValue),
@@ -247,7 +247,7 @@ object CompletionItem {
         case Required(opsToServices)
             // non-unique endpoint names need to be distinguished by service
             if opsToServices.get(OperationName(endpoint.name)).foldMap(_.toList).sizeIs > 1 =>
-          s"(from ${Formatter.renderIdent(serviceId).render(Int.MaxValue)})"
+          s"(from ${Formatter.writeIdent(serviceId).render(Int.MaxValue)})"
         case _ => ""
       }
 

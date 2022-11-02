@@ -1,13 +1,12 @@
 package playground
 
-import cats.data.EitherNel
+import cats.data.NonEmptyList
 import cats.effect.implicits._
 import cats.implicits._
 import playground._
 import playground.smithyql.SourceFile
-import playground.smithyql.WithSource
 import playground.smithyql.SourceRange
-import cats.data.NonEmptyList
+import playground.smithyql.WithSource
 
 object FileRunner {
 

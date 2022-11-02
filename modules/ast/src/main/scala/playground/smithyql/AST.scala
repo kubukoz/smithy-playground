@@ -81,6 +81,14 @@ final case class SourceFile[F[_]](
 
 }
 
+object SourceFile {
+
+  def fromSingleQuery[F[_]](
+    q: F[Query[F]]
+  ): SourceFile[F] = SourceFile(Prelude[F](None), List(RunQuery(q)))
+
+}
+
 sealed trait InputNode[F[_]] extends AST[F] {
   def kind: NodeKind
 

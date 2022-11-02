@@ -18,6 +18,8 @@ import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
 import playground.CompilationFailed
 import playground.FileCompiler
+import playground.FileRunner
+import playground.OperationCompiler
 import playground.TextDocumentManager
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
@@ -29,7 +31,7 @@ import playground.language.TextDocumentProvider
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.util.KleisliOps
-import playground.smithyql.Query
+import playground.smithyql.SourceFile
 import playground.smithyql.format.Formatter
 import playground.smithyql.parser.SourceParser
 import playground.types._
@@ -37,8 +39,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.FileRunner
-import playground.OperationCompiler
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -172,10 +172,10 @@ object LanguageServer {
         .flatMap { text =>
           getFormatterWidth
             .map { maxWidth =>
-              SourceParser[Query]
+              SourceParser[SourceFile]
                 .parse(text)
                 .map { parsed =>
-                  val formatted = Formatter.format(parsed, maxWidth)
+                  val formatted = Formatter[SourceFile].format(parsed, maxWidth)
 
                   val lines = text.linesWithSeparators.toList
 

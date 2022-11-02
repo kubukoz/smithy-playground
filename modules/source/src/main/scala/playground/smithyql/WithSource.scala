@@ -90,7 +90,15 @@ object WithSource {
   implicit def showWithSource[A]: Show[WithSource[A]] = Show.fromToString
 
   def allSourceComments(sf: SourceFile[WithSource]): List[Comment] =
-    sf.prelude.useClause.map(_.allComments(_ => Nil)).orEmpty ++
+    sf.prelude
+      .useClause
+      .foldMap(
+        _.allComments(uc =>
+          uc
+            .identifier
+            .allComments(_ => Nil)
+        )
+      ) ++
       sf.statements.flatMap(allStatementComments)
 
   def allStatementComments(
@@ -119,13 +127,7 @@ object WithSource {
       nul = _ => Nil,
     )
 
-    q.useClause.commentsLeft ++ q
-      .useClause
-      .value
-      .foldMap(u => u.identifier.commentsLeft ++ u.identifier.commentsRight) ++ q
-      .useClause
-      .commentsRight ++
-      q.operationName.allComments(_ => Nil) ++
+    q.operationName.allComments(_ => Nil) ++
       q.input
         .allComments(
           _.fold(

@@ -1,30 +1,37 @@
 package playground.smithyql.format
 
+import playground.Assertions._
+import playground.smithyql._
+import playground.smithyql.format.Formatter
+import playground.smithyql.parser.Examples
+import playground.smithyql.parser.SourceParser
 import weaver._
 import weaver.scalacheck.Checkers
-
-import playground.smithyql.parser.Examples
-import playground.smithyql._
+import util.chaining._
 import DSL._
-import playground.smithyql.parser.SourceParser
+import Diffs._
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 
-  def formattingTest(
+  def formattingTest[Alg[_[_]]: Formatter](
     label: TestName
   )(
-    q: => Query[WithSource]
+    v: => Alg[WithSource]
   )(
     expected: String
   )(
     implicit loc: SourceLocation
   ) =
     pureTest(label) {
-      val result = playground.smithyql.format.Formatter.format(q, 80)
+      val result = Formatter[Alg].format(v, 80)
+      // not using assertNoDiff because of
+      // https://github.com/softwaremill/diffx/issues/422
+      // which can result in false negatives (different strings considered equal and passing the test).
       assert.eql(result, expected)
     }
 
-  def parse(s: String): Query[WithSource] = SourceParser[Query].parse(s).toTry.get
+  def parse[Alg[_[_]]: SourceParser](s: String): Alg[WithSource] =
+    SourceParser[Alg].parse(s).toTry.get
 
   formattingTest("string list with no comments") {
     "hello"
@@ -55,7 +62,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |""".stripMargin)
 
   formattingTest("int list with lots of comments") {
-    parse("""hello { input :
+    parse[Struct]("""{ input :
       //this is a list
       [
         //list elems can be anything
@@ -67,7 +74,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       ] // and can have comments after themselves
       ,
     }""")
-  }("""hello {
+  }("""{
       |  input: // this is a list
       |    [
       |      // list elems can be anything
@@ -83,26 +90,23 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |        ,
       |    ] // and can have comments after themselves
       |    ,
-      |}
-      |""".stripMargin)
+      |}""".stripMargin)
 
   formattingTest("use service clause with lots of comments") {
-    parse("""//before clause
+    parse[SourceFile]("""//before clause
     use service com.example#Service
 
     // after clause
     hello { }""")
   }("""// before clause
-      |use service com.example#Service
-      |// after clause
-      |
+      |use service com.example#Service// after clause
       |hello {
       |
       |}
       |""".stripMargin)
 
   formattingTest("no service clause with comment on the call") {
-    parse("""//before call
+    parse[SourceFile]("""//before call
     hello { }""")
   }("""// before call
       |hello {
@@ -111,7 +115,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |""".stripMargin)
 
   formattingTest("no service clause with comment on the call and explicit service ref") {
-    parse("""//before call
+    parse[SourceFile]("""//before call
     a.b#C.hello { }""")
   }("""// before call
       |a.b#C.hello {
@@ -120,29 +124,27 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |""".stripMargin)
 
   pureTest("Comments aren't lost when formatting") {
-    val result = SourceParser[Query]
-      .parse(Examples.fullOfComments)
-      .map(playground.smithyql.format.Formatter.format(_, 80))
-      .flatMap(SourceParser[Query].parse)
+    val parsed = parse[SourceFile](Examples.fullOfComments)
+    val result = Formatter[SourceFile]
+      .format(parsed, 80)
+      .pipe(parse[SourceFile])
 
-    assert.eql(
-      result.map(WithSource.allQueryComments),
-      Right(
-        List(
-          Comment(" before use clause"),
-          Comment(" before op"),
-          Comment(" after op"),
-          Comment(" before key"),
-          Comment(" after key"),
-          Comment("  before value"),
-          Comment("  after value"),
-          Comment(" before another key"),
-          Comment(" after second key"),
-          Comment(" before value"),
-          Comment(" after value"),
-          Comment(" after trailing comma, technically this is part of the struct"),
-          Comment("  after whole thing"),
-        )
+    assertNoDiff(
+      WithSource.allSourceComments(result),
+      List(
+        Comment(" before use clause"),
+        Comment(" before op"),
+        Comment(" after op"),
+        Comment(" before key"),
+        Comment(" after key"),
+        Comment("  before value"),
+        Comment("  after value"),
+        Comment(" before another key"),
+        Comment(" after second key"),
+        Comment(" before value"),
+        Comment(" after value"),
+        Comment(" after trailing comma, technically this is part of the struct"),
+        Comment("  after whole thing"),
       ),
     )
   }

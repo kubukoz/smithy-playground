@@ -1,68 +1,89 @@
 package playground.smithyql.format
 
-import org.typelevel.paiges.Doc
 import cats.implicits._
+import org.typelevel.paiges.Doc
 import playground.smithyql._
 
-// note: formatter could be moved to a new module that's used by core
+trait Formatter[Alg[_[_]]] {
+  def format(repr: Alg[WithSource], width: Int): String
+}
+
 object Formatter {
+  def apply[Alg[_[_]]](implicit F: Formatter[Alg]): Formatter[Alg] = F
 
-  def format(
-    q: Query[WithSource],
-    w: Int,
-  ): String = writeQuery(q).renderTrim(w)
+  def writeDoc[Alg[_[_]]](writer: Alg[WithSource] => Doc): Formatter[Alg] = writer(_).renderTrim(_)
 
-  def writeAst(ast: AST[WithSource]): Doc =
-    ast match {
-      case qo: QueryOperationName[WithSource] =>
-        // Comments inside this whole node are not allowed, so we ignore them
-        qo.identifier
-          .map(_.value)
-          .fold(Doc.empty)(renderIdent(_) + Doc.char('.')) +
-          writeAst(qo.operationName.value)
+  implicit val fileFormatter: Formatter[SourceFile] = writeDoc(writeFile)
+  implicit val queryFormatter: Formatter[Query] = writeDoc(writeQuery)
+  implicit val structFormatter: Formatter[Struct] = writeDoc(writeStruct)
+  implicit val listedFormatter: Formatter[Listed] = writeDoc(writeSequence)
 
-      case o: OperationName[WithSource] => renderOperationName(o)
-      case q: Query[WithSource]         => writeQuery(q)
-      case u: UseClause[WithSource]     => renderUseClause(u)
-      case n: InputNode[WithSource]     => writeInputNode(n)
+  val writeAst: AST[WithSource] => Doc = {
+    case sf: SourceFile[WithSource]         => writeFile(sf)
+    case stat: Statement[WithSource]        => writeStatement(stat)
+    case p: Prelude[WithSource]             => writePrelude(p)
+    case qo: QueryOperationName[WithSource] =>
+      // Comments inside this whole node are not allowed, so we ignore them
+      qo.identifier
+        .map(_.value)
+        .fold(Doc.empty)(writeIdent(_) + Doc.char('.')) +
+        writeOperationName(qo.operationName.value)
+
+    case o: OperationName[WithSource] => writeOperationName(o)
+    case q: Query[WithSource]         => writeQuery(q)
+    case u: UseClause[WithSource]     => writeUseClause(u)
+    case n: InputNode[WithSource]     => writeInputNode(n)
+  }
+
+  def writeFile(file: SourceFile[WithSource]): Doc =
+    writePrelude(file.prelude) +
+      file.statements.map(writeStatement).reduceLeft(_ + _)
+
+  def writePrelude(prelude: Prelude[WithSource]): Doc =
+    prelude.useClause match {
+      case None => Doc.empty
+      case Some(useClause) =>
+        comments(useClause.commentsLeft) +
+          writeUseClause(useClause.value) +
+          comments(useClause.commentsRight)
     }
 
-  def writeInputNode(ast: InputNode[WithSource]): Doc =
-    ast match {
-      case s @ Struct(_)     => renderStruct(s)
-      case IntLiteral(i)     => Doc.text(i.toString())
-      case BooleanLiteral(b) => Doc.text(b.toString())
-      case StringLiteral(s)  => Doc.text(renderStringLiteral(s))
-      case l @ Listed(_)     => renderSequence(l)
-      case NullLiteral()     => Doc.text("null")
-    }
+  def writeStatement(stat: Statement[WithSource]): Doc = stat.fold(
+    runQuery =
+      rq =>
+        comments(rq.query.commentsLeft) +
+          writeQuery(rq.query.value) +
+          comments(rq.query.commentsRight)
+  )
 
-  def renderOperationName(o: OperationName[WithSource]): Doc = Doc.text(o.text)
+  def writeInputNode(ast: InputNode[WithSource]): Doc = ast.fold(
+    struct = writeStruct,
+    string = s => Doc.text(writeStringLiteral(s.value)),
+    int = i => Doc.text(i.value),
+    listed = writeSequence,
+    bool = b => Doc.text(b.value.toString()),
+    nul = _ => Doc.text("null"),
+  )
 
-  def renderUseClause(
+  val writeOperationName: OperationName[WithSource] => Doc = o => Doc.text(o.text)
+
+  def writeUseClause(
     clause: UseClause[WithSource]
   ): Doc =
     // comments in clause are not allowed so we can ignore them when printing
     Doc
       .text("use")
       .space("service")
-      .space(renderIdent(clause.identifier.value))
+      .space(writeIdent(clause.identifier.value))
 
-  def renderIdent(ident: QualifiedIdentifier): Doc =
-    Doc.intercalate(
-      Doc.char('.'),
-      ident.segments.map(Doc.text(_)).toList,
-    ) + Doc.char('#') + Doc
-      .text(
-        ident.selection
-      )
+  def writeIdent(ident: QualifiedIdentifier): Doc = Doc.text(ident.render)
 
-  def renderKey(k: WithSource[Identifier]): Doc =
+  def writeKey(k: WithSource[Identifier]): Doc =
     comments(k.commentsLeft) +
       Doc.text(k.value.text) +
       comments(k.commentsRight)
 
-  def renderValue(v: WithSource[InputNode[WithSource]]): Doc = {
+  def writeValue(v: WithSource[InputNode[WithSource]]): Doc = {
     val maybeGrouped: Doc => Doc =
       if (v.value.kind == NodeKind.Struct)
         identity
@@ -104,16 +125,16 @@ object Formatter {
     }
   }
 
-  def renderField(binding: Binding[WithSource]): Doc = {
+  def writeField(binding: Binding[WithSource]): Doc = {
     val k = binding.identifier
     val v = binding.value
 
-    renderKey(k) +
+    writeKey(k) +
       Doc.char(':') +
-      renderValue(v)
+      writeValue(v)
   }
 
-  def renderFields[T](fields: List[T])(renderField: T => Doc): Doc =
+  def writeFields[T](fields: List[T])(renderField: T => Doc): Doc =
     Doc
       .intercalate(
         // Force newlines between fields
@@ -128,7 +149,7 @@ object Formatter {
         Doc.space
     }
 
-  def renderBracketed[T](
+  def writeBracketed[T](
     fields: WithSource[List[T]]
   )(
     before: Doc,
@@ -138,20 +159,20 @@ object Formatter {
   ): Doc =
     before + Doc.hardLine + {
       comments(fields.commentsLeft) +
-        renderFields(fields.value)(renderField(_) + Doc.comma) +
+        writeFields(fields.value)(renderField(_) + Doc.comma) +
         comments(fields.commentsRight)
     }
       .indent(2) +
       Doc.hardLine +
       after
 
-  def renderStruct(struct: Struct[WithSource]): Doc =
-    renderBracketed(struct.fields.map(_.value))(Doc.char('{'), Doc.char('}'))(renderField)
+  def writeStruct(struct: Struct[WithSource]): Doc =
+    writeBracketed(struct.fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
 
-  def renderSequence(seq: Listed[WithSource]): Doc =
-    renderBracketed(seq.values)(Doc.char('['), Doc.char(']'))(renderValue(_))
+  def writeSequence(seq: Listed[WithSource]): Doc =
+    writeBracketed(seq.values)(Doc.char('['), Doc.char(']'))(writeValue(_))
 
-  def renderStringLiteral(s: String) = "\"" + s + "\""
+  def writeStringLiteral(s: String) = "\"" + s + "\""
 
   def comments(lines: List[Comment]): Doc = {
     def ensureLeadingSpace(s: String): String =
@@ -177,15 +198,6 @@ object Formatter {
   }
 
   def writeQuery(q: Query[WithSource]): Doc = {
-
-    val useClausePart =
-      comments(q.useClause.commentsLeft) +
-        q.useClause.value.fold(Doc.empty)(renderUseClause(_) + Doc.hardLine) +
-        comments(q.useClause.commentsRight) + (if (q.useClause.value.isEmpty)
-                                                 Doc.empty
-                                               else
-                                                 Doc.hardLine)
-
     val opNamePart =
       comments(q.operationName.commentsLeft) +
         writeAst(q.operationName.value) +
@@ -207,8 +219,7 @@ object Formatter {
             Doc.empty
         }
 
-    useClausePart +
-      opNamePart +
+    opNamePart +
       inputPart
   }
 

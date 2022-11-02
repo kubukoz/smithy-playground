@@ -1,8 +1,9 @@
 package playground.language
 
+import cats.implicits._
 import playground.smithyql.InputNode
 import playground.smithyql.Listed
-import playground.smithyql.OperationName
+import playground.smithyql.Prelude
 import playground.smithyql.Query
 import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
@@ -10,8 +11,6 @@ import playground.smithyql.Struct
 import playground.smithyql.UseClause
 import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
-import playground.smithyql.Prelude
-import cats.implicits._
 
 object DocumentSymbolProvider {
 

@@ -14,6 +14,7 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
 
         context
           .map {
+            case InQuery(index)     => s".query($index)"
             case AtUseClause        => ".useClause"
             case AtOperationName    => ".operationName"
             case AtOperationInput   => ".input"
