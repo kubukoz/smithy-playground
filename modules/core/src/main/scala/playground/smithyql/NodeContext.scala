@@ -67,6 +67,7 @@ object NodeContext {
   sealed trait PathEntry extends Product with Serializable
 
   object PathEntry {
+    case class InQuery(index: Int) extends PathEntry
     case object AtUseClause extends PathEntry
     case object AtOperationName extends PathEntry
     case object AtOperationInput extends PathEntry
@@ -79,6 +80,7 @@ object NodeContext {
     trait TraversalOps {
       self: NodeContext =>
 
+      def inQuery(index: Int): NodeContext = append(PathEntry.InQuery(index))
       def inUseClause: NodeContext = append(PathEntry.AtUseClause)
       def inOperationName: NodeContext = append(PathEntry.AtOperationName)
       def inOperationInput: NodeContext = append(PathEntry.AtOperationInput)

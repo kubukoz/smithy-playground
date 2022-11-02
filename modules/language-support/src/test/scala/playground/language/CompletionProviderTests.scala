@@ -167,4 +167,6 @@ object CompletionProviderTests extends SimpleIOSuite {
 
     assertNoDiff(result, expected)
   }
+
+  // pureTest("completing after, before, between existing operations")
 }

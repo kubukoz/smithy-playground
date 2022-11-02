@@ -3,18 +3,18 @@ package playground.smithyql
 import cats.implicits._
 
 trait RangeIndex {
-  def findAtPosition(pos: Position): Option[ContextRange]
+  def findAtPosition(pos: Position): NodeContext
 }
 
 object RangeIndex {
 
-  def build(q: Query[WithSource]): RangeIndex =
+  def build(sf: SourceFile[WithSource]): RangeIndex =
     new RangeIndex {
 
-      private val allRanges: List[ContextRange] =
-        findInUseClause(q.useClause) ++
-          findInOperationName(q.operationName) ++
-          findInNode(q.input, NodeContext.Root.inOperationInput)
+      // todo: add prelude ranges
+      private val allRanges: List[ContextRange] = sf.queries.zipWithIndex.flatMap {
+        case (rq, index) => findInQuery(rq.query, NodeContext.Root.inQuery(index))
+      }
 
       // Console
       //   .err
@@ -27,26 +27,42 @@ object RangeIndex {
 
       def findAtPosition(
         pos: Position
-      ): Option[ContextRange] = allRanges.filter(_.range.contains(pos)).maxByOption(_.ctx.length)
+      ): NodeContext = allRanges
+        .filter(_.range.contains(pos))
+        .maxByOption(_.ctx.length)
+        .map(_.ctx)
+        // By default, we're on root level
+        .getOrElse(NodeContext.Root)
 
     }
 
+  private def findInQuery(q: WithSource[Query[WithSource]], path: NodeContext) = {
+    val qv = q.value
+
+    List(ContextRange(q.range, path)) ++
+      findInUseClause(qv.useClause, path.inUseClause) ++
+      findInOperationName(qv.operationName, path.inOperationName) ++
+      findInNode(qv.input, path.inOperationInput)
+  }
+
   private def findInUseClause(
-    useClauseOpt: WithSource[Option[UseClause[WithSource]]]
+    useClauseOpt: WithSource[Option[UseClause[WithSource]]],
+    path: NodeContext,
   ): List[ContextRange] =
     useClauseOpt
       .value
       .map { useClause =>
-        ContextRange(useClause.identifier.range, NodeContext.Root.inUseClause)
+        ContextRange(useClause.identifier.range, path.inUseClause)
       }
       .toList
 
   private def findInOperationName(
-    operationName: WithSource[QueryOperationName[WithSource]]
+    operationName: WithSource[QueryOperationName[WithSource]],
+    path: NodeContext,
   ): List[ContextRange] =
     ContextRange(
       operationName.value.operationName.range,
-      NodeContext.Root.inOperationName,
+      path,
     ) :: Nil
 
   private def findInNode(

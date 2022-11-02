@@ -18,7 +18,7 @@ object AtPositionTests extends FunSuite {
   def locateAtCursor(text: String) = {
     val (extracted, position) = extractCursor(text)
     val parsed =
-      SourceParser[Query]
+      SourceParser[SourceFile]
         .parse(extracted)
         .toTry
         .get
@@ -26,7 +26,14 @@ object AtPositionTests extends FunSuite {
     RangeIndex
       .build(parsed)
       .findAtPosition(position)
-      .map(_.ctx)
+  }
+
+  // todo: tests for before/after/between queries
+
+  private val firstOp = NodeContext.Root.inQuery(0)
+
+  test("atPosition - empty file") {
+    assertNoDiff(locateAtCursor(CURSOR), NodeContext.Root)
   }
 
   test("atPosition - 1 level deep") {
@@ -36,15 +43,36 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(
-        NodeContext
-          .Root
-          .inOperationInput
-          .inStructBody
-          .inStructValue("root")
-          .inStructBody
-      ),
+      firstOp
+        .inOperationInput
+        .inStructBody
+        .inStructValue("root")
+        .inStructBody,
     )
+  }
+
+  test("atPosition - second query") {
+    val actual = locateAtCursor(s"""op1 {}
+                                   |op2 ${CURSOR} {}""".stripMargin)
+
+    assertNoDiff(actual, NodeContext.Root.inQuery(1))
+  }
+
+  test("atPosition - between queries") {
+    val actual = locateAtCursor(s"""op1 {}
+                                   |$CURSOR
+                                   |op2 {}""".stripMargin)
+
+    //  fails - most likely parser issue.
+    // ignoring LHS comments in op names / RHS comments in op inputs should do the trick
+    assertNoDiff(actual, NodeContext.Root)
+  }
+
+  test("atPosition - second query op name") {
+    val actual = locateAtCursor(s"""op1 {}
+                                   |op${CURSOR}2 {}""".stripMargin)
+
+    assertNoDiff(actual, NodeContext.Root.inQuery(1).inOperationName)
   }
 
   test("atPosition - 2 levels deep") {
@@ -54,16 +82,13 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(
-        NodeContext
-          .Root
-          .inOperationInput
-          .inStructBody
-          .inStructValue("root")
-          .inStructBody
-          .inStructValue("mid")
-          .inStructBody
-      ),
+      firstOp
+        .inOperationInput
+        .inStructBody
+        .inStructValue("root")
+        .inStructBody
+        .inStructValue("mid")
+        .inStructBody,
     )
   }
 
@@ -74,9 +99,7 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(
-        NodeContext.Root.inOperationName
-      ),
+      firstOp.inOperationName,
     )
   }
 
@@ -85,13 +108,11 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = ${CURSOR}[ { mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
+    val expected = firstOp.inOperationInput.inStructBody.inStructValue("root")
 
     assertNoDiff(
       actual,
-      Some(
-        expected
-      ),
+      expected,
     )
   }
 
@@ -100,8 +121,7 @@ object AtPositionTests extends FunSuite {
       s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
     )
 
-    val expected = NodeContext
-      .Root
+    val expected = firstOp
       .inOperationInput
       .inStructBody
       .inStructValue("root")
@@ -109,7 +129,7 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(expected),
+      expected,
     )
   }
 
@@ -119,15 +139,14 @@ object AtPositionTests extends FunSuite {
     )
 
     val expected =
-      NodeContext
-        .Root
+      firstOp
         .inOperationInput
         .inStructBody
         .inStructValue("root")
         .inCollectionEntry(Some(0))
         .inStructBody
 
-    assertNoDiff(actual, Some(expected))
+    assertNoDiff(actual, expected)
   }
 
   test("atPosition - on nested item in list") {
@@ -137,17 +156,14 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(
-        NodeContext
-          .Root
-          .inOperationInput
-          .inStructBody
-          .inStructValue("root")
-          .inCollectionEntry(Some(1))
-          .inStructBody
-          .inStructValue("mid")
-          .inStructBody
-      ),
+      firstOp
+        .inOperationInput
+        .inStructBody
+        .inStructValue("root")
+        .inCollectionEntry(Some(1))
+        .inStructBody
+        .inStructValue("mid")
+        .inStructBody,
     )
   }
 
@@ -158,9 +174,7 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(
-        NodeContext.Root.inOperationInput.inStructBody.inStructValue("root")
-      ),
+      firstOp.inOperationInput.inStructBody.inStructValue("root"),
     )
   }
 
@@ -171,9 +185,7 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(
-        NodeContext.Root.inOperationInput.inStructBody.inStructValue("root").inStructBody
-      ),
+      firstOp.inOperationInput.inStructBody.inStructValue("root").inStructBody,
     )
   }
 
@@ -184,7 +196,7 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(NodeContext.Root.inOperationInput.inStructBody.inStructValue("field")),
+      firstOp.inOperationInput.inStructBody.inStructValue("field"),
     )
 
   }
@@ -196,9 +208,7 @@ object AtPositionTests extends FunSuite {
 
     assertNoDiff(
       actual,
-      Some(
-        NodeContext.Root.inOperationInput.inStructBody.inStructValue("field").inQuotes
-      ),
+      firstOp.inOperationInput.inStructBody.inStructValue("field").inQuotes,
     )
   }
 }

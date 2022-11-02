@@ -16,6 +16,7 @@ import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
 import playground.smithyql.syntax._
 import smithy4s.dynamic.DynamicSchemaIndex
+import playground.smithyql.SourceFile
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -101,55 +102,69 @@ object CompletionProvider {
         case _ => completeAnyOperationName
       }
 
-    (doc, pos) =>
-      SourceParser[Query].parse(doc) match {
-        case Left(_) if doc.isBlank() => completeAnyOperationName
+    def completeInQuery(q: Query[WithSource], ctx: NodeContext): List[CompletionItem] = {
+      // still wrong
+      val serviceIdOpt =
+        MultiServiceResolver
+          .resolveService(
+            q.mapK(WithSource.unwrap).collectServiceIdentifiers,
+            serviceIdsById,
+          )
+          .toOption
 
+      ctx match {
+        case NodeContext.PathEntry.AtUseClause ^^: Root =>
+          servicesById
+            .toList
+            .sortBy(_._1)
+            .map(CompletionItem.useServiceClause.tupled)
+            .toList
+
+        case NodeContext.PathEntry.AtOperationName ^^: Root =>
+          completeOperationNameFor(q, serviceIdOpt)
+
+        case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
+          serviceIdOpt match {
+            case Some(serviceId) =>
+              completionsByEndpoint(serviceId)(
+                q.operationName.value.operationName.value.mapK(WithSource.unwrap)
+              )
+                .getCompletions(ctx)
+
+            case None => Nil
+          }
+
+        case _ => Nil
+      }
+    }
+
+    (doc, pos) =>
+      SourceParser[SourceFile].parse(doc) match {
         case Left(_) =>
           // we can try to deal with this later
           Nil
 
-        case Right(q) =>
+        case Right(sf) =>
           val matchingNode = RangeIndex
-            .build(q)
+            .build(sf)
             .findAtPosition(pos)
-            .map(_.ctx)
           // System.err.println("matchingNode: " + matchingNode.map(_.render))
 
-          val serviceIdOpt =
-            MultiServiceResolver
-              .resolveService(
-                q.mapK(WithSource.unwrap).collectServiceIdentifiers,
-                serviceIdsById,
-              )
-              .toOption
+          matchingNode match {
+            case NodeContext.PathEntry.InQuery(n) ^^: rest =>
+              val q =
+                sf
+                  .queries
+                  .get(n.toLong)
+                  .getOrElse(sys.error(s"Fatal error: no query at index $n"))
+                  .query
+                  .value
 
-          matchingNode
-            .toList
-            .flatMap {
-              case NodeContext.PathEntry.AtUseClause ^^: Root =>
-                servicesById
-                  .toList
-                  .sortBy(_._1)
-                  .map(CompletionItem.useServiceClause.tupled)
-                  .toList
+              completeInQuery(q, rest)
 
-              case NodeContext.PathEntry.AtOperationName ^^: Root =>
-                completeOperationNameFor(q, serviceIdOpt)
-
-              case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
-                serviceIdOpt match {
-                  case Some(serviceId) =>
-                    completionsByEndpoint(serviceId)(
-                      q.operationName.value.operationName.value.mapK(WithSource.unwrap)
-                    )
-                      .getCompletions(ctx)
-
-                  case None => Nil
-                }
-
-              case _ => Nil
-            }
+            case Root => completeAnyOperationName
+            case _    => Nil
+          }
 
       }
   }
