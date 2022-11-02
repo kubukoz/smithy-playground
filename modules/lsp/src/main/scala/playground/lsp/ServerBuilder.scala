@@ -16,6 +16,7 @@ import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
+import playground.FileRunner
 
 trait ServerBuilder[F[_]] {
   def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]]
@@ -71,7 +72,7 @@ object ServerBuilder {
 
           implicit val reporter = rep
 
-          LanguageServer.instance[F](dsi, OperationRunner.merge[F](runners))
+          LanguageServer.instance[F](dsi, FileRunner.instance(OperationRunner.merge[F](runners)))
         }
     }
   }

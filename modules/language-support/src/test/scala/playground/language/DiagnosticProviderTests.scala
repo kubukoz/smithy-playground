@@ -19,7 +19,6 @@ import playground.FileCompiler
 import playground.FileRunner
 import playground.OperationCompiler
 import playground.OperationRunner
-import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.SourceRange
 import playground.std.ClockGen
@@ -31,6 +30,7 @@ import smithy4s.api.SimpleRestJson
 import smithy4s.aws.AwsEnvironment
 import weaver._
 
+import StringRangeUtils._
 import ServiceUtils.wrapService
 
 object DiagnosticProviderTests extends SimpleIOSuite {
@@ -80,16 +80,6 @@ object DiagnosticProviderTests extends SimpleIOSuite {
       )
     ),
   )
-
-  implicit class StringRangeOps(source: String) {
-    def positionOf(text: String): Position = Position(source.indexOf(text))
-
-    def rangeOf(text: String): SourceRange = {
-      val pos = positionOf(text)
-      SourceRange(pos, pos.moveRight(text.length()))
-    }
-
-  }
 
   pureTest("empty file - no diagnostics") {
     assertNoDiff(provider.getDiagnostics("test.smithyql", ""), Nil)

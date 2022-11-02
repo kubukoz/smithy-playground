@@ -18,7 +18,6 @@ import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
 import playground.CompilationFailed
 import playground.FileCompiler
-import playground.OperationRunner
 import playground.TextDocumentManager
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
@@ -39,6 +38,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 import playground.FileRunner
+import playground.OperationCompiler
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -75,7 +75,7 @@ object LanguageServer {
     F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
   ](
     dsi: DynamicSchemaIndex,
-    runner: OperationRunner.Resolver[F],
+    runner: FileRunner.Resolver[F],
   )(
     implicit sup: Supervisor[F]
   ): LanguageServer[F] =
@@ -86,18 +86,16 @@ object LanguageServer {
           def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
         }
 
-      val compiler = playground.OperationCompiler.fromSchemaIndex(dsi)
-      @deprecated
-      val compilerOld = compiler.mapK(CompilationFailed.wrapK)
-      val fileCompiler = FileCompiler.instance(compiler).mapK(CompilationFailed.wrapK)
-      val fileRunner = FileRunner.instance(runner)
+      val compiler = FileCompiler
+        .instance(OperationCompiler.fromSchemaIndex(dsi))
+        .mapK(CompilationFailed.wrapK)
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)
-      val diagnosticProvider = DiagnosticProvider.instance(fileCompiler, fileRunner)
-      val lensProvider = CodeLensProvider.instance(compilerOld, runner)
+      val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)
+      val lensProvider = CodeLensProvider.instance(compiler, runner)
 
       val commandProvider = CommandProvider
-        .instance[F](fileCompiler.mapK(iorToF), fileRunner)
+        .instance[F](compiler.mapK(iorToF), runner)
 
       def initialize(
         params: InitializeParams
