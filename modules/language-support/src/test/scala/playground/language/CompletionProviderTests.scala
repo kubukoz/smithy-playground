@@ -14,7 +14,7 @@ import playground.smithyql.syntax._
 import playground.std.ClockGen
 import playground.std.RandomGen
 import weaver._
-
+import StringRangeUtils._
 import ServiceUtils.wrapService
 
 object CompletionProviderTests extends SimpleIOSuite {
@@ -40,6 +40,28 @@ object CompletionProviderTests extends SimpleIOSuite {
     )
 
     assert(result == expected)
+  }
+
+  pureTest("the file has a use clause - completing operations shows results from that clause") {
+    val provider = CompletionProvider.forServices(
+      List(wrapService(ClockGen), wrapService(RandomGen))
+    )
+    val input = "use service playground.std#Clock".stripMargin
+
+    val result = provider.provide(
+      input,
+      input.lastPosition,
+    )
+
+    val expected = List(
+      CompletionItem.forOperation(
+        insertUseClause = CompletionItem.InsertUseClause.NotRequired,
+        endpoint = ClockGen.CurrentTimestamp,
+        serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
+      )
+    )
+
+    assertNoDiff(result, expected)
   }
 
   pureTest("completing empty file") {

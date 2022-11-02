@@ -2,6 +2,7 @@ package playground.smithyql.format
 
 import cats.implicits._
 import org.typelevel.paiges.Doc
+import org.typelevel.paiges.instances._
 import playground.smithyql._
 
 trait Formatter[Alg[_[_]]] {
@@ -37,7 +38,7 @@ object Formatter {
 
   def writeFile(file: SourceFile[WithSource]): Doc =
     writePrelude(file.prelude) +
-      file.statements.map(writeStatement).reduceLeft(_ + _)
+      file.statements.map(writeStatement).combineAll
 
   def writePrelude(prelude: Prelude[WithSource]): Doc =
     prelude.useClause match {
