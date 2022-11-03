@@ -1,7 +1,6 @@
 package playground.language
 
 import cats.Id
-import cats.data.NonEmptyList
 import cats.implicits._
 import org.typelevel.paiges.Doc
 import playground.ServiceNameExtractor
@@ -15,8 +14,13 @@ import playground.smithyql.NodeContext.^^:
 import playground.smithyql.OperationName
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.Query
+import playground.smithyql.QueryOperationName
+import playground.smithyql.SourceRange
+import playground.smithyql.Struct
 import playground.smithyql.UseClause
 import playground.smithyql.WithSource
+import playground.smithyql.format.Formatter
 import smithy.api
 import smithy4s.Bijection
 import smithy4s.Endpoint
@@ -38,8 +42,6 @@ import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
-import playground.smithyql.format.Formatter
-import playground.smithyql.SourceRange
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: NodeContext): List[CompletionItem]
@@ -256,7 +258,24 @@ object CompletionItem {
     CompletionItem(
       kind = CompletionItemKind.Function,
       label = label,
-      insertText = InsertText.JustString(endpoint.name),
+      insertText = InsertText.SnippetString(
+        Formatter[Query]
+          .format(
+            Query[Id](
+              useClause = None,
+              operationName = QueryOperationName[Id](
+                identifier = None,
+                operationName = OperationName[Id](endpoint.name),
+              ),
+              input = Struct[Id](Struct.Fields.empty[Id]),
+            ).mapK(WithSource.liftId),
+            Int.MaxValue,
+          )
+          // Kinda hacky - a way to place the cursor at the right position.
+          // Not sure how to do this best while using the formatter... (maybe some sort of mechanism inside the formatter to inject things).
+          // This assumes operation completions are always on the top level (no indent expected).
+          .replace("\n}", "  $0\n}")
+      ),
       detail =
         s"$fromServiceHint: ${endpoint.input.shapeId.name} => ${endpoint.output.shapeId.name}",
       description = none,
