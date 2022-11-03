@@ -99,7 +99,8 @@ object FormattingTests extends SimpleIOSuite with Checkers {
     // after clause
     hello { }""")
   }("""// before clause
-      |use service com.example#Service// after clause
+      |use service com.example#Service
+      |// after clause
       |hello {
       |
       |}
@@ -119,6 +120,15 @@ object FormattingTests extends SimpleIOSuite with Checkers {
     a.b#C.hello { }""")
   }("""// before call
       |a.b#C.hello {
+      |
+      |}
+      |""".stripMargin)
+
+  formattingTest("use service clause, then operation") {
+    parse[SourceFile]("""use service a#B
+                        |Op {}""".stripMargin)
+  }("""use service a#B
+      |Op {
       |
       |}
       |""".stripMargin)

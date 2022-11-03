@@ -46,6 +46,7 @@ object Formatter {
       case Some(useClause) =>
         comments(useClause.commentsLeft) +
           writeUseClause(useClause.value) +
+          Doc.hardLine +
           comments(useClause.commentsRight)
     }
 
@@ -192,9 +193,7 @@ object Formatter {
           Doc.hardLine
       case _ =>
         Doc.hardLine +
-          Doc.cat(
-            lines.map(lineComment(_) + Doc.hardLine).toList
-          )
+          lines.foldMap(lineComment(_) + Doc.hardLine)
     }
   }
 

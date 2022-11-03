@@ -73,24 +73,30 @@ object RangeIndex {
   ): List[ContextRange] = {
     def entireNode(ctx: NodeContext) = ContextRange(node.range, ctx)
 
-    node.value match {
-      case l @ Listed(_) => entireNode(ctx) :: findInList(l, ctx)
+    val default = Function.const(
+      // Default case: can be triggered e.g. inside a string literal
+      // which would affect completions of enum values and timestamps.
+      entireNode(ctx) :: Nil
+    )
 
-      case s @ Struct(_) => entireNode(ctx) :: findInStruct(s, ctx.inStructBody)
+    node
+      .value
+      .fold(
+        listed = l => entireNode(ctx) :: findInList(l, ctx),
+        struct = s => entireNode(ctx) :: findInStruct(s, ctx.inStructBody),
+        string =
+          _ => {
+            val inQuotes = ContextRange(
+              node.range.shrink1,
+              ctx.inQuotes,
+            )
 
-      case StringLiteral(_) =>
-        val inQuotes = ContextRange(
-          node.range.shrink1,
-          ctx.inQuotes,
-        )
-
-        inQuotes :: entireNode(ctx) :: Nil
-
-      case _ =>
-        // Default case: can be triggered e.g. inside a string literal
-        // which would affect completions of enum values and timestamps.
-        entireNode(ctx) :: Nil
-    }
+            inQuotes :: entireNode(ctx) :: Nil
+          },
+        int = default,
+        bool = default,
+        nul = default,
+      )
 
   }
 
