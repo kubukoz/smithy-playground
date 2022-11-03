@@ -203,22 +203,16 @@ object OperationRunner {
       private def simpleFromBuilder(
         builder: SimpleProtocolBuilder[_]
       ): IorNel[Issue, smithy4s.Interpreter[Op, F]] =
-        Either
-          .catchNonFatal {
-            builder(service)
-              .client(
-                dynamicBaseUri[F](
-                  baseUri.flatTap { uri =>
-                    std.Console[F].println(s"Using base URI: $uri")
-                  }
-                ).apply(client)
-              )
-              .use
-          }
-          .leftMap(Issue.Other(_))
-          .flatMap {
-            _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
-          }
+        builder(service)
+          .client(
+            dynamicBaseUri[F](
+              baseUri.flatTap { uri =>
+                std.Console[F].println(s"Using base URI: $uri")
+              }
+            ).apply(client)
+          )
+          .use
+          .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
           .map(service.asTransformation)
           .toIor
           .toIorNel
