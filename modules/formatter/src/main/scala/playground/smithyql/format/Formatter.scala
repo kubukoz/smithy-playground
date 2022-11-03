@@ -36,11 +36,14 @@ object Formatter {
     case n: InputNode[WithSource]     => writeInputNode(n)
   }
 
-  def writeFile(file: SourceFile[WithSource]): Doc =
-    writePrelude(file.prelude) +
+  def writeFile(file: SourceFile[WithSource]): Doc = Doc.stack(
+    List(
+      writePrelude(file.prelude),
       comments(file.statements.commentsLeft) +
-      file.statements.value.map(writeStatement).combineAll +
-      comments(file.statements.commentsRight)
+        file.statements.value.map(writeStatement).combineAll +
+        comments(file.statements.commentsRight),
+    ).filterNot(_.isEmpty)
+  )
 
   def writePrelude(prelude: Prelude[WithSource]): Doc =
     prelude.useClause match {
