@@ -19,7 +19,7 @@ object DocumentSymbolProvider {
       case Left(_) => Nil
       case Right(sf) =>
         findInPrelude(sf.prelude) ++
-          sf.queries.map(_.query).flatMap(findInQuery)
+          sf.queries(WithSource.unwrap).map(_.query).flatMap(findInQuery)
     }
 
   private def findInPrelude(

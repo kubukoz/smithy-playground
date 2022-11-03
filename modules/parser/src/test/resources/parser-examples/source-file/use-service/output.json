@@ -35,110 +35,122 @@
       }
     }
   },
-  "statements": [
-    {
-      "RunQuery": {
-        "query": {
-          "commentsLeft": [],
-          "commentsRight": [],
-          "range": {
-            "start": {
-              "index": 49
-            },
-            "end": {
-              "index": 57
-            }
-          },
-          "value": {
-            "useClause": {
-              "commentsLeft": [
-                {
-                  "text": "comment before use clause"
-                }
-              ],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 28
-                },
-                "end": {
-                  "index": 48
-                }
+  "statements": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 49
+      },
+      "end": {
+        "index": 58
+      }
+    },
+    "value": [
+      {
+        "RunQuery": {
+          "query": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 49
               },
-              "value": {
-                "identifier": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 40
-                    },
-                    "end": {
-                      "index": 48
-                    }
-                  },
-                  "value": {
-                    "segments": ["com"],
-                    "selection": "Demo"
-                  }
-                }
+              "end": {
+                "index": 57
               }
             },
-            "operationName": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 49
-                },
-                "end": {
-                  "index": 54
-                }
-              },
-              "value": {
-                "identifier": null,
-                "operationName": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 49
-                    },
-                    "end": {
-                      "index": 54
-                    }
+            "value": {
+              "useClause": {
+                "commentsLeft": [
+                  {
+                    "text": "comment before use clause"
+                  }
+                ],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 28
                   },
-                  "value": {
-                    "text": "hello"
+                  "end": {
+                    "index": 48
+                  }
+                },
+                "value": {
+                  "identifier": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 40
+                      },
+                      "end": {
+                        "index": 48
+                      }
+                    },
+                    "value": {
+                      "segments": ["com"],
+                      "selection": "Demo"
+                    }
                   }
                 }
-              }
-            },
-            "input": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 55
+              },
+              "operationName": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 49
+                  },
+                  "end": {
+                    "index": 54
+                  }
                 },
-                "end": {
-                  "index": 57
+                "value": {
+                  "identifier": null,
+                  "operationName": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 49
+                      },
+                      "end": {
+                        "index": 54
+                      }
+                    },
+                    "value": {
+                      "text": "hello"
+                    }
+                  }
                 }
               },
-              "value": {
-                "fields": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 56
-                    },
-                    "end": {
-                      "index": 56
-                    }
+              "input": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 55
                   },
-                  "value": {
-                    "value": []
+                  "end": {
+                    "index": 57
+                  }
+                },
+                "value": {
+                  "fields": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 56
+                      },
+                      "end": {
+                        "index": 56
+                      }
+                    },
+                    "value": {
+                      "value": []
+                    }
                   }
                 }
               }
@@ -146,6 +158,6 @@
           }
         }
       }
-    }
-  ]
+    ]
+  }
 }

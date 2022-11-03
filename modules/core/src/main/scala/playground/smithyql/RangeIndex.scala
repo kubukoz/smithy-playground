@@ -18,7 +18,7 @@ object RangeIndex {
           findInUseClause(uc, path.inUseClause)
         }
 
-        val queryRanges = sf.queries.zipWithIndex.flatMap { case (rq, index) =>
+        val queryRanges = sf.queries(WithSource.unwrap).zipWithIndex.flatMap { case (rq, index) =>
           findInQuery(rq.query, path.inQuery(index))
         }
 

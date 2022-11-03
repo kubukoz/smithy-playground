@@ -66,26 +66,26 @@ final case class Prelude[F[_]](
 
 final case class SourceFile[F[_]](
   prelude: Prelude[F],
-  // a file introduces no new tokens over statements so we don't need to wrap them in F
-  statements: List[Statement[F]],
+  // we have F here because files without statements / an import clause should be allowed to have comments
+  statements: F[List[Statement[F]]],
 ) extends AST[F] {
 
-  def queries: List[RunQuery[F]] = statements.flatMap(_.fold(_.some))
+  def queries(unwrapF: F ~> Id): List[RunQuery[F]] = unwrapF(statements).flatMap(_.fold(_.some))
 
   def mapK[G[_]: Functor](
     fk: F ~> G
   ): AST[G] = SourceFile(
     prelude = prelude.mapK(fk),
-    statements = statements.map(_.mapK(fk)),
+    statements = fk(statements).map(_.map(_.mapK(fk))),
   )
 
 }
 
 object SourceFile {
 
-  def fromSingleQuery[F[_]](
+  def fromSingleQuery[F[_]: Applicative](
     q: F[Query[F]]
-  ): SourceFile[F] = SourceFile(Prelude[F](None), List(RunQuery(q)))
+  ): SourceFile[F] = SourceFile(Prelude[F](None), List[Statement[F]](RunQuery(q)).pure[F])
 
 }
 

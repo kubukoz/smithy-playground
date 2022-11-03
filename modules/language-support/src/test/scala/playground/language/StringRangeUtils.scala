@@ -13,7 +13,7 @@ object StringRangeUtils {
       SourceRange(pos, pos.moveRight(text.length()))
     }
 
-    def lastPosition: Position = Position(source.length + 1)
+    def lastPosition: Position = Position.lastInString(source)
 
   }
 

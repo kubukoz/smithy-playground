@@ -20,8 +20,8 @@ object FileRunner {
   }
 
   def instance[F[_]](forOperation: OperationRunner.Resolver[F]): Resolver[F] =
-    _.statements
-      .map(_.fold(runQuery = _.query.value))
+    _.queries(WithSource.unwrap)
+      .map(_.query.value)
       // keeping toEither on this level for now:
       // - if we had a Both, we can ignore the errors.
       // - if we had a Left/Right, that'll still be the case

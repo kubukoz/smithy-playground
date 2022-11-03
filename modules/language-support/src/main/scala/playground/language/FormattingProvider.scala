@@ -1,0 +1,42 @@
+package playground.language
+
+import cats.FlatMap
+import cats.implicits._
+import playground.smithyql.parser.SourceParser
+import playground.smithyql.SourceFile
+import playground.smithyql.format.Formatter
+import playground.smithyql.SourceRange
+import playground.smithyql.Position
+
+object FormattingProvider {
+
+  def provider[F[_]: TextDocumentProvider: FlatMap](
+    getWidthSetting: F[Int]
+  ): Uri => F[List[TextEdit]] =
+    fileUri =>
+      TextDocumentProvider[F]
+        .get(fileUri)
+        .flatMap { text =>
+          getWidthSetting
+            .map { maxWidth =>
+              SourceParser[SourceFile]
+                .parse(text)
+                .map { parsed =>
+                  val formatted = Formatter[SourceFile].format(parsed, maxWidth)
+
+                  List(
+                    TextEdit.Overwrite(
+                      formatted,
+                      SourceRange(
+                        Position.origin,
+                        Position.lastInString(text),
+                      ),
+                    )
+                  )
+                }
+                // doesn't parse, we won't format
+                .getOrElse(Nil)
+            }
+        }
+
+}

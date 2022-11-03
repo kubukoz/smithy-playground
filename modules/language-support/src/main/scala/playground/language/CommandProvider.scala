@@ -69,10 +69,11 @@ object CommandProvider {
         file: SourceFile[WithSource],
         compiledInputs: List[CompiledInput],
         runners: List[OperationRunner[F]],
-      ): F[Unit] =
-        CommandResultReporter[F].onFileCompiled(file.queries) *>
-          file
-            .queries
+      ): F[Unit] = {
+        val queries = file.queries(WithSource.unwrap)
+
+        CommandResultReporter[F].onFileCompiled(queries) *>
+          queries
             .zip(compiledInputs)
             .zip(runners)
             .traverse { case ((rq, input), runner) =>
@@ -83,6 +84,7 @@ object CommandProvider {
               )
             }
             .void
+      }
 
       private def runFile(documentUri: Uri): F[Unit] = {
         for {

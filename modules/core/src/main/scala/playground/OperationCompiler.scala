@@ -56,7 +56,7 @@ object FileCompiler {
 
       def compile(
         f: SourceFile[WithSource]
-      ): F[List[CompiledInput]] = f.statements.parTraverse {
+      ): F[List[CompiledInput]] = f.statements.value.parTraverse {
         _.fold(runQuery =>
           opCompiler.compile(
             runQuery

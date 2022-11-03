@@ -148,7 +148,7 @@ object CompletionProvider {
             case NodeContext.PathEntry.InQuery(n) ^^: rest =>
               val q =
                 sf
-                  .queries
+                  .queries(WithSource.unwrap)
                   .get(n.toLong)
                   .getOrElse(sys.error(s"Fatal error: no query at index $n"))
                   .query

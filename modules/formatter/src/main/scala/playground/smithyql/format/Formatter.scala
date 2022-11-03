@@ -38,7 +38,9 @@ object Formatter {
 
   def writeFile(file: SourceFile[WithSource]): Doc =
     writePrelude(file.prelude) +
-      file.statements.map(writeStatement).combineAll
+      comments(file.statements.commentsLeft) +
+      file.statements.value.map(writeStatement).combineAll +
+      comments(file.statements.commentsRight)
 
   def writePrelude(prelude: Prelude[WithSource]): Doc =
     prelude.useClause match {

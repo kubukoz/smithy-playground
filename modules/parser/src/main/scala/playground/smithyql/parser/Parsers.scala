@@ -216,7 +216,7 @@ object Parsers {
 
     val prelude = tokens.withComments(useClause).?.map(Prelude.apply)
 
-    val sourceFile: Parser0[SourceFile[T]] = (prelude, statement.rep0)
+    val sourceFile: Parser0[SourceFile[T]] = (prelude, tokens.withComments0(statement.rep0))
       .mapN(SourceFile.apply[T])
 
     implicit class ParserOps[A](parser: Parser[A]) {

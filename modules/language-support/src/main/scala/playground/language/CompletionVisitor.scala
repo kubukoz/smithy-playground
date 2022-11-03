@@ -39,6 +39,7 @@ import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
 import playground.smithyql.format.Formatter
+import playground.smithyql.SourceRange
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: NodeContext): List[CompletionItem]
@@ -66,6 +67,7 @@ sealed trait TextEdit extends Product with Serializable
 
 object TextEdit {
   final case class Insert(text: String, pos: Position) extends TextEdit
+  final case class Overwrite(text: String, range: SourceRange) extends TextEdit
 }
 
 sealed trait InsertText extends Product with Serializable

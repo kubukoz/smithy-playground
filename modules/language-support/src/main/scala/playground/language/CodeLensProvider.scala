@@ -7,6 +7,7 @@ import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
 import playground.smithyql.parser.SourceParser
 import playground.types._
+import playground.smithyql.WithSource
 
 trait CodeLensProvider[F[_]] {
   def provide(documentUri: Uri, documentText: String): List[CodeLens]
@@ -26,7 +27,7 @@ object CodeLensProvider {
             compiler
               .compile(parsed)
               .as {
-                val queries = parsed.queries
+                val queries = parsed.queries(WithSource.unwrap)
                 if (queries.isEmpty)
                   Nil
                 else

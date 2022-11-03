@@ -23,7 +23,8 @@ final case class Position(index: Int) {
 }
 
 object Position {
-  val origin: Position = Position(index = 0)
+  val origin: Position = Position(0)
+  def lastInString(s: String): Position = Position(s.length)
 }
 
 final case class SourceRange(start: Position, end: Position) {
@@ -51,6 +52,11 @@ final case class SourceRange(start: Position, end: Position) {
 object SourceRange {
   implicit val show: Show[SourceRange] = Show.fromToString
   def empty(position: Position): SourceRange = SourceRange(position, position)
+
+  def forEntireString(
+    s: String
+  ): SourceRange = SourceRange(Position.origin, Position.lastInString(s))
+
 }
 
 final case class WithSource[+A](
@@ -99,7 +105,7 @@ object WithSource {
             .allComments(_ => Nil)
         )
       ) ++
-      sf.statements.flatMap(allStatementComments)
+      sf.statements.allComments(_.flatMap(allStatementComments))
 
   def allStatementComments(
     s: Statement[WithSource]

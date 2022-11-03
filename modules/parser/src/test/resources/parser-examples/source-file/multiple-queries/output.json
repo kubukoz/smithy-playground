@@ -2,191 +2,203 @@
   "prelude": {
     "useClause": null
   },
-  "statements": [
-    {
-      "RunQuery": {
-        "query": {
-          "commentsLeft": [
-            {
-              "text": "before"
-            }
-          ],
-          "commentsRight": [
-            {
-              "text": "between"
-            }
-          ],
-          "range": {
-            "start": {
-              "index": 9
-            },
-            "end": {
-              "index": 18
-            }
-          },
-          "value": {
-            "useClause": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 0
-                },
-                "end": {
-                  "index": 0
-                }
-              },
-              "value": null
-            },
-            "operationName": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 9
-                },
-                "end": {
-                  "index": 15
-                }
-              },
-              "value": {
-                "identifier": null,
-                "operationName": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 9
-                    },
-                    "end": {
-                      "index": 15
-                    }
-                  },
-                  "value": {
-                    "text": "hello1"
-                  }
-                }
-              }
-            },
-            "input": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 16
-                },
-                "end": {
-                  "index": 18
-                }
-              },
-              "value": {
-                "fields": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 17
-                    },
-                    "end": {
-                      "index": 17
-                    }
-                  },
-                  "value": {
-                    "value": []
-                  }
-                }
-              }
-            }
-          }
-        }
+  "statements": {
+    "commentsLeft": [
+      {
+        "text": "before"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 9
+      },
+      "end": {
+        "index": 47
       }
     },
-    {
-      "RunQuery": {
-        "query": {
-          "commentsLeft": [],
-          "commentsRight": [
-            {
-              "text": "after"
-            }
-          ],
-          "range": {
-            "start": {
-              "index": 29
-            },
-            "end": {
-              "index": 38
-            }
-          },
-          "value": {
-            "useClause": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 0
-                },
-                "end": {
-                  "index": 0
-                }
+    "value": [
+      {
+        "RunQuery": {
+          "query": {
+            "commentsLeft": [],
+            "commentsRight": [
+              {
+                "text": "between"
+              }
+            ],
+            "range": {
+              "start": {
+                "index": 9
               },
-              "value": null
+              "end": {
+                "index": 18
+              }
             },
-            "operationName": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 29
-                },
-                "end": {
-                  "index": 35
-                }
-              },
-              "value": {
-                "identifier": null,
-                "operationName": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 29
-                    },
-                    "end": {
-                      "index": 35
-                    }
+            "value": {
+              "useClause": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 0
                   },
-                  "value": {
-                    "text": "hello2"
+                  "end": {
+                    "index": 0
+                  }
+                },
+                "value": null
+              },
+              "operationName": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 9
+                  },
+                  "end": {
+                    "index": 15
+                  }
+                },
+                "value": {
+                  "identifier": null,
+                  "operationName": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 9
+                      },
+                      "end": {
+                        "index": 15
+                      }
+                    },
+                    "value": {
+                      "text": "hello1"
+                    }
+                  }
+                }
+              },
+              "input": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 16
+                  },
+                  "end": {
+                    "index": 18
+                  }
+                },
+                "value": {
+                  "fields": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 17
+                      },
+                      "end": {
+                        "index": 17
+                      }
+                    },
+                    "value": {
+                      "value": []
+                    }
                   }
                 }
               }
+            }
+          }
+        }
+      },
+      {
+        "RunQuery": {
+          "query": {
+            "commentsLeft": [],
+            "commentsRight": [
+              {
+                "text": "after"
+              }
+            ],
+            "range": {
+              "start": {
+                "index": 29
+              },
+              "end": {
+                "index": 38
+              }
             },
-            "input": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 36
+            "value": {
+              "useClause": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 0
+                  },
+                  "end": {
+                    "index": 0
+                  }
                 },
-                "end": {
-                  "index": 38
+                "value": null
+              },
+              "operationName": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 29
+                  },
+                  "end": {
+                    "index": 35
+                  }
+                },
+                "value": {
+                  "identifier": null,
+                  "operationName": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 29
+                      },
+                      "end": {
+                        "index": 35
+                      }
+                    },
+                    "value": {
+                      "text": "hello2"
+                    }
+                  }
                 }
               },
-              "value": {
-                "fields": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 37
-                    },
-                    "end": {
-                      "index": 37
-                    }
+              "input": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 36
                   },
-                  "value": {
-                    "value": []
+                  "end": {
+                    "index": 38
+                  }
+                },
+                "value": {
+                  "fields": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 37
+                      },
+                      "end": {
+                        "index": 37
+                      }
+                    },
+                    "value": {
+                      "value": []
+                    }
                   }
                 }
               }
@@ -194,6 +206,6 @@
           }
         }
       }
-    }
-  ]
+    ]
+  }
 }

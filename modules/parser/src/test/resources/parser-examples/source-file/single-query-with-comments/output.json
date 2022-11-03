@@ -2,97 +2,109 @@
   "prelude": {
     "useClause": null
   },
-  "statements": [
-    {
-      "RunQuery": {
-        "query": {
-          "commentsLeft": [
-            {
-              "text": " comment before query"
-            }
-          ],
-          "commentsRight": [
-            {
-              "text": " after query"
-            }
-          ],
-          "range": {
-            "start": {
-              "index": 24
-            },
-            "end": {
-              "index": 34
-            }
-          },
-          "value": {
-            "useClause": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 0
-                },
-                "end": {
-                  "index": 0
-                }
+  "statements": {
+    "commentsLeft": [
+      {
+        "text": " comment before query"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 24
+      },
+      "end": {
+        "index": 50
+      }
+    },
+    "value": [
+      {
+        "RunQuery": {
+          "query": {
+            "commentsLeft": [],
+            "commentsRight": [
+              {
+                "text": " after query"
+              }
+            ],
+            "range": {
+              "start": {
+                "index": 24
               },
-              "value": null
-            },
-            "operationName": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 24
-                },
-                "end": {
-                  "index": 29
-                }
-              },
-              "value": {
-                "identifier": null,
-                "operationName": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 24
-                    },
-                    "end": {
-                      "index": 29
-                    }
-                  },
-                  "value": {
-                    "text": "hello"
-                  }
-                }
+              "end": {
+                "index": 34
               }
             },
-            "input": {
-              "commentsLeft": [],
-              "commentsRight": [],
-              "range": {
-                "start": {
-                  "index": 30
+            "value": {
+              "useClause": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 0
+                  },
+                  "end": {
+                    "index": 0
+                  }
                 },
-                "end": {
-                  "index": 34
+                "value": null
+              },
+              "operationName": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 24
+                  },
+                  "end": {
+                    "index": 29
+                  }
+                },
+                "value": {
+                  "identifier": null,
+                  "operationName": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 24
+                      },
+                      "end": {
+                        "index": 29
+                      }
+                    },
+                    "value": {
+                      "text": "hello"
+                    }
+                  }
                 }
               },
-              "value": {
-                "fields": {
-                  "commentsLeft": [],
-                  "commentsRight": [],
-                  "range": {
-                    "start": {
-                      "index": 31
-                    },
-                    "end": {
-                      "index": 33
-                    }
+              "input": {
+                "commentsLeft": [],
+                "commentsRight": [],
+                "range": {
+                  "start": {
+                    "index": 30
                   },
-                  "value": {
-                    "value": []
+                  "end": {
+                    "index": 34
+                  }
+                },
+                "value": {
+                  "fields": {
+                    "commentsLeft": [],
+                    "commentsRight": [],
+                    "range": {
+                      "start": {
+                        "index": 31
+                      },
+                      "end": {
+                        "index": 33
+                      }
+                    },
+                    "value": {
+                      "value": []
+                    }
                   }
                 }
               }
@@ -100,6 +112,6 @@
           }
         }
       }
-    }
-  ]
+    ]
+  }
 }

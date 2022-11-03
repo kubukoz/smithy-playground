@@ -7,6 +7,7 @@ import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.std.Supervisor
 import cats.implicits._
+import cats.parse.LocationMap
 import cats.tagless.Derive
 import cats.tagless.FunctorK
 import cats.tagless.implicits._
@@ -27,18 +28,16 @@ import playground.language.CommandResultReporter
 import playground.language.CompletionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbolProvider
+import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
-import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.util.KleisliOps
-import playground.smithyql.SourceFile
-import playground.smithyql.format.Formatter
-import playground.smithyql.parser.SourceParser
 import playground.types._
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+import ToUriOps._
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -97,6 +96,11 @@ object LanguageServer {
       val commandProvider = CommandProvider
         .instance[F](compiler.mapK(iorToF), runner)
 
+      private val getFormatterWidth: F[Int] = LanguageClient[F]
+        .configuration(ConfigurationValue.maxWidth)
+
+      val formattingProvider = FormattingProvider.provider(getFormatterWidth)
+
       def initialize(
         params: InitializeParams
       ): F[InitializeResult] = {
@@ -112,8 +116,7 @@ object LanguageServer {
           .getWorkspaceFolders()
           .asScala
           .toList
-          .map(_.getUri())
-          .map(Uri.fromUriString(_))
+          .map(_.toUri)
 
         LanguageClient[F]
           .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
@@ -141,89 +144,71 @@ object LanguageServer {
           Applicative[F].unit
         else
           TextDocumentManager[F].put(
-            Uri.fromUriString(params.getTextDocument().getUri()),
+            params.getTextDocument().toUri,
             changesAsList.head.getText(),
           )
       }
 
       def didOpen(params: DidOpenTextDocumentParams): F[Unit] = TextDocumentManager[F].put(
-        Uri.fromUriString(params.getTextDocument().getUri()),
+        params.getTextDocument().toUri,
         params.getTextDocument().getText(),
       )
 
       def didSave(
         params: DidSaveTextDocumentParams
       ): F[Unit] = TextDocumentManager[F]
-        .remove(Uri.fromUriString(params.getTextDocument().getUri()))
+        .remove(params.getTextDocument().toUri)
 
       def didClose(
         params: DidCloseTextDocumentParams
       ): F[Unit] = TextDocumentManager[F].remove(
-        Uri.fromUriString(params.getTextDocument().getUri())
+        params.getTextDocument().toUri
       )
-
-      private val getFormatterWidth: F[Int] = LanguageClient[F]
-        .configuration(ConfigurationValue.maxWidth)
 
       def formatting(
         params: DocumentFormattingParams
-      ): F[List[TextEdit]] = TextDocumentProvider[F]
-        .get(Uri.fromUriString(params.getTextDocument().getUri()))
-        .flatMap { text =>
-          getFormatterWidth
-            .map { maxWidth =>
-              SourceParser[SourceFile]
-                .parse(text)
-                .map { parsed =>
-                  val formatted = Formatter[SourceFile].format(parsed, maxWidth)
+      ): F[List[TextEdit]] = {
+        val uri = params.getTextDocument().toUri
 
-                  val lines = text.linesWithSeparators.toList
-
-                  List(
-                    new TextEdit(
-                      new Range(
-                        new Position(0, 0),
-                        new Position(lines.indices.size, lines.last.size),
-                      ),
-                      formatted,
-                    )
-                  )
-                }
-                // doesn't parse, we won't format
-                .getOrElse(Nil)
-            }
+        TextDocumentProvider[F].get(uri).flatMap { doc =>
+          formattingProvider(uri).map(_.map(converters.toLSP.textEdit(_, LocationMap(doc))))
         }
+      }
 
       def completion(
         position: CompletionParams
       ): F[Either[List[CompletionItem], CompletionList]] = TextDocumentManager[F]
-        .get(Uri.fromUriString(position.getTextDocument().getUri()))
+        .get(position.getTextDocument.toUri)
         .map { documentText =>
+          val map = LocationMap(documentText)
+
           completionProvider
             .provide(
               documentText,
-              converters.fromLSP.position(documentText, position.getPosition()),
+              converters.fromLSP.position(map, position.getPosition()),
             )
-            .map(converters.toLSP.completionItem(documentText, _))
+            .map(converters.toLSP.completionItem(map, _))
         }
         .map(Left(_))
 
       def diagnostic(
         params: DocumentDiagnosticParams
       ): F[DocumentDiagnosticReport] = {
-        val documentUri = params.getTextDocument().getUri()
+        val documentUri = params.getTextDocument().toUri
         TextDocumentManager[F]
-          .get(Uri.fromUriString(documentUri))
+          .get(documentUri)
           .map { documentText =>
             val diags = diagnosticProvider.getDiagnostics(
               params.getTextDocument().getUri(),
               documentText,
             )
 
+            val map = LocationMap(documentText)
+
             new DocumentDiagnosticReport(
               new RelatedFullDocumentDiagnosticReport(
                 diags
-                  .map(converters.toLSP.diagnostic(documentText, Uri.fromUriString(documentUri), _))
+                  .map(converters.toLSP.diagnostic(map, documentUri, _))
                   .asJava
               )
             )
@@ -233,20 +218,23 @@ object LanguageServer {
       def codeLens(
         params: CodeLensParams
       ): F[List[CodeLens]] = TextDocumentManager[F]
-        .get(Uri.fromUriString(params.getTextDocument().getUri()))
+        .get(params.getTextDocument().toUri)
         .map { documentText =>
+          val map = LocationMap(documentText)
+
           lensProvider
             .provide(
-              documentUri = Uri.fromUriString(params.getTextDocument.getUri()),
+              documentUri = params.getTextDocument.toUri,
               documentText = documentText,
             )
-            .map(converters.toLSP.codeLens(documentText, _))
+            .map(converters.toLSP.codeLens(map, _))
         }
 
       def documentSymbol(params: DocumentSymbolParams): F[List[DocumentSymbol]] =
-        TextDocumentManager[F].get(Uri.fromUriString(params.getTextDocument().getUri())).map {
-          text =>
-            DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(text, _))
+        TextDocumentManager[F].get(params.getTextDocument().toUri).map { text =>
+          val map = LocationMap(text)
+
+          DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(map, _))
         }
 
       def didChangeWatchedFiles(

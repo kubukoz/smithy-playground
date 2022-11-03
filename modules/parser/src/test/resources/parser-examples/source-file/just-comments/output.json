@@ -1,0 +1,28 @@
+{
+  "prelude": {
+    "useClause": null
+  },
+  "statements": {
+    "commentsLeft": [
+      {
+        "text": " foo"
+      },
+      {
+        "text": " bar"
+      },
+      {
+        "text": " baz"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 21
+      },
+      "end": {
+        "index": 21
+      }
+    },
+    "value": []
+  }
+}
