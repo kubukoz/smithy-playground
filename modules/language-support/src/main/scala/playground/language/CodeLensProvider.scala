@@ -22,6 +22,12 @@ object CodeLensProvider {
     new CodeLensProvider[F] {
 
       def provide(documentUri: Uri, documentText: String): List[CodeLens] =
+        if (FileNames.isOutputPanel(documentUri.value))
+          Nil
+        else
+          provideImpl(documentUri, documentText)
+
+      private def provideImpl(documentUri: Uri, documentText: String): List[CodeLens] =
         SourceParser[SourceFile].parse(documentText) match {
           case Right(parsed) if runner.get(parsed).isRight =>
             compiler

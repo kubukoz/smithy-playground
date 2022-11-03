@@ -37,15 +37,11 @@ object DiagnosticProvider {
     new DiagnosticProvider[F] {
 
       def getDiagnostics(fileName: String, documentText: String): List[CompilationError] =
-        if (fileName.startsWith("extension-output"))
-          // Not showing any diagnostics in output panels
-          Nil
-        else
-          compilationErrors(documentText).fold(
-            _.toList,
-            parsed => runnerErrors(parsed),
-            (errors, parsed) => errors.toList ++ runnerErrors(parsed),
-          )
+        compilationErrors(documentText).fold(
+          _.toList,
+          parsed => runnerErrors(parsed),
+          (errors, parsed) => errors.toList ++ runnerErrors(parsed),
+        )
 
       private def runnerErrors(
         parsed: SourceFile[WithSource]

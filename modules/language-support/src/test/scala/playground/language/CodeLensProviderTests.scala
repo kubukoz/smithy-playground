@@ -57,6 +57,14 @@ object CodeLensProviderTests extends FunSuite {
     )
   }
 
+  test("file is runnable, but it's an output panel") {
+    val input = "playground.std#Random.NextUUID {}"
+    assertNoDiff(
+      provider.provide(Uri.fromUriString("output:anything"), input),
+      Nil,
+    )
+  }
+
   test("file is runnable - multiple queries") {
     val input =
       s"""playground.std#Random.NextUUID {}

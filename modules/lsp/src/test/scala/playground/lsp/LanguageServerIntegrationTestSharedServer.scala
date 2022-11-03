@@ -157,6 +157,24 @@ object LanguageServerIntegrationTestSharedServer
       }
   }
 
+  test("smithyql/runQuery (output panel)") { f =>
+    f.client
+      .scoped {
+        f.server
+          .runFile(
+            RunFileParams(
+              Uri.fromUriString("output:anything_here")
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.same(
+          evs,
+          Nil,
+        )
+      }
+  }
+
   test("smithyql/runQuery (in memory)") { f =>
     f.client
       .scoped {

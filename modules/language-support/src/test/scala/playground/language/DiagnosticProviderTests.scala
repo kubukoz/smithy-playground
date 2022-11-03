@@ -84,12 +84,6 @@ object DiagnosticProviderTests extends SimpleIOSuite {
   pureTest("empty file - no diagnostics") {
     assertNoDiff(provider.getDiagnostics("test.smithyql", ""), Nil)
   }
-  pureTest("file doesn't parse, but it's an output panel - no diagnostics") {
-    assertNoDiff(
-      provider.getDiagnostics("extension-output ->> anything allowed on this side", "<$@!*$^!*&@#"),
-      Nil,
-    )
-  }
 
   pureTest("file doesn't parse at all") {
     val input = "horrendous <parsing mistake>"

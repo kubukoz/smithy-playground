@@ -98,7 +98,7 @@ object CommandProvider {
         case _: CompilationFailed | _: ParsingFailure =>
           CommandResultReporter[F].onCompilationFailed
         case e: RunErrors => e.report
-      }
+      }.unlessA(FileNames.isOutputPanel(documentUri.value))
 
       private val commandMap: Map[String, List[String] => F[Unit]] = ListMap(
         Command.RUN_FILE -> {
