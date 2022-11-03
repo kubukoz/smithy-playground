@@ -155,7 +155,7 @@ final case class QueryOperationName[F[_]](
 }
 
 final case class Query[F[_]](
-  // todo: remove
+  @deprecated("use clauses are now located in the prelude section of the file", "")
   useClause: F[Option[UseClause[F]]],
   operationName: F[QueryOperationName[F]],
   input: F[Struct[F]],
@@ -167,6 +167,7 @@ final case class Query[F[_]](
     fk(input).map(_.mapK(fk)),
   )
 
+  @deprecated("alternative pending", "")
   def collectServiceIdentifiers(implicit F: Apply[F]): F[List[F[QualifiedIdentifier]]] =
     (
       useClause.map(_.map(_.identifier)),

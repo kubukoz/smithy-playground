@@ -42,11 +42,15 @@ object CompletionProviderTests extends SimpleIOSuite {
     assert(result == expected)
   }
 
-  pureTest("the file has a use clause - completing operations shows results from that clause") {
+  pureTest(
+    "the file has a use clause - completing operations shows results from that clause"
+  ) {
     val provider = CompletionProvider.forServices(
       List(wrapService(ClockGen), wrapService(RandomGen))
     )
-    val input = "use service playground.std#Clock".stripMargin
+    val input =
+      """use service playground.std#Clock
+        |""".stripMargin.stripMargin
 
     val result = provider.provide(
       input,

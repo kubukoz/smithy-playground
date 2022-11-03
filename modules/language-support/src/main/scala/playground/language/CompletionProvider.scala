@@ -76,9 +76,20 @@ object CompletionProvider {
         }
       }
 
-    val completeAnyOperationName = completeOperationName.toList.map(_._2).flatSequence.apply(Nil)
+    def completeRootOperationName(file: SourceFile[WithSource]) =
+      file.prelude.useClause match {
+        case None =>
+          // complete any operation whatsoever
+          completeOperationName.toList.map(_._2).flatSequence.apply(Nil)
 
-    val completionsByEndpoint
+        case Some(clause) =>
+          val serviceId: QualifiedIdentifier = clause.value.identifier.value
+          // there's a use clause, so operations on root level should only include that service's ops
+          completeOperationName(serviceId).apply(List(serviceId))
+      }
+
+    /* maps service ID to operation name to its input completions */
+    val inputCompletions
       : Map[QualifiedIdentifier, Map[OperationName[Id], CompletionResolver[Any]]] = servicesById
       .fmap { service =>
         service
@@ -92,6 +103,7 @@ object CompletionProvider {
 
     def completeOperationNameFor(
       q: Query[WithSource],
+      sf: SourceFile[WithSource],
       serviceId: Option[QualifiedIdentifier],
     ) =
       serviceId match {
@@ -99,10 +111,14 @@ object CompletionProvider {
           completeOperationName(serviceId)(
             q.mapK(WithSource.unwrap).collectServiceIdentifiers
           )
-        case _ => completeAnyOperationName
+        case None => completeRootOperationName(sf)
       }
 
-    def completeInQuery(q: Query[WithSource], ctx: NodeContext): List[CompletionItem] = {
+    def completeInQuery(
+      q: Query[WithSource],
+      sf: SourceFile[WithSource],
+      ctx: NodeContext,
+    ): List[CompletionItem] = {
       // still wrong
       val serviceIdOpt =
         MultiServiceResolver
@@ -114,12 +130,12 @@ object CompletionProvider {
 
       ctx match {
         case NodeContext.PathEntry.AtOperationName ^^: EmptyPath =>
-          completeOperationNameFor(q, serviceIdOpt)
+          completeOperationNameFor(q, sf, serviceIdOpt)
 
         case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
           serviceIdOpt match {
             case Some(serviceId) =>
-              completionsByEndpoint(serviceId)(
+              inputCompletions(serviceId)(
                 q.operationName.value.operationName.value.mapK(WithSource.unwrap)
               )
                 .getCompletions(ctx)
@@ -154,7 +170,7 @@ object CompletionProvider {
                   .query
                   .value
 
-              completeInQuery(q, rest)
+              completeInQuery(q, sf, rest)
 
             case NodeContext.PathEntry.AtUseClause ^^: EmptyPath =>
               servicesById
@@ -163,7 +179,7 @@ object CompletionProvider {
                 .map(CompletionItem.useServiceClause.tupled)
                 .toList
 
-            case EmptyPath => completeAnyOperationName
+            case EmptyPath => completeRootOperationName(sf)
             case _         => Nil
           }
 
