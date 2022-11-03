@@ -106,6 +106,7 @@ object converters {
           case Some(theDocs) =>
             _.setDocumentation(new lsp4j.MarkupContent(lsp4j.MarkupKind.MARKDOWN, theDocs))
         })
+        .tap(_.setSortText(item.sortText.orNull))
     }
 
     def textEdit(edit: TextEdit, map: LocationMap): lsp4j.TextEdit =

@@ -38,28 +38,18 @@ object CompletionProvider {
 
     val serviceIdsById = servicesById.map { case (k, _) => (k, k) }
 
-    val opsToServices = servicesById.toList.foldMap { case (serviceId, service) =>
-      service
-        .service
-        .endpoints
-        .foldMap(e => Map(OperationName[Id](e.name) -> NonEmptyList.one(serviceId)))
-    }
-
+    // map of completions for each service.
+    // the returned function takes a list of imported services (use clause)
+    // and uses it to determine whether a new use clause is needed to use operations of this service.
     val completeOperationName
       : Map[QualifiedIdentifier, List[QualifiedIdentifier] => List[CompletionItem]] = servicesById
       .map { case (serviceId, service) =>
         serviceId -> { (presentServiceIdentifiers: List[QualifiedIdentifier]) =>
-          val needsUseClause =
-            MultiServiceResolver
-              .resolveService(
-                presentServiceIdentifiers,
-                servicesById,
-              )
-              .isLeft
+          val needsUseClause = !presentServiceIdentifiers.contains(serviceId)
 
           val insertUseClause =
             if (needsUseClause)
-              CompletionItem.InsertUseClause.Required(opsToServices)
+              CompletionItem.InsertUseClause.Required
             else
               CompletionItem.InsertUseClause.NotRequired
 
@@ -83,9 +73,20 @@ object CompletionProvider {
           completeOperationName.toList.map(_._2).flatSequence.apply(Nil)
 
         case Some(clause) =>
-          val serviceId: QualifiedIdentifier = clause.value.identifier.value
-          // there's a use clause, so operations on root level should only include that service's ops
-          completeOperationName(serviceId).apply(List(serviceId))
+          val presentServiceIds: List[QualifiedIdentifier] = clause.value.identifier.value :: Nil
+          // there's a use clause, so for operations on root level we show:
+          // - completions for ops from the service being used, which don't insert a use clause and don't show the service ID
+          // - completions for ops from other services, which insert a use clause and show the service IDs
+
+          val notPresent = (servicesById.keySet -- presentServiceIds).toList
+
+          (
+            presentServiceIds ++
+              notPresent
+          ).flatMap(
+            completeOperationName(_).apply(presentServiceIds)
+          )
+
       }
 
     /* maps service ID to operation name to its input completions */

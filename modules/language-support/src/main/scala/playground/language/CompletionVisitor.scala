@@ -55,6 +55,7 @@ final case class CompletionItem(
   deprecated: Boolean,
   docs: Option[String],
   extraTextEdits: List[TextEdit],
+  sortText: Option[String],
 ) {
 
   def asValueCompletion: CompletionItem = copy(
@@ -136,6 +137,7 @@ object CompletionItem {
         isField,
       ),
       extraTextEdits = Nil,
+      sortText = None,
     )
   }
 
@@ -216,8 +218,7 @@ object CompletionItem {
   sealed trait InsertUseClause extends Product with Serializable
 
   object InsertUseClause {
-    case class Required(opsToServices: Map[OperationName[Id], NonEmptyList[QualifiedIdentifier]])
-      extends InsertUseClause
+    case object Required extends InsertUseClause
     case object NotRequired extends InsertUseClause
   }
 
@@ -230,7 +231,7 @@ object CompletionItem {
 
     val useClauseOpt =
       insertUseClause match {
-        case Required(_) =>
+        case Required =>
           TextEdit
             .Insert(
               (
@@ -246,16 +247,15 @@ object CompletionItem {
 
     val fromServiceHint =
       insertUseClause match {
-        case Required(opsToServices)
-            // non-unique endpoint names need to be distinguished by service
-            if opsToServices.get(OperationName(endpoint.name)).foldMap(_.toList).sizeIs > 1 =>
-          s"(from ${Formatter.writeIdent(serviceId).render(Int.MaxValue)})"
-        case _ => ""
+        case Required => s"(from ${Formatter.writeIdent(serviceId).render(Int.MaxValue)})"
+        case _        => ""
       }
+
+    val label = endpoint.name
 
     CompletionItem(
       kind = CompletionItemKind.Function,
-      label = endpoint.name,
+      label = label,
       insertText = InsertText.JustString(endpoint.name),
       detail =
         s"$fromServiceHint: ${endpoint.input.shapeId.name} => ${endpoint.output.shapeId.name}",
@@ -263,6 +263,13 @@ object CompletionItem {
       deprecated = hints.get(smithy.api.Deprecated).isDefined,
       docs = buildDocumentation(hints, isField = false),
       extraTextEdits = useClauseOpt.toList,
+
+      // giving priority to the entries that don't require a use clause
+      // (they're considered to be in scope)
+      sortText = Some(insertUseClause match {
+        case NotRequired => "1_"
+        case Required    => "2_"
+      }).map(_ + label),
     )
   }
 

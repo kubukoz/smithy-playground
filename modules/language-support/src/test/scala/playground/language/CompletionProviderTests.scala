@@ -1,25 +1,20 @@
 package playground.language
 
-import cats.Id
-import cats.data.NonEmptyList
-import cats.implicits._
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._
 import playground.language.Diffs._
-import playground.smithyql.OperationName
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.syntax._
 import playground.std.ClockGen
 import playground.std.RandomGen
 import weaver._
+
 import StringRangeUtils._
 import ServiceUtils.wrapService
 
 object CompletionProviderTests extends SimpleIOSuite {
-
-  private val demoServiceId = QualifiedIdentifier.of("demo", "smithy", "DemoService")
 
   pureTest("completing existing use clause") {
     val service = wrapService(DemoServiceGen)
@@ -34,7 +29,7 @@ object CompletionProviderTests extends SimpleIOSuite {
 
     val expected = List(
       CompletionItem.useServiceClause(
-        demoServiceId,
+        QualifiedIdentifier.fromShapeId(DemoServiceGen.id),
         service,
       )
     )
@@ -43,7 +38,7 @@ object CompletionProviderTests extends SimpleIOSuite {
   }
 
   pureTest(
-    "the file has a use clause - completing operations shows results from that clause"
+    "the file has a use clause - completing operations shows results from that clause, but also others"
   ) {
     val provider = CompletionProvider.forServices(
       List(wrapService(ClockGen), wrapService(RandomGen))
@@ -62,7 +57,12 @@ object CompletionProviderTests extends SimpleIOSuite {
         insertUseClause = CompletionItem.InsertUseClause.NotRequired,
         endpoint = ClockGen.CurrentTimestamp,
         serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
-      )
+      ),
+      CompletionItem.forOperation(
+        insertUseClause = CompletionItem.InsertUseClause.Required,
+        endpoint = RandomGen.NextUUID,
+        serviceId = QualifiedIdentifier.fromShapeId(RandomGen.id),
+      ),
     )
 
     assertNoDiff(result, expected)
@@ -70,49 +70,28 @@ object CompletionProviderTests extends SimpleIOSuite {
 
   pureTest("completing empty file") {
 
-    val service = wrapService(DemoServiceGen)
+    val clock = wrapService(ClockGen)
     val random = wrapService(RandomGen)
 
-    val provider = CompletionProvider.forServices(List(service, random))
+    val provider = CompletionProvider.forServices(List(clock, random))
 
     val result = provider.provide(
       "",
       Position(0),
     )
 
-    val expected =
-      DemoServiceGen
-        .endpoints
-        .map(endpoint =>
-          CompletionItem.forOperation(
-            insertUseClause = CompletionItem
-              .InsertUseClause
-              .Required(
-                List(
-                  OperationName[Id]("CreateHero"),
-                  OperationName[Id]("CreateSubscription"),
-                  OperationName[Id]("GetPowers"),
-                ).tupleRight(NonEmptyList.one(demoServiceId)).toMap
-              ),
-            endpoint,
-            demoServiceId,
-          )
-        ) ++ RandomGen
-        .endpoints
-        .map(endpoint =>
-          CompletionItem.forOperation(
-            insertUseClause = CompletionItem
-              .InsertUseClause
-              .Required(
-                Map(
-                  OperationName[Id]("NextUUID") -> NonEmptyList
-                    .one(QualifiedIdentifier.forService(RandomGen))
-                )
-              ),
-            endpoint,
-            QualifiedIdentifier.forService(RandomGen),
-          )
-        )
+    val expected = List(
+      CompletionItem.forOperation(
+        insertUseClause = CompletionItem.InsertUseClause.Required,
+        endpoint = ClockGen.CurrentTimestamp,
+        serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
+      ),
+      CompletionItem.forOperation(
+        insertUseClause = CompletionItem.InsertUseClause.Required,
+        endpoint = RandomGen.NextUUID,
+        serviceId = QualifiedIdentifier.fromShapeId(RandomGen.id),
+      ),
+    )
 
     assertNoDiff(result, expected)
   }
@@ -130,16 +109,13 @@ object CompletionProviderTests extends SimpleIOSuite {
       .endpoints
       .map(endpoint =>
         CompletionItem.forOperation(
-          insertUseClause =
-            CompletionItem
-              .InsertUseClause
-              .NotRequired,
+          insertUseClause = CompletionItem.InsertUseClause.Required,
           endpoint,
           QualifiedIdentifier.forService(RandomGen),
         )
       )
 
-    assert(result == expected)
+    assertNoDiff(result, expected)
   }
 
   locally {
@@ -195,5 +171,4 @@ object CompletionProviderTests extends SimpleIOSuite {
     assertNoDiff(result, expected)
   }
 
-  // pureTest("completing after, before, between existing operations")
 }
