@@ -69,9 +69,8 @@ trait ParserSuite extends SimpleIOSuite {
             )
 
           inputIO.flatMap { input =>
-            SourceParser[Alg].parse(input) match {
-              case Left(e) =>
-                failure(s"Parsing failed: \n==========\n${e.msg}\n==========").pure[IO]
+            ParserSuite.assertParses[Alg](input) match {
+              case Left(e) => failure(e).pure[IO]
 
               case Right(v) =>
                 outputIO
@@ -93,5 +92,13 @@ trait ParserSuite extends SimpleIOSuite {
         }
       }
   }
+
+}
+
+object ParserSuite {
+
+  def assertParses[Alg[_[_]]: SourceParser](s: String) = SourceParser[Alg]
+    .parse(s)
+    .leftMap(e => s"Parsing failed: \n==========\n${e.msg}\n==========")
 
 }

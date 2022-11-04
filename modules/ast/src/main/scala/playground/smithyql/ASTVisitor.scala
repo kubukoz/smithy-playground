@@ -1,7 +1,7 @@
 package playground.smithyql
 
 // I _wish_ this was generated boilerplate.
-trait ASTVisitor[F[_], T] {
+trait ASTVisitor[F[_], T] extends (AST[F] => T) {
 
   def apply(ast: AST[F]): T =
     ast match {

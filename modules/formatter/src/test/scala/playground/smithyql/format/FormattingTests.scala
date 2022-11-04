@@ -10,10 +10,11 @@ import weaver.scalacheck.Checkers
 import util.chaining._
 import DSL._
 import Diffs._
+import playground.smithyql.parser.ParserSuite
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 
-  def formattingTest[Alg[_[_]]: Formatter](
+  def formattingTest[Alg[_[_]]: Formatter: SourceParser](
     label: TestName
   )(
     v: => Alg[WithSource]
@@ -27,7 +28,10 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       // not using assertNoDiff because of
       // https://github.com/softwaremill/diffx/issues/422
       // which can result in false negatives (different strings considered equal and passing the test).
-      assert.eql(result, expected)
+      assert.eql(result, expected) &&
+      ParserSuite
+        .assertParses(result)
+        .fold(failure(_), _ => success)
     }
 
   def parse[Alg[_[_]]: SourceParser](s: String): Alg[WithSource] =
@@ -41,11 +45,10 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       .mapK(WithSource.liftId)
   }("""hello {
       |  values: [
-      |       "hello",
-      |       "world",
-      |    ],
-      |}
-      |""".stripMargin)
+      |    "hello",
+      |    "world",
+      |  ],
+      |}""".stripMargin)
 
   formattingTest("int list with no comments") {
     "hello"
@@ -55,11 +58,42 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       .mapK(WithSource.liftId)
   }("""hello {
       |  values: [
-      |       42,
-      |       10,
-      |    ],
-      |}
-      |""".stripMargin)
+      |    42,
+      |    10,
+      |  ],
+      |}""".stripMargin)
+
+  formattingTest("struct comments: before key") {
+    parse[Struct]("""{ //this is a key
+                    |input: 42}""".stripMargin)
+  }("""{
+      |  // this is a key
+      |  input: 42,
+      |}""".stripMargin)
+
+  formattingTest("struct comments: before colon") {
+    parse[Struct]("""{ input //this is a key
+                    |: 42}""".stripMargin)
+  }("""{
+      |  input // this is a key
+      |  : 42,
+      |}""".stripMargin)
+
+  formattingTest("struct comments: after colon") {
+    parse[Struct]("""{ input : //this is a key
+                    |42}""".stripMargin)
+  }("""{
+      |  input: // this is a key
+      |    42,
+      |}""".stripMargin)
+
+  formattingTest("struct comments: after value") {
+    parse[Struct]("""{ input: 42 //this is a value
+                    |}""".stripMargin)
+  }("""{
+      |  input: 42 // this is a value
+      |  ,
+      |}""".stripMargin)
 
   formattingTest("int list with lots of comments") {
     parse[Struct]("""{ input :
