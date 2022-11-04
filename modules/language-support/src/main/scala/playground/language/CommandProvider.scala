@@ -28,8 +28,10 @@ object CommandProvider {
     runner: FileRunner.Resolver[F],
   ): CommandProvider[F] =
     new CommandProvider[F] {
+      private val reporter = CommandResultReporter[F]
 
-      case class RunErrors(issues: NonEmptyList[OperationRunner.Issue.Squashed]) extends Exception {
+      private case class RunnerBuildErrors(issues: NonEmptyList[OperationRunner.Issue.Squashed])
+        extends Exception {
 
         def report: F[Unit] = {
           val (protocolIssues, otherIssues) = issues.toList.partitionMap {
@@ -48,6 +50,12 @@ object CommandProvider {
 
       }
 
+      private case class QueryError(
+        e: Throwable,
+        lastInput: CompiledInput,
+        lastRequestId: reporter.RequestId,
+      ) extends Exception(e)
+
       private def runCompiledQuery(
         q: Query[Id],
         input: CompiledInput,
@@ -57,12 +65,9 @@ object CommandProvider {
         .flatMap { requestId =>
           runner
             .run(input)
-            .flatMap {
-              CommandResultReporter[F].onQuerySuccess(q, requestId, _)
-            }
-            .handleErrorWith {
-              CommandResultReporter[F].onQueryFailure(input, requestId, _)
-            }
+            // wrapping exception so that it can be reported further down the line
+            .adaptErr(e => QueryError(e, input, requestId))
+            .flatMap(CommandResultReporter[F].onQuerySuccess(q, requestId, _))
         }
 
       private def runCompiledFile(
@@ -76,14 +81,13 @@ object CommandProvider {
           queries
             .zip(compiledInputs)
             .zip(runners)
-            .traverse { case ((rq, input), runner) =>
+            .traverse_ { case ((rq, input), runner) =>
               runCompiledQuery(
                 rq.query.value.mapK(WithSource.unwrap),
                 input,
                 runner,
               )
             }
-            .void
       }
 
       private def runFile(documentUri: Uri): F[Unit] = {
@@ -91,13 +95,18 @@ object CommandProvider {
           documentText <- TextDocumentProvider[F].get(documentUri)
           file <- SourceParser[SourceFile].parse(documentText).liftTo[F]
           compiledInputs <- compiler.compile(file)
-          runners <- runner.get(file).leftMap(_.map(_._2)).leftMap(RunErrors(_)).liftTo[F]
+          runners <- runner.get(file).leftMap(_.map(_._2)).leftMap(RunnerBuildErrors(_)).liftTo[F]
           _ <- runCompiledFile(file, compiledInputs, runners)
         } yield ()
       }.recoverWith {
         case _: CompilationFailed | _: ParsingFailure =>
           CommandResultReporter[F].onCompilationFailed
-        case e: RunErrors => e.report
+
+        case e: RunnerBuildErrors => e.report
+
+        case QueryError(e, lastInput, lastRequestId) =>
+          CommandResultReporter[F].onQueryFailure(lastInput, lastRequestId, e)
+
       }.unlessA(FileNames.isOutputPanel(documentUri.value))
 
       private val commandMap: Map[String, List[String] => F[Unit]] = ListMap(

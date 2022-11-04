@@ -13,6 +13,7 @@ import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.implicits._
 import org.http4s.server.Server
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
@@ -292,6 +293,29 @@ object LanguageServerIntegrationTestSharedServer
           .exists(_.text.contains("Succeeded GetWeather"))
 
         assert(hasMatchingLog)
+      }
+  }
+
+  test("HTTP calls: connection failure cancels the request") { f =>
+    val env = f
+      .client
+      .scoped
+      .compose(f.client.withConfiguration(ConfigurationValue.baseUri(uri"http://localhost:80")))
+
+    env {
+      f.server
+        .runFile(
+          RunFileParams(
+            Uri.fromPath(f.workspaceDir.toPath / "multi-query-one-failing.smithyql")
+          )
+        ) *> f.client.getEvents
+    }
+      .map { events =>
+        assert.eql(events.length, 4) &&
+        assert.same(events(0), TestClient.OutputPanelShow) &&
+        assert(events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")) &&
+        assert(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
+        assert(events(3).asInstanceOf[TestClient.OutputLog].text.contains("// ERROR"))
       }
   }
 
