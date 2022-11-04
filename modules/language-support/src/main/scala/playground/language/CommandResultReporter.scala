@@ -85,7 +85,7 @@ object CommandResultReporter {
 
       private def writeOutput(
         node: InputNode[cats.Id]
-      ) = Formatter.writeInputNode(node.mapK(WithSource.liftId)).renderTrim(80)
+      ) = Formatter.inputNodeFormatter.format(node.mapK(WithSource.liftId), 80)
 
     }
 

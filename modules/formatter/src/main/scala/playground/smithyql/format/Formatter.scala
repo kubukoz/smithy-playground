@@ -12,12 +12,19 @@ trait Formatter[-Alg[_[_]]] {
 object Formatter {
   def apply[Alg[_[_]]](implicit F: Formatter[Alg]): Formatter[Alg] = F
 
+  val writeDoc: Formatter[AST] = FormattingVisitor(_).renderTrim(_)
+
   implicit val fileFormatter: Formatter[SourceFile] = writeDoc
   implicit val queryFormatter: Formatter[Query] = writeDoc
+  implicit val useClauseFormatter: Formatter[UseClause] = writeDoc
+  implicit val inputNodeFormatter: Formatter[InputNode] = writeDoc
   implicit val structFormatter: Formatter[Struct] = writeDoc
   implicit val listedFormatter: Formatter[Listed] = writeDoc
 
-  def writeDoc: Formatter[AST] = FormattingVisitor(_).renderTrim(_)
+  def writeIdentifier(
+    ident: QualifiedIdentifier,
+    width: Int,
+  ) = FormattingVisitor.writeIdent(ident).renderTrim(width)
 
 }
 
@@ -184,7 +191,7 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
       Doc.hardLine +
       after
 
-  private def writeIdent(ident: QualifiedIdentifier): Doc = Doc.text(ident.render)
+  def writeIdent(ident: QualifiedIdentifier): Doc = Doc.text(ident.render)
 
   private def writeStringLiteral(s: String) = "\"" + s + "\""
 

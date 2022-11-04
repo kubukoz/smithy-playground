@@ -125,7 +125,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
            |Available services:""".stripMargin + matching
           .sorted
           .map(UseClause[Id](_).mapK(WithSource.liftId))
-          .map(Formatter.writeUseClause(_).render(Int.MaxValue))
+          .map(Formatter.useClauseFormatter.format(_, Int.MaxValue))
           .mkString_("\n", "\n", ".")
 
       case UnknownService(id, known) =>

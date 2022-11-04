@@ -2,7 +2,6 @@ package playground.language
 
 import cats.Id
 import cats.implicits._
-import org.typelevel.paiges.Doc
 import playground.ServiceNameExtractor
 import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
@@ -89,7 +88,7 @@ object CompletionItem {
     kind = CompletionItemKind.Module,
     label = ident.selection,
     insertText = InsertText.JustString(
-      Formatter.writeIdent(ident).render(Int.MaxValue)
+      Formatter.writeIdentifier(ident, Int.MaxValue)
     ),
     schema = Schema.unit.addHints(service.service.hints),
   ).copy(detail = describeService(service))
@@ -236,11 +235,10 @@ object CompletionItem {
         case Required =>
           TextEdit
             .Insert(
-              (
-                Formatter.writeUseClause(UseClause[Id](serviceId).mapK(WithSource.liftId)) + Doc
-                  .hardLine
-                  .repeat(2)
-              ).render(Int.MaxValue),
+              Formatter
+                .useClauseFormatter
+                .format(UseClause[Id](serviceId).mapK(WithSource.liftId), Int.MaxValue) +
+                "\n\n",
               Position.origin,
             )
             .some
@@ -249,7 +247,7 @@ object CompletionItem {
 
     val fromServiceHint =
       insertUseClause match {
-        case Required => s"(from ${Formatter.writeIdent(serviceId).render(Int.MaxValue)})"
+        case Required => s"(from ${Formatter.writeIdentifier(serviceId, Int.MaxValue)})"
         case _        => ""
       }
 
