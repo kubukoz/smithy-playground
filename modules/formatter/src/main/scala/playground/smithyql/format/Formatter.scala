@@ -5,92 +5,87 @@ import org.typelevel.paiges.Doc
 import org.typelevel.paiges.instances._
 import playground.smithyql._
 
-trait Formatter[Alg[_[_]]] {
+trait Formatter[-Alg[_[_]]] {
   def format(repr: Alg[WithSource], width: Int): String
 }
 
 object Formatter {
   def apply[Alg[_[_]]](implicit F: Formatter[Alg]): Formatter[Alg] = F
 
-  def writeDoc[Alg[_[_]]](writer: Alg[WithSource] => Doc): Formatter[Alg] = writer(_).renderTrim(_)
+  implicit val fileFormatter: Formatter[SourceFile] = writeDoc
+  implicit val queryFormatter: Formatter[Query] = writeDoc
+  implicit val structFormatter: Formatter[Struct] = writeDoc
+  implicit val listedFormatter: Formatter[Listed] = writeDoc
 
-  implicit val fileFormatter: Formatter[SourceFile] = writeDoc(writeFile)
-  implicit val queryFormatter: Formatter[Query] = writeDoc(writeQuery)
-  implicit val structFormatter: Formatter[Struct] = writeDoc(writeStruct)
-  implicit val listedFormatter: Formatter[Listed] = writeDoc(writeSequence)
+  def writeDoc: Formatter[AST] = FormattingVisitor(_).renderTrim(_)
 
-  val writeAst: AST[WithSource] => Doc = {
-    case sf: SourceFile[WithSource]         => writeFile(sf)
-    case stat: Statement[WithSource]        => writeStatement(stat)
-    case p: Prelude[WithSource]             => writePrelude(p)
-    case qo: QueryOperationName[WithSource] =>
-      // Comments inside this whole node are not allowed, so we ignore them
-      qo.identifier
-        .map(_.value)
-        .fold(Doc.empty)(writeIdent(_) + Doc.char('.')) +
-        writeOperationName(qo.operationName.value)
+}
 
-    case o: OperationName[WithSource] => writeOperationName(o)
-    case q: Query[WithSource]         => writeQuery(q)
-    case u: UseClause[WithSource]     => writeUseClause(u)
-    case n: InputNode[WithSource]     => writeInputNode(n)
-  }
+private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { visit =>
 
-  def writeFile(file: SourceFile[WithSource]): Doc = Doc.stack(
+  override def sourceFile(
+    prelude: Prelude[WithSource],
+    statements: WithSource[List[Statement[WithSource]]],
+  ): Doc = Doc.stack(
+    // Doc.hardLine.repeat(2),
     List(
-      writePrelude(file.prelude),
-      comments(file.statements.commentsLeft) +
-        file.statements.value.map(writeStatement).combineAll +
-        comments(file.statements.commentsRight),
+      visit(prelude),
+      comments(statements.commentsLeft) +
+        statements.value.map(visit(_)).combineAll +
+        comments(statements.commentsRight),
     ).filterNot(_.isEmpty)
   )
 
-  def writePrelude(prelude: Prelude[WithSource]): Doc =
-    prelude.useClause match {
+  override def prelude(useClause: Option[WithSource[UseClause[WithSource]]]): Doc =
+    useClause match {
       case None => Doc.empty
       case Some(useClause) =>
         comments(useClause.commentsLeft) +
-          writeUseClause(useClause.value) +
+          visit(useClause.value) +
           Doc.hardLine +
           comments(useClause.commentsRight)
     }
 
-  def writeStatement(stat: Statement[WithSource]): Doc = stat.fold(
-    runQuery =
-      rq =>
-        comments(rq.query.commentsLeft) +
-          writeQuery(rq.query.value) +
-          comments(rq.query.commentsRight)
-  )
+  override def operationName(text: String): Doc = Doc.text(text)
 
-  def writeInputNode(ast: InputNode[WithSource]): Doc = ast.fold(
-    struct = writeStruct,
-    string = s => Doc.text(writeStringLiteral(s.value)),
-    int = i => Doc.text(i.value),
-    listed = writeSequence,
-    bool = b => Doc.text(b.value.toString()),
-    nul = _ => Doc.text("null"),
-  )
-
-  val writeOperationName: OperationName[WithSource] => Doc = o => Doc.text(o.text)
-
-  def writeUseClause(
-    clause: UseClause[WithSource]
-  ): Doc =
+  override def useClause(identifier: WithSource[QualifiedIdentifier]): Doc =
     // comments in clause are not allowed so we can ignore them when printing
     Doc
       .text("use")
       .space("service")
-      .space(writeIdent(clause.identifier.value))
+      .space(writeIdent(identifier.value))
 
-  def writeIdent(ident: QualifiedIdentifier): Doc = Doc.text(ident.render)
+  override def runQuery(query: WithSource[Query[WithSource]]): Doc =
+    comments(query.commentsLeft) +
+      visit(query.value) +
+      comments(query.commentsRight)
 
-  def writeKey(k: WithSource[Identifier]): Doc =
+  override def struct(fields: WithSource[Struct.Fields[WithSource]]): Doc =
+    writeBracketed(fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
+
+  override def listed(values: WithSource[List[WithSource[InputNode[WithSource]]]]): Doc =
+    writeBracketed(values)(Doc.char('['), Doc.char(']'))(writeValue(_))
+
+  override def intLiteral(value: String): Doc = Doc.text(value)
+  override def stringLiteral(value: String): Doc = Doc.text(writeStringLiteral(value))
+  override def booleanLiteral(value: Boolean): Doc = Doc.text(value.show)
+  override val nullLiteral: Doc = Doc.text("null")
+
+  private def writeKey(k: WithSource[Identifier]): Doc =
     comments(k.commentsLeft) +
       Doc.text(k.value.text) +
       comments(k.commentsRight)
 
-  def writeValue(v: WithSource[InputNode[WithSource]]): Doc = {
+  private def writeField(binding: Binding[WithSource]): Doc = {
+    val k = binding.identifier
+    val v = binding.value
+
+    writeKey(k) +
+      Doc.char(':') +
+      writeValue(v)
+  }
+
+  private def writeValue(v: WithSource[InputNode[WithSource]]): Doc = {
     val maybeGrouped: Doc => Doc =
       if (v.value.kind == NodeKind.Struct)
         identity
@@ -113,7 +108,7 @@ object Formatter {
             else
               Doc.lineOrSpace
 
-          sepBefore + writeInputNode(v.value)
+          sepBefore + visit(v.value)
         } + {
           if (v.commentsRight.isEmpty)
             Doc.empty
@@ -132,16 +127,7 @@ object Formatter {
     }
   }
 
-  def writeField(binding: Binding[WithSource]): Doc = {
-    val k = binding.identifier
-    val v = binding.value
-
-    writeKey(k) +
-      Doc.char(':') +
-      writeValue(v)
-  }
-
-  def writeFields[T](fields: List[T])(renderField: T => Doc): Doc =
+  private def writeFields[T](fields: List[T])(renderField: T => Doc): Doc =
     Doc
       .intercalate(
         // Force newlines between fields
@@ -156,7 +142,7 @@ object Formatter {
         Doc.space
     }
 
-  def writeBracketed[T](
+  private def writeBracketed[T](
     fields: WithSource[List[T]]
   )(
     before: Doc,
@@ -173,15 +159,11 @@ object Formatter {
       Doc.hardLine +
       after
 
-  def writeStruct(struct: Struct[WithSource]): Doc =
-    writeBracketed(struct.fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
+  private def writeIdent(ident: QualifiedIdentifier): Doc = Doc.text(ident.render)
 
-  def writeSequence(seq: Listed[WithSource]): Doc =
-    writeBracketed(seq.values)(Doc.char('['), Doc.char(']'))(writeValue(_))
+  private def writeStringLiteral(s: String) = "\"" + s + "\""
 
-  def writeStringLiteral(s: String) = "\"" + s + "\""
-
-  def comments(lines: List[Comment]): Doc = {
+  private def comments(lines: List[Comment]): Doc = {
     def ensureLeadingSpace(s: String): String =
       if (s.startsWith(" "))
         s
@@ -202,23 +184,37 @@ object Formatter {
     }
   }
 
-  def writeQuery(q: Query[WithSource]): Doc = {
+  override def queryOperationName(
+    identifier: Option[WithSource[QualifiedIdentifier]],
+    operationName: WithSource[OperationName[WithSource]],
+  ): Doc =
+    // Comments inside this whole node are not allowed, so we ignore them
+    identifier
+      .map(_.value)
+      .fold(Doc.empty)(writeIdent(_) + Doc.char('.')) +
+      visit(operationName.value)
+
+  override def query(
+    useClause: WithSource[Option[UseClause[WithSource]]],
+    operationName: WithSource[QueryOperationName[WithSource]],
+    input: WithSource[Struct[WithSource]],
+  ): Doc = {
     val opNamePart =
-      comments(q.operationName.commentsLeft) +
-        writeAst(q.operationName.value) +
+      comments(operationName.commentsLeft) +
+        visit(operationName.value) +
         Doc.space +
-        comments(q.operationName.commentsRight)
+        comments(operationName.commentsRight)
 
     val inputPart =
-      comments(q.input.commentsLeft) +
-        writeInputNode(q.input.value) + {
-          if (q.input.commentsRight.isEmpty)
+      comments(input.commentsLeft) +
+        visit(input.value) + {
+          if (input.commentsRight.isEmpty)
             Doc.empty
           else
             Doc.hardLine
         } +
-        comments(q.input.commentsRight) + {
-          if (q.input.commentsRight.isEmpty)
+        comments(input.commentsRight) + {
+          if (input.commentsRight.isEmpty)
             Doc.hardLine
           else
             Doc.empty

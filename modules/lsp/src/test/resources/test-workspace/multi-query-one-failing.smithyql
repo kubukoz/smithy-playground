@@ -3,7 +3,6 @@ use service weather#WeatherService
 GetWeather {
   city: "hello",
 }
-//
 GetWeather {
   city: "world",
 }

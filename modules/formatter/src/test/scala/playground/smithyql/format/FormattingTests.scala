@@ -125,11 +125,36 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |}
       |""".stripMargin)
 
+  formattingTest("multiple operations") {
+    parse[SourceFile]("""Op {}
+                        |Op {}""".stripMargin)
+  }("""Op {
+      |
+      |}
+      |Op {
+      |
+      |}
+      |""".stripMargin)
+
   formattingTest("use service clause, then operation") {
     parse[SourceFile]("""use service a#B
                         |Op {}""".stripMargin)
   }("""use service a#B
       |
+      |Op {
+      |
+      |}
+      |""".stripMargin)
+
+  formattingTest("use service clause, then multiple operations") {
+    parse[SourceFile]("""use service a#B
+                        |Op {}
+                        |Op {}""".stripMargin)
+  }("""use service a#B
+      |
+      |Op {
+      |
+      |}
       |Op {
       |
       |}
