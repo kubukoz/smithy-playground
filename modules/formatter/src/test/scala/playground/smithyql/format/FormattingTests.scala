@@ -1,17 +1,17 @@
 package playground.smithyql.format
 
+import cats.implicits._
 import playground.Assertions._
 import playground.smithyql._
 import playground.smithyql.format.Formatter
 import playground.smithyql.parser.Examples
+import playground.smithyql.parser.ParserSuite
 import playground.smithyql.parser.SourceParser
 import weaver._
 import weaver.scalacheck.Checkers
+
 import util.chaining._
-import DSL._
 import Diffs._
-import playground.smithyql.parser.ParserSuite
-import cats.implicits._
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 
@@ -383,7 +383,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |
       |}""".stripMargin)
 
-  formattingTest("file: single query with use clause".only) {
+  formattingTest("file: single query with use clause") {
     parse[SourceFile]("""use service com#Hello
                         |hello { }""".stripMargin)
   }("""use service com#Hello
@@ -392,65 +392,74 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |
       |}""".stripMargin)
 
-  // formattingTest("multiple operations") {
-  //   parse[SourceFile]("""Op {}
-  //                       |Op {}""".stripMargin)
-  // }("""Op {
-  //     |
-  //     |}
-  //     |Op {
-  //     |
-  //     |}
-  //     |""".stripMargin)
+  formattingTest("multiple operations") {
+    parse[SourceFile]("""Op {}
+                        |Op2 {}""".stripMargin)
+  }("""Op {
+      |
+      |}
+      |
+      |Op2 {
+      |
+      |}""".stripMargin)
 
-  // formattingTest("use service clause, then operation") {
-  //   parse[SourceFile]("""use service a#B
-  //                       |Op {}""".stripMargin)
-  // }("""use service a#B
-  //     |
-  //     |Op {
-  //     |
-  //     |}
-  //     |""".stripMargin)
+  formattingTest("use service clause, then multiple operations") {
+    parse[SourceFile]("""use service a#B
+                        |Op {}
+                        |Op2 {}""".stripMargin)
+  }("""use service a#B
+      |
+      |Op {
+      |
+      |}
+      |
+      |Op2 {
+      |
+      |}""".stripMargin)
 
-  // formattingTest("use service clause, then multiple operations") {
-  //   parse[SourceFile]("""use service a#B
-  //                       |Op {}
-  //                       |Op {}""".stripMargin)
-  // }("""use service a#B
-  //     |
-  //     |Op {
-  //     |
-  //     |}
-  //     |Op {
-  //     |
-  //     |}
-  //     |""".stripMargin)
+  formattingTest("use service clause, then comments and multiple operations") {
+    parse[SourceFile]("""// before service
+                        |use service a#B
+                        |// before op
+                        |Op {}
+                        |// before op2
+                        |Op2 {}
+                        |// after op2""".stripMargin)
+  }("""// before service
+      |use service a#B // before op
+      |
+      |Op {
+      |
+      |} // before op2
+      |
+      |Op2 {
+      |
+      |} // after op2""".stripMargin)
 
-  // pureTest("Comments aren't lost when formatting") {
-  //   val parsed = parse[SourceFile](Examples.fullOfComments)
-  //   val result = Formatter[SourceFile]
-  //     .format(parsed, 80)
-  //     .pipe(parse[SourceFile])
+  pureTest("Comments aren't lost when formatting") {
+    val parsed = parse[SourceFile](Examples.fullOfComments)
+    val result = Formatter[SourceFile]
+      .format(parsed, 80)
+      .pipe(parse[SourceFile])
 
-  //   assertNoDiff(
-  //     WithSource.allSourceComments(result),
-  //     List(
-  //       Comment(" before use clause"),
-  //       Comment(" before op"),
-  //       Comment(" after op"),
-  //       Comment(" before key"),
-  //       Comment(" after key"),
-  //       Comment("  before value"),
-  //       Comment("  after value"),
-  //       Comment(" before another key"),
-  //       Comment(" after second key"),
-  //       Comment(" before value"),
-  //       Comment(" after value"),
-  //       Comment(" after trailing comma, technically this is part of the struct"),
-  //       Comment("  after whole thing"),
-  //     ),
-  //   )
-  // }
+    assertNoDiff(
+      WithSource.allSourceComments(result),
+      List(
+        Comment(" before use clause"),
+        Comment(" before op"),
+        Comment(" after op"),
+        Comment(" before key"),
+        Comment(" after key"),
+        Comment("  before value"),
+        Comment("  after value"),
+        Comment(" before another key"),
+        Comment(" after second key"),
+        Comment(" before value"),
+        Comment(" after value"),
+        Comment(" after trailing comma, technically this is part of the struct"),
+        Comment("  after whole thing"),
+      ),
+    )
+  }
 
 }

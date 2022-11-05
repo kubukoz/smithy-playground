@@ -77,12 +77,10 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
   override def sourceFile(
     prelude: Prelude[WithSource],
     statements: WithSource[List[Statement[WithSource]]],
-  ): Doc = Doc.stack(
-    List(
-      visit(prelude),
-      printWithComments(statements)(_.foldMap(visit)),
-    ).filterNot(_.isEmpty)
-  )
+  ): Doc = List(
+    visit(prelude),
+    printWithComments(statements)(_.map(visit).intercalate(Doc.hardLine.repeat(2))),
+  ).filterNot(_.isEmpty).intercalate(Doc.hardLine.repeat(2))
 
   override def prelude(useClause: Option[WithSource[UseClause[WithSource]]]): Doc =
     useClause match {
