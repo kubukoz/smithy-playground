@@ -109,9 +109,14 @@ object CompletionItem {
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
-    // todo: unions aren't only for structs: this makes an invalid assumption
-    // by inserting {} at all times
-    insertText = InsertText.SnippetString(s"${alt.label}: {$$0},"),
+    // todo: proper completions for the inner schema (see #120)
+    insertText =
+      if (describeSchema(schema).apply().startsWith("structure "))
+        InsertText.SnippetString(s"""${alt.label}: {
+                                    |  $$0
+                                    |},""".stripMargin)
+      else
+        InsertText.JustString(s"${alt.label}: "),
     schema = schema,
   )
 
@@ -189,6 +194,7 @@ object CompletionItem {
   def describeService(service: DynamicSchemaIndex.ServiceWrapper): String =
     s": service ${ServiceNameExtractor.fromService(service.service).selection}"
 
+  // todo: consider precompiling this
   def describeSchema(schema: Schema[_]): () => String =
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
@@ -206,8 +212,9 @@ object CompletionItem {
       case UnionSchema(shapeId, _, _, _) => now(s"union ${shapeId.name}")
 
       case LazySchema(suspend) =>
-        val desc = suspend.map(describeSchema)
-        () => desc.value()
+        // we don't look at fields or whatnot,
+        // so we can immediately evaluate the schema and compile it as usual.
+        describeSchema(suspend.value)
 
       case RefinementSchema(underlying, _) => describeSchema(underlying)
 
