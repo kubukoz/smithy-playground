@@ -82,7 +82,18 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     writeBracketed(fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
 
   override def listed(values: WithSource[List[WithSource[InputNode[WithSource]]]]): Doc =
-    writeBracketed(values)(Doc.char('['), Doc.char(']'))(writeValue(_))
+    writeBracketed(values)(Doc.char('['), Doc.char(']')) { v =>
+      val valueDoc = {
+        val base = printGeneric(v)
+
+        if (v.commentsRight.nonEmpty)
+          base + Doc.hardLine
+        else
+          base
+      }
+
+      valueDoc
+    }
 
   override def intLiteral(value: String): Doc = Doc.text(value)
   override def stringLiteral(value: String): Doc = Doc.text(writeStringLiteral(value))
@@ -95,6 +106,7 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     val k = binding.identifier
     val v = binding.value
 
+    // I see a pattern here
     val keyDoc = {
       val base = writeKey(k)
 
@@ -120,7 +132,11 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
 
   private def writeValue(v: WithSource[InputNode[WithSource]]): Doc = {
     val maybeGrouped: Doc => Doc =
-      if (v.value.kind == NodeKind.Struct || v.value.kind == NodeKind.Listed)
+      if (
+        (v.value.kind == NodeKind.Struct || v.value.kind == NodeKind.Listed) && v
+          .commentsLeft
+          .isEmpty
+      )
         identity
       else {
         _.nested(2).grouped
@@ -178,15 +194,15 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     }
 
   private def writeBracketed[T](
-    fields: WithSource[List[T]]
+    items: WithSource[List[T]]
   )(
     before: Doc,
     after: Doc,
   )(
-    renderField: T => Doc
+    renderItem: T => Doc
   ): Doc =
     before + Doc.hardLine +
-      printWithComments(fields)(writeFields(_)(renderField(_) + Doc.comma))
+      printWithComments(items)(writeFields(_)(renderItem(_) + Doc.comma))
         .indent(2) +
       Doc.hardLine +
       after
@@ -198,7 +214,6 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
   private def comments(lines: List[Comment], position: CommentPosition): Doc = {
     val internalString = Doc.intercalate(Doc.hardLine, lines.map(lineComment(_)))
 
-    // TODO: the below should actually be true. this shouldn't be here
     // General note: spacing around the comments is the responsibility of the parent node.
     position match {
       case _ if lines.isEmpty => Doc.empty
