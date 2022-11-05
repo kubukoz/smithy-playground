@@ -64,7 +64,8 @@ object SourceParser {
                         _.copy(useClause =
                           file
                             .prelude
-                            .useClause
+                            .useClauses
+                            .headOption
                             .fold(WithSource.liftId(Option.empty[UseClause[WithSource]]))(
                               _.map(_.some)
                             )

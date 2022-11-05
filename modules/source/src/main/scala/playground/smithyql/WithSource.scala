@@ -97,7 +97,7 @@ object WithSource {
 
   def allSourceComments(sf: SourceFile[WithSource]): List[Comment] =
     sf.prelude
-      .useClause
+      .useClauses
       .foldMap(
         _.allComments(uc =>
           uc

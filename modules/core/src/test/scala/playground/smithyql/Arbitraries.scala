@@ -4,6 +4,7 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 import cats.data.NonEmptyList
 
+// todo: split into modules
 object Arbitraries {
   implicit val arbitraryString: Arbitrary[String] = Arbitrary(Gen.asciiPrintableStr)
 

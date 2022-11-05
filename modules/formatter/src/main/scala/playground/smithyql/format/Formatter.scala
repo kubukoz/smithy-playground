@@ -82,11 +82,9 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     printWithComments(statements)(_.map(visit).intercalate(Doc.hardLine.repeat(2))),
   ).filterNot(_.isEmpty).intercalate(Doc.hardLine.repeat(2))
 
-  override def prelude(useClause: Option[WithSource[UseClause[WithSource]]]): Doc =
-    useClause match {
-      case None            => Doc.empty
-      case Some(useClause) => printGeneric(useClause)
-    }
+  override def prelude(
+    useClauses: List[WithSource[UseClause[WithSource]]]
+  ): Doc = useClauses.map(printGeneric).intercalate(Doc.hardLine)
 
   override def operationName(text: String): Doc = Doc.text(text)
 

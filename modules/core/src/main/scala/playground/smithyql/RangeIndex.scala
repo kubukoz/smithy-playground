@@ -14,9 +14,11 @@ object RangeIndex {
       private val allRanges: List[ContextRange] = {
         val path = NodeContext.EmptyPath
 
-        val preludeRanges = sf.prelude.useClause.foldMap { uc =>
-          findInUseClause(uc, path.inUseClause)
-        }
+        val preludeRanges: List[ContextRange] = ???
+        // this should probably be indexed.
+        // sf.prelude.useClauses.foldMap { uc =>
+        //   findInUseClause(uc, path.inUseClause)
+        // }
 
         val queryRanges = sf.queries(WithSource.unwrap).zipWithIndex.flatMap { case (rq, index) =>
           findInQuery(rq.query, path.inQuery(index))

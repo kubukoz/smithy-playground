@@ -246,7 +246,7 @@ object Parsers {
 
     val prelude = tokens
       .withComments(useClause, right = false)
-      .?
+      .rep0
       .map(Prelude.apply)
       .withContext("prelude")
 

@@ -1,39 +1,41 @@
 {
   "prelude": {
-    "useClause": {
-      "commentsLeft": [
-        {
-          "text": "comment before use clause"
-        }
-      ],
-      "commentsRight": [],
-      "range": {
-        "start": {
-          "index": 28
-        },
-        "end": {
-          "index": 48
-        }
-      },
-      "value": {
-        "identifier": {
-          "commentsLeft": [],
-          "commentsRight": [],
-          "range": {
-            "start": {
-              "index": 40
-            },
-            "end": {
-              "index": 48
-            }
+    "useClauses": [
+      {
+        "commentsLeft": [
+          {
+            "text": "comment before use clause"
+          }
+        ],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 28
           },
-          "value": {
-            "segments": ["com"],
-            "selection": "Demo"
+          "end": {
+            "index": 48
+          }
+        },
+        "value": {
+          "identifier": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 40
+              },
+              "end": {
+                "index": 48
+              }
+            },
+            "value": {
+              "segments": ["com"],
+              "selection": "Demo"
+            }
           }
         }
       }
-    }
+    ]
   },
   "statements": {
     "commentsLeft": [],

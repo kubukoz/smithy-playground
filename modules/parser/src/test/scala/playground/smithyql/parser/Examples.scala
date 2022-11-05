@@ -4,6 +4,8 @@ object Examples {
   val fullOfComments = """
 // before use clause
 use service some.api#Service
+// before another clause
+use service some.api#Service2
 // before op
 op
 // after op

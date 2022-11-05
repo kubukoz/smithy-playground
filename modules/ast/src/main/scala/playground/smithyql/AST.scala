@@ -55,11 +55,11 @@ final case class RunQuery[F[_]](
 }
 
 final case class Prelude[F[_]](
-  useClause: Option[F[UseClause[F]]]
+  useClauses: List[F[UseClause[F]]]
 ) extends AST[F] {
 
   def mapK[G[_]: Functor](fk: F ~> G): Prelude[G] = Prelude(
-    useClause.map(fk(_).map(_.mapK(fk)))
+    useClauses.map(fk(_).map(_.mapK(fk)))
   )
 
 }
@@ -85,7 +85,7 @@ object SourceFile {
 
   def fromSingleQuery[F[_]: Applicative](
     q: F[Query[F]]
-  ): SourceFile[F] = SourceFile(Prelude[F](None), List[Statement[F]](RunQuery(q)).pure[F])
+  ): SourceFile[F] = SourceFile(Prelude[F](Nil), List[Statement[F]](RunQuery(q)).pure[F])
 
 }
 

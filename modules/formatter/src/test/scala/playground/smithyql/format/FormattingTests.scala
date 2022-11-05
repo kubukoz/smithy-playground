@@ -37,11 +37,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
 
   def parse[Alg[_[_]]: SourceParser](
     s: String
-  ): Alg[WithSource] = {
-    val p = SourceParser[Alg].parse(s).leftMap(_.debug).fold(sys.error(_), identity)
-    println(p)
-    p
-  }
+  ): Alg[WithSource] = SourceParser[Alg].parse(s).leftMap(_.debug).fold(sys.error(_), identity)
 
   formattingTest("struct: empty") {
     parse[Struct]("{}")
@@ -331,6 +327,25 @@ object FormattingTests extends SimpleIOSuite with Checkers {
   }("""// hello
       |use service com.example#Service""".stripMargin)
 
+  formattingTest("prelude with multiple use clauses") {
+    parse[Prelude]("""use service a#B
+                     |use service c#D""".stripMargin)
+  }("""use service a#B
+      |use service c#D""".stripMargin)
+
+  formattingTest("prelude with multiple use clauses, comments") {
+    parse[Prelude]("""// before
+                     |use service a#B // between
+                     |use service c#D""".stripMargin)
+  }(
+    // N.B. this is the result of only parsing LHS comments in use clauses.
+    // Not purely accidental, but also not eagerly intended.
+    """// before
+      |use service a#B
+      |// between
+      |use service c#D""".stripMargin
+  )
+
   // comments are illegal after a prelude clause because it ends the prelude block
 
   formattingTest("empty prelude") {
@@ -415,6 +430,17 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |
       |}""".stripMargin)
 
+  formattingTest("multiple use service clauses, then operation") {
+    parse[SourceFile]("""use service a#B
+                        |use service c#D
+                        |Op {}""".stripMargin)
+  }("""use service a#B
+      |use service c#D
+      |
+      |Op {
+      |
+      |}""".stripMargin)
+
   formattingTest("use service clause, then comments and multiple operations") {
     parse[SourceFile]("""// before service
                         |use service a#B
@@ -445,6 +471,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       WithSource.allSourceComments(result),
       List(
         Comment(" before use clause"),
+        Comment(" before another clause"),
         Comment(" before op"),
         Comment(" after op"),
         Comment(" before key"),

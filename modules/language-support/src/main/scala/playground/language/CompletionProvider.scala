@@ -65,28 +65,24 @@ object CompletionProvider {
         }
       }
 
-    def completeRootOperationName(file: SourceFile[WithSource]) =
-      file.prelude.useClause match {
-        case None =>
-          // complete any operation whatsoever
-          completeOperationName.toList.map(_._2).flatSequence.apply(Nil)
+    def completeRootOperationName(file: SourceFile[WithSource]) = {
+      // todo: double-check test coverage.
+      // there's definitely a test missing for N>1 clauses.
+      val presentServiceIds
+        : List[QualifiedIdentifier] = file.prelude.useClauses.map(_.value.identifier.value)
 
-        case Some(clause) =>
-          val presentServiceIds: List[QualifiedIdentifier] = clause.value.identifier.value :: Nil
-          // there's a use clause, so for operations on root level we show:
-          // - completions for ops from the service being used, which don't insert a use clause and don't show the service ID
-          // - completions for ops from other services, which insert a use clause and show the service IDs
+      // for operations on root level we show:
+      // - completions for ops from the service being used, which don't insert a use clause and don't show the service ID
+      // - completions for ops from other services, which insert a use clause and show the service IDs
+      val notPresent = (servicesById.keySet -- presentServiceIds).toList
 
-          val notPresent = (servicesById.keySet -- presentServiceIds).toList
-
-          (
-            presentServiceIds ++
-              notPresent
-          ).flatMap(
-            completeOperationName(_).apply(presentServiceIds)
-          )
-
-      }
+      (
+        presentServiceIds ++
+          notPresent
+      ).flatMap(
+        completeOperationName(_).apply(presentServiceIds)
+      )
+    }
 
     /* maps service ID to operation name to its input completions */
     val inputCompletions

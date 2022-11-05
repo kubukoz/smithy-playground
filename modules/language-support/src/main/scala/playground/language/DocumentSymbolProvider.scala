@@ -24,7 +24,7 @@ object DocumentSymbolProvider {
 
   private def findInPrelude(
     p: Prelude[WithSource]
-  ): List[DocumentSymbol] = p.useClause.foldMap(findInUseClause)
+  ): List[DocumentSymbol] = p.useClauses.foldMap(findInUseClause)
 
   private def findInQuery(wsq: WithSource[Query[WithSource]]): List[DocumentSymbol] = {
     val q = wsq.value

@@ -9,7 +9,7 @@ trait ASTVisitor[F[_], T] extends (AST[F] => T) {
         queryOperationName(identifier, operationName)
       case OperationName(text)                    => operationName(text)
       case UseClause(identifier)                  => useClause(identifier)
-      case Prelude(useClause)                     => prelude(useClause)
+      case Prelude(useClauses)                    => prelude(useClauses)
       case Query(useClause, operationName, input) => query(useClause, operationName, input)
       case RunQuery(query)                        => runQuery(query)
       case SourceFile(prelude, statements)        => sourceFile(prelude, statements)
@@ -26,7 +26,7 @@ trait ASTVisitor[F[_], T] extends (AST[F] => T) {
     statements: F[List[Statement[F]]],
   ): T
 
-  def prelude(useClause: Option[F[UseClause[F]]]): T
+  def prelude(useClauses: List[F[UseClause[F]]]): T
   def runQuery(query: F[Query[F]]): T
 
   def useClause(identifier: F[QualifiedIdentifier]): T
@@ -60,7 +60,7 @@ object ASTVisitor {
     def default: T
 
     def sourceFile(prelude: Prelude[F], statements: F[List[Statement[F]]]): T = default
-    def prelude(useClause: Option[F[UseClause[F]]]): T = default
+    def prelude(useClauses: List[F[UseClause[F]]]): T = default
     def runQuery(query: F[Query[F]]): T = default
     def useClause(identifier: F[QualifiedIdentifier]): T = default
 

@@ -18,5 +18,7 @@ object Diffs {
 
   implicit val diffQueryWithSource: Diff[Query[WithSource]] = Diff.derivedDiff
 
+  implicit val diffPreludeWithSource: Diff[Prelude[WithSource]] = Diff.derivedDiff
+
   implicit val diffSourceFile: Diff[SourceFile[WithSource]] = Diff.derivedDiff
 }
