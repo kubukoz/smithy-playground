@@ -343,27 +343,54 @@ object FormattingTests extends SimpleIOSuite with Checkers {
     parse[QueryOperationName]("hello")
   }("hello")
 
+  formattingTest("query operation name: fully qualified name") {
+    parse[QueryOperationName]("com.hello#Service.Op")
+  }("com.hello#Service.Op")
+
+  formattingTest("query operation name: fully qualified name with spaces") {
+    parse[QueryOperationName]("com . hello # Service . Op")
+  }("com.hello#Service.Op")
+
+  formattingTest("query: simple, packed") {
+    parse[Query]("hello{}")
+  }("""hello {
+      |
+      |}""".stripMargin)
+
+  formattingTest("query: simple, unpacked") {
+    parse[Query]("hello { }")
+  }("""hello {
+      |
+      |}""".stripMargin)
+
+  formattingTest("query: comment between op name and input") {
+    parse[Query]("""hello //a
+                   |{}""".stripMargin)
+  }("""hello // a
+      |{
+      |
+      |}""".stripMargin)
+
   formattingTest("file made of just comments") {
     parse[SourceFile]("//hello")
   }("""// hello""".stripMargin)
 
-  // formattingTest("no service clause with comment on the call") {
-  //   parse[SourceFile]("""//before call
-  //   hello { }""")
-  // }("""// before call
-  //     |hello {
-  //     |
-  //     |}
-  //     |""".stripMargin)
+  formattingTest("file: single query with comment on the call") {
+    parse[SourceFile]("""//before call
+                        |hello { }""".stripMargin)
+  }("""// before call
+      |hello {
+      |
+      |}""".stripMargin)
 
-  // formattingTest("no service clause with comment on the call and explicit service ref") {
-  //   parse[SourceFile]("""//before call
-  //   a.b#C.hello { }""")
-  // }("""// before call
-  //     |a.b#C.hello {
-  //     |
-  //     |}
-  //     |""".stripMargin)
+  formattingTest("file: single query with use clause".only) {
+    parse[SourceFile]("""use service com#Hello
+                        |hello { }""".stripMargin)
+  }("""use service com#Hello
+      |
+      |hello {
+      |
+      |}""".stripMargin)
 
   // formattingTest("multiple operations") {
   //   parse[SourceFile]("""Op {}

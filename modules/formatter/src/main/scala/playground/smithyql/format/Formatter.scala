@@ -72,7 +72,7 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
      */
   }
 
-  private def printGeneric[A <: AST[WithSource]](ast: WithSource[A]) = printWithComments(ast)(visit)
+  private def printGeneric(ast: WithSource[AST[WithSource]]) = printWithComments(ast)(visit)
 
   override def sourceFile(
     prelude: Prelude[WithSource],
@@ -191,6 +191,18 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     useClause: WithSource[Option[UseClause[WithSource]]],
     operationName: WithSource[QueryOperationName[WithSource]],
     input: WithSource[Struct[WithSource]],
-  ): Doc = printGeneric(operationName).space(printGeneric(input))
+  ): Doc = {
+    val nameInputSeparator =
+      if (operationName.commentsRight.isEmpty)
+        Doc.text(" ")
+      else
+        // If there are comments on the RHS of the op name, we're guaranteed a line break
+        // so a space is redundant (it would've been part of the comment, in fact).
+        Doc.empty
+
+    forceLineAfterTrailingComments[AST[WithSource]](
+      printGeneric(_) + nameInputSeparator
+    )(operationName) + printGeneric(input)
+  }
 
 }
