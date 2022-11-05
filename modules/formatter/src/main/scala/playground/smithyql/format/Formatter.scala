@@ -42,9 +42,9 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
   )(
     printA: A => Doc
   ) =
-    comments(ast.commentsLeft, position = CommentPosition.Before) +
+    printComments(ast.commentsLeft, position = CommentPosition.Before) +
       printA(ast.value) +
-      comments(ast.commentsRight, position = CommentPosition.After)
+      printComments(ast.commentsRight, position = CommentPosition.After)
 
   private def printGeneric[A <: AST[WithSource]](ast: WithSource[A]) = printWithComments(ast)(visit)
 
@@ -81,18 +81,18 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
   override def struct(fields: WithSource[Struct.Fields[WithSource]]): Doc =
     writeBracketed(fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
 
+  private def forceLineAfterTrailingComments[A](
+    printer: WithSource[A] => Doc
+  ): WithSource[A] => Doc =
+    v =>
+      if (v.commentsRight.nonEmpty)
+        printer(v) + Doc.hardLine
+      else
+        printer(v)
+
   override def listed(values: WithSource[List[WithSource[InputNode[WithSource]]]]): Doc =
-    writeBracketed(values)(Doc.char('['), Doc.char(']')) { v =>
-      val valueDoc = {
-        val base = printGeneric(v)
-
-        if (v.commentsRight.nonEmpty)
-          base + Doc.hardLine
-        else
-          base
-      }
-
-      valueDoc
+    writeBracketed(values)(Doc.char('['), Doc.char(']')) {
+      forceLineAfterTrailingComments(printGeneric)
     }
 
   override def intLiteral(value: String): Doc = Doc.text(value)
@@ -106,77 +106,20 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     val k = binding.identifier
     val v = binding.value
 
-    // I see a pattern here
-    val keyDoc = {
-      val base = writeKey(k)
-
-      if (k.commentsRight.nonEmpty)
-        base + Doc.hardLine
-      else
-        base
-    }
-
-    val valueDoc = {
-      val base = writeValue(v)
-
-      if (v.commentsRight.nonEmpty)
-        base + Doc.hardLine
-      else
-        base
-    }
-
-    keyDoc +
+    forceLineAfterTrailingComments(writeKey)(k) +
       Doc.str(": ") +
-      valueDoc
+      forceLineAfterTrailingComments(writeValue)(v)
   }
 
-  private def writeValue(v: WithSource[InputNode[WithSource]]): Doc = {
-    val maybeGrouped: Doc => Doc =
-      if (
-        (v.value.kind == NodeKind.Struct || v.value.kind == NodeKind.Listed) && v
-          .commentsLeft
-          .isEmpty
-      )
-        identity
-      else {
-        _.nested(2).grouped
-      }
-
-    maybeGrouped {
-      printGeneric(v)
-      // {
-      //   if (v.commentsLeft.nonEmpty)
-      //     Doc.space
-      //   else
-      //     Doc.empty
-      // } +
-      //   comments(v.commentsLeft) + {
-      //     val sepBefore =
-      //       if (v.commentsLeft.nonEmpty)
-      //         Doc.empty // hard line included in comment renderer
-      //       else if (v.value.kind == NodeKind.Struct)
-      //         Doc.space
-      //       else
-      //         Doc.lineOrSpace
-
-      //     sepBefore + visit(v.value)
-      //   } + {
-      //     if (v.commentsRight.isEmpty)
-      //       Doc.empty
-      //     else
-      //       {
-      //         val sep =
-      //           if (v.value.kind == NodeKind.Struct)
-      //             Doc.hardLine
-      //           else
-      //             Doc.space
-
-      //         sep
-      //       } +
-      //         comments(v.commentsRight)
-      //   }
+  private def writeValue(v: WithSource[InputNode[WithSource]]): Doc =
+    v.value.kind match {
+      // Structs and sequences introduce their own nesting, so we don't add it here.
+      // however, if such a node occurs that has leading comments,
+      // these comments will already force a hard line (see `printComments`).
+      // That warrants an extra indent on such a node, so we fall through to the other case of this match.
+      case NodeKind.Struct | NodeKind.Listed if v.commentsLeft.isEmpty => printGeneric(v)
+      case _ => printGeneric(v).nested(2).grouped
     }
-  }
 
   private def writeFields[T](fields: List[T])(renderField: T => Doc): Doc =
     Doc
@@ -211,7 +154,7 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
 
   private def writeStringLiteral(s: String) = "\"" + s + "\""
 
-  private def comments(lines: List[Comment], position: CommentPosition): Doc = {
+  private def printComments(lines: List[Comment], position: CommentPosition): Doc = {
     val internalString = Doc.intercalate(Doc.hardLine, lines.map(lineComment(_)))
 
     // General note: spacing around the comments is the responsibility of the parent node.
