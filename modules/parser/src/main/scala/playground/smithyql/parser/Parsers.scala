@@ -62,10 +62,27 @@ object Parsers {
     }.withContext("withComments")
 
     def withComments0[A](
-      p: Parser0[A]
-    ): Parser0[T[A]] = (comments.soft ~ withRange0(p) ~ comments)
-      .map(mergeComments)
-      .withContext("withComments0")
+      p: Parser0[A],
+      left: Boolean = true,
+      right: Boolean = true,
+    ): Parser0[T[A]] = {
+
+      val lhs =
+        if (left)
+          comments.withContext("commentsLHS")
+        else
+          Parser.pure(Nil)
+
+      val rhs =
+        if (right)
+          comments.withContext("commentsRHS")
+        else
+          Parser.pure(Nil)
+
+      (lhs.soft ~ withRange0(p) ~ rhs)
+        .map(mergeComments)
+        .withContext("withComments0")
+    }
 
     def withRange[A](p: Parser[A]): Parser[T[A]] = (pos.with1 ~ p ~ pos).map(mergeRange)
     def withRange0[A](p: Parser0[A]): Parser0[T[A]] = (pos ~ p ~ pos).map(mergeRange)
@@ -227,7 +244,11 @@ object Parsers {
 
     val statement: Parser[Statement[T]] = runQuery.withContext("statement")
 
-    val prelude = tokens.withComments(useClause).?.map(Prelude.apply).withContext("prelude")
+    val prelude = tokens
+      .withComments(useClause, right = false)
+      .?
+      .map(Prelude.apply)
+      .withContext("prelude")
 
     val sourceFile: Parser0[SourceFile[T]] = (prelude, tokens.withComments0(statement.rep0))
       .mapN(SourceFile.apply[T])

@@ -331,9 +331,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
   }("""// hello
       |use service com.example#Service""".stripMargin)
 
-  formattingTest("prelude with one use clause, comments after") {
-    parse[Prelude]("""use service com.example#Service//hello""".stripMargin)
-  }("""use service com.example#Service // hello""".stripMargin)
+  // comments are illegal after a prelude clause because it ends the prelude block
 
   formattingTest("empty prelude") {
     parse[Prelude]("")
@@ -426,8 +424,9 @@ object FormattingTests extends SimpleIOSuite with Checkers {
                         |Op2 {}
                         |// after op2""".stripMargin)
   }("""// before service
-      |use service a#B // before op
+      |use service a#B
       |
+      |// before op
       |Op {
       |
       |} // before op2
