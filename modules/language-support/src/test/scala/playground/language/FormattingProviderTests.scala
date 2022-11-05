@@ -22,7 +22,7 @@ object FormattingProviderTests extends FunSuite {
     assert.same(
       provideForFile(""),
       List(
-        TextEdit.Overwrite("", SourceRange.empty(Position.origin))
+        TextEdit.Overwrite("\n", SourceRange.empty(Position.origin))
       ),
     )
   }
@@ -31,7 +31,7 @@ object FormattingProviderTests extends FunSuite {
     assert.same(
       provideForFile("    \n\n   "),
       List(
-        TextEdit.Overwrite("", SourceRange.forEntireString("    \n\n   "))
+        TextEdit.Overwrite("\n", SourceRange.forEntireString("    \n\n   "))
       ),
     )
   }

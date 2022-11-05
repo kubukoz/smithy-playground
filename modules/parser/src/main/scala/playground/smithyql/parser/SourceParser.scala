@@ -7,6 +7,8 @@ import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser0
 import playground.smithyql._
 import cats.parse.Parser.Expectation.OneOfStr
+import cats.parse.Parser.Expectation.EndOfString
+import cats.parse.Parser.Expectation.WithContext
 
 trait SourceParser[Alg[_[_]]] {
   def parse(s: String): Either[ParsingFailure, Alg[WithSource]]
@@ -27,6 +29,14 @@ object SourceParser {
 
   implicit val useClauseParser: SourceParser[UseClause] = fromCatsParseParser(
     Parsers.parsers.useClause
+  )
+
+  implicit val preludeParser: SourceParser[Prelude] = fromCatsParseParser(
+    Parsers.parsers.prelude
+  )
+
+  implicit val qonParser: SourceParser[QueryOperationName] = fromCatsParseParser(
+    Parsers.parsers.queryOperationName
   )
 
   implicit val listedParser: SourceParser[Listed] = fromCatsParseParser(Parsers.parsers.listed)
@@ -73,32 +83,39 @@ case class ParsingFailure(underlying: Parser.Error, text: String) extends Except
 
   override def getMessage: String = msg
 
-  private def showExpectation(e: Parser.Expectation): String =
+  private def showExpectation(verbose: Boolean, e: Parser.Expectation): String =
     e match {
-      case OneOfStr(_, List(str))             => str
-      case OneOfStr(_, strs)                  => strs.mkString(" OR ")
+      case OneOfStr(_, List(str))             => prep(str)
+      case OneOfStr(_, strs)                  => strs.map(prep).mkString_(" OR ")
       case InRange(_, 'A', 'Z')               => "an uppercase letter"
       case InRange(_, 'a', 'z')               => "a lowercase letter"
       case InRange(_, '0', '9')               => "digit"
-      case InRange(_, from, to) if from == to => s"$from"
-      case InRange(_, from, to)               => s"one of $from - $to"
-      case e                                  => e.toString
+      case InRange(_, from, to) if from == to => prep(from.toString)
+      case InRange(_, from, to) => s"one of ${prep(from.toString)} - ${prep(to.toString)}"
+      case EndOfString(_, _)    => "end of string"
+      case WithContext(contextStr, underlying) if verbose =>
+        s"in ${Console.MAGENTA}$contextStr${Console.RESET}: ${showExpectation(verbose, underlying)}"
+      case WithContext(_, underlying) => showExpectation(verbose, underlying)
+      case e                          => e.toString
     }
 
-  def expectationString: String = underlying
+  def expectationString(verbose: Boolean): String = underlying
     .expected
-    .map(showExpectation)
+    .map(showExpectation(verbose, _))
     .mkString_(" OR ")
 
-  def msg: String = {
+  private def prep(s: String): String = s.replace(' ', '·').replace("\n", "⏎\n")
+
+  private def messageInternal(verbose: Boolean): String = {
     val (valid, failed) = text.splitAt(
       underlying.failedAtOffset
     )
 
-    def prep(s: String): String = s.replace(' ', '·').replace("\n", "⏎\n")
-
-    s"${Console.GREEN}${prep(valid)}${Console.RESET}${Console.YELLOW}${prep(failed)}${Console.RESET} - expected $expectationString at offset ${underlying.failedAtOffset}"
+    s"${Console.GREEN}${prep(valid)}${Console.RESET}${Console.YELLOW}${prep(failed)}${Console.RESET} - expected ${expectationString(verbose)} at offset ${underlying.failedAtOffset}"
   }
+
+  def msg: String = messageInternal(verbose = false)
+  def debug: String = messageInternal(verbose = true)
 
 }
 

@@ -14,8 +14,11 @@ object Parsers {
 
   object tokens {
     import Parser._
+    val newline: Parser[Unit] = Rfc5234.lf
+
     val comment: Parser[Comment] =
-      string("//") *> charsWhile0(_ != '\n').map(Comment(_)) <* char('\n')
+      (string("//") *> anyChar.repUntil0(newline | Parser.end).string.map(Comment(_)))
+        .withContext("comment")
 
     val whitespace: Parser0[Unit] = charsWhile0(_.isWhitespace).void
 
@@ -45,22 +48,24 @@ object Parsers {
 
       val lhs =
         if (left)
-          comments
+          comments.withContext("commentsLHS")
         else
           Parser.pure(Nil)
 
       val rhs =
         if (right)
-          comments
+          comments.withContext("commentsRHS")
         else
           Parser.pure(Nil)
 
       (lhs.soft.with1 ~ withRange(p) ~ rhs).map(mergeComments)
-    }
+    }.withContext("withComments")
 
     def withComments0[A](
       p: Parser0[A]
-    ): Parser0[T[A]] = (comments.soft ~ withRange0(p) ~ comments).map(mergeComments)
+    ): Parser0[T[A]] = (comments.soft ~ withRange0(p) ~ comments)
+      .map(mergeComments)
+      .withContext("withComments0")
 
     def withRange[A](p: Parser[A]): Parser[T[A]] = (pos.with1 ~ p ~ pos).map(mergeRange)
     def withRange0[A](p: Parser0[A]): Parser0[T[A]] = (pos ~ p ~ pos).map(mergeRange)
@@ -78,6 +83,7 @@ object Parsers {
     val identifier: Parser[String] =
       (Rfc5234.alpha ~ Parser.charsWhile0(ch => ch.isLetterOrDigit || "_".contains(ch)))
         .map { case (ch, s) => s.prepended(ch) }
+        .withContext("identifier")
 
     val number: Parser[String] = Numbers.jsonNumber
 
@@ -89,6 +95,7 @@ object Parsers {
       .map(_.mkString)
       .with1
       .surroundedBy(char('"'))
+      .withContext("str_literal")
 
     val nullLiteral: Parser[Unit] = string("null")
 
@@ -126,14 +133,14 @@ object Parsers {
         // soft: allows backtracking if hash isn't present (for operation names)
         segments.soft ~ (tokens.hash *> tokens.whitespace *> rawIdent),
       ).map(QualifiedIdentifier.apply.tupled)
-    }
+    }.withContext("qualified_ident")
 
     val useClause: Parser[UseClause[T]] = {
       string("use") *>
         string("service")
           .surroundedBy(tokens.whitespace) *>
         tokens.withRange(qualifiedIdent)
-    }.map(UseClause.apply[T])
+    }.map(UseClause.apply[T]).withContext("useClause")
 
     val intLiteral = tokens.number.map(IntLiteral[T](_))
 
@@ -142,14 +149,16 @@ object Parsers {
     val stringLiteral = tokens.stringLiteral.map(StringLiteral[T](_))
     val nullLiteral = tokens.nullLiteral.map(_ => NullLiteral[T]())
 
-    lazy val node: Parser[InputNode[T]] = Parser.defer {
-      intLiteral |
-        boolLiteral |
-        stringLiteral |
-        nullLiteral |
-        struct |
-        listed
-    }
+    lazy val node: Parser[InputNode[T]] = Parser
+      .defer {
+        intLiteral |
+          boolLiteral |
+          stringLiteral |
+          nullLiteral |
+          struct |
+          listed
+      }
+      .withContext("node")
 
     lazy val struct: Parser[Struct[T]] = {
       type TField = Binding[T]
@@ -170,6 +179,7 @@ object Parsers {
         .with1
         .between(tokens.openBrace, tokens.closeBrace)
         .map(Struct.apply[T](_))
+        .withContext("struct")
     }
 
     // this is mostly copy-pasted from structs, might not work lmao
@@ -186,6 +196,7 @@ object Parsers {
         .with1
         .between(tokens.openBracket, tokens.closeBracket)
         .map(Listed.apply[T](_))
+        .withContext("listed")
     }
 
     val queryOperationName: Parser[QueryOperationName[T]] = {
@@ -200,6 +211,7 @@ object Parsers {
         sr.with1 ~
           operationName
       ).map(QueryOperationName.apply[WithSource].tupled)
+        .withContext("query_operation_name")
     }
 
     val query: Parser[Query[T]] =
@@ -208,13 +220,14 @@ object Parsers {
         tokens.withComments(struct, right = false),
       ).mapN {
         Query.apply(WithSource.liftId(Option.empty[UseClause[T]]), _, _)
-      }
+      }.withContext("query")
 
-    val runQuery: Parser[RunQuery[T]] = tokens.withComments(query).map(RunQuery(_))
+    val runQuery
+      : Parser[RunQuery[T]] = tokens.withComments(query).map(RunQuery(_)).withContext("run_query")
 
-    val statement: Parser[Statement[T]] = runQuery
+    val statement: Parser[Statement[T]] = runQuery.withContext("statement")
 
-    val prelude = tokens.withComments(useClause).?.map(Prelude.apply)
+    val prelude = tokens.withComments(useClause).?.map(Prelude.apply).withContext("prelude")
 
     val sourceFile: Parser0[SourceFile[T]] = (prelude, tokens.withComments0(statement.rep0))
       .mapN(SourceFile.apply[T])

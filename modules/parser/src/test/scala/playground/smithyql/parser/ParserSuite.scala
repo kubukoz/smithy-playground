@@ -99,6 +99,6 @@ object ParserSuite {
 
   def assertParses[Alg[_[_]]: SourceParser](s: String) = SourceParser[Alg]
     .parse(s)
-    .leftMap(e => s"Parsing failed: \n==========\n${e.msg}\n==========")
+    .leftMap(e => s"Parsing failed: \n==========\n${e.debug}\n==========")
 
 }

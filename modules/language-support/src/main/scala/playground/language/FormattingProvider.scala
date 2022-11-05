@@ -22,7 +22,8 @@ object FormattingProvider {
               SourceParser[SourceFile]
                 .parse(text)
                 .map { parsed =>
-                  val formatted = Formatter[SourceFile].format(parsed, maxWidth)
+                  // Adding a trailing newline because it's the right thing to do.
+                  val formatted = Formatter[SourceFile].format(parsed, maxWidth).strip + "\n"
 
                   List(
                     TextEdit.Overwrite(

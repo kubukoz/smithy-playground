@@ -11,6 +11,7 @@ import util.chaining._
 import DSL._
 import Diffs._
 import playground.smithyql.parser.ParserSuite
+import cats.implicits._
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 
@@ -28,15 +29,25 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       // not using assertNoDiff because of
       // https://github.com/softwaremill/diffx/issues/422
       // which can result in false negatives (different strings considered equal and passing the test).
-      assert.eql(result, expected) &&
+      assert.eql(result, expected).traced(SourceLocation.fromContext) &&
       ParserSuite
         .assertParses(result)
         .fold(failure(_), _ => success)
     }
 
-  def parse[Alg[_[_]]: SourceParser](s: String): Alg[WithSource] =
-    SourceParser[Alg].parse(s).toTry.get
+  def parse[Alg[_[_]]: SourceParser](
+    s: String
+  ): Alg[WithSource] = {
+    val p = SourceParser[Alg].parse(s).leftMap(_.debug).fold(sys.error(_), identity)
+    println(p)
+    p
+  }
 
+  formattingTest("struct: empty") {
+    parse[Struct]("{}")
+  }("""{
+      |
+      |}""".stripMargin)
   formattingTest("struct: simple") {
     parse[Struct]("{ a : 42 }")
   }("""{
@@ -70,19 +81,6 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |  20,
       |]""".stripMargin)
 
-  formattingTest("complex: string list with no comments") {
-    "hello"
-      .call(
-        "values" -> List("hello", "world")
-      )
-      .mapK(WithSource.liftId)
-  }("""hello {
-      |  values: [
-      |    "hello",
-      |    "world",
-      |  ],
-      |}""".stripMargin)
-
   formattingTest("struct comments: before key") {
     parse[Struct]("""{ //this is a key
                     |input: 42}""".stripMargin)
@@ -114,6 +112,48 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |  input: 42 // this is a value
       |  ,
       |}""".stripMargin)
+
+  formattingTest("struct comments: middle value commented out") {
+    parse[Struct]("""{
+                    |  input: 42,
+                    |  //input2: 43,
+                    |  input3: 44
+                    |}""".stripMargin)
+  }(
+    // this works that way because the comment is seen as a LHS comment of the input3 field node.
+    """{
+      |  input: 42,
+      |  // input2: 43,
+      |  input3: 44,
+      |}""".stripMargin
+  )
+
+  formattingTest("struct comments: last value commented out") {
+    parse[Struct]("""{
+                    |  input: 42,
+                    |  //input2: 43,
+                    |}""".stripMargin)
+  }(
+    // this shows up like that because input2 is seen as a RHS comment on the `fields` node
+    """{
+      |  input: 42, // input2: 43,
+      |}""".stripMargin
+  )
+
+  formattingTest("struct comments: last values (plural) commented out") {
+    parse[Struct]("""{
+                    |  input: 42,
+                    |  //input2: 43,
+                    |  //input3: 44
+                    |}""".stripMargin)
+  }(
+    // the two fields are seen as the RHS of the `fields` node
+    """{
+      |  input: 42,
+      |  // input2: 43,
+      |  // input3: 44
+      |}""".stripMargin
+  )
 
   formattingTest("list: no comments") {
     parse[Listed]("""[10, 11, 12]""")
@@ -167,6 +207,37 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |  // hello
       |  50 // last
       |  ,
+      |]""".stripMargin)
+
+  formattingTest("list: commented out first item") {
+    parse[Listed]("""[
+                    |// 10,
+                    |  11,
+                    |]""".stripMargin)
+  }("""[
+      |  // 10,
+      |  11,
+      |]""".stripMargin)
+
+  formattingTest("list: commented out item") {
+    parse[Listed]("""[
+                    |10,
+                    |// 11,
+                    |]""".stripMargin)
+  }("""[
+      |  10, // 11,
+      |]""".stripMargin)
+
+  formattingTest("list: commented out items (plural)") {
+    parse[Listed]("""[
+                    |10,
+                    |// 11,
+                    |// 12,
+                    |]""".stripMargin)
+  }("""[
+      |  10,
+      |  // 11,
+      |  // 12,
       |]""".stripMargin)
 
   formattingTest(
@@ -239,20 +310,42 @@ object FormattingTests extends SimpleIOSuite with Checkers {
        |  ,
        |}""".stripMargin)
 
-  // formattingTest("use service clause with lots of comments") {
-  //   parse[SourceFile]("""//before clause
-  //   use service com.example#Service
+  formattingTest("use service clause with whitespace in it") {
+    parse[UseClause]("""use
+    service
+    com . example # Service""")
+  }("""use service com.example#Service""".stripMargin)
 
-  //   // after clause
-  //   hello { }""")
-  // }("""// before clause
-  //     |use service com.example#Service
-  //     |// after clause
-  //     |
-  //     |hello {
-  //     |
-  //     |}
-  //     |""".stripMargin)
+  formattingTest("use service clause with no whitespace") {
+    parse[UseClause]("""use service com.example#Service""")
+  }("""use service com.example#Service""".stripMargin)
+
+  // todo: parser test & fix: use clauses MUST have whitespace between keywords
+  formattingTest("prelude with one use clause") {
+    parse[Prelude]("""use service com.example#Service""")
+  }("""use service com.example#Service""".stripMargin)
+
+  formattingTest("prelude with one use clause, comments before") {
+    parse[Prelude]("""// hello
+    use service com.example#Service""")
+  }("""// hello
+      |use service com.example#Service""".stripMargin)
+
+  formattingTest("prelude with one use clause, comments after") {
+    parse[Prelude]("""use service com.example#Service//hello""".stripMargin)
+  }("""use service com.example#Service // hello""".stripMargin)
+
+  formattingTest("empty prelude") {
+    parse[Prelude]("")
+  }("")
+
+  formattingTest("query operation name: just name") {
+    parse[QueryOperationName]("hello")
+  }("hello")
+
+  formattingTest("file made of just comments") {
+    parse[SourceFile]("//hello")
+  }("""// hello""".stripMargin)
 
   // formattingTest("no service clause with comment on the call") {
   //   parse[SourceFile]("""//before call

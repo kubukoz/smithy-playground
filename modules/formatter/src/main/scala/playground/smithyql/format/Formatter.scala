@@ -17,6 +17,8 @@ object Formatter {
   implicit val fileFormatter: Formatter[SourceFile] = writeDoc
   implicit val queryFormatter: Formatter[Query] = writeDoc
   implicit val useClauseFormatter: Formatter[UseClause] = writeDoc
+  implicit val preludeFormatter: Formatter[Prelude] = writeDoc
+  implicit val qonFormatter: Formatter[QueryOperationName] = writeDoc
   implicit val inputNodeFormatter: Formatter[InputNode] = writeDoc
   implicit val structFormatter: Formatter[Struct] = writeDoc
   implicit val listedFormatter: Formatter[Listed] = writeDoc
@@ -30,36 +32,57 @@ object Formatter {
 
 private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { visit =>
 
-  sealed trait CommentPosition
-
-  object CommentPosition {
-    case object Before extends CommentPosition
-    case object After extends CommentPosition
-  }
-
   private def printWithComments[A](
     ast: WithSource[A]
   )(
     printA: A => Doc
-  ) =
-    printComments(ast.commentsLeft, position = CommentPosition.Before) +
-      printA(ast.value) +
-      printComments(ast.commentsRight, position = CommentPosition.After)
+  ) = {
+    val commentsLHS = printComments(ast.commentsLeft)
+    val commentsRHS = printComments(ast.commentsRight)
+
+    val internal = printA(ast.value)
+
+    val commentsLHSSep =
+      if (internal.nonEmpty && commentsLHS.nonEmpty)
+        Doc.hardLine
+      else
+        Doc.empty
+
+    val commentsRHSSep =
+      ast.commentsRight.length match {
+        case 0 => Doc.empty
+        case 1 => Doc.lineOrSpace
+        case _ => Doc.hardLine
+      }
+
+    commentsLHS +
+      commentsLHSSep +
+      internal +
+      commentsRHSSep +
+      commentsRHS
+    /*
+       case CommentPosition.After if lines.lengthIs == 1 =>
+        // one line: we add a space before the comment
+        Doc.lineOrSpace + internalString
+
+      case CommentPosition.After =>
+        // more lines: we force a hardline before the comments
+        Doc.hardLine + internalString
+    }
+     */
+  }
 
   private def printGeneric[A <: AST[WithSource]](ast: WithSource[A]) = printWithComments(ast)(visit)
 
   override def sourceFile(
     prelude: Prelude[WithSource],
     statements: WithSource[List[Statement[WithSource]]],
-  ): Doc =
-    Doc.stack(
-      List(
-        visit(prelude),
-        printWithComments(statements)(_.foldMap(visit)),
-      ).filterNot(_.isEmpty)
-    )
-    // files end with a newline character. They just do.
-      + Doc.hardLine
+  ): Doc = Doc.stack(
+    List(
+      visit(prelude),
+      printWithComments(statements)(_.foldMap(visit)),
+    ).filterNot(_.isEmpty)
+  )
 
   override def prelude(useClause: Option[WithSource[UseClause[WithSource]]]): Doc =
     useClause match {
@@ -122,19 +145,8 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     }
 
   private def writeFields[T](fields: List[T])(renderField: T => Doc): Doc =
-    Doc
-      .intercalate(
-        // Force newlines between fields
-        Doc.hardLine,
-        fields
-          .map(renderField),
-      )
-      .aligned + {
-      if (fields.isEmpty)
-        Doc.empty
-      else
-        Doc.space
-    }
+    // Force newlines between fields
+    fields.map(renderField).intercalate(Doc.hardLine)
 
   private def writeBracketed[T](
     items: WithSource[List[T]]
@@ -154,26 +166,9 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
 
   private def writeStringLiteral(s: String) = "\"" + s + "\""
 
-  private def printComments(lines: List[Comment], position: CommentPosition): Doc = {
-    val internalString = Doc.intercalate(Doc.hardLine, lines.map(lineComment(_)))
-
-    // General note: spacing around the comments is the responsibility of the parent node.
-    position match {
-      case _ if lines.isEmpty => Doc.empty
-
-      case CommentPosition.Before =>
-        // a comment before anything MUST have a trailing line break
-        internalString + Doc.hardLine
-
-      case CommentPosition.After if lines.lengthIs == 1 =>
-        // one line: we add a space before the comment
-        Doc.lineOrSpace + internalString
-
-      case CommentPosition.After =>
-        // more lines: we force a hardline before the comments
-        Doc.hardLine + internalString
-    }
-  }
+  private def printComments(
+    lines: List[Comment]
+  ): Doc = lines.map(lineComment(_)).intercalate(Doc.hardLine)
 
   private def lineComment(s: Comment) = {
     def ensureLeadingSpace(s: String): String =

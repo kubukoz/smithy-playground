@@ -99,7 +99,7 @@ object DiagnosticProvider {
 
               NonEmptyList.one {
                 CompilationError.error(
-                  CompilationErrorDetails.ParseError(pf.expectationString),
+                  CompilationErrorDetails.ParseError(pf.expectationString(verbose = false)),
                   range,
                 )
               }
