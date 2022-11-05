@@ -111,7 +111,7 @@ object CompletionItem {
     label = alt.label,
     // todo: unions aren't only for structs: this makes an invalid assumption
     // by inserting {} at all times
-    insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
+    insertText = InsertText.SnippetString(s"${alt.label}: {$$0},"),
     schema = schema,
   )
 
