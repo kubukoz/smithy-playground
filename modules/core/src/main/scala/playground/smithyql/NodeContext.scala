@@ -1,8 +1,8 @@
 package playground.smithyql
 
-import cats.implicits._
 import cats.data.Chain
 import cats.data.Chain.==:
+import cats.implicits._
 
 // The path to a position in the parsed source
 sealed trait NodeContext extends Product with Serializable with NodeContext.PathEntry.TraversalOps {
@@ -14,8 +14,9 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
 
         context
           .map {
+            case AtPrelude          => ".prelude"
             case InQuery(index)     => s".query($index)"
-            case AtUseClause        => ".useClause"
+            case AtUseClause(index) => s".useClause($index)"
             case AtOperationName    => ".operationName"
             case AtOperationInput   => ".input"
             case CollectionEntry(i) => s".[${i.getOrElse("")}]"
@@ -87,8 +88,9 @@ object NodeContext {
   sealed trait PathEntry extends Product with Serializable
 
   object PathEntry {
+    case object AtPrelude extends PathEntry
     case class InQuery(index: Int) extends PathEntry
-    case object AtUseClause extends PathEntry
+    final case class AtUseClause(index: Int) extends PathEntry
     case object AtOperationName extends PathEntry
     case object AtOperationInput extends PathEntry
     final case class StructValue(key: String) extends PathEntry
@@ -101,7 +103,8 @@ object NodeContext {
       self: NodeContext =>
 
       def inQuery(index: Int): NodeContext = append(PathEntry.InQuery(index))
-      def inUseClause: NodeContext = append(PathEntry.AtUseClause)
+      def inPrelude: NodeContext = append(PathEntry.AtPrelude)
+      def inUseClause(index: Int): NodeContext = append(PathEntry.AtUseClause(index))
       def inOperationName: NodeContext = append(PathEntry.AtOperationName)
       def inOperationInput: NodeContext = append(PathEntry.AtOperationInput)
       def inStructValue(key: String): NodeContext = append(PathEntry.StructValue(key))

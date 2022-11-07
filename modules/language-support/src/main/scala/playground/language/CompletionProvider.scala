@@ -168,7 +168,9 @@ object CompletionProvider {
 
               completeInQuery(q, sf, rest)
 
-            case NodeContext.PathEntry.AtUseClause ^^: EmptyPath =>
+            case NodeContext.PathEntry.AtPrelude ^^:
+                NodeContext.PathEntry.AtUseClause(_) ^^:
+                EmptyPath =>
               servicesById
                 .toList
                 .sortBy(_._1)

@@ -30,10 +30,37 @@ object AtPositionTests extends FunSuite {
 
   // todo: tests for before/after/between queries
 
-  private val firstOp = NodeContext.Root.inQuery(0)
+  private val firstOp = NodeContext.EmptyPath.inQuery(0)
 
   test("atPosition - empty file") {
-    assertNoDiff(locateAtCursor(CURSOR), NodeContext.Root)
+    assertNoDiff(locateAtCursor(CURSOR), NodeContext.EmptyPath)
+  }
+
+  test("atPosition - in first use clause") {
+    assertNoDiff(
+      locateAtCursor(s"""use service ${CURSOR}a#B
+                        |use service a#C""".stripMargin),
+      NodeContext.EmptyPath.inPrelude.inUseClause(0),
+    )
+  }
+
+  test("atPosition - in second use clause") {
+    assertNoDiff(
+      locateAtCursor(s"""use service a#B
+                        |use service ${CURSOR}a#C""".stripMargin),
+      NodeContext.EmptyPath.inPrelude.inUseClause(1),
+    )
+  }
+
+  test("atPosition - in between use clauses") {
+    assertNoDiff(
+      locateAtCursor(
+        s"""use service a#B
+           |$CURSOR
+           |use service a#C""".stripMargin
+      ),
+      NodeContext.EmptyPath.inPrelude,
+    )
   }
 
   test("atPosition - 1 level deep") {
@@ -55,7 +82,7 @@ object AtPositionTests extends FunSuite {
     val actual = locateAtCursor(s"""op1 {}
                                    |op2 ${CURSOR} {}""".stripMargin)
 
-    assertNoDiff(actual, NodeContext.Root.inQuery(1))
+    assertNoDiff(actual, NodeContext.EmptyPath.inQuery(1))
   }
 
   test("atPosition - between queries") {
@@ -65,14 +92,14 @@ object AtPositionTests extends FunSuite {
                                    |
                                    |op2 {}""".stripMargin)
 
-    assertNoDiff(actual, NodeContext.Root)
+    assertNoDiff(actual, NodeContext.EmptyPath)
   }
 
   test("atPosition - second query op name") {
     val actual = locateAtCursor(s"""op1 {}
                                    |op${CURSOR}2 {}""".stripMargin)
 
-    assertNoDiff(actual, NodeContext.Root.inQuery(1).inOperationName)
+    assertNoDiff(actual, NodeContext.EmptyPath.inQuery(1).inOperationName)
   }
 
   test("atPosition - 2 levels deep") {
