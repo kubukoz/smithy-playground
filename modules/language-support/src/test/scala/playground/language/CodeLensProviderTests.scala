@@ -11,7 +11,7 @@ import playground.OperationRunner
 import playground.language.Diffs._
 import playground.std.RandomGen
 import weaver._
-
+import playground.ServiceUtils._
 import StringRangeUtils._
 
 object CodeLensProviderTests extends FunSuite {
@@ -22,7 +22,7 @@ object CodeLensProviderTests extends FunSuite {
 
   private val provider = CodeLensProvider.instance(
     FileCompiler
-      .instance(OperationCompiler.fromService(RandomGen))
+      .instance(OperationCompiler.fromServices(List(wrapService(RandomGen))))
       .mapK(CompilationFailed.wrapK),
     runnerStub,
   )

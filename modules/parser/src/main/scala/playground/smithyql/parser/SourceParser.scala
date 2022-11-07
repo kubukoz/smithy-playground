@@ -47,36 +47,7 @@ object SourceParser {
 
   implicit val sourceFileParser: SourceParser[SourceFile] = fromCatsParseParser(
     Parsers.parsers.sourceFile
-  ).map { file =>
-    // workaround: passing prelude's useClause to all queries
-    file.copy[WithSource](
-      statements =
-        file
-          .statements
-          .nested
-          .map { s =>
-            s.fold(
-              runQuery =
-                rq =>
-                  RunQuery[WithSource](
-                    rq.query
-                      .map(
-                        _.copy(useClause =
-                          file
-                            .prelude
-                            .useClauses
-                            .headOption
-                            .fold(WithSource.liftId(Option.empty[UseClause[WithSource]]))(
-                              _.map(_.some)
-                            )
-                        )
-                      )
-                  )
-            )
-          }
-          .value
-    )
-  }
+  )
 
 }
 

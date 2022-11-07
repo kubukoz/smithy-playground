@@ -31,7 +31,7 @@ import smithy4s.aws.AwsEnvironment
 import weaver._
 
 import StringRangeUtils._
-import ServiceUtils.wrapService
+import playground.ServiceUtils._
 
 object DiagnosticProviderTests extends SimpleIOSuite {
 

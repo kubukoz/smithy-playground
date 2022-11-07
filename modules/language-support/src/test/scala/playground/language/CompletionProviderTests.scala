@@ -12,7 +12,7 @@ import playground.std.RandomGen
 import weaver._
 
 import StringRangeUtils._
-import ServiceUtils.wrapService
+import playground.ServiceUtils._
 
 object CompletionProviderTests extends SimpleIOSuite {
 

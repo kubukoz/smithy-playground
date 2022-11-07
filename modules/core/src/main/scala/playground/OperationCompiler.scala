@@ -17,11 +17,15 @@ import smithy.api
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
-
+import cats.data.EitherNel
 import smithyql.syntax._
 import types._
 import playground.smithyql.SourceFile
 import cats.Parallel
+import cats.data.Kleisli
+import playground.smithyql.Prelude
+import scala.collection.immutable.SortedMap
+import util.chaining._
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -51,20 +55,26 @@ trait FileCompiler[F[_]] {
 
 object FileCompiler {
 
-  def instance[F[_]: Parallel](opCompiler: OperationCompiler[F]): FileCompiler[F] =
+  def instance[F[_]: Parallel](
+    opCompiler: OperationCompiler[OperationCompiler.EffF[F, *]]
+  ): FileCompiler[F] =
     new FileCompiler[F] {
 
       def compile(
         f: SourceFile[WithSource]
-      ): F[List[CompiledInput]] = f.statements.value.parTraverse {
-        _.fold(runQuery =>
-          opCompiler.compile(
-            runQuery
-              .query
-              .value
+      ): F[List[CompiledInput]] = f
+        .statements
+        .value
+        .parTraverse {
+          _.fold(runQuery =>
+            opCompiler.compile(
+              runQuery
+                .query
+                .value
+            )
           )
-        )
-      }
+        }
+        .run(OperationCompiler.Context(f.prelude))
 
     }
 
@@ -82,20 +92,46 @@ trait OperationCompiler[F[_]] { self =>
 
 object OperationCompiler {
 
+  final case class Context(prelude: Prelude[WithSource])
+
+  type EffF[F[_], A] = Kleisli[F, Context, A]
+  type Eff[A] = EffF[IorNel[CompilationError, *], A]
+
+  object Eff {
+    def liftF[A](fa: IorNel[CompilationError, A]): Eff[A] = Kleisli.liftF(fa)
+    val getContext: Eff[Context] = Kleisli.ask
+
+    def perform(prelude: Prelude[WithSource]): Eff ~> IorThrow = Kleisli
+      .liftFunctionK(CompilationFailed.wrapK)
+      .andThen(Kleisli.applyK(Context(prelude)))
+
+  }
+
   def fromSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): OperationCompiler[IorNel[CompilationError, *]] = fromServices(dsi.allServices)
+  ): OperationCompiler[Eff] = fromServices(dsi.allServices)
 
   def fromServices(
     services: List[DynamicSchemaIndex.ServiceWrapper]
-  ): OperationCompiler[IorNel[CompilationError, *]] = {
+  ): OperationCompiler[Eff] = {
     val serviceMap: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
       services.map { svc =>
         QualifiedIdentifier
           .forService(svc.service) -> OperationCompiler.fromService[svc.Alg, svc.Op](svc.service)
       }.toMap
 
-    new MultiServiceCompiler(serviceMap)
+    val serviceOps: Map[QualifiedIdentifier, Set[OperationName[Id]]] =
+      services.map { svc =>
+        QualifiedIdentifier.forService(svc.service) ->
+          svc
+            .service
+            .endpoints
+            .map(_.name)
+            .map(OperationName[Id](_))
+            .toSet
+      }.toMap
+
+    new MultiServiceCompiler(serviceMap, serviceOps)
   }
 
   def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
@@ -214,22 +250,29 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 }
 
 private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  services: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]]
-) extends OperationCompiler[IorNel[CompilationError, *]] {
+  services: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]],
+  serviceOps: Map[QualifiedIdentifier, Set[OperationName[Id]]],
+) extends OperationCompiler[OperationCompiler.Eff] {
 
   private def getService(
-    q: Query[WithSource]
-  ): Either[CompilationError, OperationCompiler[IorNel[CompilationError, *]]] = MultiServiceResolver
-    .resolveService(
-      q.mapK(WithSource.unwrap).collectServiceIdentifiers,
-      services,
-    )
-    .leftMap { rf =>
-      ResolutionFailure.toCompilationError(rf, q)
-    }
+    ctx: OperationCompiler.Context,
+    q: Query[WithSource],
+  ): EitherNel[CompilationError, OperationCompiler[IorNel[CompilationError, *]]] =
+    MultiServiceResolver
+      .resolveService(
+        q.operationName.value.mapK(WithSource.unwrap),
+        serviceOps,
+        useClauses = ctx.prelude.mapK(WithSource.unwrap).useClauses,
+      )
+      .leftMap(_.map(ResolutionFailure.toCompilationError(_, q)))
+      .map(services(_))
 
   def compile(
     q: Query[WithSource]
-  ): IorNel[CompilationError, CompiledInput] = getService(q).fold(Ior.leftNel(_), _.compile(q))
+  ): OperationCompiler.Eff[CompiledInput] = OperationCompiler
+    .Eff
+    .getContext
+    .flatMapF(getService(_, q).pipe(Ior.fromEither(_)))
+    .flatMapF(_.compile(q))
 
 }

@@ -116,6 +116,12 @@ final case class OperationName[F[_]](text: String) extends AST[F] {
   def mapK[G[_]: Functor](fk: F ~> G): OperationName[G] = copy()
 }
 
+object OperationName {
+
+  implicit def order[F[_]]: Order[OperationName[F]] = Order.by(_.text)
+
+}
+
 final case class QualifiedIdentifier(segments: NonEmptyList[String], selection: String) {
   def renderNamespace: String = segments.mkString_(".")
   def render: String = renderNamespace + "#" + selection

@@ -1,4 +1,4 @@
-package playground.language
+package playground
 
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
