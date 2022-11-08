@@ -6,6 +6,8 @@ import org.http4s.client.Client
 import smithy4s.UnsupportedProtocolError
 import smithy4s.Monadic
 import cats.effect.Concurrent
+import java.util.ServiceLoader
+import scala.jdk.CollectionConverters._
 
 trait PlaygroundPlugin {
   @deprecated("Implement simpleBuilders instead", "0.5.2")
@@ -14,6 +16,19 @@ trait PlaygroundPlugin {
   def simpleBuilders: List[SimpleHttpBuilder] = http4sBuilders.map(
     SimpleHttpBuilder.fromSimpleProtocolBuilder
   )
+
+}
+
+object PlaygroundPlugin {
+
+  def getAllPlugins(loader: ClassLoader): List[PlaygroundPlugin] =
+    ServiceLoader
+      .load(
+        classOf[PlaygroundPlugin],
+        loader,
+      )
+      .asScala
+      .toList
 
 }
 
