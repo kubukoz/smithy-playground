@@ -10,7 +10,7 @@ import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._
 
 trait PlaygroundPlugin {
-  @deprecated("Implement simpleBuilders instead", "0.5.2")
+  @deprecated("Implement simpleBuilders instead", "0.5.3")
   def http4sBuilders: List[SimpleProtocolBuilder[_]] = Nil
 
   def simpleBuilders: List[SimpleHttpBuilder] = http4sBuilders.map(
