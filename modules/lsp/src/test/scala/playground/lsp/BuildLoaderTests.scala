@@ -1,10 +1,10 @@
 package playground.lsp
 
-import weaver._
 import cats.effect.IO
-import playground.language.TextDocumentProvider
-import playground.BuildConfig
 import fs2.io.file.Path
+import playground.BuildConfig
+import playground.language.TextDocumentProvider
+import weaver._
 
 object BuildLoaderTests extends SimpleIOSuite {
   // won't actually be used, but still TODO: use a stub/fake
@@ -22,5 +22,25 @@ object BuildLoaderTests extends SimpleIOSuite {
     }
   }
 
-  // todo: tests with some specs?
+  test("build loader can see external services") {
+    val result = loader
+      .buildSchemaIndex(
+        BuildLoader.Loaded(
+          BuildConfig(mavenDependencies =
+            Some(
+              List(
+                // todo
+              )
+            )
+          ),
+          Path("."),
+        )
+      )
+      .map(_.allServices)
+
+    result.map { services =>
+      assert.eql(services.map(_.service.id.name), List("Random", "Clock", "SthElse"))
+    }
+  }
+
 }
