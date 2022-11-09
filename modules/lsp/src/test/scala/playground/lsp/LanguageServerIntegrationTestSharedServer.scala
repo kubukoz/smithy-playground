@@ -163,7 +163,7 @@ object LanguageServerIntegrationTestSharedServer
       // as there's no need
       .withHost(host"localhost")
       .withPort(port"0")
-      .withShutdownTimeout(1.second)
+      .withShutdownTimeout(1.nano)
       .withHttpApp(
         SimpleRestJsonBuilder
           .routes(

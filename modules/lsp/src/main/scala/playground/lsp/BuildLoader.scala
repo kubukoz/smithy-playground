@@ -7,7 +7,6 @@ import playground.BuildConfig
 import playground.BuildConfigDecoder
 import playground.ModelReader
 import playground.language.TextDocumentProvider
-import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
 import playground.language.Uri
 
@@ -74,34 +73,27 @@ object BuildLoader {
           }
       }
 
-      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = Sync[F]
-        .interruptibleMany {
-          ModelLoader
-            .load(
-              specs =
+      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = ModelLoader
+        .load(
+          specs =
+            loaded
+              .config
+              .imports
+              .combineAll
+              .map(
                 loaded
-                  .config
-                  .imports
-                  .combineAll
-                  .map(
-                    loaded
-                      .configFilePath
-                      .parent
-                      .getOrElse(sys.error("impossible - no parent"))
-                      .resolve(_)
-                      .toNioPath
-                      .toFile()
-                  )
-                  .toSet,
-              dependencies = loaded.config.mavenDependencies.combineAll,
-              repositories = loaded.config.mavenRepositories.combineAll,
-              transformers = Nil,
-              // todo: this should be false really
-              discoverModels = true,
-              localJars = Nil,
-            )
-            ._2
-        }
+                  .configFilePath
+                  .parent
+                  .getOrElse(sys.error("impossible - no parent"))
+                  .resolve(_)
+                  .toNioPath
+                  .toFile()
+              )
+              .toSet,
+          dependencies = loaded.config.mavenDependencies.combineAll,
+          repositories = loaded.config.mavenRepositories.combineAll,
+        )
+        .map(_._2)
         .flatMap(ModelReader.buildSchemaIndex[F])
 
     }
