@@ -12,9 +12,7 @@ import playground.BuildConfig
 import playground.plugins.PlaygroundPlugin
 
 import java.net.URLClassLoader
-import java.util.ServiceLoader
 import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
 
 trait PluginResolver[F[_]] {
 
@@ -78,13 +76,7 @@ object PluginResolver {
                   getClass().getClassLoader(),
                 )
 
-              ServiceLoader
-                .load(
-                  classOf[PlaygroundPlugin],
-                  classLoader,
-                )
-                .asScala
-                .toList
+              PlaygroundPlugin.getAllPlugins(classLoader)
             }
           }
 

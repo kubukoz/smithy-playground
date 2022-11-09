@@ -857,7 +857,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("deprecated service's use clause") {
     parseAndCompile(DeprecatedServiceGen)(
       """use service demo.smithy#LiterallyAnyService
-      |hello {}""".stripMargin
+        |hello {}""".stripMargin
     ).left match {
       case Some(cf: CompilationFailed) =>
         val result = cf

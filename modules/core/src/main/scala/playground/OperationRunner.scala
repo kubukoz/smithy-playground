@@ -16,6 +16,7 @@ import org.http4s.Uri
 import org.http4s.client.Client
 import playground._
 import playground.plugins.PlaygroundPlugin
+import playground.plugins.SimpleHttpBuilder
 import playground.smithyql.InputNode
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
@@ -30,7 +31,6 @@ import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
-import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
 import smithy4s.kinds._
@@ -174,19 +174,19 @@ object OperationRunner {
         }
 
       private def simpleFromBuilder(
-        builder: SimpleProtocolBuilder[_]
+        builder: SimpleHttpBuilder
       ): IorNel[Issue, FunctorInterpreter[Op, F]] =
         Either
           .catchNonFatal {
-            builder(service)
+            builder
               .client(
+                service,
                 dynamicBaseUri[F](
                   baseUri.flatTap { uri =>
                     std.Console[F].println(s"Using base URI: $uri")
                   }
-                ).apply(client)
+                ).apply(client),
               )
-              .use
           }
           .leftMap(Issue.Other(_))
           .flatMap {
@@ -239,10 +239,10 @@ object OperationRunner {
 
       val runners: NonEmptyList[IorNel[Issue, OperationRunner[F]]] = NonEmptyList
         .of(
-          simpleFromBuilder(SimpleRestJsonBuilder),
+          simpleFromBuilder(SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)),
           awsInterpreter,
         )
-        .concat(plugins.flatMap(_.http4sBuilders).map(simpleFromBuilder))
+        .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder))
         .append(stdlibRunner)
         .map(
           _.map { interpreter =>

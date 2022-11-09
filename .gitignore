@@ -1,6 +1,7 @@
 **/target
 .direnv/
 .idea/
+.vscode/
 **/.DS_Store
 .smithy.lsp.log
 .sbt
