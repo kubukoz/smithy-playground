@@ -8,6 +8,8 @@ import cats.effect.kernel.Deferred
 import cats.effect.std
 import cats.effect.std.Dispatcher
 import cats.implicits._
+import fs2.io.net.Network
+import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.launch.LSPLauncher
 
 import java.io.File
@@ -45,17 +47,39 @@ object Main extends IOApp.Simple {
   def log[F[_]: std.Console](s: String): F[Unit] = std.Console[F].println(s)
 
   def run: IO[Unit] = {
-    val stdin = System.in
-    val stdout = System.out
+    import com.comcast.ip4s._
 
-    IO(System.setOut(logOut)).toResource *>
-      launch(stdin, stdout)
+    Network[IO]
+      .server(port = Some(port"8887"))
+      .map { sock =>
+        fs2
+          .Stream
+          .exec(IO.println("new client connected")) ++
+          sock
+            .reads
+            .through(fs2.io.toInputStream[IO])
+            .flatMap { input =>
+              val drain =
+                fs2
+                  .io
+                  .readOutputStream[IO](4096)(os =>
+                    launch(input, os)
+                      .use { l =>
+                        IO.interruptibleMany(l.startListening().get())
+                      }
+                      .onCancel(IO.println("this is being cancelled"))
+                      .void
+                  )
+              drain.through(sock.writes)
+            }
+            .onFinalize(IO.println("client disconnected"))
+      }
+      .parJoin(10)
+      .compile
+      .drain
   }
-    .use { launcher =>
-      IO.interruptibleMany(launcher.startListening().get())
-    } *> log("Server terminated without errors")
 
-  def launch(
+  private def launch(
     in: InputStream,
     out: OutputStream,
   ) = Deferred[IO, LanguageClient[IO]].toResource.flatMap { clientRef =>
@@ -74,6 +98,33 @@ object Main extends IOApp.Simple {
           .setOutput(out)
           .traceMessages(logWriter)
           .create();
+
+        log[IO]("connecting") *>
+          clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
+          log[IO]("Server connected")
+            .as(launcher: Launcher[_])
+      }
+  }
+
+  private def launchWS(
+    in: InputStream,
+    out: OutputStream,
+  ) = Deferred[IO, LanguageClient[IO]].toResource.flatMap { clientRef =>
+    implicit val lc: LanguageClient[IO] = LanguageClient.defer(clientRef.get)
+
+    MainServer
+      .makeServer[IO]
+      .flatMap { server =>
+        Dispatcher[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
+      }
+      .evalMap { serverAdapter =>
+        val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
+          .setLocalService(serverAdapter)
+          .setRemoteInterface(classOf[PlaygroundLanguageClient])
+          .setInput(in)
+          .setOutput(out)
+          .traceMessages(logWriter)
+          .create()
 
         log[IO]("connecting") *>
           clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
