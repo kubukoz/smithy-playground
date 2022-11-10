@@ -2,7 +2,7 @@ $version: "2"
 
 namespace playground.std
 
-use smithy4s.api#UUID
+use alloy#UUID
 
 @trait(selector: "service")
 @protocolDefinition

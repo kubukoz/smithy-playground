@@ -2,7 +2,8 @@ $version: "2"
 
 namespace demo.smithy
 
-use smithy4s.api#simpleRestJson
+use alloy#simpleRestJson
+use alloy#UUID
 use smithy4s.meta#indexedSeq
 use smithy4s.meta#refinement
 
@@ -209,7 +210,7 @@ structure HasNewtypes {
   str: MyString,
   power: Power,
   powerMap: PowerMap,
-  anUUID: smithy4s.api#UUID,
+  anUUID: UUID,
   anInstant: MyInstant,
   stringWithLength: StringWithLength,
 }

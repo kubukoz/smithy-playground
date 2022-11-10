@@ -9,20 +9,20 @@ import smithy4s.schema.Schema
 import smithy4s.kinds._
 
 class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  service: Service[Alg, Op]
+  service: Service.Aux[Alg, Op]
 ) {
 
   def tryProxy[AlgStatic[_[_, _, _, _, _]], OpStatic[_, _, _, _, _], F[_]: MonadThrow](
     interp: FunctorAlgebra[AlgStatic, F]
   )(
-    implicit serviceStatic: Service[AlgStatic, OpStatic]
+    implicit serviceStatic: Service.Aux[AlgStatic, OpStatic]
   ): Option[FunctorInterpreter[Op, F]] =
     Option.when(service.id == serviceStatic.id)(proxy(interp)(serviceStatic))
 
   def proxy[AlgStatic[_[_, _, _, _, _]], OpStatic[_, _, _, _, _], F[_]: MonadThrow](
     interp: FunctorAlgebra[AlgStatic, F]
   )(
-    serviceStatic: Service[AlgStatic, OpStatic]
+    serviceStatic: Service.Aux[AlgStatic, OpStatic]
   ): FunctorInterpreter[Op, F] = {
     val grp = serviceStatic.endpoints.groupBy(_.id).fmap(_.head)
 
@@ -36,7 +36,7 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     }
 
     val endpointMapping =
-      new (smithy4s.Transformation[Endpoint[Op, *, *, *, *, *], Proxy]) {
+      new (PolyFunction5[Endpoint[Op, *, *, *, *, *], Proxy]) {
         private val trans = serviceStatic.toPolyFunction(interp)
 
         private def applyWithStatic[I, E, O, SI, SO, STI, STE, STO, STSI, STSO](
@@ -73,7 +73,8 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
         def apply[I, E, O, SI, SO](endpoint: Endpoint[Op, I, E, O, SI, SO]): I => F[O] =
           applyWithStatic(endpoint, grp(endpoint.id))
       }
-        .precompute(service.endpoints)
+    // TODO https://github.com/disneystreaming/smithy4s/issues/590
+    // .precompute(service.endpoints)
 
     new FunctorInterpreter[Op, F] {
       def apply[I, E, O, SI, SO](op: Op[I, E, O, SI, SO]): F[O] = {

@@ -117,7 +117,7 @@ object OperationRunner {
         .allServices
         .map { svc =>
           QualifiedIdentifier.forService(svc.service) ->
-            OperationRunner.forService[svc.Alg, svc.Op, F](
+            OperationRunner.forService[svc.Alg, F](
               svc.service,
               client,
               baseUri,
@@ -149,12 +149,8 @@ object OperationRunner {
     }
   }
 
-  def forService[
-    Alg[_[_, _, _, _, _]],
-    Op[_, _, _, _, _],
-    F[_]: StdlibRuntime: Concurrent: Defer: std.Console,
-  ](
-    service: Service[Alg, Op],
+  def forService[Alg[_[_, _, _, _, _]], F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+    service: Service[Alg],
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
@@ -175,7 +171,7 @@ object OperationRunner {
 
       private def simpleFromBuilder(
         builder: SimpleHttpBuilder
-      ): IorNel[Issue, FunctorInterpreter[Op, F]] =
+      ): IorNel[Issue, service.FunctorInterpreter[F]] =
         Either
           .catchNonFatal {
             builder
@@ -192,11 +188,11 @@ object OperationRunner {
           .flatMap {
             _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
           }
-          .map(service.toPolyFunction)
+          .map(service.toPolyFunction(_))
           .toIor
           .toIorNel
 
-      private def stdlibRunner: IorNel[Issue, FunctorInterpreter[Op, F]] =
+      private def stdlibRunner: IorNel[Issue, service.FunctorInterpreter[F]] =
         smithy4s
           .checkProtocol(
             service,
@@ -205,7 +201,7 @@ object OperationRunner {
           .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols): Issue)
           .toIor
           .toIorNel *> {
-          val proxy = new DynamicServiceProxy[Alg, Op](service)
+          val proxy = new DynamicServiceProxy[Alg, service.Operation](service)
 
           proxy
             .tryProxy(StdlibRuntime[F].random)
@@ -214,7 +210,7 @@ object OperationRunner {
             .toIorNel
         }
 
-      val awsInterpreter: IorNel[Issue, FunctorInterpreter[Op, F]] = AwsClient
+      val awsInterpreter: IorNel[Issue, service.FunctorInterpreter[F]] = AwsClient
         .prepare(service)
         .as {
           liftFunctorInterpreterResource(
@@ -231,8 +227,8 @@ object OperationRunner {
         )
 
       private def perform[I, E, O](
-        interpreter: FunctorInterpreter[Op, F],
-        q: CompiledInput.Aux[I, E, O, Op],
+        interpreter: service.FunctorInterpreter[F],
+        q: CompiledInput.Aux[I, E, O, service.Operation],
       ) = Defer[F].defer(interpreter(q.wrap(q.input))).map { response =>
         q.writeOutput.toNode(response)
       }
@@ -242,7 +238,7 @@ object OperationRunner {
           simpleFromBuilder(SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)),
           awsInterpreter,
         )
-        .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder))
+        .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder(_)))
         .append(stdlibRunner)
         .map(
           _.map { interpreter =>
@@ -250,7 +246,7 @@ object OperationRunner {
               def run(q: CompiledInput): F[InputNode[Id]] = perform[q.I, q.E, q.O](
                 interpreter,
                 // note: this is safe... for real
-                q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, Op]],
+                q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, service.Operation]],
               )
             }
           }
@@ -263,10 +259,10 @@ object OperationRunner {
       def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = getInternal
     }
 
-  def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
+  def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], F[_]](
     alg: AwsClient[Alg, F],
-    service: Service[Alg, Op],
-  ): FunctorInterpreter[Op, F] = service
+    service: Service[Alg],
+  ): FunctorInterpreter[service.Operation, F] = service
     .toPolyFunction(alg)
     .andThen(new FunctorInterpreter[AwsCall[F, *, *, *, *, *], F] {
 

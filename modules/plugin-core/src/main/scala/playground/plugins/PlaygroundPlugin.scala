@@ -10,13 +10,7 @@ import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._
 
 trait PlaygroundPlugin {
-  @deprecated("Implement simpleBuilders instead", "0.5.3")
-  def http4sBuilders: List[SimpleProtocolBuilder[_]] = Nil
-
-  def simpleBuilders: List[SimpleHttpBuilder] = http4sBuilders.map(
-    SimpleHttpBuilder.fromSimpleProtocolBuilder
-  )
-
+  def simpleBuilders: List[SimpleHttpBuilder]
 }
 
 object PlaygroundPlugin {
@@ -36,8 +30,8 @@ object PlaygroundPlugin {
   */
 trait SimpleHttpBuilder {
 
-  def client[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Concurrent](
-    service: Service[Alg, Op],
+  def client[Alg[_[_, _, _, _, _]], F[_]: Concurrent](
+    service: Service[Alg],
     backend: Client[F],
   ): Either[UnsupportedProtocolError, FunctorAlgebra[Alg, F]]
 
@@ -48,8 +42,8 @@ object SimpleHttpBuilder {
   def fromSimpleProtocolBuilder(builder: SimpleProtocolBuilder[_]): SimpleHttpBuilder =
     new SimpleHttpBuilder {
 
-      def client[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]: Concurrent](
-        service: Service[Alg, Op],
+      def client[Alg[_[_, _, _, _, _]], F[_]: Concurrent](
+        service: Service[Alg],
         backend: Client[F],
       ): Either[UnsupportedProtocolError, FunctorAlgebra[Alg, F]] =
         builder(service).client(backend).use

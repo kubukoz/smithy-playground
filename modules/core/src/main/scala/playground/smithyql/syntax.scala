@@ -20,8 +20,8 @@ object syntax {
       shapeId.name,
     )
 
-    def forService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-      service: Service[Alg, Op]
+    def forService[Alg[_[_, _, _, _, _]]](
+      service: Service[Alg]
     ): QualifiedIdentifier = ServiceNameExtractor.fromService(service)
 
   }

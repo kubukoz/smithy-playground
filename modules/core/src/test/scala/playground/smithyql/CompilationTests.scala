@@ -56,7 +56,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     in: QueryCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerVisitor.full).compile(in)
 
-  val dynamicModel = {
+  def loadDynamicModel(): DynamicSchemaIndex = {
     val model = SModel
       .assembler()
       .discoverModels()
@@ -65,6 +65,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     DynamicSchemaIndex.loadModel(model).toTry.get
   }
+
+  val dynamicModel = loadDynamicModel()
 
   def dynamicSchemaFor[A: ShapeTag]: Schema[_] = {
     val shapeId = ShapeTag[A].id
@@ -843,8 +845,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(result == Ior.right(ts))
   }
 
-  private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
+  private def parseAndCompile[Alg[_[_, _, _, _, _]]](
+    service: Service[Alg]
   )(
     q: String
   ) = playground
