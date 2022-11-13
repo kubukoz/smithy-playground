@@ -64,7 +64,7 @@ object Main extends IOApp.Simple {
     MainServer
       .makeServer[IO]
       .flatMap { server =>
-        Dispatcher[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
+        Dispatcher.sequential[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
       }
       .evalMap { serverAdapter =>
         val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
