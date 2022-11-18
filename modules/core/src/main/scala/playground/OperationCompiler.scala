@@ -1,8 +1,11 @@
 package playground
 
 import cats.Id
+import cats.Parallel
+import cats.data.EitherNel
 import cats.data.Ior
 import cats.data.IorNel
+import cats.data.Kleisli
 import cats.data.NonEmptyList
 import cats.effect.implicits._
 import cats.implicits._
@@ -10,21 +13,18 @@ import cats.~>
 import playground._
 import playground.smithyql.InputNode
 import playground.smithyql.OperationName
+import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
+import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
 import smithy.api
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
-import cats.data.EitherNel
+
 import smithyql.syntax._
 import types._
-import playground.smithyql.SourceFile
-import cats.Parallel
-import cats.data.Kleisli
-import playground.smithyql.Prelude
-import scala.collection.immutable.SortedMap
 import util.chaining._
 
 trait CompiledInput {
@@ -114,24 +114,16 @@ object OperationCompiler {
   def fromServices(
     services: List[DynamicSchemaIndex.ServiceWrapper]
   ): OperationCompiler[Eff] = {
-    val serviceMap: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
+    val compilers: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
       services.map { svc =>
         QualifiedIdentifier
           .forService(svc.service) -> OperationCompiler.fromService[svc.Alg, svc.Op](svc.service)
       }.toMap
 
-    val serviceOps: Map[QualifiedIdentifier, Set[OperationName[Id]]] =
-      services.map { svc =>
-        QualifiedIdentifier.forService(svc.service) ->
-          svc
-            .service
-            .endpoints
-            .map(_.name)
-            .map(OperationName[Id](_))
-            .toSet
-      }.toMap
-
-    new MultiServiceCompiler(serviceMap, serviceOps)
+    new MultiServiceCompiler(
+      compilers,
+      ServiceIndex.fromServices(services),
+    )
   }
 
   def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
@@ -250,8 +242,8 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 }
 
 private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  services: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]],
-  serviceOps: Map[QualifiedIdentifier, Set[OperationName[Id]]],
+  compilers: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]],
+  serviceIndex: ServiceIndex,
 ) extends OperationCompiler[OperationCompiler.Eff] {
 
   private def getService(
@@ -261,11 +253,11 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     MultiServiceResolver
       .resolveService(
         q.operationName.value.mapK(WithSource.unwrap),
-        serviceOps,
+        serviceIndex,
         useClauses = ctx.prelude.mapK(WithSource.unwrap).useClauses,
       )
       .leftMap(_.map(ResolutionFailure.toCompilationError(_, q)))
-      .map(services(_))
+      .map(compilers(_))
 
   def compile(
     q: Query[WithSource]

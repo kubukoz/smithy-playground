@@ -158,17 +158,20 @@ object OperationRunner {
 
       def get(q: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = MultiServiceResolver
         .resolveService(
-          q.mapK(WithSource.unwrap).collectServiceIdentifiers,
-          runners,
+          q.operationName.value.mapK(WithSource.unwrap),
+          ???,
+          ???,
         )
-        .leftMap(rf =>
-          CompilationFailed.one(
+        .map(runners(_))
+        .leftMap(
+          _.map(rf =>
             CompilationError.error(
               CompilationErrorDetails.fromResolutionFailure(rf),
               q.useClause.value.fold(q.operationName.range)(_.identifier.range),
             )
           )
         )
+        .leftMap(CompilationFailed(_))
         .toIor
         .leftMap(Issue.Other(_))
         .toIorNel

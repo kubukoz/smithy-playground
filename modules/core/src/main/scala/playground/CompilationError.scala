@@ -179,8 +179,8 @@ object CompilationErrorDetails {
   }
 
   val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
-    case ResolutionFailure.AmbiguousService(knownServices) =>
-      CompilationErrorDetails.AmbiguousService(knownServices)
+    // case ResolutionFailure.AmbiguousService(knownServices, _) =>
+    //   CompilationErrorDetails.AmbiguousService(knownServices)
     case ResolutionFailure.UnknownService(unknownId, knownServices) =>
       CompilationErrorDetails.UnknownService(unknownId, knownServices)
 
