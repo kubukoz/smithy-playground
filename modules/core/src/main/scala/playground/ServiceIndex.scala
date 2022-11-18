@@ -11,7 +11,7 @@ import smithyql.syntax._
 // Abstraction for service metadata. Can be used by multi-service compilers/runners/completion providers etc.
 trait ServiceIndex {
   def getService(id: QualifiedIdentifier): Option[ServiceIndexEntry]
-  def requireServices(ids: List[QualifiedIdentifier]): List[ServiceIndexEntry]
+  def requireServices(ids: Set[QualifiedIdentifier]): List[ServiceIndexEntry]
   def serviceIds: Set[QualifiedIdentifier]
   def allServices: List[ServiceIndexEntry]
 }
@@ -52,8 +52,8 @@ object ServiceIndex {
       ): Option[ServiceIndexEntry] = entries.get(id)
 
       def requireServices(
-        ids: List[QualifiedIdentifier]
-      ): List[ServiceIndexEntry] = ids.map(entries)
+        ids: Set[QualifiedIdentifier]
+      ): List[ServiceIndexEntry] = ids.toList.map(entries)
 
       val allServices: List[ServiceIndexEntry] = entries.values.toList
     }

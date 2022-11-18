@@ -193,6 +193,35 @@ object MultiServiceResolverTests extends FunSuite {
   }
 
   test(
+    "no explicit service ref, multiple clauses match but they're for the same service (deduplication)"
+  ) {
+    val result = MultiServiceResolver.resolveService(
+      queryOperationName = QueryOperationName[Id](
+        identifier = None,
+        operationName = OperationName("Op"),
+      ),
+      serviceIndex = mkIndex(
+        QualifiedIdentifier.of("com", "example", "MatchingService") -> Set(
+          OperationName("Op")
+        ),
+        QualifiedIdentifier.of("com", "example", "OtherService") -> Set(
+          OperationName("Op"),
+          OperationName("Op3"),
+        ),
+      ),
+      useClauses = List(
+        UseClause[Id](QualifiedIdentifier.of("com", "example", "MatchingService")),
+        UseClause[Id](QualifiedIdentifier.of("com", "example", "MatchingService")),
+      ),
+    )
+
+    assert.same(
+      result,
+      QualifiedIdentifier.of("com", "example", "MatchingService").asRight,
+    )
+  }
+
+  test(
     "no explicit service ref, exactly one of the clauses matches"
   ) {
     val result = MultiServiceResolver.resolveService(

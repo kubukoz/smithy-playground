@@ -87,7 +87,7 @@ object MultiServiceResolver {
   ): EitherNel[ResolutionFailure, QualifiedIdentifier] = {
     val matchingServices =
       index
-        .requireServices(useClauses.map(_.identifier))
+        .requireServices(useClauses.map(_.identifier).toSet)
         .filter(_.hasOperation(operationName))
         .toList
 

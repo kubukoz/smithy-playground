@@ -136,9 +136,7 @@ object QualifiedIdentifier {
 
   implicit val show: Show[QualifiedIdentifier] = Show.fromToString
 
-  implicit val ord: Order[QualifiedIdentifier] = Order.by { case QualifiedIdentifier(segs, sel) =>
-    (segs, sel)
-  }
+  implicit val ord: Order[QualifiedIdentifier] = Order.by(unapply(_).get)
 
 }
 
