@@ -20,53 +20,38 @@ object MultiServiceResolver {
     services: Map[QualifiedIdentifier, A],
   ): Either[ResolutionFailure, A] = ???
 
+  /** Determines which service should be used for a query. The rules are:
+    *   - If the operation name has a service identifier, there MUST be a service with that name
+    *     that contains the given operation.
+    *   - If there's no service identifier, find all matching services that are included in the use
+    *     clauses. MUST find exactly one entry.
+    *
+    * In other cases, such as when we can't find a unique entry, or the explicitly referenced
+    * service doesn't have an operation with a matching name, we fail. The latter might eventually
+    * be refactored to a separate piece of code. This also validates that the services being used
+    * are available.
+    */
   def resolveService(
     queryOperationName: QueryOperationName[Id],
     servicesToOps: Map[QualifiedIdentifier, Set[OperationName[Id]]],
     useClauses: List[UseClause[Id]],
-  ): EitherNel[ResolutionFailure, QualifiedIdentifier] = {
-
-    val invalidUseClauses = useClauses.filterNot()
-
-    val servicesInScope = servicesToOps.view.filterKeys(useClauses.map(_.identifier).toSet).toMap
-
-    queryOperationName.identifier match {
-      case None =>
-        resolveFromClauses(
-          queryOperationName.operationName,
-          servicesInScope,
-        )
-      // case body :: Nil => resolveFromOne(Some(body) /* once told me */, services)
-      // case more =>
-      //   ResolutionFailure
-      //     .ConflictingServiceReference(more)
-      //     .asLeft
-    }
-  }
-
-  private def resolveFromClauses(
-    operationName: OperationName[Id],
-    servicesToOps: Map[QualifiedIdentifier, Set[OperationName[Id]]],
   ): EitherNel[ResolutionFailure, QualifiedIdentifier] =
-    servicesToOps.filter { case (_, ops) => ops.contains_(operationName) }.toList match {
-      case (head, _) :: Nil => Right(head)
-      case Nil => ResolutionFailure.AmbiguousService(servicesToOps.keySet.toList).leftNel
-    }
+    queryOperationName.identifier match {
+      case Some(explicitRef) if !servicesToOps.contains(explicitRef) =>
+        ResolutionFailure.UnknownService(explicitRef, servicesToOps.keySet.toList).leftNel
 
-  private def resolveFromOne[A](
-    ident: Option[QualifiedIdentifier],
-    services: Map[QualifiedIdentifier, A],
-  ): Either[ResolutionFailure, A] =
-    ident match {
-      case None if services.sizeIs == 1 => services.head._2.asRight
-      case None => ResolutionFailure.AmbiguousService(services.keySet.toList).asLeft
-
-      case Some(ident) =>
-        services
-          .get(ident)
-          .toRight(
-            ResolutionFailure.UnknownService(ident, services.keySet.toList)
+      case Some(explicitRef)
+          if !servicesToOps(explicitRef).contains_(queryOperationName.operationName) =>
+        ResolutionFailure
+          .OperationMissing(
+            queryOperationName.operationName,
+            explicitRef,
+            servicesToOps(explicitRef),
           )
+          .leftNel
+      case Some(explicitRef) => explicitRef.asRight
+
+      case None => ResolutionFailure.AmbiguousService(servicesToOps.keySet.toList).leftNel
     }
 
 }
@@ -83,6 +68,12 @@ object ResolutionFailure {
   final case class UnknownService(
     unknownId: QualifiedIdentifier,
     knownServices: List[QualifiedIdentifier],
+  ) extends ResolutionFailure
+
+  final case class OperationMissing(
+    operationName: OperationName[Id],
+    serviceName: QualifiedIdentifier,
+    availableOperations: Set[OperationName[Id]],
   ) extends ResolutionFailure
 
   def toCompilationError(rf: ResolutionFailure, q: Query[WithSource]): CompilationError = {

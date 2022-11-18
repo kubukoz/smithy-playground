@@ -1,108 +1,163 @@
 package playground
 
-import playground.smithyql.Arbitraries._
-import playground.smithyql.QualifiedIdentifier
+import cats.Id
+import cats.implicits._
+import playground.smithyql.OperationName
+import playground.smithyql.QueryOperationName
 import weaver._
-import weaver.scalacheck.Checkers
+import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.UseClause
+import cats.data.NonEmptyList
 
-object MultiServiceResolverTests extends SimpleIOSuite with Checkers {
+object MultiServiceResolverTests extends FunSuite {
+  test("no explicit/implicit service ref, no services available") {
+    val result = MultiServiceResolver.resolveService(
+      queryOperationName = QueryOperationName[Id](
+        identifier = None,
+        operationName = OperationName("Op"),
+      ),
+      servicesToOps = Map.empty,
+      useClauses = Nil,
+    )
 
-  test("resolveService with no use clause and one service") {
-    forall {
-      (
-        ident: QualifiedIdentifier,
-        name: String,
-      ) =>
-        val result = MultiServiceResolver.resolveService(
-          Nil,
-          Map(
-            ident -> name
-          ),
-        )
-
-        assert(result == Right(name))
-    }
+    assert.same(
+      result,
+      ResolutionFailure.AmbiguousService(Nil).leftNel,
+    )
   }
 
-  test("resolveService with any amount of services and a matching clause") {
-    forall {
-      (
-        useClauseIdent: QualifiedIdentifier,
-        name: String,
-        otherServices: Map[QualifiedIdentifier, String],
-      ) =>
-        val result = MultiServiceResolver.resolveService(
-          List(useClauseIdent),
-          otherServices ++ Map(
-            useClauseIdent -> name
-          ),
-        )
+  test("no explicit/implicit service ref, some services available") {
+    val result = MultiServiceResolver.resolveService(
+      queryOperationName = QueryOperationName[Id](
+        identifier = None,
+        operationName = OperationName("Op"),
+      ),
+      servicesToOps = Map(
+        QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "ServiceB") -> Set.empty,
+      ),
+      useClauses = Nil,
+    )
 
-        assert(result == Right(name))
-    }
-  }
-
-  test("resolveService with any amount of services, a use clause and a service ref") {
-    forall {
-      (
-        useClauseIdent: QualifiedIdentifier,
-        serviceRef: QualifiedIdentifier,
-        services: Map[QualifiedIdentifier, String],
-      ) =>
-        val result = MultiServiceResolver.resolveService(
-          List(useClauseIdent, serviceRef),
-          services,
-        )
-
-        assert(
-          result == Left(
-            ResolutionFailure.ConflictingServiceReference(List(useClauseIdent, serviceRef))
+    assert.same(
+      result,
+      ResolutionFailure
+        .AmbiguousService(
+          List(
+            QualifiedIdentifier.of("com", "example", "ServiceA"),
+            QualifiedIdentifier.of("com", "example", "ServiceB"),
           )
         )
-    }
+        .leftNel,
+    )
   }
 
-  test("resolveService with any amount of services and a mismatching clause") {
-    forall {
-      (
-        useClauseIdent: QualifiedIdentifier,
-        services: Map[QualifiedIdentifier, String],
-      ) =>
-        val ident = useClauseIdent
+  test("explicit service ref that doesn't match any known service") {
+    val result = MultiServiceResolver.resolveService(
+      queryOperationName = QueryOperationName[Id](
+        identifier = Some(QualifiedIdentifier.of("com", "example", "ServiceC")),
+        operationName = OperationName("Op"),
+      ),
+      servicesToOps = Map(
+        QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "ServiceB") -> Set.empty,
+      ),
+      useClauses = Nil,
+    )
 
-        val result = MultiServiceResolver.resolveService(
-          List(useClauseIdent),
-          services - useClauseIdent,
+    assert.same(
+      result,
+      ResolutionFailure
+        .UnknownService(
+          QualifiedIdentifier.of("com", "example", "ServiceC"),
+          List(
+            QualifiedIdentifier.of("com", "example", "ServiceA"),
+            QualifiedIdentifier.of("com", "example", "ServiceB"),
+          ),
         )
-
-        val expected = ResolutionFailure.UnknownService(ident, services.keySet.toList)
-
-        assert(
-          result == Left(
-            expected
-          )
-        )
-    }
+        .leftNel,
+    )
   }
 
-  test("resolveService with multiple services and no clause") {
-    forall {
-      (
-        services: Map[QualifiedIdentifier, String],
-        extraService1: (QualifiedIdentifier, String),
-        extraService2: (QualifiedIdentifier, String),
-      ) =>
-        val allServices = services + extraService1 + extraService2
+  test("explicit service ref that matches a service, but the service doesn't have that operation") {
+    val result = MultiServiceResolver.resolveService(
+      queryOperationName = QueryOperationName[Id](
+        identifier = Some(QualifiedIdentifier.of("com", "example", "ServiceB")),
+        operationName = OperationName("Op"),
+      ),
+      servicesToOps = Map(
+        QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "ServiceB") -> Set(OperationName("Op2")),
+      ),
+      useClauses = Nil,
+    )
 
-        val result = MultiServiceResolver.resolveService(
-          Nil,
-          services = allServices,
+    assert.same(
+      result,
+      ResolutionFailure
+        .OperationMissing(
+          OperationName("Op"),
+          QualifiedIdentifier.of("com", "example", "ServiceB"),
+          Set(OperationName("Op2")),
         )
-
-        val expected = ResolutionFailure.AmbiguousService(allServices.keySet.toList)
-
-        assert(result == Left(expected))
-    }
+        .leftNel,
+    )
   }
 
+  test("explicit service ref that matches one service") {
+    val result = MultiServiceResolver.resolveService(
+      queryOperationName = QueryOperationName[Id](
+        identifier = Some(QualifiedIdentifier.of("com", "example", "ServiceB")),
+        operationName = OperationName("Op"),
+      ),
+      servicesToOps = Map(
+        QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "ServiceB") -> Set(OperationName("Op")),
+      ),
+      useClauses = Nil,
+    )
+
+    assert.same(
+      result,
+      QualifiedIdentifier.of("com", "example", "ServiceB").asRight,
+    )
+  }
+
+  /*
+  test("use clauses referring to nonexistent services") {
+    val result = MultiServiceResolver.resolveService(
+      queryOperationName = QueryOperationName[Id](
+        identifier = None,
+        operationName = OperationName("Op"),
+      ),
+      servicesToOps = Map(
+        QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty
+      ),
+      useClauses = List(
+        UseClause(QualifiedIdentifier.of("com", "example", "ServiceA")),
+        UseClause(QualifiedIdentifier.of("com", "example", "ServiceB")),
+        UseClause(QualifiedIdentifier.of("com", "example", "ServiceC")),
+      ),
+    )
+
+    val knownServices = List(
+      QualifiedIdentifier.of("com", "example", "ServiceA")
+    )
+    assert.same(
+      result,
+      NonEmptyList
+        .of(
+          ResolutionFailure.AmbiguousService(knownServices),
+          ResolutionFailure.UnknownService(
+            QualifiedIdentifier.of("com", "example", "ServiceB"),
+            knownServices,
+          ),
+          ResolutionFailure.UnknownService(
+            QualifiedIdentifier.of("com", "example", "ServiceC"),
+            knownServices,
+          ),
+        )
+        .asLeft,
+    )
+  } */
 }
