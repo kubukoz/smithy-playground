@@ -1,7 +1,6 @@
 package playground
 
 import cats.Id
-import cats.Parallel
 import cats.data.EitherNel
 import cats.data.Ior
 import cats.data.IorNel
@@ -16,7 +15,6 @@ import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
-import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
 import smithy.api
 import smithy4s.Endpoint
@@ -44,38 +42,6 @@ object CompiledInput {
       type _Op[__I, __E, __O, __SE, __SO] = Op[__I, __E, __O, __SE, __SO]
       type E = _E
       type O = _O
-    }
-
-}
-
-trait FileCompiler[F[_]] {
-  def compile(f: SourceFile[WithSource]): F[List[CompiledInput]]
-  def mapK[G[_]](fk: F ~> G): FileCompiler[G] = f => fk(compile(f))
-}
-
-object FileCompiler {
-
-  def instance[F[_]: Parallel](
-    opCompiler: OperationCompiler[OperationCompiler.EffF[F, *]]
-  ): FileCompiler[F] =
-    new FileCompiler[F] {
-
-      def compile(
-        f: SourceFile[WithSource]
-      ): F[List[CompiledInput]] = f
-        .statements
-        .value
-        .parTraverse {
-          _.fold(runQuery =>
-            opCompiler.compile(
-              runQuery
-                .query
-                .value
-            )
-          )
-        }
-        .run(OperationCompiler.Context(f.prelude))
-
     }
 
 }

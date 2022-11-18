@@ -8,6 +8,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import smithyql.syntax._
 
+// Abstraction for service metadata. Can be used by multi-service compilers/runners/completion providers etc.
 trait ServiceIndex {
   def getService(id: QualifiedIdentifier): Option[ServiceIndexEntry]
   def requireServices(ids: List[QualifiedIdentifier]): List[ServiceIndexEntry]
