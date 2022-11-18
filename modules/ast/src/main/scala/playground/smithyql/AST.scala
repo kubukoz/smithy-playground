@@ -1,7 +1,6 @@
 package playground.smithyql
 
 import cats.Applicative
-import cats.Apply
 import cats.Functor
 import cats.Id
 import cats.Show
@@ -161,24 +160,14 @@ final case class QueryOperationName[F[_]](
 }
 
 final case class Query[F[_]](
-  @deprecated("use clauses are now located in the prelude section of the file", "")
-  useClause: F[Option[UseClause[F]]],
   operationName: F[QueryOperationName[F]],
   input: F[Struct[F]],
 ) extends AST[F] {
 
   def mapK[G[_]: Functor](fk: F ~> G): Query[G] = Query(
-    fk(useClause).map(_.map(_.mapK(fk))),
     fk(operationName).map(_.mapK(fk)),
     fk(input).map(_.mapK(fk)),
   )
-
-  @deprecated("alternative pending", "")
-  def collectServiceIdentifiers(implicit F: Apply[F]): F[List[F[QualifiedIdentifier]]] =
-    (
-      useClause.map(_.map(_.identifier)),
-      operationName.map(_.identifier),
-    ).mapN(_.toList ++ _.toList)
 
 }
 

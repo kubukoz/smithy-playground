@@ -235,9 +235,7 @@ object Parsers {
       (
         tokens.withComments(queryOperationName, left = false),
         tokens.withComments(struct, right = false),
-      ).mapN {
-        Query.apply(WithSource.liftId(Option.empty[UseClause[T]]), _, _)
-      }.withContext("query")
+      ).mapN(Query.apply).withContext("query")
 
     val runQuery
       : Parser[RunQuery[T]] = tokens.withComments(query).map(RunQuery(_)).withContext("run_query")

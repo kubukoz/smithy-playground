@@ -32,6 +32,7 @@ import weaver._
 
 import StringRangeUtils._
 import playground.ServiceUtils._
+import playground.ServiceIndex
 
 object DiagnosticProviderTests extends SimpleIOSuite {
 
@@ -76,7 +77,8 @@ object DiagnosticProviderTests extends SimpleIOSuite {
           baseUri = IO.stub,
           awsEnv = Resource.eval(IO.stub: IO[AwsEnvironment[IO]]),
           plugins = Nil,
-        )
+        ),
+        ServiceIndex.fromServices(services),
       )
     ),
   )

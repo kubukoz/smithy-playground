@@ -267,7 +267,6 @@ object CompletionItem {
         Formatter[Query]
           .format(
             Query[Id](
-              useClause = None,
               operationName = QueryOperationName[Id](
                 identifier = None,
                 operationName = OperationName[Id](endpoint.name),

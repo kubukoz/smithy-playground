@@ -7,18 +7,18 @@ trait ASTVisitor[F[_], T] extends (AST[F] => T) {
     ast match {
       case QueryOperationName(identifier, operationName) =>
         queryOperationName(identifier, operationName)
-      case OperationName(text)                    => operationName(text)
-      case UseClause(identifier)                  => useClause(identifier)
-      case Prelude(useClauses)                    => prelude(useClauses)
-      case Query(useClause, operationName, input) => query(useClause, operationName, input)
-      case RunQuery(query)                        => runQuery(query)
-      case SourceFile(prelude, statements)        => sourceFile(prelude, statements)
-      case IntLiteral(value)                      => intLiteral(value)
-      case Struct(fields)                         => struct(fields)
-      case NullLiteral()                          => nullLiteral
-      case Listed(values)                         => listed(values)
-      case BooleanLiteral(value)                  => booleanLiteral(value)
-      case StringLiteral(value)                   => stringLiteral(value)
+      case OperationName(text)             => operationName(text)
+      case UseClause(identifier)           => useClause(identifier)
+      case Prelude(useClauses)             => prelude(useClauses)
+      case Query(operationName, input)     => query(operationName, input)
+      case RunQuery(query)                 => runQuery(query)
+      case SourceFile(prelude, statements) => sourceFile(prelude, statements)
+      case IntLiteral(value)               => intLiteral(value)
+      case Struct(fields)                  => struct(fields)
+      case NullLiteral()                   => nullLiteral
+      case Listed(values)                  => listed(values)
+      case BooleanLiteral(value)           => booleanLiteral(value)
+      case StringLiteral(value)            => stringLiteral(value)
     }
 
   def sourceFile(
@@ -32,8 +32,6 @@ trait ASTVisitor[F[_], T] extends (AST[F] => T) {
   def useClause(identifier: F[QualifiedIdentifier]): T
 
   def query(
-    @deprecated("use clauses are now located in the prelude section of the file", "")
-    useClause: F[Option[UseClause[F]]],
     operationName: F[QueryOperationName[F]],
     input: F[Struct[F]],
   ): T
@@ -65,7 +63,6 @@ object ASTVisitor {
     def useClause(identifier: F[QualifiedIdentifier]): T = default
 
     def query(
-      useClause: F[Option[UseClause[F]]],
       operationName: F[QueryOperationName[F]],
       input: F[Struct[F]],
     ): T = default

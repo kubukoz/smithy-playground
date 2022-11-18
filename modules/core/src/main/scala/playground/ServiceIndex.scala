@@ -13,6 +13,7 @@ trait ServiceIndex {
   def getService(id: QualifiedIdentifier): Option[ServiceIndexEntry]
   def requireServices(ids: List[QualifiedIdentifier]): List[ServiceIndexEntry]
   def serviceIds: Set[QualifiedIdentifier]
+  def allServices: List[ServiceIndexEntry]
 }
 
 object ServiceIndex {
@@ -54,6 +55,7 @@ object ServiceIndex {
         ids: List[QualifiedIdentifier]
       ): List[ServiceIndexEntry] = ids.map(entries)
 
+      val allServices: List[ServiceIndexEntry] = entries.values.toList
     }
 
 }

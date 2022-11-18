@@ -35,6 +35,7 @@ import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
 
 import smithyql.syntax._
+import playground.smithyql.Prelude
 
 trait OperationRunner[F[_]] {
   def run(q: CompiledInput): F[InputNode[Id]]
@@ -43,7 +44,12 @@ trait OperationRunner[F[_]] {
 object OperationRunner {
 
   trait Resolver[F[_]] {
-    def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]]
+
+    def get(
+      parsed: Query[WithSource],
+      prelude: Prelude[WithSource],
+    ): IorNel[Issue, OperationRunner[F]]
+
   }
 
   sealed trait Issue extends Product with Serializable
@@ -152,30 +158,27 @@ object OperationRunner {
     }.toMap
 
   def merge[F[_]](
-    runners: Map[QualifiedIdentifier, Resolver[F]]
+    runners: Map[QualifiedIdentifier, Resolver[F]],
+    serviceIndex: ServiceIndex,
   ): Resolver[F] =
     new Resolver[F] {
 
-      def get(q: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = MultiServiceResolver
+      def get(
+        q: Query[WithSource],
+        prelude: Prelude[WithSource],
+      ): IorNel[Issue, OperationRunner[F]] = MultiServiceResolver
         .resolveService(
-          q.operationName.value.mapK(WithSource.unwrap),
-          ???,
-          ???,
+          queryOperationName = q.operationName.value.mapK(WithSource.unwrap),
+          serviceIndex = serviceIndex,
+          useClauses = prelude.useClauses.map(_.value.mapK(WithSource.unwrap)),
         )
         .map(runners(_))
-        .leftMap(
-          _.map(rf =>
-            CompilationError.error(
-              CompilationErrorDetails.fromResolutionFailure(rf),
-              q.useClause.value.fold(q.operationName.range)(_.identifier.range),
-            )
-          )
-        )
+        .leftMap(_.map(ResolutionFailure.toCompilationError(_, q)))
         .leftMap(CompilationFailed(_))
         .toIor
         .leftMap(Issue.Other(_))
         .toIorNel
-        .flatMap(_.get(q))
+        .flatMap(_.get(q, prelude))
 
     }
 
@@ -287,7 +290,11 @@ object OperationRunner {
         IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]]
       )
 
-      def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = getInternal
+      def get(
+        parsed: Query[WithSource],
+        prelude: Prelude[WithSource],
+      ): IorNel[Issue, OperationRunner[F]] = getInternal
+
     }
 
   def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](

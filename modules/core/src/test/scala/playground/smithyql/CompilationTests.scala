@@ -54,7 +54,6 @@ import java.time
 import java.util.UUID
 
 import Arbitraries._
-import playground.ResolutionFailure
 import cats.data.NonEmptyList
 
 object CompilationTests extends SimpleIOSuite with Checkers {

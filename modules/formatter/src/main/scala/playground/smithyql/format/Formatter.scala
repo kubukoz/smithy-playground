@@ -184,7 +184,6 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
       visit(operationName.value)
 
   override def query(
-    useClause: WithSource[Option[UseClause[WithSource]]],
     operationName: WithSource[QueryOperationName[WithSource]],
     input: WithSource[Struct[WithSource]],
   ): Doc = {

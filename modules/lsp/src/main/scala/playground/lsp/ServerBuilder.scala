@@ -17,6 +17,7 @@ import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 import playground.FileRunner
+import playground.ServiceIndex
 
 trait ServerBuilder[F[_]] {
   def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]]
@@ -61,18 +62,21 @@ object ServerBuilder {
         } yield {
           val runners = OperationRunner
             .forSchemaIndex[F](
-              dsi,
-              client,
-              LanguageClient[F].configuration(ConfigurationValue.baseUri),
-              awsEnv,
+              dsi = dsi,
+              client = client,
+              baseUri = LanguageClient[F].configuration(ConfigurationValue.baseUri),
+              awsEnv = awsEnv,
               plugins = plugins,
             )
+
+          val serviceIndex = ServiceIndex.fromServices(dsi.allServices)
 
           implicit val sl: ServerLoader[F] = loader
 
           implicit val reporter = rep
 
-          LanguageServer.instance[F](dsi, FileRunner.instance(OperationRunner.merge[F](runners)))
+          LanguageServer
+            .instance[F](dsi, FileRunner.instance(OperationRunner.merge[F](runners, serviceIndex)))
         }
     }
   }

@@ -16,7 +16,7 @@ import StringRangeUtils._
 
 object CodeLensProviderTests extends FunSuite {
 
-  private val runnerStub = FileRunner.instance[IO](_ =>
+  private val runnerStub = FileRunner.instance[IO]((_, _) =>
     ((_ => IO.stub): OperationRunner[IO]).rightIor
   )
 

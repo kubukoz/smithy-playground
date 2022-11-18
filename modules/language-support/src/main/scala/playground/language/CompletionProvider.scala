@@ -16,6 +16,7 @@ import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
 import playground.smithyql.syntax._
 import smithy4s.dynamic.DynamicSchemaIndex
+import playground.ServiceIndex
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]
@@ -30,40 +31,39 @@ object CompletionProvider {
   def forServices(
     allServices: List[DynamicSchemaIndex.ServiceWrapper]
   ): CompletionProvider = {
+    // long-term, it'd be nice to get rid of this (too low level)
     val servicesById =
       allServices.map { service =>
         QualifiedIdentifier.forService(service.service) -> service
       }.toMap
 
-    val serviceIdsById = servicesById.map { case (k, _) => (k, k) }
+    val serviceIndex = ServiceIndex.fromServices(allServices)
 
-    // map of completions for each service.
-    // the returned function takes a list of imported services (use clause)
-    // and uses it to determine whether a new use clause is needed to use operations of this service.
-    val completeOperationName
-      : Map[QualifiedIdentifier, List[QualifiedIdentifier] => List[CompletionItem]] = servicesById
-      .map { case (serviceId, service) =>
-        serviceId -> { (presentServiceIdentifiers: List[QualifiedIdentifier]) =>
-          val needsUseClause = !presentServiceIdentifiers.contains(serviceId)
+    // Completions for the service's operations.
+    // Uses a list of imported services (use clauses) to determine whether a new use clause is needed to use this service's operations.
+    def completeOperationName(
+      serviceId: QualifiedIdentifier,
+      presentServiceIdentifiers: List[QualifiedIdentifier],
+    ): List[CompletionItem] = {
+      val needsUseClause = !presentServiceIdentifiers.contains(serviceId)
 
-          val insertUseClause =
-            if (needsUseClause)
-              CompletionItem.InsertUseClause.Required
-            else
-              CompletionItem.InsertUseClause.NotRequired
+      val insertUseClause =
+        if (needsUseClause)
+          CompletionItem.InsertUseClause.Required
+        else
+          CompletionItem.InsertUseClause.NotRequired
 
-          service
-            .service
-            .endpoints
-            .map { e =>
-              CompletionItem.forOperation(
-                insertUseClause = insertUseClause,
-                endpoint = e,
-                serviceId = serviceId,
-              )
-            }
+      servicesById(serviceId)
+        .service
+        .endpoints
+        .map { e =>
+          CompletionItem.forOperation(
+            insertUseClause = insertUseClause,
+            endpoint = e,
+            serviceId = serviceId,
+          )
         }
-      }
+    }
 
     def completeRootOperationName(file: SourceFile[WithSource]) = {
       // todo: double-check test coverage.
@@ -80,7 +80,7 @@ object CompletionProvider {
         presentServiceIds ++
           notPresent
       ).flatMap(
-        completeOperationName(_).apply(presentServiceIds)
+        completeOperationName(_, presentServiceIds)
       )
     }
 
@@ -101,12 +101,20 @@ object CompletionProvider {
       q: Query[WithSource],
       sf: SourceFile[WithSource],
       serviceId: Option[QualifiedIdentifier],
-    ) =
+    ): List[CompletionItem] =
       serviceId match {
         case Some(serviceId) =>
-          completeOperationName(serviceId)(
-            q.mapK(WithSource.unwrap).collectServiceIdentifiers
+          // includes the current query's service reference
+          // as it wouldn't result in ading a use clause
+          val presentServiceIdentifiers =
+            q.operationName.value.mapK(WithSource.unwrap).identifier.toList ++
+              sf.prelude.useClauses.map(_.value.identifier.value)
+
+          completeOperationName(
+            serviceId,
+            presentServiceIdentifiers,
           )
+
         case None => completeRootOperationName(sf)
       }
 
@@ -115,21 +123,21 @@ object CompletionProvider {
       sf: SourceFile[WithSource],
       ctx: NodeContext,
     ): List[CompletionItem] = {
-      // still wrong
-      val serviceIdOpt =
+      val resolvedServiceId =
         MultiServiceResolver
           .resolveService(
-            q.mapK(WithSource.unwrap).collectServiceIdentifiers,
-            serviceIdsById,
+            q.mapK(WithSource.unwrap).operationName,
+            serviceIndex,
+            sf.prelude.useClauses.map(_.value.mapK(WithSource.unwrap)),
           )
           .toOption
 
       ctx match {
         case NodeContext.PathEntry.AtOperationName ^^: EmptyPath =>
-          completeOperationNameFor(q, sf, serviceIdOpt)
+          completeOperationNameFor(q, sf, resolvedServiceId)
 
         case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
-          serviceIdOpt match {
+          resolvedServiceId match {
             case Some(serviceId) =>
               inputCompletions(serviceId)(
                 q.operationName.value.operationName.value.mapK(WithSource.unwrap)

@@ -20,20 +20,22 @@ object FileRunner {
   }
 
   def instance[F[_]](forOperation: OperationRunner.Resolver[F]): Resolver[F] =
-    _.queries(WithSource.unwrap)
-      .map(_.query.value)
-      // keeping toEither on this level for now:
-      // - if we had a Both, we can ignore the errors.
-      // - if we had a Left/Right, that'll still be the case
-      // hoping that we won't need non-protocol Runner.Issues in the current form once this lands:
-      // https://github.com/disneystreaming/smithy4s/issues/501
-      .parTraverse { q =>
-        forOperation
-          .get(q)
-          .toEither
-          .leftMap(OperationRunner.Issue.squash(_))
-          .leftMap((q.operationName.range, _))
-          .toEitherNel
-      }
+    file =>
+      file
+        .queries(WithSource.unwrap)
+        .map(_.query.value)
+        // keeping toEither on this level for now:
+        // - if we had a Both, we can ignore the errors.
+        // - if we had a Left/Right, that'll still be the case
+        // hoping that we won't need non-protocol Runner.Issues in the current form once this lands:
+        // https://github.com/disneystreaming/smithy4s/issues/501
+        .parTraverse { q =>
+          forOperation
+            .get(q, file.prelude)
+            .toEither
+            .leftMap(OperationRunner.Issue.squash(_))
+            .leftMap((q.operationName.range, _))
+            .toEitherNel
+        }
 
 }

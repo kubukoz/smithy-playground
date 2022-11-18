@@ -10,15 +10,8 @@ import playground.smithyql.QueryOperationName
 import playground.smithyql.SourceRange
 import playground.smithyql.UseClause
 import playground.smithyql.WithSource
-import cats.data.NonEmptyList
 
 object MultiServiceResolver {
-
-  @deprecated("use overload with 3 parameters")
-  def resolveService[A](
-    identifiers: List[QualifiedIdentifier],
-    services: Map[QualifiedIdentifier, A],
-  ): Either[ResolutionFailure, A] = sys.error("resolveService: deprecated, don't use!")
 
   /** Determines which service should be used for a query. The rules are:
     *   - If the operation name has a service identifier, there MUST be a service with that name
@@ -159,11 +152,6 @@ object ResolutionFailure {
   }
 
   // Returns the preferred range for diagnostics about resolution failure
-  private def defaultRange(q: Query[WithSource]): SourceRange =
-    q.useClause.value match {
-      case None         => q.operationName.value.operationName.range
-      case Some(clause) => clause.identifier.range
-      // todo: involve the optional range in q.operationName's service reference
-    }
+  private def defaultRange(q: Query[WithSource]): SourceRange = ???
 
 }

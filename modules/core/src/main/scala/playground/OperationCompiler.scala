@@ -24,6 +24,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithyql.syntax._
 import types._
 import util.chaining._
+import playground.smithyql.UseClause
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -169,8 +170,9 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     q.operationName.range,
   )
 
-  private def deprecationWarnings(q: Query[WithSource]) =
-    q.useClause.value match {
+  private def deprecationWarnings(q: Query[WithSource]): IorNel[CompilationError, Unit] =
+    (/* q.useClause.value */ ??? : Option[UseClause[WithSource]]) match {
+      // todo: move to file compiler, support more clauses
       // If the use clause is present, in normal flow it's 100% safe to assume that it matches this compiler's service.
       case Some(useClause) =>
         service
@@ -198,12 +200,11 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       .toBothLeft(())
       .toIorNel
 
-  def compile(q: Query[WithSource]): IorNel[CompilationError, CompiledInput] =
-    endpoints
-      .get(q.operationName.value.operationName.value.text)
-      .toRightIor(NonEmptyList.one(operationNotFound(q)))
-      .flatTap { case (e, _) => deprecatedOperationCheck(q, e) }
-      .flatMap(_._2.apply(q.input)) <& deprecationWarnings(q)
+  def compile(q: Query[WithSource]): IorNel[CompilationError, CompiledInput] = endpoints
+    .get(q.operationName.value.operationName.value.text)
+    .toRightIor(NonEmptyList.one(operationNotFound(q)))
+    .flatTap { case (e, _) => deprecatedOperationCheck(q, e) }
+    .flatMap(_._2.apply(q.input))
 
 }
 
