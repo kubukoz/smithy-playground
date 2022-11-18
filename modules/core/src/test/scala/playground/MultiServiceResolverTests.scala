@@ -33,8 +33,8 @@ object MultiServiceResolverTests extends FunSuite {
         operationName = OperationName("Op"),
       ),
       servicesToOps = Map(
-        QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
-        QualifiedIdentifier.of("com", "example", "ServiceB") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "AvailableA") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "AvailableB") -> Set.empty,
       ),
       useClauses = Nil,
     )
@@ -44,8 +44,8 @@ object MultiServiceResolverTests extends FunSuite {
       ResolutionFailure
         .AmbiguousService(
           List(
-            QualifiedIdentifier.of("com", "example", "ServiceA"),
-            QualifiedIdentifier.of("com", "example", "ServiceB"),
+            QualifiedIdentifier.of("com", "example", "AvailableA"),
+            QualifiedIdentifier.of("com", "example", "AvailableB"),
           )
         )
         .leftNel,
@@ -55,12 +55,12 @@ object MultiServiceResolverTests extends FunSuite {
   test("explicit service ref that doesn't match any known service") {
     val result = MultiServiceResolver.resolveService(
       queryOperationName = QueryOperationName[Id](
-        identifier = Some(QualifiedIdentifier.of("com", "example", "ServiceC")),
+        identifier = Some(QualifiedIdentifier.of("com", "example", "Unavailable")),
         operationName = OperationName("Op"),
       ),
       servicesToOps = Map(
-        QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
-        QualifiedIdentifier.of("com", "example", "ServiceB") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "AvailableA") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "AvailableB") -> Set.empty,
       ),
       useClauses = Nil,
     )
@@ -69,10 +69,10 @@ object MultiServiceResolverTests extends FunSuite {
       result,
       ResolutionFailure
         .UnknownService(
-          QualifiedIdentifier.of("com", "example", "ServiceC"),
+          QualifiedIdentifier.of("com", "example", "Unavailable"),
           List(
-            QualifiedIdentifier.of("com", "example", "ServiceA"),
-            QualifiedIdentifier.of("com", "example", "ServiceB"),
+            QualifiedIdentifier.of("com", "example", "AvailableA"),
+            QualifiedIdentifier.of("com", "example", "AvailableB"),
           ),
         )
         .leftNel,
@@ -82,12 +82,12 @@ object MultiServiceResolverTests extends FunSuite {
   test("explicit service ref that matches a service, but the service doesn't have that operation") {
     val result = MultiServiceResolver.resolveService(
       queryOperationName = QueryOperationName[Id](
-        identifier = Some(QualifiedIdentifier.of("com", "example", "ServiceB")),
+        identifier = Some(QualifiedIdentifier.of("com", "example", "ServiceMissingOp")),
         operationName = OperationName("Op"),
       ),
       servicesToOps = Map(
         QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
-        QualifiedIdentifier.of("com", "example", "ServiceB") -> Set(OperationName("Op2")),
+        QualifiedIdentifier.of("com", "example", "ServiceMissingOp") -> Set(OperationName("Op2")),
       ),
       useClauses = Nil,
     )
@@ -97,7 +97,7 @@ object MultiServiceResolverTests extends FunSuite {
       ResolutionFailure
         .OperationMissing(
           OperationName("Op"),
-          QualifiedIdentifier.of("com", "example", "ServiceB"),
+          QualifiedIdentifier.of("com", "example", "ServiceMissingOp"),
           Set(OperationName("Op2")),
         )
         .leftNel,
@@ -107,19 +107,19 @@ object MultiServiceResolverTests extends FunSuite {
   test("explicit service ref that matches one service") {
     val result = MultiServiceResolver.resolveService(
       queryOperationName = QueryOperationName[Id](
-        identifier = Some(QualifiedIdentifier.of("com", "example", "ServiceB")),
+        identifier = Some(QualifiedIdentifier.of("com", "example", "MatchingService")),
         operationName = OperationName("Op"),
       ),
       servicesToOps = Map(
-        QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
-        QualifiedIdentifier.of("com", "example", "ServiceB") -> Set(OperationName("Op")),
+        QualifiedIdentifier.of("com", "example", "OtherService") -> Set.empty,
+        QualifiedIdentifier.of("com", "example", "MatchingService") -> Set(OperationName("Op")),
       ),
       useClauses = Nil,
     )
 
     assert.same(
       result,
-      QualifiedIdentifier.of("com", "example", "ServiceB").asRight,
+      QualifiedIdentifier.of("com", "example", "MatchingService").asRight,
     )
   }
 

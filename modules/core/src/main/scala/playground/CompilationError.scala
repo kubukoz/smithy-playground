@@ -183,8 +183,6 @@ object CompilationErrorDetails {
       CompilationErrorDetails.AmbiguousService(knownServices)
     case ResolutionFailure.UnknownService(unknownId, knownServices) =>
       CompilationErrorDetails.UnknownService(unknownId, knownServices)
-    case ResolutionFailure.ConflictingServiceReference(refs) =>
-      CompilationErrorDetails.ConflictingServiceReference(refs)
 
   }
 

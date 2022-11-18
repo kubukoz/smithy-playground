@@ -38,6 +38,7 @@ object MultiServiceResolver {
     queryOperationName.identifier match {
       case Some(explicitRef) =>
         resolveExplicit(servicesToOps, explicitRef, queryOperationName.operationName)
+
       case None => ResolutionFailure.AmbiguousService(servicesToOps.keySet.toList).leftNel
     }
 
@@ -71,9 +72,6 @@ sealed trait ResolutionFailure extends Product with Serializable
 
 object ResolutionFailure {
   final case class AmbiguousService(knownServices: List[QualifiedIdentifier])
-    extends ResolutionFailure
-
-  final case class ConflictingServiceReference(references: List[QualifiedIdentifier])
     extends ResolutionFailure
 
   final case class UnknownService(
