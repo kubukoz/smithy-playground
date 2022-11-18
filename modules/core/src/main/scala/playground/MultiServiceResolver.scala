@@ -1,16 +1,15 @@
 package playground
 
+import cats.Id
+import cats.data.EitherNel
 import cats.implicits._
+import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
-import playground.smithyql.SourceRange
-import playground.smithyql.WithSource
-import playground.smithyql.UseClause
-import cats.Id
 import playground.smithyql.QueryOperationName
-import playground.smithyql.OperationName
-import cats.data.NonEmptyList
-import cats.data.EitherNel
+import playground.smithyql.SourceRange
+import playground.smithyql.UseClause
+import playground.smithyql.WithSource
 
 object MultiServiceResolver {
 
@@ -37,21 +36,33 @@ object MultiServiceResolver {
     useClauses: List[UseClause[Id]],
   ): EitherNel[ResolutionFailure, QualifiedIdentifier] =
     queryOperationName.identifier match {
-      case Some(explicitRef) if !servicesToOps.contains(explicitRef) =>
+      case Some(explicitRef) =>
+        resolveExplicit(servicesToOps, explicitRef, queryOperationName.operationName)
+      case None => ResolutionFailure.AmbiguousService(servicesToOps.keySet.toList).leftNel
+    }
+
+  private def resolveExplicit(
+    servicesToOps: Map[QualifiedIdentifier, Set[OperationName[Id]]],
+    explicitRef: QualifiedIdentifier,
+    operationName: OperationName[Id],
+  ) =
+    servicesToOps.get(explicitRef) match {
+      // explicit reference exists, but the service doesn't
+      case None =>
         ResolutionFailure.UnknownService(explicitRef, servicesToOps.keySet.toList).leftNel
 
-      case Some(explicitRef)
-          if !servicesToOps(explicitRef).contains_(queryOperationName.operationName) =>
+      // the service exists, but doesn't have the requested operation
+      case Some(ops) if !ops.contains_(operationName) =>
         ResolutionFailure
           .OperationMissing(
-            queryOperationName.operationName,
+            operationName,
             explicitRef,
             servicesToOps(explicitRef),
           )
           .leftNel
-      case Some(explicitRef) => explicitRef.asRight
 
-      case None => ResolutionFailure.AmbiguousService(servicesToOps.keySet.toList).leftNel
+      // all good
+      case Some(_) => explicitRef.asRight
     }
 
 }
