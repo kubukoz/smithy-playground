@@ -155,16 +155,16 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
         }
   }
 
+  // https://github.com/kubukoz/smithy-playground/issues/154
   private val endpoints = service
     .endpoints
     .groupByNel(_.name)
     .map(_.map(_.head).map(e => (e, compileEndpoint(e))))
 
-  private def operationNotFound(q: Query[WithSource]): CompilationError = CompilationError.error(
+  private def OperationMissing(q: Query[WithSource]): CompilationError = CompilationError.error(
     CompilationErrorDetails
-      .OperationNotFound(
-        q.operationName.value.operationName.value.mapK(WithSource.unwrap),
-        endpoints.keys.map(OperationName[Id](_)).toList,
+      .OperationMissing(
+        endpoints.keys.map(OperationName[Id](_)).toList
       ),
     q.operationName.range,
   )
@@ -189,7 +189,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   private def deprecatedOperationCheck(
     q: Query[WithSource],
     endpoint: Endpoint[Op, _, _, _, _, _],
-  ) =
+  ): IorNel[CompilationError, Unit] =
     endpoint
       .hints
       .get(api.Deprecated)
@@ -201,7 +201,9 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
   def compile(q: Query[WithSource]): IorNel[CompilationError, CompiledInput] = endpoints
     .get(q.operationName.value.operationName.value.text)
-    .toRightIor(NonEmptyList.one(operationNotFound(q)))
+    // https://github.com/kubukoz/smithy-playground/issues/154
+    .toRightIor(OperationMissing(q))
+    .toIorNel
     .flatTap { case (e, _) => deprecatedOperationCheck(q, e) }
     .flatMap(_._2.apply(q.input))
 

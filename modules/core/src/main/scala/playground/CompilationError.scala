@@ -124,9 +124,9 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
-      case AmbiguousService(known) =>
+      case AmbiguousService(workspaceServices) =>
         s"""Add a use clause to specify the service you want to use.
-           |Available services:""".stripMargin + known
+           |Available services:""".stripMargin + workspaceServices
           .sorted
           .map(UseClause[Id](_).mapK(WithSource.liftId))
           .map(Formatter.useClauseFormatter.format(_, Int.MaxValue))
@@ -139,8 +139,8 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
       case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
 
-      case OperationNotFound(name, validOperations) =>
-        s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}."
+      case OperationMissing(validOperations) =>
+        s"Operation not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}."
 
       case MissingField(label) => s"Missing field $label."
 
@@ -183,11 +183,14 @@ object CompilationErrorDetails {
   }
 
   val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
-    case ResolutionFailure.AmbiguousService(knownServices, _) =>
-      // todo
-      CompilationErrorDetails.AmbiguousService(knownServices)
-    case ResolutionFailure.UnknownService(unknownId, knownServices) =>
+    case ResolutionFailure.AmbiguousService(workspaceServices) =>
+      CompilationErrorDetails.AmbiguousService(workspaceServices)
+
+    case ResolutionFailure.UnknownService(knownServices) =>
       CompilationErrorDetails.UnknownService(knownServices)
+
+    case ResolutionFailure.OperationMissing(availableOperations) =>
+      CompilationErrorDetails.OperationMissing(availableOperations.toList)
 
   }
 
@@ -207,7 +210,7 @@ object CompilationErrorDetails {
     extends CompilationErrorDetails
 
   final case class AmbiguousService(
-    known: List[QualifiedIdentifier]
+    workspaceServices: List[QualifiedIdentifier]
   ) extends CompilationErrorDetails
 
   final case class TypeMismatch(
@@ -215,9 +218,8 @@ object CompilationErrorDetails {
     actual: NodeKind,
   ) extends CompilationErrorDetails
 
-  final case class OperationNotFound(
-    name: OperationName[Id],
-    validOperations: List[OperationName[Id]],
+  final case class OperationMissing(
+    validOperations: List[OperationName[Id]]
   ) extends CompilationErrorDetails
 
   final case class MissingField(label: String) extends CompilationErrorDetails

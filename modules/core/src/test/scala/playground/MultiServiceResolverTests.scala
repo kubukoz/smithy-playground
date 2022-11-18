@@ -25,7 +25,7 @@ object MultiServiceResolverTests extends FunSuite {
 
     assert.same(
       result,
-      ResolutionFailure.AmbiguousService(Nil, Nil).leftNel,
+      ResolutionFailure.AmbiguousService(Nil).leftNel,
     )
   }
 
@@ -49,8 +49,7 @@ object MultiServiceResolverTests extends FunSuite {
           workspaceServices = List(
             QualifiedIdentifier.of("com", "example", "AvailableA"),
             QualifiedIdentifier.of("com", "example", "AvailableB"),
-          ),
-          matchingServices = Nil,
+          )
         )
         .leftNel,
     )
@@ -73,11 +72,10 @@ object MultiServiceResolverTests extends FunSuite {
       result,
       ResolutionFailure
         .UnknownService(
-          QualifiedIdentifier.of("com", "example", "Unavailable"),
           List(
             QualifiedIdentifier.of("com", "example", "AvailableA"),
             QualifiedIdentifier.of("com", "example", "AvailableB"),
-          ),
+          )
         )
         .leftNel,
     )
@@ -100,9 +98,7 @@ object MultiServiceResolverTests extends FunSuite {
       result,
       ResolutionFailure
         .OperationMissing(
-          OperationName("Op"),
-          QualifiedIdentifier.of("com", "example", "ServiceMissingOp"),
-          Set(OperationName("Op2")),
+          Set(OperationName("Op2"))
         )
         .leftNel,
     )
@@ -181,11 +177,7 @@ object MultiServiceResolverTests extends FunSuite {
             QualifiedIdentifier.of("com", "example", "MatchingService1"),
             QualifiedIdentifier.of("com", "example", "MatchingService2"),
             QualifiedIdentifier.of("com", "example", "OtherService"),
-          ),
-          matchingServices = List(
-            QualifiedIdentifier.of("com", "example", "MatchingService1"),
-            QualifiedIdentifier.of("com", "example", "MatchingService2"),
-          ),
+          )
         )
         .leftNel,
     )

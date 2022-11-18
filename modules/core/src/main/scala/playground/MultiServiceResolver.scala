@@ -47,15 +47,13 @@ object MultiServiceResolver {
   ): EitherNel[ResolutionFailure, QualifiedIdentifier] =
     index.getService(explicitRef) match {
       // explicit reference exists, but the service doesn't
-      case None => ResolutionFailure.UnknownService(explicitRef, index.serviceIds.toList).leftNel
+      case None => ResolutionFailure.UnknownService(index.serviceIds.toList).leftNel
 
       // the service exists, but doesn't have the requested operation
       case Some(service) if !service.operationNames.contains_(operationName) =>
         ResolutionFailure
           .OperationMissing(
-            operationName,
-            explicitRef,
-            service.operationNames,
+            service.operationNames
           )
           .leftNel
 
@@ -79,8 +77,7 @@ object MultiServiceResolver {
       case _ =>
         ResolutionFailure
           .AmbiguousService(
-            workspaceServices = index.serviceIds.toList,
-            matchingServices = matchingServices.map(_.id),
+            workspaceServices = index.serviceIds.toList
           )
           .leftNel
     }
@@ -93,20 +90,15 @@ sealed trait ResolutionFailure extends Product with Serializable
 object ResolutionFailure {
 
   final case class AmbiguousService(
-    workspaceServices: List[QualifiedIdentifier],
-    // services imported with a use clause that are also matching the operation name
-    matchingServices: List[QualifiedIdentifier],
+    workspaceServices: List[QualifiedIdentifier]
   ) extends ResolutionFailure
 
   final case class UnknownService(
-    unknownId: QualifiedIdentifier,
-    knownServices: List[QualifiedIdentifier],
+    knownServices: List[QualifiedIdentifier]
   ) extends ResolutionFailure
 
   final case class OperationMissing(
-    operationName: OperationName[Id],
-    serviceName: QualifiedIdentifier,
-    availableOperations: Set[OperationName[Id]],
+    availableOperations: Set[OperationName[Id]]
   ) extends ResolutionFailure
 
   def toCompilationError(rf: ResolutionFailure, q: Query[WithSource]): CompilationError = {
