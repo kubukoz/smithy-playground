@@ -9,7 +9,9 @@ import playground.smithyql.format.Formatter
 import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.ShapeId
+import cats.data.IorNel
 
+// this is more like "Diagnostic".
 final case class CompilationError(
   err: CompilationErrorDetails,
   range: SourceRange,
@@ -24,6 +26,8 @@ final case class CompilationError(
 }
 
 object CompilationError {
+
+  type InIorNel[+A] = IorNel[CompilationError, A]
 
   def error(
     err: CompilationErrorDetails,
@@ -120,16 +124,16 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
-      case AmbiguousService(matching) =>
-        s"""Multiple services are available. Add a use clause to specify the service you want to use.
-           |Available services:""".stripMargin + matching
+      case AmbiguousService(known) =>
+        s"""Add a use clause to specify the service you want to use.
+           |Available services:""".stripMargin + known
           .sorted
           .map(UseClause[Id](_).mapK(WithSource.liftId))
           .map(Formatter.useClauseFormatter.format(_, Int.MaxValue))
           .mkString_("\n", "\n", ".")
 
-      case UnknownService(id, known) =>
-        s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
+      case UnknownService(known) =>
+        s"Unknown service. Known services: ${known.map(_.render).mkString(", ")}."
 
       case RefinementFailure(msg) => s"Refinement failed: $msg."
 
@@ -179,10 +183,11 @@ object CompilationErrorDetails {
   }
 
   val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
-    // case ResolutionFailure.AmbiguousService(knownServices, _) =>
-    //   CompilationErrorDetails.AmbiguousService(knownServices)
+    case ResolutionFailure.AmbiguousService(knownServices, _) =>
+      // todo
+      CompilationErrorDetails.AmbiguousService(knownServices)
     case ResolutionFailure.UnknownService(unknownId, knownServices) =>
-      CompilationErrorDetails.UnknownService(unknownId, knownServices)
+      CompilationErrorDetails.UnknownService(knownServices)
 
   }
 
@@ -190,7 +195,7 @@ object CompilationErrorDetails {
 
   // todo: remove
   final case class Message(text: String) extends CompilationErrorDetails
-  final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
+  final case class UnknownService(knownServices: List[QualifiedIdentifier])
     extends CompilationErrorDetails
 
   final case class UnsupportedProtocols(

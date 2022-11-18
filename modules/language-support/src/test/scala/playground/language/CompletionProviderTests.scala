@@ -11,10 +11,60 @@ import playground.std.ClockGen
 import playground.std.RandomGen
 import weaver._
 
-import StringRangeUtils._
+import playground.smithyql.StringRangeUtils._
 import playground.ServiceUtils._
 
 object CompletionProviderTests extends SimpleIOSuite {
+
+  pureTest("completing empty file - one service exists") {
+    val random = wrapService(RandomGen)
+    val provider = CompletionProvider.forServices(List(random))
+
+    val result = provider.provide(
+      "",
+      Position(0),
+    )
+
+    val expected = RandomGen
+      .endpoints
+      .map(endpoint =>
+        CompletionItem.forOperation(
+          insertUseClause = CompletionItem.InsertUseClause.Required,
+          endpoint,
+          QualifiedIdentifier.forService(RandomGen),
+        )
+      )
+
+    assertNoDiff(result, expected)
+  }
+
+  pureTest("completing empty file - multiple services exist") {
+
+    val clock = wrapService(ClockGen)
+    val random = wrapService(RandomGen)
+
+    val provider = CompletionProvider.forServices(List(clock, random))
+
+    val result = provider.provide(
+      "",
+      Position.origin,
+    )
+
+    val expected = List(
+      CompletionItem.forOperation(
+        insertUseClause = CompletionItem.InsertUseClause.Required,
+        endpoint = ClockGen.CurrentTimestamp,
+        serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
+      ),
+      CompletionItem.forOperation(
+        insertUseClause = CompletionItem.InsertUseClause.Required,
+        endpoint = RandomGen.NextUUID,
+        serviceId = QualifiedIdentifier.fromShapeId(RandomGen.id),
+      ),
+    )
+
+    assertNoDiff(result, expected)
+  }
 
   pureTest("completing existing use clause") {
     val service = wrapService(DemoServiceGen)
@@ -68,56 +118,6 @@ object CompletionProviderTests extends SimpleIOSuite {
     assertNoDiff(result, expected)
   }
 
-  pureTest("completing empty file") {
-
-    val clock = wrapService(ClockGen)
-    val random = wrapService(RandomGen)
-
-    val provider = CompletionProvider.forServices(List(clock, random))
-
-    val result = provider.provide(
-      "",
-      Position(0),
-    )
-
-    val expected = List(
-      CompletionItem.forOperation(
-        insertUseClause = CompletionItem.InsertUseClause.Required,
-        endpoint = ClockGen.CurrentTimestamp,
-        serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
-      ),
-      CompletionItem.forOperation(
-        insertUseClause = CompletionItem.InsertUseClause.Required,
-        endpoint = RandomGen.NextUUID,
-        serviceId = QualifiedIdentifier.fromShapeId(RandomGen.id),
-      ),
-    )
-
-    assertNoDiff(result, expected)
-  }
-
-  pureTest("completing empty file - one service exists") {
-    val random = wrapService(RandomGen)
-    val provider = CompletionProvider.forServices(List(random))
-
-    val result = provider.provide(
-      "",
-      Position(0),
-    )
-
-    val expected = RandomGen
-      .endpoints
-      .map(endpoint =>
-        CompletionItem.forOperation(
-          insertUseClause = CompletionItem.InsertUseClause.Required,
-          endpoint,
-          QualifiedIdentifier.forService(RandomGen),
-        )
-      )
-
-    assertNoDiff(result, expected)
-  }
-
   locally {
     // for some reason, this can't be defined within the test body.
     // https://github.com/disneystreaming/smithy4s/issues/537
@@ -146,29 +146,37 @@ object CompletionProviderTests extends SimpleIOSuite {
     }
   }
 
-  pureTest("completing operation - use clause exists, multiple services available") {
+  pureTest("completing operation - multiple services available") {
     val clock = wrapService(ClockGen)
     val random = wrapService(RandomGen)
     val provider = CompletionProvider.forServices(List(clock, random))
 
-    val result = provider.provide(
+    val input =
       """use service playground.std#Clock
-        |hello {}""".stripMargin,
-      Position("use service playground.std#Clock\n".length),
+        |hello {}
+        |""".stripMargin
+
+    val result = provider.provide(
+      input,
+      input.lastPosition,
     )
 
-    val expected = ClockGen
-      .service
-      .endpoints
-      .map(endpoint =>
-        CompletionItem.forOperation(
-          insertUseClause = CompletionItem.InsertUseClause.NotRequired,
-          endpoint,
-          QualifiedIdentifier.forService(ClockGen),
-        )
-      )
+    val expected = List(
+      CompletionItem.forOperation(
+        insertUseClause = CompletionItem.InsertUseClause.NotRequired,
+        ClockGen.CurrentTimestamp,
+        QualifiedIdentifier.forService(ClockGen),
+      ),
+      CompletionItem.forOperation(
+        insertUseClause = CompletionItem.InsertUseClause.Required,
+        RandomGen.NextUUID,
+        QualifiedIdentifier.forService(RandomGen),
+      ),
+    )
 
     assertNoDiff(result, expected)
   }
 
+  // todo: completions inside prelude (entire use clauses)
+  // todo: completions inside use clause (only service id)
 }

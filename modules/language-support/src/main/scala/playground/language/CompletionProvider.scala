@@ -186,7 +186,8 @@ object CompletionProvider {
                 .toList
 
             case EmptyPath => completeRootOperationName(sf)
-            case _         => Nil
+
+            case _ => Nil
           }
 
       }

@@ -6,7 +6,6 @@ import cats.data.Ior
 import cats.data.IorNel
 import cats.data.Kleisli
 import cats.data.NonEmptyList
-import cats.effect.implicits._
 import cats.implicits._
 import cats.~>
 import playground._
@@ -97,18 +96,6 @@ object OperationCompiler {
     service: Service[Alg, Op]
   ): OperationCompiler[IorNel[CompilationError, *]] = new ServiceCompiler(service)
 
-  def seal[A](
-    result: IorNel[CompilationError, A]
-  ): IorNel[CompilationError, A] = result.fold(
-    Ior.left(_),
-    Ior.right(_),
-    (e, a) =>
-      if (e.exists(_.isError))
-        Ior.left(e)
-      else
-        Ior.both(e, a),
-  )
-
 }
 
 final case class CompilationFailed(errors: NonEmptyList[CompilationError]) extends Throwable
@@ -121,7 +108,19 @@ object CompilationFailed {
 
       def apply[A](
         fa: Ior[NonEmptyList[CompilationError], A]
-      ): IorThrow[A] = OperationCompiler.seal(fa).leftMap(CompilationFailed(_))
+      ): IorThrow[A] = seal(fa).leftMap(CompilationFailed(_))
+
+      private def seal[A](
+        result: IorNel[CompilationError, A]
+      ): IorNel[CompilationError, A] = result.fold(
+        Ior.left(_),
+        Ior.right(_),
+        (e, a) =>
+          if (e.exists(_.isError))
+            Ior.left(e)
+          else
+            Ior.both(e, a),
+      )
 
     }
 

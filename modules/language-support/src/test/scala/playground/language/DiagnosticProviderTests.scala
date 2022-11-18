@@ -30,9 +30,10 @@ import smithy4s.api.SimpleRestJson
 import smithy4s.aws.AwsEnvironment
 import weaver._
 
-import StringRangeUtils._
+import playground.smithyql.StringRangeUtils._
 import playground.ServiceUtils._
 import playground.ServiceIndex
+import playground.PreludeCompiler
 
 object DiagnosticProviderTests extends SimpleIOSuite {
 
@@ -66,7 +67,10 @@ object DiagnosticProviderTests extends SimpleIOSuite {
 
   private val provider = DiagnosticProvider.instance(
     compiler = FileCompiler
-      .instance(OperationCompiler.fromServices(services))
+      .instance(
+        PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
+        OperationCompiler.fromServices(services),
+      )
       .mapK(CompilationFailed.wrapK),
     fileRunner = FileRunner.instance(
       OperationRunner.merge(

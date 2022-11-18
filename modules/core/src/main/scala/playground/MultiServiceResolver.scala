@@ -25,37 +25,20 @@ object MultiServiceResolver {
     *
     * **Important**!
     *
-    * This method assumes and asserts (throwingly) that all of the use clauses match the available
-    * service set.
+    * This method assumes that all of the use clauses match the available service set. It does NOT
+    * perform a check on that. For the actual check, see PreludeCompiler.
     */
   def resolveService(
     queryOperationName: QueryOperationName[Id],
     serviceIndex: ServiceIndex,
     useClauses: List[UseClause[Id]],
-  ): EitherNel[ResolutionFailure, QualifiedIdentifier] = {
-    // TODO: checkUseClauses should be executed somewhere up the stack to ensure that even a file without ops doesn't allow these
-    require(
-      checkUseClauses(useClauses, serviceIndex.serviceIds).isRight,
-      "Found use clauses that didn't match any of the available services. This is a bug in smithy-playground!",
-    )
-
+  ): EitherNel[ResolutionFailure, QualifiedIdentifier] =
     queryOperationName.identifier match {
       case Some(explicitRef) =>
         resolveExplicit(serviceIndex, explicitRef, queryOperationName.operationName)
 
       case None => resolveImplicit(queryOperationName.operationName, serviceIndex, useClauses)
     }
-  }
-
-  private def checkUseClauses(
-    clauses: List[UseClause[Id]],
-    availableServices: Set[QualifiedIdentifier],
-  ): EitherNel[ResolutionFailure, Unit] = clauses.parTraverse_ { clause =>
-    availableServices
-      .contains_(clause.identifier)
-      .guard[Option]
-      .toRightNel(ResolutionFailure.UnknownService(clause.identifier, availableServices.toList))
-  }
 
   private def resolveExplicit(
     index: ServiceIndex,
@@ -87,7 +70,7 @@ object MultiServiceResolver {
   ): EitherNel[ResolutionFailure, QualifiedIdentifier] = {
     val matchingServices =
       index
-        .requireServices(useClauses.map(_.identifier).toSet)
+        .getServices(useClauses.map(_.identifier).toSet)
         .filter(_.hasOperation(operationName))
         .toList
 
@@ -152,6 +135,7 @@ object ResolutionFailure {
   }
 
   // Returns the preferred range for diagnostics about resolution failure
-  private def defaultRange(q: Query[WithSource]): SourceRange = ???
+  @deprecated("migrate MultiServiceResolver to diagnostics with their own ranges")
+  private def defaultRange(q: Query[WithSource]): SourceRange = q.operationName.range
 
 }

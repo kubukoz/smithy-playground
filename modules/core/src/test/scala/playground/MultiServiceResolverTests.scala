@@ -8,6 +8,7 @@ import playground.smithyql.QueryOperationName
 import playground.smithyql.UseClause
 import weaver._
 
+// todo: migrate to assertNoDiff after switch to CompilationError
 object MultiServiceResolverTests extends FunSuite {
   private def mkIndex(servicesToOps: (QualifiedIdentifier, Set[OperationName[Id]])*): ServiceIndex =
     ServiceIndex.fromServiceOperationMappings(servicesToOps.toMap)
@@ -127,24 +128,22 @@ object MultiServiceResolverTests extends FunSuite {
   }
 
   test(
-    "explicit service ref matches one service, but there's a use clause that doesn't match any"
+    "missing use clause services are ignored at this scope"
   ) {
-    def result = MultiServiceResolver.resolveService(
+    val result = MultiServiceResolver.resolveService(
       queryOperationName = QueryOperationName[Id](
         identifier = Some(QualifiedIdentifier.of("com", "example", "MatchingService")),
         operationName = OperationName("Op"),
       ),
       serviceIndex = mkIndex(
-        QualifiedIdentifier.of("com", "example", "OtherService") -> Set.empty,
-        QualifiedIdentifier.of("com", "example", "MatchingService") -> Set(OperationName("Op")),
+        QualifiedIdentifier.of("com", "example", "MatchingService") -> Set(OperationName("Op"))
       ),
       useClauses = List(
-        UseClause[Id](QualifiedIdentifier.of("com", "example", "OtherService")),
-        UseClause[Id](QualifiedIdentifier.of("com", "example", "UnknownService")),
+        UseClause[Id](QualifiedIdentifier.of("com", "example", "UnknownService"))
       ),
     )
 
-    assert(Either.catchOnly[IllegalArgumentException](result.void).isLeft)
+    assert(result.isRight)
   }
 
   test(

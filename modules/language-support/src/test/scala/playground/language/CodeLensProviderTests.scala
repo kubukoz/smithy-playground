@@ -12,7 +12,10 @@ import playground.language.Diffs._
 import playground.std.RandomGen
 import weaver._
 import playground.ServiceUtils._
-import StringRangeUtils._
+import playground.smithyql.StringRangeUtils._
+import playground.ServiceIndex
+import playground.PreludeCompiler
+import playground.CompilationError
 
 object CodeLensProviderTests extends FunSuite {
 
@@ -20,9 +23,15 @@ object CodeLensProviderTests extends FunSuite {
     ((_ => IO.stub): OperationRunner[IO]).rightIor
   )
 
+  private val services = List(wrapService(RandomGen))
+
   private val provider = CodeLensProvider.instance(
     FileCompiler
-      .instance(OperationCompiler.fromServices(List(wrapService(RandomGen))))
+      .instance(
+        PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
+        OperationCompiler.fromServices(services),
+      )
+      // todo: this shouldn't be here (it's a responsibility of file compiler)
       .mapK(CompilationFailed.wrapK),
     runnerStub,
   )

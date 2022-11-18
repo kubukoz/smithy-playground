@@ -38,6 +38,9 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 import ToUriOps._
+import playground.PreludeCompiler
+import playground.ServiceIndex
+import playground.CompilationError
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -85,8 +88,14 @@ object LanguageServer {
           def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
         }
 
+      // todo: pass this everywhere
+      val serviceIndex = ServiceIndex.fromServices(dsi.allServices)
+
       val compiler = FileCompiler
-        .instance(OperationCompiler.fromSchemaIndex(dsi))
+        .instance(
+          PreludeCompiler.instance[CompilationError.InIorNel](serviceIndex),
+          OperationCompiler.fromSchemaIndex(dsi),
+        )
         .mapK(CompilationFailed.wrapK)
 
       val completionProvider = CompletionProvider.forSchemaIndex(dsi)

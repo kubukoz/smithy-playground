@@ -55,6 +55,8 @@ import java.util.UUID
 
 import Arbitraries._
 import cats.data.NonEmptyList
+import playground.PreludeCompiler
+import playground.ServiceIndex
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -85,7 +87,10 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     q: SourceFile[WithSource]
   ): IorThrow[List[CompiledInput]] = playground
     .FileCompiler
-    .instance(OperationCompiler.fromServices(services))
+    .instance(
+      PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
+      OperationCompiler.fromServices(services),
+    )
     .mapK(CompilationFailed.wrapK)
     .compile(q)
 
@@ -896,11 +901,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert.same(
       result.left.toOption.get.asInstanceOf[CompilationFailed].errors.map(_.err),
       NonEmptyList.of(
-        CompilationErrorDetails.UnknownService(
-          QualifiedIdentifier.of("playground", "std", "Random"),
-          List(QualifiedIdentifier.forService(ClockGen)),
-        ),
-        CompilationErrorDetails.AmbiguousService(Nil),
+        CompilationErrorDetails.UnknownService(List(QualifiedIdentifier.forService(ClockGen))),
+        CompilationErrorDetails.AmbiguousService(QualifiedIdentifier.forService(ClockGen) :: Nil),
       ),
     )
   }

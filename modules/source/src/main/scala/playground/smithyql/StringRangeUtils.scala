@@ -1,8 +1,9 @@
-package playground.language
+package playground.smithyql
 
 import playground.smithyql.SourceRange
 import playground.smithyql.Position
 
+// Mostly for testing.
 object StringRangeUtils {
 
   implicit class StringRangeOps(source: String) {
