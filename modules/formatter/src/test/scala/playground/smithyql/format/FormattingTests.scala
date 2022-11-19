@@ -442,6 +442,24 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       |
       |}""".stripMargin)
 
+  formattingTest("sorting use clauses") {
+    parse[SourceFile]("""use service secondNamespace#Second
+                        |use service firstNamespace#First
+                        |use service secondNamespace#First
+                        |use service firstNamespace#Second""".stripMargin)
+  }("""use service firstNamespace#First
+      |use service firstNamespace#Second
+      |use service secondNamespace#First
+      |use service secondNamespace#Second""".stripMargin)
+
+  formattingTest("sorting use clauses - duplicates aren't removed") {
+    parse[SourceFile]("""use service secondNamespace#First
+                        |use service firstNamespace#First
+                        |use service firstNamespace#First""".stripMargin)
+  }("""use service firstNamespace#First
+      |use service firstNamespace#First
+      |use service secondNamespace#First""".stripMargin)
+
   formattingTest("use service clause, then comments and multiple operations") {
     parse[SourceFile]("""// before service
                         |use service a#B

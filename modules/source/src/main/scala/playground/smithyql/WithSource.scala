@@ -10,6 +10,7 @@ import cats.kernel.Eq
 import cats.~>
 import playground.smithyql.Query
 import playground.smithyql.InputNode
+import cats.kernel.Order
 
 // todo: multiline
 final case class Comment(text: String) extends AnyVal
@@ -26,6 +27,8 @@ final case class Position(index: Int) {
 object Position {
   val origin: Position = Position(0)
   def lastInString(s: String): Position = Position(s.length)
+
+  implicit val ord: Order[Position] = Order.by(_.index)
 }
 
 final case class SourceRange(start: Position, end: Position) {
@@ -52,6 +55,7 @@ final case class SourceRange(start: Position, end: Position) {
 
 object SourceRange {
   implicit val show: Show[SourceRange] = Show.fromToString
+  implicit val ord: Order[SourceRange] = Order.by { case SourceRange(start, end) => (start, end) }
   def empty(position: Position): SourceRange = SourceRange(position, position)
 
   def forEntireString(
