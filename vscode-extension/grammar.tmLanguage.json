@@ -83,7 +83,7 @@
     },
     "keywords": {
       "name": "keyword",
-      "patterns": [{ "name": "keyword", "match": "use|service" }]
+      "patterns": [{ "name": "keyword", "match": "\\b(run|use|service)\\b" }]
     }
   },
   "scopeName": "source.smithyql"

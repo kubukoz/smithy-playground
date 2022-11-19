@@ -107,7 +107,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
       case AmbiguousService(workspaceServices) =>
-        s"""Add a use clause to specify the service you want to use.
+        s"""Couldn't determine service for this operation. Add a use clause, or use an explicit reference to specify the service you want to use.
            |Available services:""".stripMargin + workspaceServices
           .sorted
           .map(UseClause[Id](_).mapK(WithSource.liftId))

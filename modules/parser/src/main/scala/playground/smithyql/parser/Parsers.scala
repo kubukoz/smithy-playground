@@ -20,6 +20,8 @@ object Parsers {
       (string("//") *> anyChar.repUntil0(newline | Parser.end).string.map(Comment(_)))
         .withContext("comment")
 
+    val requiredWhitespace: Parser[Unit] = charsWhile(_.isWhitespace).void
+
     val whitespace: Parser0[Unit] = charsWhile0(_.isWhitespace).void
 
     val comments: Parser0[List[Comment]] = comment
@@ -237,8 +239,9 @@ object Parsers {
         tokens.withComments(struct, right = false),
       ).mapN(Query.apply).withContext("query")
 
-    val runQuery
-      : Parser[RunQuery[T]] = tokens.withComments(query).map(RunQuery(_)).withContext("run_query")
+    val runQuery: Parser[RunQuery[T]] =
+      tokens.withComments0((string("run") <* tokens.requiredWhitespace).?, right = false).with1 *>
+        tokens.withComments(query).map(RunQuery(_)).withContext("run_query")
 
     val statement: Parser[Statement[T]] = runQuery.withContext("statement")
 
