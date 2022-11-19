@@ -57,6 +57,10 @@ import cats.data.NonEmptyList
 import playground.PreludeCompiler
 import playground.ServiceIndex
 import playground.DeprecatedInfo
+import StringRangeUtils._
+import playground.Assertions._
+import playground.Diffs._
+import com.softwaremill.diffx.cats._
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -931,31 +935,29 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(result.isRight)
   }
 
-  pureTest("deprecated service's use clause") {
-    parseAndCompile(DeprecatedServiceGen)(
+  println("CI env value is: " + Option(System.getenv("CI")))
+
+  pureTest("deprecated service's use clause".only) {
+    val input =
       """use service demo.smithy#LiterallyAnyService
         |hello {}""".stripMargin
+    parseAndCompile(DeprecatedServiceGen)(
+      input
     ).left match {
       case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
+        val result = cf.errors
 
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              DeprecatedInfo(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service ".length),
-              Position("use service demo.smithy#LiterallyAnyService".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#LiterallyAnyService"),
           )
         )
 
-        assert(result == expected)
+        assertNoDiff(
+          result,
+          expected,
+        )
 
       case e => failure("Unexpected exception: " + e)
     }
