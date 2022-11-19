@@ -67,11 +67,7 @@ object LanguageServerReloadIntegrationTests
             val addLibrary = writeBytes(
               base / "smithy-build.json",
               BuildConfigDecoder.encode(
-                BuildConfig(imports =
-                  Some(
-                    weatherPath.absolute.toString :: Nil
-                  )
-                )
+                BuildConfig(imports = weatherPath.absolute.toString :: Nil)
               ),
             )
 
