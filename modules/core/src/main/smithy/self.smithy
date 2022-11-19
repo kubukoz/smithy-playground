@@ -3,9 +3,9 @@ $version: "2"
 namespace playground
 
 structure BuildConfig {
-  mavenDependencies: Strings,
-  mavenRepositories: Strings,
-  imports: Strings,
+  mavenDependencies: Strings = [],
+  mavenRepositories: Strings = [],
+  imports: Strings = [],
   plugins: Plugins
 }
 
@@ -15,7 +15,7 @@ structure Plugins {
 }
 
 structure SmithyPlaygroundPluginConfig {
-  extensions: Strings
+  extensions: Strings = []
 }
 
 list Strings { member: String }
