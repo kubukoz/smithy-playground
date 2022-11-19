@@ -44,6 +44,7 @@ object CompletionProvider {
     def completeOperationName(
       serviceId: QualifiedIdentifier,
       presentServiceIdentifiers: List[QualifiedIdentifier],
+      insertBodyStruct: CompletionItem.InsertBodyStruct,
     ): List[CompletionItem] = {
       val needsUseClause = !presentServiceIdentifiers.contains(serviceId)
 
@@ -61,11 +62,15 @@ object CompletionProvider {
             insertUseClause = insertUseClause,
             endpoint = e,
             serviceId = serviceId,
+            insertBodyStruct = insertBodyStruct,
           )
         }
     }
 
-    def completeRootOperationName(file: SourceFile[WithSource]) = {
+    def completeRootOperationName(
+      file: SourceFile[WithSource],
+      insertBodyStruct: CompletionItem.InsertBodyStruct,
+    ) = {
       // double-check test coverage.
       // there's definitely a test missing for N>1 clauses.
       // https://github.com/kubukoz/smithy-playground/issues/161
@@ -81,7 +86,7 @@ object CompletionProvider {
         presentServiceIds ++
           notPresent
       ).flatMap(
-        completeOperationName(_, presentServiceIds)
+        completeOperationName(_, presentServiceIds, insertBodyStruct)
       )
     }
 
@@ -98,6 +103,7 @@ object CompletionProvider {
           .toMap
       }
 
+    // we're definitely in an existing query, so we don't insert a brace in either case.
     def completeOperationNameFor(
       q: Query[WithSource],
       sf: SourceFile[WithSource],
@@ -114,9 +120,10 @@ object CompletionProvider {
           completeOperationName(
             serviceId,
             presentServiceIdentifiers,
+            CompletionItem.InsertBodyStruct.No,
           )
 
-        case None => completeRootOperationName(sf)
+        case None => completeRootOperationName(sf, CompletionItem.InsertBodyStruct.No)
       }
 
     def completeInQuery(
@@ -186,7 +193,7 @@ object CompletionProvider {
                 .map(CompletionItem.useServiceClause.tupled)
                 .toList
 
-            case EmptyPath => completeRootOperationName(sf)
+            case EmptyPath => completeRootOperationName(sf, CompletionItem.InsertBodyStruct.Yes)
 
             case _ => Nil
           }
