@@ -931,9 +931,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(result.isRight)
   }
 
-  // todo: if two services having literally the same op name - fail
-
-  pureTest("deprecated service's use clause".ignore) {
+  pureTest("deprecated service's use clause") {
     parseAndCompile(DeprecatedServiceGen)(
       """use service demo.smithy#LiterallyAnyService
         |hello {}""".stripMargin
@@ -963,7 +961,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     }
   }
 
-  pureTest("deprecated operation".ignore) {
+  pureTest("deprecated operation") {
     parseAndCompile(DeprecatedServiceGen)(
       """DeprecatedOperation { a = 42 }""".stripMargin
     ).left match {
@@ -992,7 +990,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     }
   }
 
-  pureTest("deprecated operation - only warnings".ignore) {
+  pureTest("deprecated operation - only warnings") {
     parseAndCompile(DeprecatedServiceGen)(
       "use service demo.smithy#DeprecatedService\nDeprecatedOperation { }"
     ).left match {

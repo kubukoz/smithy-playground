@@ -66,8 +66,9 @@ object CompletionProvider {
     }
 
     def completeRootOperationName(file: SourceFile[WithSource]) = {
-      // todo: double-check test coverage.
+      // double-check test coverage.
       // there's definitely a test missing for N>1 clauses.
+      // https://github.com/kubukoz/smithy-playground/issues/161
       val presentServiceIds
         : List[QualifiedIdentifier] = file.prelude.useClauses.map(_.value.identifier.value)
 

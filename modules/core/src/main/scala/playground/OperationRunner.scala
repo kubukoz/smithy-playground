@@ -73,11 +73,10 @@ object OperationRunner {
     // Either remove all protocol errors, or only keep those.
     // If there are any non-protocol errors, they'll be returned in Right.
     // If there are only protocol errors, they'll be returned in Left
-    // todo: this needs a cleanup
+    // this would be nice to clean up
     def squash(
       issues: NonEmptyList[Issue]
     ): Squashed = {
-      // todo: use nonEmptyPartition
       val (protocols, others) = issues.toList.partitionMap {
         case InvalidProtocol(p, _) => Left(p)
         case Other(e)              => Right(e)
@@ -102,7 +101,7 @@ object OperationRunner {
 
   }
 
-  // todo: move to middlewares in server builder?
+  // https://github.com/kubukoz/smithy-playground/issues/158
   def dynamicBaseUri[F[_]: MonadCancelThrow](getUri: F[Uri]): Client[F] => Client[F] =
     client =>
       Client[F] { req =>

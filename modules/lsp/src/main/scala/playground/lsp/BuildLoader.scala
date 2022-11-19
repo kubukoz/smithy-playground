@@ -96,7 +96,8 @@ object BuildLoader {
               dependencies = loaded.config.mavenDependencies.combineAll,
               repositories = loaded.config.mavenRepositories.combineAll,
               transformers = Nil,
-              // todo: this should be false really
+              // this should be false really
+              // https://github.com/kubukoz/smithy-playground/pull/140
               discoverModels = true,
               localJars = Nil,
             )

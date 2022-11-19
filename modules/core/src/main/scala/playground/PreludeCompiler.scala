@@ -36,6 +36,7 @@ object PreludeCompiler {
               )
               .pure[NonEmptyList]
               // this might be .dictate if we had a seal in FileCompiler
+              // https://github.com/kubukoz/smithy-playground/issues/157
               .confess[F, Unit]
 
           case Some(service) =>

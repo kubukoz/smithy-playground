@@ -37,8 +37,9 @@ object FileCompiler {
                 )
               )
             }
-            // todo: should this use Eff.perform? EffF.perform?
-            // todo: we should seal in this.compile somewhere
+            // https://github.com/kubukoz/smithy-playground/issues/157
+            // should this use Eff.perform? EffF.perform?
+            // we should seal in this.compile somewhere
             .run(OperationCompiler.Context(f.prelude))
 
     }

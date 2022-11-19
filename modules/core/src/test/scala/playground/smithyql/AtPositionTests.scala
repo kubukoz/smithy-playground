@@ -28,7 +28,8 @@ object AtPositionTests extends FunSuite {
       .findAtPosition(position)
   }
 
-  // todo: tests for before/after/between queries
+  // tests for before/after/between queries
+  // https://github.com/kubukoz/smithy-playground/issues/165
 
   private val firstOp = NodeContext.EmptyPath.inQuery(0)
 

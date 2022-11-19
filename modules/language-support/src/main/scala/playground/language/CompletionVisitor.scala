@@ -109,7 +109,8 @@ object CompletionItem {
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
-    // todo: proper completions for the inner schema (see #120)
+    // needs proper completions for the inner schema
+    // https://github.com/kubukoz/smithy-playground/pull/120
     insertText =
       if (describeSchema(schema).apply().startsWith("structure "))
         InsertText.SnippetString(s"""${alt.label}: {
@@ -194,7 +195,7 @@ object CompletionItem {
   def describeService(service: DynamicSchemaIndex.ServiceWrapper): String =
     s": service ${ServiceNameExtractor.fromService(service.service).selection}"
 
-  // todo: consider precompiling this
+  // nice to have: precompile this? caching?
   def describeSchema(schema: Schema[_]): () => String =
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")

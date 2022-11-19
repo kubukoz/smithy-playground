@@ -177,6 +177,7 @@ object CompletionProviderTests extends SimpleIOSuite {
     assertNoDiff(result, expected)
   }
 
-  // todo: completions inside prelude (entire use clauses)
-  // todo: completions inside use clause (only service id)
+  // needs: completions inside prelude (entire use clauses)
+  // needs: completions inside use clause (only service id)
+  // https://github.com/kubukoz/smithy-playground/issues/163
 }

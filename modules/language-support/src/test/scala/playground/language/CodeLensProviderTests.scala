@@ -31,7 +31,7 @@ object CodeLensProviderTests extends FunSuite {
         PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
         OperationCompiler.fromServices(services),
       )
-      // todo: this shouldn't be here (it's a responsibility of file compiler)
+      // this shouldn't be here (it's a responsibility of file compiler)
       .mapK(CompilationFailed.wrapK),
     runnerStub,
   )

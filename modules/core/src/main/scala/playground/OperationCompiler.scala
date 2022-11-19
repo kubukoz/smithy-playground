@@ -23,7 +23,6 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithyql.syntax._
 import types._
 import util.chaining._
-import playground.smithyql.UseClause
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -103,6 +102,8 @@ final case class CompilationFailed(errors: NonEmptyList[CompilationError]) exten
 object CompilationFailed {
   def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
 
+  // this is a bit overused
+  // https://github.com/kubukoz/smithy-playground/issues/157
   val wrapK: IorNel[CompilationError, *] ~> IorThrow =
     new (IorNel[CompilationError, *] ~> IorThrow) {
 
@@ -110,6 +111,7 @@ object CompilationFailed {
         fa: Ior[NonEmptyList[CompilationError], A]
       ): IorThrow[A] = seal(fa).leftMap(CompilationFailed(_))
 
+      // https://github.com/kubukoz/smithy-playground/issues/157
       private def seal[A](
         result: IorNel[CompilationError, A]
       ): IorNel[CompilationError, A] = result.fold(
@@ -168,23 +170,6 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       ),
     q.operationName.range,
   )
-
-  private def deprecationWarnings(q: Query[WithSource]): IorNel[CompilationError, Unit] =
-    (/* q.useClause.value */ ??? : Option[UseClause[WithSource]]) match {
-      // todo: move to file compiler, support more clauses
-      // If the use clause is present, in normal flow it's 100% safe to assume that it matches this compiler's service.
-      case Some(useClause) =>
-        service
-          .hints
-          .get(api.Deprecated)
-          .map { info =>
-            CompilationError.deprecation(DeprecatedInfo.fromHint(info), useClause.identifier.range)
-          }
-          .toBothLeft(())
-          .toIorNel
-
-      case None => Ior.right(())
-    }
 
   private def deprecatedOperationCheck(
     q: Query[WithSource],

@@ -88,7 +88,8 @@ object LanguageServer {
           def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
         }
 
-      // todo: pass this everywhere
+      // see if we can pass this everywhere
+      // https://github.com/kubukoz/smithy-playground/issues/164
       val serviceIndex = ServiceIndex.fromServices(dsi.allServices)
 
       val compiler = FileCompiler

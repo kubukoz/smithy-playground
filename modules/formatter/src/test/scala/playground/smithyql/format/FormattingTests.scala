@@ -316,7 +316,8 @@ object FormattingTests extends SimpleIOSuite with Checkers {
     parse[UseClause]("""use service com.example#Service""")
   }("""use service com.example#Service""".stripMargin)
 
-  // todo: parser test & fix: use clauses MUST have whitespace between keywords
+  // parser test & fix: use clauses MUST have whitespace between keywords
+  // https://github.com/kubukoz/smithy-playground/issues/160
   formattingTest("prelude with one use clause") {
     parse[Prelude]("""use service com.example#Service""")
   }("""use service com.example#Service""".stripMargin)

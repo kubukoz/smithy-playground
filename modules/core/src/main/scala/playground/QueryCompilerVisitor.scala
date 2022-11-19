@@ -167,7 +167,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         .map(_._2)
         .filter(_.sizeIs > 1)
         .flatMap(_.map(_._2))
-        // todo: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
+        // nice to have: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
         .map(CompilationError.warning(CompilationErrorDetails.DuplicateItem, _))
         .toList
         .pipe(NonEmptyChain.fromSeq(_))

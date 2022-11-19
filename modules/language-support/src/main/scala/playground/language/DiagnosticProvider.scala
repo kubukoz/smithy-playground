@@ -106,7 +106,8 @@ object DiagnosticProvider {
 
             case CompilationFailed(errors) => errors
 
-            // todo: get rid of this? hasn't ever been seen and there's no test so it's likely dead code.
+            // get rid of this? hasn't ever been seen and there's no test so it's likely dead code.
+            // https://github.com/kubukoz/smithy-playground/issues/162
             case e =>
               NonEmptyList.one {
                 error(

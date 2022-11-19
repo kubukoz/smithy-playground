@@ -140,7 +140,7 @@ object QualifiedIdentifier {
 
 }
 
-// todo: add extra F to capture the keywords
+// the keywords of the clause are captured in the Prelude's useClauses list.
 final case class UseClause[F[_]](identifier: F[QualifiedIdentifier]) extends AST[F] {
   def mapK[G[_]: Functor](fk: F ~> G): UseClause[G] = UseClause(fk(identifier))
 }
