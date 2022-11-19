@@ -231,10 +231,18 @@ object CompletionItem {
     case object NotRequired extends InsertUseClause
   }
 
+  sealed trait InsertBodyStruct extends Product with Serializable
+
+  object InsertBodyStruct {
+    case object Yes extends InsertBodyStruct
+    case object No extends InsertBodyStruct
+  }
+
   def forOperation[Op[_, _, _, _, _]](
     insertUseClause: InsertUseClause,
     endpoint: Endpoint[Op, _, _, _, _, _],
     serviceId: QualifiedIdentifier,
+    insertBodyStruct: InsertBodyStruct,
   ) = {
     val hints = endpoint.hints
 
@@ -261,26 +269,34 @@ object CompletionItem {
 
     val label = endpoint.name
 
+    val renderedBody = Formatter[Query]
+      .format(
+        Query[Id](
+          operationName = QueryOperationName[Id](
+            identifier = None,
+            operationName = OperationName[Id](endpoint.name),
+          ),
+          input = Struct[Id](Struct.Fields.empty[Id]),
+        ).mapK(WithSource.liftId),
+        Int.MaxValue,
+      )
+    val insertText =
+      insertBodyStruct match {
+        case InsertBodyStruct.Yes =>
+          InsertText.SnippetString(
+            renderedBody
+              // Kinda hacky - a way to place the cursor at the right position.
+              // Not sure how to do this best while using the formatter... (maybe some sort of mechanism inside the formatter to inject things).
+              // This assumes operation completions are always on the top level (no indent expected).
+              .replace("\n}", "  $0\n}")
+          )
+        case InsertBodyStruct.No => InsertText.JustString(endpoint.name)
+      }
+
     CompletionItem(
       kind = CompletionItemKind.Function,
       label = label,
-      insertText = InsertText.SnippetString(
-        Formatter[Query]
-          .format(
-            Query[Id](
-              operationName = QueryOperationName[Id](
-                identifier = None,
-                operationName = OperationName[Id](endpoint.name),
-              ),
-              input = Struct[Id](Struct.Fields.empty[Id]),
-            ).mapK(WithSource.liftId),
-            Int.MaxValue,
-          )
-          // Kinda hacky - a way to place the cursor at the right position.
-          // Not sure how to do this best while using the formatter... (maybe some sort of mechanism inside the formatter to inject things).
-          // This assumes operation completions are always on the top level (no indent expected).
-          .replace("\n}", "  $0\n}")
-      ),
+      insertText = insertText,
       detail =
         s"$fromServiceHint: ${endpoint.input.shapeId.name} => ${endpoint.output.shapeId.name}",
       description = none,
