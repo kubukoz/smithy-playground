@@ -249,7 +249,8 @@ object LanguageServerIntegrationTestSharedServer
       // as there's no need
       .withHost(host"localhost")
       .withPort(port"0")
-      .withShutdownTimeout(1.second)
+      // https://github.com/http4s/http4s/pull/6781
+      .withShutdownTimeout(1.nano)
       .withHttpApp(
         SimpleRestJsonBuilder
           .routes(
