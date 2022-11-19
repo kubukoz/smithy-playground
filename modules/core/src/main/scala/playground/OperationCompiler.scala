@@ -1,6 +1,5 @@
 package playground
 
-import cats.Id
 import cats.data.EitherNel
 import cats.data.Ior
 import cats.data.IorNel
@@ -9,8 +8,6 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import cats.~>
 import playground._
-import playground.smithyql.InputNode
-import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
@@ -134,7 +131,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
   private def compileEndpoint[In, Err, Out](
     e: Endpoint[Op, In, Err, Out, _, _]
-  ): WithSource[InputNode[WithSource]] => IorNel[CompilationError, CompiledInput] = {
+  ): QueryCompiler[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
     val outputEncoder = NodeEncoder.derive(e.output)
     val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
@@ -142,7 +139,6 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     ast =>
       inputCompiler
         .compile(ast)
-        .leftMap(_.toNonEmptyList)
         .map { compiled =>
           new CompiledInput {
             type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
@@ -152,24 +148,35 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
             val op: Op[_, Err, Out, _, _] = e.wrap(compiled)
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
-            val catchError: Throwable => Option[Err] = err => e.errorable.flatMap(_.liftError(err))
+            val catchError: Throwable => Option[Err] = e.Error.unapply(_).map(_._2)
           }
         }
   }
 
   // https://github.com/kubukoz/smithy-playground/issues/154
+  // map of endpoint names to (endpoint, input compiler)
   private val endpoints = service
     .endpoints
     .groupByNel(_.name)
     .map(_.map(_.head).map(e => (e, compileEndpoint(e))))
 
-  private def OperationMissing(q: Query[WithSource]): CompilationError = CompilationError.error(
-    CompilationErrorDetails
-      .OperationMissing(
-        endpoints.keys.map(OperationName[Id](_)).toList
-      ),
-    q.operationName.range,
-  )
+  // Checks the explicit service reference (if any).
+  // Note that the reference should be valid thanks to MultiServiceResolver's checks.
+  private def deprecatedServiceCheck(
+    q: Query[WithSource]
+  ): IorNel[CompilationError, Unit] =
+    q.operationName
+      .value
+      .identifier
+      .flatMap { ref =>
+        service
+          .hints
+          .get(api.Deprecated)
+          .map(DeprecatedInfo.fromHint)
+          .map(CompilationError.deprecation(_, ref.range))
+      }
+      .toBothLeft(())
+      .toIorNel
 
   private def deprecatedOperationCheck(
     q: Query[WithSource],
@@ -179,18 +186,28 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       .hints
       .get(api.Deprecated)
       .map { info =>
-        CompilationError.deprecation(DeprecatedInfo.fromHint(info), q.operationName.range)
+        CompilationError.deprecation(
+          DeprecatedInfo.fromHint(info),
+          q.operationName.value.operationName.range,
+        )
       }
       .toBothLeft(())
       .toIorNel
 
-  def compile(q: Query[WithSource]): IorNel[CompilationError, CompiledInput] = endpoints
-    .get(q.operationName.value.operationName.value.text)
-    // https://github.com/kubukoz/smithy-playground/issues/154
-    .toRightIor(OperationMissing(q))
-    .toIorNel
-    .flatTap { case (e, _) => deprecatedOperationCheck(q, e) }
-    .flatMap(_._2.apply(q.input))
+  def compile(q: Query[WithSource]): IorNel[CompilationError, CompiledInput] = {
+    val (endpoint, inputCompiler) = endpoints
+      .get(q.operationName.value.operationName.value.text)
+      // https://github.com/kubukoz/smithy-playground/issues/154
+      .getOrElse(
+        sys.error(
+          "Impossible! OperationCompiler running a query that doesn't belong to its operation."
+        )
+      )
+
+    deprecatedServiceCheck(q) &>
+      deprecatedOperationCheck(q, endpoint) &>
+      inputCompiler.compile(q.input).leftMap(_.toNonEmptyList)
+  }
 
 }
 

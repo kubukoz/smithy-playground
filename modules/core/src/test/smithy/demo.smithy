@@ -16,7 +16,7 @@ service DeprecatedService {
   operations: [DeprecatedOperation]
 }
 
-@deprecated(message: "don't use", since: "0.0.0")
+@deprecated(message: "don't use op", since: "0.0.0")
 operation DeprecatedOperation {
 }
 

@@ -4,7 +4,9 @@ import cats.Show
 import cats.data.Chain
 import cats.data.Ior
 import cats.data.NonEmptyChain
+import cats.data.NonEmptyList
 import cats.implicits._
+import com.softwaremill.diffx.cats._
 import demo.smithy.Bad
 import demo.smithy.DeprecatedServiceGen
 import demo.smithy.FriendSet
@@ -21,14 +23,19 @@ import demo.smithy.Person
 import demo.smithy.Power
 import demo.smithy.StringWithLength
 import org.scalacheck.Arbitrary
+import playground.Assertions._
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
 import playground.CompiledInput
+import playground.DeprecatedInfo
 import playground.DiagnosticTag
+import playground.Diffs._
 import playground.OperationCompiler
+import playground.PreludeCompiler
 import playground.QueryCompiler
 import playground.QueryCompilerVisitor
+import playground.ServiceIndex
 import playground.ServiceUtils._
 import playground.smithyql.parser.SourceParser
 import playground.smithyql.syntax._
@@ -53,14 +60,7 @@ import java.time
 import java.util.UUID
 
 import Arbitraries._
-import cats.data.NonEmptyList
-import playground.PreludeCompiler
-import playground.ServiceIndex
-import playground.DeprecatedInfo
 import StringRangeUtils._
-import playground.Assertions._
-import playground.Diffs._
-import com.softwaremill.diffx.cats._
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -935,12 +935,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(result.isRight)
   }
 
-  println("CI env value is: " + Option(System.getenv("CI")))
-
-  pureTest("deprecated service's use clause".only) {
-    val input =
-      """use service demo.smithy#LiterallyAnyService
-        |hello {}""".stripMargin
+  pureTest("deprecated service's use clause") {
+    val input = "use service demo.smithy#DeprecatedService"
     parseAndCompile(DeprecatedServiceGen)(
       input
     ).left match {
@@ -950,7 +946,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         val expected = NonEmptyList.of(
           CompilationError.deprecation(
             DeprecatedInfo(Some("don't use"), Some("0.0.0")),
-            input.rangeOf("demo.smithy#LiterallyAnyService"),
+            input.rangeOf("demo.smithy#DeprecatedService"),
           )
         )
 
@@ -964,68 +960,48 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("deprecated operation") {
+    val input = """demo.smithy#DeprecatedService.DeprecatedOperation { }""".stripMargin
     parseAndCompile(DeprecatedServiceGen)(
-      """DeprecatedOperation { a = 42 }""".stripMargin
+      input
     ).left match {
       case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
-
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              DeprecatedInfo(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position(0),
-              Position("DeprecatedOperation".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
-          )
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#DeprecatedService"),
+          ),
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use op"), Some("0.0.0")),
+            input.rangeOf("DeprecatedOperation"),
+          ),
         )
 
-        assert(result == expected)
+        assertNoDiff(
+          cf.errors,
+          expected,
+        )
 
       case e => failure("Unexpected exception: " + e)
     }
   }
 
   pureTest("deprecated operation - only warnings") {
-    parseAndCompile(DeprecatedServiceGen)(
-      "use service demo.smithy#DeprecatedService\nDeprecatedOperation { }"
-    ).left match {
-      case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
+    val input = "use service demo.smithy#DeprecatedService\nDeprecatedOperation { }"
 
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              DeprecatedInfo(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service demo.smithy#DeprecatedService\n".length),
-              Position("use service demo.smithy#DeprecatedService\nDeprecatedOperation".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+    parseAndCompile(DeprecatedServiceGen)(input).left match {
+      case Some(cf: CompilationFailed) =>
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#DeprecatedService"),
           ),
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              DeprecatedInfo(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service ".length),
-              Position("use service demo.smithy#DeprecatedService".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use op"), Some("0.0.0")),
+            input.rangeOf("DeprecatedOperation"),
           ),
         )
 
-        assert(result == expected)
+        assertNoDiff(cf.errors, expected)
 
       case e => failure("Unexpected exception: " + e)
     }
