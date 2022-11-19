@@ -4,7 +4,6 @@ import cats.implicits._
 import org.typelevel.paiges.Doc
 import org.typelevel.paiges.instances._
 import playground.smithyql._
-import util.chaining._
 
 trait Formatter[-Alg[_[_]]] {
   def format(repr: Alg[WithSource], width: Int): String
