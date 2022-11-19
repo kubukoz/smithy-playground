@@ -1,6 +1,9 @@
 use service weather#WeatherService
+
 GetWeather {
   city: "hello",
-}GetWeather {
+}
+
+GetWeather {
   city: "world",
 }
