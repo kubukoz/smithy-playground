@@ -35,7 +35,6 @@ import playground.smithyql.syntax._
 import playground.std.ClockGen
 import playground.std.RandomGen
 import playground.types.IorThrow
-import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.ByteArray
 import smithy4s.Document
@@ -57,6 +56,7 @@ import Arbitraries._
 import cats.data.NonEmptyList
 import playground.PreludeCompiler
 import playground.ServiceIndex
+import playground.DeprecatedInfo
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
@@ -422,7 +422,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         Chain(
           (
             CompilationErrorDetails.DeprecatedItem(
-              info = api.Deprecated(
+              info = DeprecatedInfo(
                 message = "Made-up reason".some,
                 since = None,
               )
@@ -552,7 +552,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       CompilationError
         .warning(
           CompilationErrorDetails.DeprecatedItem(
-            info = api.Deprecated(
+            info = DeprecatedInfo(
               message = "No reason".some,
               since = "0.0.1".some,
             )
@@ -947,7 +947,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         val expected = List(
           (
             CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
+              DeprecatedInfo(Some("don't use"), Some("0.0.0"))
             ),
             SourceRange(
               Position("use service ".length),
@@ -976,7 +976,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         val expected = List(
           (
             CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
+              DeprecatedInfo(Some("don't use"), Some("0.0.0"))
             ),
             SourceRange(
               Position(0),
@@ -1005,7 +1005,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         val expected = List(
           (
             CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
+              DeprecatedInfo(Some("don't use"), Some("0.0.0"))
             ),
             SourceRange(
               Position("use service demo.smithy#DeprecatedService\n".length),
@@ -1015,7 +1015,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           ),
           (
             CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
+              DeprecatedInfo(Some("don't use"), Some("0.0.0"))
             ),
             SourceRange(
               Position("use service ".length),

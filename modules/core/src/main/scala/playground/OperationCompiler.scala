@@ -178,7 +178,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
           .hints
           .get(api.Deprecated)
           .map { info =>
-            CompilationError.deprecation(info, useClause.identifier.range)
+            CompilationError.deprecation(DeprecatedInfo.fromHint(info), useClause.identifier.range)
           }
           .toBothLeft(())
           .toIorNel
@@ -194,7 +194,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       .hints
       .get(api.Deprecated)
       .map { info =>
-        CompilationError.deprecation(info, q.operationName.range)
+        CompilationError.deprecation(DeprecatedInfo.fromHint(info), q.operationName.range)
       }
       .toBothLeft(())
       .toIorNel

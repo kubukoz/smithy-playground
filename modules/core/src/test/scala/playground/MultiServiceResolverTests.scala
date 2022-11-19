@@ -13,12 +13,13 @@ import playground.smithyql.SourceRange
 import playground.smithyql.StringRangeUtils._
 import playground.smithyql.parser.SourceParser
 import weaver._
+import ServiceIndex.ServiceMetadata
 
 import Assertions._
 
 object MultiServiceResolverTests extends FunSuite {
   private def mkIndex(servicesToOps: (QualifiedIdentifier, Set[OperationName[Id]])*): ServiceIndex =
-    ServiceIndex.fromServiceOperationMappings(servicesToOps.toMap)
+    ServiceIndex.fromMappings(servicesToOps.map(_.map(ServiceMetadata(_, deprecated = None))).toMap)
 
   private def resolveService(
     operationNameSource: String,

@@ -7,10 +7,6 @@ import cats.~>
 import playground._
 import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
-import playground.smithyql.Prelude
-import cats.Applicative
-import cats.ApplicativeError
-import cats.data.NonEmptyList
 
 trait FileCompiler[F[_]] {
   def compile(f: SourceFile[WithSource]): F[List[CompiledInput]]
@@ -44,41 +40,6 @@ object FileCompiler {
             // todo: should this use Eff.perform? EffF.perform?
             // todo: we should seal in this.compile somewhere
             .run(OperationCompiler.Context(f.prelude))
-
-    }
-
-}
-
-trait PreludeCompiler[F[_]] {
-  def compile(f: Prelude[WithSource]): F[Unit]
-}
-
-object PreludeCompiler {
-
-  def instance[F[_]: Parallel](
-    serviceIndex: ServiceIndex
-  )(
-    implicit F: ApplicativeError[F, NonEmptyList[CompilationError]]
-  ): PreludeCompiler[F] =
-    new PreludeCompiler[F] {
-
-      def compile(f: Prelude[WithSource]): F[Unit] = f.useClauses.parTraverse_ { clause =>
-        val serviceId = clause.value.identifier.value
-
-        serviceIndex.getService(serviceId) match {
-          case None =>
-            CompilationError
-              .error(
-                CompilationErrorDetails.UnknownService(serviceIndex.serviceIds.toList),
-                clause.value.identifier.range,
-              )
-              .pure[NonEmptyList]
-              .raiseError[F, Unit]
-
-          case Some(_) => Applicative[F].unit
-        }
-
-      }
 
     }
 

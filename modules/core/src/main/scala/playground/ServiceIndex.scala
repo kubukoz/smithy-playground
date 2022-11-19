@@ -7,6 +7,7 @@ import playground.smithyql.QualifiedIdentifier
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import smithyql.syntax._
+import smithy.api
 
 // Abstraction for service metadata. Can be used by multi-service compilers/runners/completion providers etc.
 trait ServiceIndex {
@@ -25,27 +26,30 @@ object ServiceIndex {
     services: List[DynamicSchemaIndex.ServiceWrapper]
   ): ServiceIndex = {
 
-    val serviceOps: Map[QualifiedIdentifier, Set[OperationName[Id]]] =
+    val serviceMeta: Map[QualifiedIdentifier, ServiceMetadata] =
       services.map { svc =>
         QualifiedIdentifier.forService(svc.service) ->
-          svc
-            .service
-            .endpoints
-            .map(_.name)
-            .map(OperationName[Id](_))
-            .toSet
+          ServiceMetadata(
+            svc
+              .service
+              .endpoints
+              .map(_.name)
+              .map(OperationName[Id](_))
+              .toSet,
+            svc.service.hints.get(api.Deprecated).map(DeprecatedInfo.fromHint),
+          )
       }.toMap
 
-    fromServiceOperationMappings(serviceOps)
+    fromMappings(serviceMeta)
   }
 
-  private[playground] def fromServiceOperationMappings(
-    mappings: Map[QualifiedIdentifier, Set[OperationName[Id]]]
+  private[playground] def fromMappings(
+    mappings: Map[QualifiedIdentifier, ServiceMetadata]
   ): ServiceIndex =
     new ServiceIndex {
 
-      private val entries = mappings.map { case (id, ops) =>
-        id -> (ServiceIndexEntry.Entry(id, ops): ServiceIndexEntry)
+      private val entries = mappings.map { case (id, meta) =>
+        id -> (ServiceIndexEntry.Entry(id, meta): ServiceIndexEntry)
       }
 
       val serviceIds: Set[QualifiedIdentifier] = mappings.keySet
@@ -61,21 +65,31 @@ object ServiceIndex {
       val allServices: List[ServiceIndexEntry] = entries.values.toList
     }
 
+  private[playground] case class ServiceMetadata(
+    operationNames: Set[OperationName[Id]],
+    deprecated: Option[DeprecatedInfo],
+  )
+
 }
 
 trait ServiceIndexEntry {
   def id: QualifiedIdentifier
   def operationNames: Set[OperationName[Id]]
   def hasOperation(op: OperationName[Id]): Boolean
+  def deprecated: Option[DeprecatedInfo]
 }
 
 object ServiceIndexEntry {
 
-  private[playground] case class Entry(id: QualifiedIdentifier, ops: Set[OperationName[Id]])
-    extends ServiceIndexEntry {
-    def operationNames: Set[OperationName[Id]] = ops
+  private[playground] case class Entry(
+    id: QualifiedIdentifier,
+    metadata: ServiceIndex.ServiceMetadata,
+  ) extends ServiceIndexEntry {
+    def operationNames: Set[OperationName[Id]] = metadata.operationNames
 
-    def hasOperation(op: OperationName[Id]): Boolean = ops.contains_(op)
+    def hasOperation(op: OperationName[Id]): Boolean = operationNames.contains_(op)
+
+    def deprecated: Option[DeprecatedInfo] = metadata.deprecated
   }
 
 }

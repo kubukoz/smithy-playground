@@ -6,7 +6,6 @@ import cats.implicits._
 import playground.CompilationErrorDetails._
 import playground.smithyql._
 import playground.smithyql.format.Formatter
-import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.ShapeId
 import cats.data.IorNel
@@ -44,7 +43,7 @@ object CompilationError {
   ): CompilationError = default(err, range, DiagnosticSeverity.Warning)
 
   def deprecation(
-    info: api.Deprecated,
+    info: DeprecatedInfo,
     range: SourceRange,
   ): CompilationError =
     CompilationError
@@ -158,7 +157,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
 object CompilationErrorDetails {
 
-  def deprecationString(info: api.Deprecated): String = {
+  def deprecationString(info: DeprecatedInfo): String = {
     val reasonString = info.message.foldMap(": " + _)
     val sinceString = info.since.foldMap(" (since " + _ + ")")
 
@@ -225,7 +224,7 @@ object CompilationErrorDetails {
 
   case object InvalidBlob extends CompilationErrorDetails
 
-  case class DeprecatedItem(info: api.Deprecated) extends CompilationErrorDetails
+  case class DeprecatedItem(info: DeprecatedInfo) extends CompilationErrorDetails
 
   final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }

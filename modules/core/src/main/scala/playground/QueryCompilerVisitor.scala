@@ -276,7 +276,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         val deprecatedFieldWarnings: QueryCompiler.Result[Unit] = presentKeys
           .flatMap { key =>
             deprecatedFields.get(key.value.text).map { info =>
-              CompilationError.deprecation(info, key.range)
+              CompilationError.deprecation(DeprecatedInfo.fromHint(info), key.range)
             }
           }
           .toList
@@ -355,7 +355,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
             .get(key.value.text)
             .map { info =>
               CompilationError
-                .deprecation(info, key.range)
+                .deprecation(DeprecatedInfo.fromHint(info), key.range)
             }
             .toList
             .toNel
