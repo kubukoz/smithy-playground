@@ -17,7 +17,6 @@ final case class CompilationError(
   range: SourceRange,
   severity: DiagnosticSeverity,
   tags: Set[DiagnosticTag],
-  relatedInfo: List[DiagnosticRelatedInformation],
 ) {
   def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
 
@@ -61,7 +60,6 @@ object CompilationError {
     range = range,
     severity = severity,
     tags = Set.empty,
-    relatedInfo = Nil,
   )
 
 }
@@ -79,21 +77,6 @@ sealed trait DiagnosticTag extends Product with Serializable
 object DiagnosticTag {
   case object Deprecated extends DiagnosticTag
   case object Unused extends DiagnosticTag
-}
-
-final case class DiagnosticRelatedInformation(
-  location: RelativeLocation,
-  message: CompilationErrorDetails,
-)
-
-final case class RelativeLocation(document: DocumentReference, range: SourceRange)
-  extends Product
-  with Serializable
-
-sealed trait DocumentReference extends Product with Serializable
-
-object DocumentReference {
-  case object SameFile extends DocumentReference
 }
 
 sealed trait CompilationErrorDetails extends Product with Serializable {
@@ -180,18 +163,6 @@ object CompilationErrorDetails {
     val sinceString = info.since.foldMap(" (since " + _ + ")")
 
     sinceString ++ reasonString
-  }
-
-  val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
-    case ResolutionFailure.AmbiguousService(workspaceServices) =>
-      CompilationErrorDetails.AmbiguousService(workspaceServices)
-
-    case ResolutionFailure.UnknownService(knownServices) =>
-      CompilationErrorDetails.UnknownService(knownServices)
-
-    case ResolutionFailure.OperationMissing(availableOperations) =>
-      CompilationErrorDetails.OperationMissing(availableOperations.toList)
-
   }
 
   final case class ParseError(expectationString: String) extends CompilationErrorDetails

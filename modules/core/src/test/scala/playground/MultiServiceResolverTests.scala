@@ -2,6 +2,9 @@ package playground
 
 import cats.Id
 import cats.implicits._
+import com.softwaremill.diffx.cats._
+import playground.Diffs._
+import playground.smithyql.Diffs._
 import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
@@ -10,7 +13,8 @@ import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
 import weaver._
 
-// todo: migrate to assertNoDiff after switch to CompilationError
+import Assertions._
+
 object MultiServiceResolverTests extends FunSuite {
   private def mkIndex(servicesToOps: (QualifiedIdentifier, Set[OperationName[Id]])*): ServiceIndex =
     ServiceIndex.fromServiceOperationMappings(servicesToOps.toMap)
@@ -37,9 +41,9 @@ object MultiServiceResolverTests extends FunSuite {
       mkIndex(),
     )
 
-    assert.same(
+    assertNoDiff(
       result,
-      ResolutionFailure.AmbiguousService(Nil).leftNel,
+      CompilationErrorDetails.AmbiguousService(Nil).leftNel,
     )
   }
 
@@ -53,9 +57,9 @@ object MultiServiceResolverTests extends FunSuite {
       ),
     )
 
-    assert.same(
+    assertNoDiff(
       result,
-      ResolutionFailure
+      CompilationErrorDetails
         .AmbiguousService(
           workspaceServices = List(
             QualifiedIdentifier.of("com", "example", "AvailableA"),
@@ -76,9 +80,9 @@ object MultiServiceResolverTests extends FunSuite {
       ),
     )
 
-    assert.same(
+    assertNoDiff(
       result,
-      ResolutionFailure
+      CompilationErrorDetails
         .UnknownService(
           List(
             QualifiedIdentifier.of("com", "example", "AvailableA"),
@@ -99,11 +103,11 @@ object MultiServiceResolverTests extends FunSuite {
       ),
     )
 
-    assert.same(
+    assertNoDiff(
       result,
-      ResolutionFailure
+      CompilationErrorDetails
         .OperationMissing(
-          Set(OperationName("Op2"))
+          List(OperationName("Op2"))
         )
         .leftNel,
     )
@@ -119,7 +123,7 @@ object MultiServiceResolverTests extends FunSuite {
       ),
     )
 
-    assert.same(
+    assertNoDiff(
       result,
       QualifiedIdentifier.of("com", "example", "MatchingService").asRight,
     )
@@ -161,9 +165,9 @@ object MultiServiceResolverTests extends FunSuite {
       ),
     )
 
-    assert.same(
+    assertNoDiff(
       result,
-      ResolutionFailure
+      CompilationErrorDetails
         .AmbiguousService(
           workspaceServices = List(
             QualifiedIdentifier.of("com", "example", "MatchingService1"),
@@ -193,7 +197,7 @@ object MultiServiceResolverTests extends FunSuite {
       ),
     )
 
-    assert.same(
+    assertNoDiff(
       result,
       QualifiedIdentifier.of("com", "example", "MatchingService").asRight,
     )
@@ -214,7 +218,7 @@ object MultiServiceResolverTests extends FunSuite {
       ),
     )
 
-    assert.same(
+    assertNoDiff(
       result,
       QualifiedIdentifier.of("com", "example", "MatchingService").asRight,
     )

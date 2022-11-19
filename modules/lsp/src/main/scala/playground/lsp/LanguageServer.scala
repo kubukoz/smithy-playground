@@ -217,7 +217,7 @@ object LanguageServer {
             new DocumentDiagnosticReport(
               new RelatedFullDocumentDiagnosticReport(
                 diags
-                  .map(converters.toLSP.diagnostic(map, documentUri, _))
+                  .map(converters.toLSP.diagnostic(map, _))
                   .asJava
               )
             )

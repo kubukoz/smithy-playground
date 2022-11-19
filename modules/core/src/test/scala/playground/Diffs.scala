@@ -12,6 +12,7 @@ object Diffs {
 
   implicit val diffNodeContext: Diff[NodeContext] = Diff.derivedDiff
   implicit val diffContextRange: Diff[ContextRange] = Diff.derivedDiff
+  implicit val diffDiagnosticDetails: Diff[CompilationErrorDetails] = Diff.derivedDiff
   implicit val diffDiagnostic: Diff[CompilationError] = Diff.derivedDiff
 
   implicit val diffUnit: Diff[Unit] = (_, _, _) => IdenticalValue("unit")

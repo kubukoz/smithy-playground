@@ -101,7 +101,6 @@ object DiagnosticProviderTests extends SimpleIOSuite {
           range = SourceRange.empty(input.positionOf("<")),
           severity = DiagnosticSeverity.Error,
           tags = Set(),
-          relatedInfo = List(),
         )
       ),
     )
@@ -115,12 +114,11 @@ object DiagnosticProviderTests extends SimpleIOSuite {
       List(
         CompilationError(
           err = CompilationErrorDetails.AmbiguousService(
-            known = knownServiceIds.toList
+            workspaceServices = knownServiceIds.toList
           ),
           range = input.rangeOf("AnyOp"),
           severity = DiagnosticSeverity.Error,
           tags = Set(),
-          relatedInfo = List(),
         )
       ),
     )
@@ -139,13 +137,13 @@ object DiagnosticProviderTests extends SimpleIOSuite {
       List(
         CompilationError.error(
           err = CompilationErrorDetails.AmbiguousService(
-            known = knownServiceIds.toList
+            workspaceServices = knownServiceIds.toList
           ),
           range = input.rangeOf("op1"),
         ),
         CompilationError.error(
           err = CompilationErrorDetails.AmbiguousService(
-            known = knownServiceIds.toList
+            workspaceServices = knownServiceIds.toList
           ),
           range = input.rangeOf("op2"),
         ),

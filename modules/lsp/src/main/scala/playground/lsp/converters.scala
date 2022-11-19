@@ -9,8 +9,6 @@ import org.eclipse.lsp4j
 import playground.CompilationError
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
-import playground.DocumentReference.SameFile
-import playground.RelativeLocation
 import playground.language.CodeLens
 import playground.language.CompletionItem
 import playground.language.CompletionItemKind
@@ -23,7 +21,6 @@ import playground.smithyql.SourceRange
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.language.Uri
 
 object converters {
 
@@ -121,7 +118,7 @@ object converters {
           new lsp4j.TextEdit(r, what)
       }
 
-    def diagnostic(map: LocationMap, documentUri: Uri, diag: CompilationError): lsp4j.Diagnostic =
+    def diagnostic(map: LocationMap, diag: CompilationError): lsp4j.Diagnostic =
       new lsp4j.Diagnostic()
         .tap(_.setRange(toLSP.range(map, diag.range)))
         .tap(_.setMessage(diag.err.render))
@@ -130,19 +127,6 @@ object converters {
           case DiagnosticSeverity.Information => lsp4j.DiagnosticSeverity.Information
           case DiagnosticSeverity.Warning     => lsp4j.DiagnosticSeverity.Warning
         }))
-        .tap(
-          _.setRelatedInformation(
-            diag
-              .relatedInfo
-              .map { info =>
-                new lsp4j.DiagnosticRelatedInformation(
-                  location(map, documentUri, info.location),
-                  info.message.render,
-                )
-              }
-              .asJava
-          )
-        )
         .tap(
           _.setTags(
             diag
@@ -157,18 +141,6 @@ object converters {
               .asJava
           )
         )
-
-    private def location(
-      map: LocationMap,
-      documentUri: Uri,
-      loc: RelativeLocation,
-    ): lsp4j.Location =
-      new lsp4j.Location(
-        loc.document match {
-          case SameFile => documentUri.value
-        },
-        range(map, loc.range),
-      )
 
     def codeLens(map: LocationMap, lens: CodeLens): lsp4j.CodeLens =
       new lsp4j.CodeLens(range(map, lens.range))

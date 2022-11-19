@@ -1,22 +1,17 @@
 package playground
 
-import cats.Id
 import cats.data.IorNel
+import cats.data.NonEmptyList
 import cats.implicits._
 import com.softwaremill.diffx.cats._
-import playground.smithyql.Position
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.SourceRange
-import playground.smithyql.UseClause
-import playground.smithyql.WithSource
+import playground.smithyql.StringRangeUtils._
+import playground.smithyql.parser.SourceParser
 import weaver._
 
 import Assertions._
 import Diffs._
-import cats.data.NonEmptyList
-import playground.smithyql.parser.SourceParser
-import playground.smithyql.StringRangeUtils._
 
 object PreludeCompilerTests extends FunSuite {
 
