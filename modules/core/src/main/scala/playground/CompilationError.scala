@@ -6,15 +6,16 @@ import cats.implicits._
 import playground.CompilationErrorDetails._
 import playground.smithyql._
 import playground.smithyql.format.Formatter
-import smithy.api
 import smithy.api.TimestampFormat
+import smithy4s.ShapeId
+import cats.data.IorNel
 
+// this is more like "Diagnostic".
 final case class CompilationError(
   err: CompilationErrorDetails,
   range: SourceRange,
   severity: DiagnosticSeverity,
   tags: Set[DiagnosticTag],
-  relatedInfo: List[DiagnosticRelatedInformation],
 ) {
   def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
 
@@ -24,10 +25,17 @@ final case class CompilationError(
 
 object CompilationError {
 
+  type InIorNel[+A] = IorNel[CompilationError, A]
+
   def error(
     err: CompilationErrorDetails,
     range: SourceRange,
   ): CompilationError = default(err, range, DiagnosticSeverity.Error)
+
+  def info(
+    err: CompilationErrorDetails,
+    range: SourceRange,
+  ): CompilationError = default(err, range, DiagnosticSeverity.Information)
 
   def warning(
     err: CompilationErrorDetails,
@@ -35,7 +43,7 @@ object CompilationError {
   ): CompilationError = default(err, range, DiagnosticSeverity.Warning)
 
   def deprecation(
-    info: api.Deprecated,
+    info: DeprecatedInfo,
     range: SourceRange,
   ): CompilationError =
     CompilationError
@@ -51,7 +59,6 @@ object CompilationError {
     range = range,
     severity = severity,
     tags = Set.empty,
-    relatedInfo = Nil,
   )
 
 }
@@ -71,26 +78,24 @@ object DiagnosticTag {
   case object Unused extends DiagnosticTag
 }
 
-final case class DiagnosticRelatedInformation(
-  location: RelativeLocation,
-  message: CompilationErrorDetails,
-)
-
-final case class RelativeLocation(document: DocumentReference, range: SourceRange)
-  extends Product
-  with Serializable
-
-sealed trait DocumentReference extends Product with Serializable
-
-object DocumentReference {
-  case object SameFile extends DocumentReference
-}
-
 sealed trait CompilationErrorDetails extends Product with Serializable {
 
   def render: String =
     this match {
-      case Message(text)                 => text
+      case Message(text) => text
+      case UnsupportedProtocols(supported, available) =>
+        val supportedString = supported.map(_.show).mkString_(", ")
+
+        val availableString =
+          if (available.isEmpty)
+            "<none>"
+          else
+            available.map(_.show).mkString(", ")
+
+        s"""Service doesn't support any of the available protocols: $supportedString.
+           |Found protocols: $availableString
+           |Running queries will not be possible.""".stripMargin
+
       case ParseError(expectationString) => s"Parsing failure: expected ${expectationString}"
       case DeprecatedItem(info) => "Deprecated" + CompilationErrorDetails.deprecationString(info)
       case InvalidUUID          => "Invalid UUID"
@@ -101,23 +106,23 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case EnumFallback(enumName) =>
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
-      case AmbiguousService(matching) =>
-        s"""Multiple services are available. Add a use clause to specify the service you want to use.
-           |Available services:""".stripMargin + matching
+      case AmbiguousService(workspaceServices) =>
+        s"""Add a use clause to specify the service you want to use.
+           |Available services:""".stripMargin + workspaceServices
           .sorted
           .map(UseClause[Id](_).mapK(WithSource.liftId))
-          .map(Formatter.renderUseClause(_).render(Int.MaxValue))
+          .map(Formatter.useClauseFormatter.format(_, Int.MaxValue))
           .mkString_("\n", "\n", ".")
 
-      case UnknownService(id, known) =>
-        s"Unknown service: ${id.render}. Known services: ${known.map(_.render).mkString(", ")}."
+      case UnknownService(known) =>
+        s"Unknown service. Known services: ${known.map(_.render).mkString(", ")}."
 
       case RefinementFailure(msg) => s"Refinement failed: $msg."
 
       case TypeMismatch(expected, actual) => s"Type mismatch: expected $expected, got $actual."
 
-      case OperationNotFound(name, validOperations) =>
-        s"Operation ${name.text} not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}."
+      case OperationMissing(validOperations) =>
+        s"Operation not found. Available operations: ${validOperations.map(_.text).mkString_(", ")}."
 
       case MissingField(label) => s"Missing field $label."
 
@@ -152,35 +157,30 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
 object CompilationErrorDetails {
 
-  def deprecationString(info: api.Deprecated): String = {
+  def deprecationString(info: DeprecatedInfo): String = {
     val reasonString = info.message.foldMap(": " + _)
     val sinceString = info.since.foldMap(" (since " + _ + ")")
 
     sinceString ++ reasonString
   }
 
-  val fromResolutionFailure: ResolutionFailure => CompilationErrorDetails = {
-    case ResolutionFailure.AmbiguousService(knownServices) =>
-      CompilationErrorDetails.AmbiguousService(knownServices)
-    case ResolutionFailure.UnknownService(unknownId, knownServices) =>
-      CompilationErrorDetails.UnknownService(unknownId, knownServices)
-    case ResolutionFailure.ConflictingServiceReference(refs) =>
-      CompilationErrorDetails.ConflictingServiceReference(refs)
-
-  }
-
   final case class ParseError(expectationString: String) extends CompilationErrorDetails
 
   // todo: remove
   final case class Message(text: String) extends CompilationErrorDetails
-  final case class UnknownService(id: QualifiedIdentifier, knownServices: List[QualifiedIdentifier])
+  final case class UnknownService(knownServices: List[QualifiedIdentifier])
     extends CompilationErrorDetails
+
+  final case class UnsupportedProtocols(
+    supported: NonEmptyList[ShapeId],
+    available: List[ShapeId],
+  ) extends CompilationErrorDetails
 
   final case class ConflictingServiceReference(refs: List[QualifiedIdentifier])
     extends CompilationErrorDetails
 
   final case class AmbiguousService(
-    known: List[QualifiedIdentifier]
+    workspaceServices: List[QualifiedIdentifier]
   ) extends CompilationErrorDetails
 
   final case class TypeMismatch(
@@ -188,9 +188,8 @@ object CompilationErrorDetails {
     actual: NodeKind,
   ) extends CompilationErrorDetails
 
-  final case class OperationNotFound(
-    name: OperationName[Id],
-    validOperations: List[OperationName[Id]],
+  final case class OperationMissing(
+    validOperations: List[OperationName[Id]]
   ) extends CompilationErrorDetails
 
   final case class MissingField(label: String) extends CompilationErrorDetails
@@ -225,7 +224,7 @@ object CompilationErrorDetails {
 
   case object InvalidBlob extends CompilationErrorDetails
 
-  case class DeprecatedItem(info: api.Deprecated) extends CompilationErrorDetails
+  case class DeprecatedItem(info: DeprecatedInfo) extends CompilationErrorDetails
 
   final case class EnumFallback(enumName: String) extends CompilationErrorDetails
 }

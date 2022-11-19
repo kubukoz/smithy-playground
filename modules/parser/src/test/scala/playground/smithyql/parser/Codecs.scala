@@ -6,6 +6,8 @@ import playground.smithyql.WithSource
 import playground.smithyql.Listed
 import playground.smithyql.Struct
 import playground.smithyql.UseClause
+import playground.smithyql.SourceFile
+import playground.smithyql.Prelude
 
 object Codecs {
 
@@ -20,4 +22,7 @@ object Codecs {
 
   implicit val queryWithSourceCodec: Codec[Query[WithSource]] = deriveCodec
 
+  implicit val preludeWithSourceCodec: Codec[Prelude[WithSource]] = deriveCodec
+
+  implicit val sourceFileWithSourceCodec: Codec[SourceFile[WithSource]] = deriveCodec
 }

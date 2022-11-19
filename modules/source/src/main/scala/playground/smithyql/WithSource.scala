@@ -18,10 +18,14 @@ object Comment {
   implicit val eq: Eq[Comment] = Eq.by(_.text)
 }
 
-final case class Position(index: Int)
+final case class Position(index: Int) {
+  def moveLeft(n: Int): Position = Position(index - n)
+  def moveRight(n: Int): Position = Position(index + n)
+}
 
 object Position {
-  val origin: Position = Position(index = 0)
+  val origin: Position = Position(0)
+  def lastInString(s: String): Position = Position(s.length)
 }
 
 final case class SourceRange(start: Position, end: Position) {
@@ -49,6 +53,11 @@ final case class SourceRange(start: Position, end: Position) {
 object SourceRange {
   implicit val show: Show[SourceRange] = Show.fromToString
   def empty(position: Position): SourceRange = SourceRange(position, position)
+
+  def forEntireString(
+    s: String
+  ): SourceRange = SourceRange(Position.origin, Position.lastInString(s))
+
 }
 
 final case class WithSource[+A](
@@ -87,6 +96,22 @@ object WithSource {
 
   implicit def showWithSource[A]: Show[WithSource[A]] = Show.fromToString
 
+  def allSourceComments(sf: SourceFile[WithSource]): List[Comment] =
+    sf.prelude
+      .useClauses
+      .foldMap(
+        _.allComments(uc =>
+          uc
+            .identifier
+            .allComments(_ => Nil)
+        )
+      ) ++
+      sf.statements.allComments(_.flatMap(allStatementComments))
+
+  def allStatementComments(
+    s: Statement[WithSource]
+  ): List[Comment] = s.fold(_.query.allComments(allQueryComments))
+
   def allQueryComments(q: Query[WithSource]): List[Comment] = {
 
     def comments(node: InputNode[WithSource]): List[Comment] = node.fold(
@@ -109,13 +134,7 @@ object WithSource {
       nul = _ => Nil,
     )
 
-    q.useClause.commentsLeft ++ q
-      .useClause
-      .value
-      .foldMap(u => u.identifier.commentsLeft ++ u.identifier.commentsRight) ++ q
-      .useClause
-      .commentsRight ++
-      q.operationName.allComments(_ => Nil) ++
+    q.operationName.allComments(_ => Nil) ++
       q.input
         .allComments(
           _.fold(

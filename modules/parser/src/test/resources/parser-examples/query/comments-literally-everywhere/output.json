@@ -1,41 +1,16 @@
 {
   "useClause": {
-    "commentsLeft": [
-      {
-        "text": " before use clause"
-      }
-    ],
-    "commentsRight": [
-      {
-        "text": " before op"
-      }
-    ],
+    "commentsLeft": [],
+    "commentsRight": [],
     "range": {
       "start": {
-        "index": 22
+        "index": 0
       },
       "end": {
-        "index": 50
+        "index": 0
       }
     },
-    "value": {
-      "identifier": {
-        "commentsLeft": [],
-        "commentsRight": [],
-        "range": {
-          "start": {
-            "index": 34
-          },
-          "end": {
-            "index": 50
-          }
-        },
-        "value": {
-          "segments": ["some", "api"],
-          "selection": "Service"
-        }
-      }
-    }
+    "value": null
   },
   "operationName": {
     "commentsLeft": [],
@@ -46,10 +21,10 @@
     ],
     "range": {
       "start": {
-        "index": 64
+        "index": 0
       },
       "end": {
-        "index": 66
+        "index": 2
       }
     },
     "value": {
@@ -59,10 +34,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 64
+            "index": 0
           },
           "end": {
-            "index": 66
+            "index": 2
           }
         },
         "value": {
@@ -73,17 +48,13 @@
   },
   "input": {
     "commentsLeft": [],
-    "commentsRight": [
-      {
-        "text": "  after whole thing"
-      }
-    ],
+    "commentsRight": [],
     "range": {
       "start": {
-        "index": 80
+        "index": 16
       },
       "end": {
-        "index": 85
+        "index": 21
       }
     },
     "value": {
@@ -92,10 +63,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 81
+            "index": 17
           },
           "end": {
-            "index": 84
+            "index": 20
           }
         },
         "value": {

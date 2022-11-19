@@ -1,9 +1,7 @@
 package playground.language
 
 import cats.Id
-import cats.data.NonEmptyList
 import cats.implicits._
-import org.typelevel.paiges.Doc
 import playground.ServiceNameExtractor
 import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
@@ -15,8 +13,13 @@ import playground.smithyql.NodeContext.^^:
 import playground.smithyql.OperationName
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.Query
+import playground.smithyql.QueryOperationName
+import playground.smithyql.SourceRange
+import playground.smithyql.Struct
 import playground.smithyql.UseClause
 import playground.smithyql.WithSource
+import playground.smithyql.format.Formatter
 import smithy.api
 import smithy4s.Bijection
 import smithy4s.Endpoint
@@ -38,7 +41,6 @@ import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
-import playground.smithyql.format.Formatter
 
 trait CompletionResolver[+A] {
   def getCompletions(ctx: NodeContext): List[CompletionItem]
@@ -54,6 +56,7 @@ final case class CompletionItem(
   deprecated: Boolean,
   docs: Option[String],
   extraTextEdits: List[TextEdit],
+  sortText: Option[String],
 ) {
 
   def asValueCompletion: CompletionItem = copy(
@@ -66,6 +69,7 @@ sealed trait TextEdit extends Product with Serializable
 
 object TextEdit {
   final case class Insert(text: String, pos: Position) extends TextEdit
+  final case class Overwrite(text: String, range: SourceRange) extends TextEdit
 }
 
 sealed trait InsertText extends Product with Serializable
@@ -84,7 +88,7 @@ object CompletionItem {
     kind = CompletionItemKind.Module,
     label = ident.selection,
     insertText = InsertText.JustString(
-      Formatter.renderIdent(ident).render(Int.MaxValue)
+      Formatter.writeIdentifier(ident, Int.MaxValue)
     ),
     schema = Schema.unit.addHints(service.service.hints),
   ).copy(detail = describeService(service))
@@ -95,7 +99,7 @@ object CompletionItem {
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.Field,
     label = field.label,
-    insertText = InsertText.JustString(s"${field.label} = "),
+    insertText = InsertText.JustString(s"${field.label}: "),
     schema = schema,
   )
 
@@ -105,9 +109,15 @@ object CompletionItem {
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
-    // todo: unions aren't only for structs: this makes an invalid assumption
-    // by inserting {} at all times
-    insertText = InsertText.SnippetString(s"${alt.label} = {$$0},"),
+    // needs proper completions for the inner schema
+    // https://github.com/kubukoz/smithy-playground/pull/120
+    insertText =
+      if (describeSchema(schema).apply().startsWith("structure "))
+        InsertText.SnippetString(s"""${alt.label}: {
+                                    |  $$0
+                                    |},""".stripMargin)
+      else
+        InsertText.JustString(s"${alt.label}: "),
     schema = schema,
   )
 
@@ -134,6 +144,7 @@ object CompletionItem {
         isField,
       ),
       extraTextEdits = Nil,
+      sortText = None,
     )
   }
 
@@ -184,6 +195,7 @@ object CompletionItem {
   def describeService(service: DynamicSchemaIndex.ServiceWrapper): String =
     s": service ${ServiceNameExtractor.fromService(service.service).selection}"
 
+  // nice to have: precompile this? caching?
   def describeSchema(schema: Schema[_]): () => String =
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
@@ -201,8 +213,9 @@ object CompletionItem {
       case UnionSchema(shapeId, _, _, _) => now(s"union ${shapeId.name}")
 
       case LazySchema(suspend) =>
-        val desc = suspend.map(describeSchema)
-        () => desc.value()
+        // we don't look at fields or whatnot,
+        // so we can immediately evaluate the schema and compile it as usual.
+        describeSchema(suspend.value)
 
       case RefinementSchema(underlying, _) => describeSchema(underlying)
 
@@ -214,8 +227,7 @@ object CompletionItem {
   sealed trait InsertUseClause extends Product with Serializable
 
   object InsertUseClause {
-    case class Required(opsToServices: Map[OperationName[Id], NonEmptyList[QualifiedIdentifier]])
-      extends InsertUseClause
+    case object Required extends InsertUseClause
     case object NotRequired extends InsertUseClause
   }
 
@@ -228,14 +240,13 @@ object CompletionItem {
 
     val useClauseOpt =
       insertUseClause match {
-        case Required(_) =>
+        case Required =>
           TextEdit
             .Insert(
-              (
-                Formatter.renderUseClause(UseClause[Id](serviceId).mapK(WithSource.liftId)) + Doc
-                  .hardLine
-                  .repeat(2)
-              ).render(Int.MaxValue),
+              Formatter
+                .useClauseFormatter
+                .format(UseClause[Id](serviceId).mapK(WithSource.liftId), Int.MaxValue) +
+                "\n\n",
               Position.origin,
             )
             .some
@@ -244,23 +255,45 @@ object CompletionItem {
 
     val fromServiceHint =
       insertUseClause match {
-        case Required(opsToServices)
-            // non-unique endpoint names need to be distinguished by service
-            if opsToServices.get(OperationName(endpoint.name)).foldMap(_.toList).sizeIs > 1 =>
-          s"(from ${Formatter.renderIdent(serviceId).render(Int.MaxValue)})"
-        case _ => ""
+        case Required => s"(from ${Formatter.writeIdentifier(serviceId, Int.MaxValue)})"
+        case _        => ""
       }
+
+    val label = endpoint.name
 
     CompletionItem(
       kind = CompletionItemKind.Function,
-      label = endpoint.name,
-      insertText = InsertText.JustString(endpoint.name),
+      label = label,
+      insertText = InsertText.SnippetString(
+        Formatter[Query]
+          .format(
+            Query[Id](
+              operationName = QueryOperationName[Id](
+                identifier = None,
+                operationName = OperationName[Id](endpoint.name),
+              ),
+              input = Struct[Id](Struct.Fields.empty[Id]),
+            ).mapK(WithSource.liftId),
+            Int.MaxValue,
+          )
+          // Kinda hacky - a way to place the cursor at the right position.
+          // Not sure how to do this best while using the formatter... (maybe some sort of mechanism inside the formatter to inject things).
+          // This assumes operation completions are always on the top level (no indent expected).
+          .replace("\n}", "  $0\n}")
+      ),
       detail =
         s"$fromServiceHint: ${endpoint.input.shapeId.name} => ${endpoint.output.shapeId.name}",
       description = none,
       deprecated = hints.get(smithy.api.Deprecated).isDefined,
       docs = buildDocumentation(hints, isField = false),
       extraTextEdits = useClauseOpt.toList,
+
+      // giving priority to the entries that don't require a use clause
+      // (they're considered to be in scope)
+      sortText = Some(insertUseClause match {
+        case NotRequired => "1_"
+        case Required    => "2_"
+      }).map(_ + label),
     )
   }
 

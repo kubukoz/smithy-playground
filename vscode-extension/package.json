@@ -41,7 +41,7 @@
     "commands": [
       {
         "command": "smithyql.runQuery",
-        "title": "Smithy Playground: Run SmithyQL Query",
+        "title": "Smithy Playground: Run SmithyQL file",
         "enablement": "editorLangId == 'smithyql'"
       },
       {
