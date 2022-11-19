@@ -220,11 +220,10 @@ private class MultiServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   ): EitherNel[CompilationError, OperationCompiler[IorNel[CompilationError, *]]] =
     MultiServiceResolver
       .resolveService(
-        q.operationName.value.mapK(WithSource.unwrap),
+        q.operationName.value,
         serviceIndex,
-        useClauses = ctx.prelude.mapK(WithSource.unwrap).useClauses,
+        useClauses = ctx.prelude.useClauses.map(_.value),
       )
-      .leftMap(_.map(ResolutionFailure.toCompilationError(_, q)))
       .map(compilers(_))
 
   def compile(

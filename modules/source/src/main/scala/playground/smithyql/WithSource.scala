@@ -19,6 +19,7 @@ object Comment {
 }
 
 final case class Position(index: Int) {
+  def moveLeft(n: Int): Position = Position(index - n)
   def moveRight(n: Int): Position = Position(index + n)
 }
 

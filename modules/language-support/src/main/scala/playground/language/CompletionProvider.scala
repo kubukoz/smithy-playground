@@ -126,9 +126,9 @@ object CompletionProvider {
       val resolvedServiceId =
         MultiServiceResolver
           .resolveService(
-            q.mapK(WithSource.unwrap).operationName,
+            q.operationName.value,
             serviceIndex,
-            sf.prelude.useClauses.map(_.value.mapK(WithSource.unwrap)),
+            sf.prelude.useClauses.map(_.value),
           )
           .toOption
 

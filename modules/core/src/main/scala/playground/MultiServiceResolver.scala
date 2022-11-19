@@ -1,13 +1,10 @@
 package playground
 
-import cats.Id
 import cats.data.EitherNel
 import cats.implicits._
 import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.Query
 import playground.smithyql.QueryOperationName
-import playground.smithyql.SourceRange
 import playground.smithyql.UseClause
 import playground.smithyql.WithSource
 
@@ -29,10 +26,10 @@ object MultiServiceResolver {
     * perform a check on that. For the actual check, see PreludeCompiler.
     */
   def resolveService(
-    queryOperationName: QueryOperationName[Id],
+    queryOperationName: QueryOperationName[WithSource],
     serviceIndex: ServiceIndex,
-    useClauses: List[UseClause[Id]],
-  ): EitherNel[CompilationErrorDetails, QualifiedIdentifier] =
+    useClauses: List[UseClause[WithSource]],
+  ): EitherNel[CompilationError, QualifiedIdentifier] =
     queryOperationName.identifier match {
       case Some(explicitRef) =>
         resolveExplicit(serviceIndex, explicitRef, queryOperationName.operationName)
@@ -42,60 +39,57 @@ object MultiServiceResolver {
 
   private def resolveExplicit(
     index: ServiceIndex,
-    explicitRef: QualifiedIdentifier,
-    operationName: OperationName[Id],
-  ): EitherNel[CompilationErrorDetails, QualifiedIdentifier] =
-    index.getService(explicitRef) match {
+    explicitRef: WithSource[QualifiedIdentifier],
+    operationName: WithSource[OperationName[WithSource]],
+  ): EitherNel[CompilationError, QualifiedIdentifier] =
+    index.getService(explicitRef.value) match {
       // explicit reference exists, but the service doesn't
-      case None => CompilationErrorDetails.UnknownService(index.serviceIds.toList).leftNel
+      case None =>
+        CompilationError
+          .error(
+            CompilationErrorDetails.UnknownService(index.serviceIds.toList),
+            explicitRef.range,
+          )
+          .leftNel
 
       // the service exists, but doesn't have the requested operation
-      case Some(service) if !service.operationNames.contains_(operationName) =>
-        CompilationErrorDetails
-          .OperationMissing(
-            service.operationNames.toList
+      case Some(service)
+          if !service.operationNames.contains_(operationName.value.mapK(WithSource.unwrap)) =>
+        CompilationError
+          .error(
+            CompilationErrorDetails.OperationMissing(service.operationNames.toList),
+            operationName.range,
           )
           .leftNel
 
       // all good
-      case Some(_) => explicitRef.asRight
+      case Some(_) => explicitRef.value.asRight
     }
 
   private def resolveImplicit(
-    operationName: OperationName[Id],
+    operationName: WithSource[OperationName[WithSource]],
     index: ServiceIndex,
-    useClauses: List[UseClause[Id]],
-  ): EitherNel[CompilationErrorDetails, QualifiedIdentifier] = {
+    useClauses: List[UseClause[WithSource]],
+  ): EitherNel[CompilationError, QualifiedIdentifier] = {
     val matchingServices =
       index
-        .getServices(useClauses.map(_.identifier).toSet)
-        .filter(_.hasOperation(operationName))
+        .getServices(useClauses.map(_.identifier).map(_.value).toSet)
+        .filter(_.hasOperation(operationName.value.mapK(WithSource.unwrap)))
         .toList
 
     matchingServices match {
       case one :: Nil => one.id.asRight
       case _ =>
-        CompilationErrorDetails
-          .AmbiguousService(
-            workspaceServices = index.serviceIds.toList
+        CompilationError
+          .error(
+            CompilationErrorDetails
+              .AmbiguousService(
+                workspaceServices = index.serviceIds.toList
+              ),
+            operationName.range,
           )
           .leftNel
     }
   }
-
-}
-
-object ResolutionFailure {
-
-  @deprecated
-  def toCompilationError(err: CompilationErrorDetails, q: Query[WithSource]): CompilationError =
-    CompilationError
-      .error(
-        err,
-        defaultRange(q),
-      )
-
-  @deprecated("migrate MultiServiceResolver to diagnostics with their own ranges")
-  private def defaultRange(q: Query[WithSource]): SourceRange = q.operationName.range
 
 }

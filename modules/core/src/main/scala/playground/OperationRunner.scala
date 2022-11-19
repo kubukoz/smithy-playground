@@ -168,12 +168,11 @@ object OperationRunner {
         prelude: Prelude[WithSource],
       ): IorNel[Issue, OperationRunner[F]] = MultiServiceResolver
         .resolveService(
-          queryOperationName = q.operationName.value.mapK(WithSource.unwrap),
+          queryOperationName = q.operationName.value,
           serviceIndex = serviceIndex,
-          useClauses = prelude.useClauses.map(_.value.mapK(WithSource.unwrap)),
+          useClauses = prelude.useClauses.map(_.value),
         )
         .map(runners(_))
-        .leftMap(_.map(ResolutionFailure.toCompilationError(_, q)))
         .leftMap(CompilationFailed(_))
         .toIor
         .leftMap(Issue.Other(_))

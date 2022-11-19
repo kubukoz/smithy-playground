@@ -9,7 +9,8 @@ import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.QueryOperationName
-import playground.smithyql.WithSource
+import playground.smithyql.SourceRange
+import playground.smithyql.StringRangeUtils._
 import playground.smithyql.parser.SourceParser
 import weaver._
 
@@ -28,11 +29,13 @@ object MultiServiceResolverTests extends FunSuite {
     val useClauses = SourceParser[Prelude].parse(useClausesSource).toTry.get
 
     MultiServiceResolver.resolveService(
-      queryOperationName = operationName.mapK(WithSource.unwrap),
+      queryOperationName = operationName,
       serviceIndex = serviceIndex,
-      useClauses = useClauses.mapK(WithSource.unwrap).useClauses,
+      useClauses = useClauses.useClauses.map(_.value),
     )
   }
+
+  import CompilationError.error
 
   test("no explicit/implicit service ref, no services available") {
     val result = resolveService(
@@ -43,7 +46,10 @@ object MultiServiceResolverTests extends FunSuite {
 
     assertNoDiff(
       result,
-      CompilationErrorDetails.AmbiguousService(Nil).leftNel,
+      error(
+        CompilationErrorDetails.AmbiguousService(Nil),
+        SourceRange.forEntireString("Op"),
+      ).leftNel,
     )
   }
 
@@ -59,14 +65,16 @@ object MultiServiceResolverTests extends FunSuite {
 
     assertNoDiff(
       result,
-      CompilationErrorDetails
-        .AmbiguousService(
-          workspaceServices = List(
-            QualifiedIdentifier.of("com", "example", "AvailableA"),
-            QualifiedIdentifier.of("com", "example", "AvailableB"),
-          )
-        )
-        .leftNel,
+      error(
+        CompilationErrorDetails
+          .AmbiguousService(
+            workspaceServices = List(
+              QualifiedIdentifier.of("com", "example", "AvailableA"),
+              QualifiedIdentifier.of("com", "example", "AvailableB"),
+            )
+          ),
+        SourceRange.forEntireString("Op"),
+      ).leftNel,
     )
   }
 
@@ -82,20 +90,22 @@ object MultiServiceResolverTests extends FunSuite {
 
     assertNoDiff(
       result,
-      CompilationErrorDetails
-        .UnknownService(
-          List(
-            QualifiedIdentifier.of("com", "example", "AvailableA"),
-            QualifiedIdentifier.of("com", "example", "AvailableB"),
-          )
-        )
-        .leftNel,
+      error(
+        CompilationErrorDetails
+          .UnknownService(
+            List(
+              QualifiedIdentifier.of("com", "example", "AvailableA"),
+              QualifiedIdentifier.of("com", "example", "AvailableB"),
+            )
+          ),
+        SourceRange.forEntireString("com.example#Unavailable"),
+      ).leftNel,
     )
   }
 
   test("explicit service ref that matches a service, but the service doesn't have that operation") {
     val result = resolveService(
-      "com.example#ServiceMissingOp.Op",
+      "com.example#ServiceMissingOp.TheOp",
       "",
       mkIndex(
         QualifiedIdentifier.of("com", "example", "ServiceA") -> Set.empty,
@@ -105,11 +115,13 @@ object MultiServiceResolverTests extends FunSuite {
 
     assertNoDiff(
       result,
-      CompilationErrorDetails
-        .OperationMissing(
-          List(OperationName("Op2"))
-        )
-        .leftNel,
+      error(
+        CompilationErrorDetails
+          .OperationMissing(
+            List(OperationName("Op2"))
+          ),
+        "com.example#ServiceMissingOp.TheOp".rangeOf("TheOp"),
+      ).leftNel,
     )
   }
 
@@ -167,15 +179,17 @@ object MultiServiceResolverTests extends FunSuite {
 
     assertNoDiff(
       result,
-      CompilationErrorDetails
-        .AmbiguousService(
-          workspaceServices = List(
-            QualifiedIdentifier.of("com", "example", "MatchingService1"),
-            QualifiedIdentifier.of("com", "example", "MatchingService2"),
-            QualifiedIdentifier.of("com", "example", "OtherService"),
-          )
-        )
-        .leftNel,
+      error(
+        CompilationErrorDetails
+          .AmbiguousService(
+            workspaceServices = List(
+              QualifiedIdentifier.of("com", "example", "MatchingService1"),
+              QualifiedIdentifier.of("com", "example", "MatchingService2"),
+              QualifiedIdentifier.of("com", "example", "OtherService"),
+            )
+          ),
+        SourceRange.forEntireString("Op"),
+      ).leftNel,
     )
   }
 
