@@ -2,7 +2,6 @@ package playground.lsp
 
 import cats.effect.kernel.Sync
 import cats.implicits._
-import fs2.io.file.Files
 import fs2.io.file.Path
 import playground.BuildConfig
 import playground.BuildConfigDecoder
