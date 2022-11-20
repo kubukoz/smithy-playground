@@ -19,6 +19,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   implicit d: Dispatcher[F]
 ) {
 
+  // no backpressure whatsoever for now
+  private def handleNotification(job: F[Unit]): Unit = d.unsafeRunAndForget(job)
+
   @JsonRequest("initialize")
   def initialize(
     params: InitializeParams
@@ -27,7 +30,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   @JsonNotification("initialized")
   def initialize(
     params: InitializedParams
-  ): Unit = d.unsafeRunSync(impl.initialized(params))
+  ): Unit = handleNotification(impl.initialized(params))
 
   @JsonRequest("shutdown")
   def shutdown(
@@ -36,22 +39,22 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   @JsonNotification("textDocument/didChange")
   def didChange(
     params: DidChangeTextDocumentParams
-  ): Unit = d.unsafeRunSync(impl.didChange(params))
+  ): Unit = handleNotification(impl.didChange(params))
 
   @JsonNotification("textDocument/didOpen")
   def didOpen(
     params: DidOpenTextDocumentParams
-  ): Unit = d.unsafeRunSync(impl.didOpen(params))
+  ): Unit = handleNotification(impl.didOpen(params))
 
   @JsonNotification("textDocument/didSave")
   def didSave(
     params: DidSaveTextDocumentParams
-  ): Unit = d.unsafeRunSync(impl.didSave(params))
+  ): Unit = handleNotification(impl.didSave(params))
 
   @JsonNotification("textDocument/didClose")
   def didClose(
     params: DidCloseTextDocumentParams
-  ): Unit = d.unsafeRunSync(impl.didClose(params))
+  ): Unit = handleNotification(impl.didClose(params))
 
   @JsonRequest("textDocument/formatting")
   def formatting(
@@ -100,7 +103,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   @JsonNotification("workspace/didChangeWatchedFiles")
   def didChangeWatchedFiles(
     params: DidChangeWatchedFilesParams
-  ): Unit = d.unsafeRunSync(impl.didChangeWatchedFiles(params))
+  ): Unit = handleNotification(impl.didChangeWatchedFiles(params))
 
   @JsonRequest("textDocument/documentSymbol")
   @ResponseJsonAdapter(classOf[DocumentSymbolResponseAdapter])
