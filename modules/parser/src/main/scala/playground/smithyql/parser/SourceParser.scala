@@ -3,12 +3,12 @@ package playground.smithyql.parser
 import cats.implicits._
 import cats.kernel.Eq
 import cats.parse.Parser
+import cats.parse.Parser.Expectation.EndOfString
 import cats.parse.Parser.Expectation.InRange
+import cats.parse.Parser.Expectation.OneOfStr
+import cats.parse.Parser.Expectation.WithContext
 import cats.parse.Parser0
 import playground.smithyql._
-import cats.parse.Parser.Expectation.OneOfStr
-import cats.parse.Parser.Expectation.EndOfString
-import cats.parse.Parser.Expectation.WithContext
 
 trait SourceParser[Alg[_[_]]] {
   def parse(s: String): Either[ParsingFailure, Alg[WithSource]]

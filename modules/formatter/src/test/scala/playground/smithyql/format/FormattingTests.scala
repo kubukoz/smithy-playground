@@ -7,10 +7,10 @@ import playground.smithyql.format.Formatter
 import playground.smithyql.parser.Examples
 import playground.smithyql.parser.ParserSuite
 import playground.smithyql.parser.SourceParser
+import util.chaining._
 import weaver._
 import weaver.scalacheck.Checkers
 
-import util.chaining._
 import Diffs._
 
 object FormattingTests extends SimpleIOSuite with Checkers {

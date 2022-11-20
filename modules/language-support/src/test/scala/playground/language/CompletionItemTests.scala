@@ -1,15 +1,16 @@
 package playground.language
 
-import weaver._
-import playground.std.ClockGen
+import demo.smithy.Hero
+import demo.smithy.Subscription
+import playground.Assertions._
+import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.syntax._
-import playground.Assertions._
-import Diffs._
-import demo.smithy.Hero
+import playground.std.ClockGen
 import smithy4s.schema.Schema
-import demo.smithy.Subscription
-import playground.smithyql.Position
+import weaver._
+
+import Diffs._
 
 object CompletionItemTests extends FunSuite {
   test("CompletionItem.forOperation: no use clause") {

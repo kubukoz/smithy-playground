@@ -3,19 +3,19 @@ package playground.language
 import cats.effect.IO
 import cats.implicits._
 import playground.Assertions._
+import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
 import playground.FileRunner
 import playground.OperationCompiler
 import playground.OperationRunner
+import playground.PreludeCompiler
+import playground.ServiceIndex
+import playground.ServiceUtils._
 import playground.language.Diffs._
+import playground.smithyql.StringRangeUtils._
 import playground.std.RandomGen
 import weaver._
-import playground.ServiceUtils._
-import playground.smithyql.StringRangeUtils._
-import playground.ServiceIndex
-import playground.PreludeCompiler
-import playground.CompilationError
 
 object CodeLensProviderTests extends FunSuite {
 

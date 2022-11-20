@@ -3,6 +3,7 @@ package playground.language
 import cats.Id
 import cats.implicits._
 import playground.MultiServiceResolver
+import playground.ServiceIndex
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.EmptyPath
 import playground.smithyql.NodeContext.^^:
@@ -16,7 +17,6 @@ import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
 import playground.smithyql.syntax._
 import smithy4s.dynamic.DynamicSchemaIndex
-import playground.ServiceIndex
 
 trait CompletionProvider {
   def provide(documentText: String, pos: Position): List[CompletionItem]

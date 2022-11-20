@@ -1,8 +1,8 @@
 package playground
 
-import smithy4s.http.PayloadError
-import smithy4s.HintMask
 import smithy.api.Default
+import smithy4s.HintMask
+import smithy4s.http.PayloadError
 
 object BuildConfigDecoder {
 

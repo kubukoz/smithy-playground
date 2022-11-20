@@ -45,11 +45,11 @@ import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 import smithy4s.~>
-import java.util.Base64
-import java.util.UUID
-
 import types._
 import util.chaining._
+
+import java.util.Base64
+import java.util.UUID
 
 object QueryCompilerVisitor {
   val full = new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerVisitorInternal

@@ -3,16 +3,15 @@ package playground.language
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._
+import playground.ServiceUtils._
 import playground.language.Diffs._
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.StringRangeUtils._
 import playground.smithyql.syntax._
 import playground.std.ClockGen
 import playground.std.RandomGen
 import weaver._
-
-import playground.smithyql.StringRangeUtils._
-import playground.ServiceUtils._
 
 object CompletionProviderTests extends SimpleIOSuite {
 

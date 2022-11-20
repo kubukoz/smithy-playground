@@ -7,10 +7,10 @@ import cats.NonEmptyTraverse
 import cats.Show
 import cats.implicits._
 import cats.kernel.Eq
-import cats.~>
-import playground.smithyql.Query
-import playground.smithyql.InputNode
 import cats.kernel.Order
+import cats.~>
+import playground.smithyql.InputNode
+import playground.smithyql.Query
 
 // todo: multiline
 final case class Comment(text: String) extends AnyVal
