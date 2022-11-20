@@ -70,8 +70,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     in: QueryCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerVisitor.full).compile(in)
 
-  private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
+  private def parseAndCompile[Alg[_[_, _, _, _, _]]](
+    service: Service[Alg]
   )(
     q: String
   ): IorThrow[List[CompiledInput]] =

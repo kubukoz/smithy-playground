@@ -26,7 +26,7 @@ import playground.std.RandomGen
 import playground.std.Stdlib
 import playground.std.StdlibRuntime
 import smithy4s.HasId
-import smithy4s.api.SimpleRestJson
+import alloy.SimpleRestJson
 import smithy4s.aws.AwsEnvironment
 import weaver._
 

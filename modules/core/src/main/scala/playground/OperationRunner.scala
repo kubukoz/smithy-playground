@@ -146,7 +146,7 @@ object OperationRunner {
   ): Map[QualifiedIdentifier, Resolver[F]] =
     services.map { svc =>
       QualifiedIdentifier.forService(svc.service) ->
-        OperationRunner.forService[svc.Alg, svc.Op, F](
+        OperationRunner.forService[svc.Alg, F](
           svc.service,
           client,
           baseUri,
@@ -202,7 +202,7 @@ object OperationRunner {
 
       private def simpleFromBuilder(
         builder: SimpleHttpBuilder
-      ): IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+      ): IorNel[Issue, FunctorInterpreter[service.Operation, F]] =
         builder
           .client(
             service,
@@ -213,7 +213,7 @@ object OperationRunner {
             ).apply(client),
           )
           .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
-          .map(service.asTransformation)
+          .map(service.toPolyFunction(_))
           .toIor
           .toIorNel
 
@@ -255,7 +255,7 @@ object OperationRunner {
         )
 
       private def perform[E, O](
-        interpreter: smithy4s.Interpreter[Op, F],
+        interpreter: FunctorInterpreter[service.Operation, F],
         q: CompiledInput.Aux[E, O, service.Operation],
       ) = Defer[F].defer(interpreter(q.op)).map { response =>
         q.writeOutput.toNode(response)

@@ -55,6 +55,7 @@ val commonSettings = Seq(
   scalacOptions -= "-Vtype-diffs",
   scalacOptions += "-Wnonunit-statement",
   scalacOptions ++= Seq("-Xsource:3.0"),
+  Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   javacOptions ++= Seq("-source", "8", "-target", "8"),
   mimaFailOnNoPrevious := false,
 )

@@ -19,6 +19,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithyql.syntax._
 import types._
 import util.chaining._
+import smithy4s.Endpoint
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -78,7 +79,7 @@ object OperationCompiler {
     val compilers: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
       services.map { svc =>
         QualifiedIdentifier
-          .forService(svc.service) -> OperationCompiler.fromService[svc.Alg, svc.Op](svc.service)
+          .forService(svc.service) -> OperationCompiler.fromService(svc.service)
       }.toMap
 
     new MultiServiceCompiler(
@@ -129,7 +130,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
 ) extends OperationCompiler[IorNel[CompilationError, *]] {
 
   private def compileEndpoint[In, Err, Out](
-    e: Endpoint[Op, In, Err, Out, _, _]
+    e: Endpoint[service.Operation, In, Err, Out, _, _]
   ): QueryCompiler[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
     val outputEncoder = NodeEncoder.derive(e.output)
@@ -179,7 +180,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
 
   private def deprecatedOperationCheck(
     q: Query[WithSource],
-    endpoint: Endpoint[Op, _, _, _, _, _],
+    endpoint: Endpoint[service.Operation, _, _, _, _, _],
   ): IorNel[CompilationError, Unit] =
     endpoint
       .hints
