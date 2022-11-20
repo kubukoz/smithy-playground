@@ -35,15 +35,19 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / scalaVersion := "2.13.10"
 ThisBuild / crossScalaVersions := Seq("2.13.10")
 
+// For coursier's "latest.integration"
+ThisBuild / dynverSeparator := "-"
+
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-core" % "2.8.0",
+    "org.typelevel" %% "cats-mtl" % "1.3.0",
     "com.disneystreaming" %% "weaver-cats" % "0.8.0" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.8.0" % Test,
     "com.disneystreaming" %% "weaver-scalacheck" % "0.8.0" % Test,
-    "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
-    "com.softwaremill.diffx" %% "diffx-cats" % "0.7.1" % Test,
+    "com.softwaremill.diffx" %% "diffx-core" % "0.8.2" % Test,
+    "com.softwaremill.diffx" %% "diffx-cats" % "0.8.2" % Test,
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
