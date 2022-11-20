@@ -25,6 +25,7 @@ trait LanguageClient[F[_]] extends Feedback[F] {
   def refreshCodeLenses: F[Unit]
 
   def showInfoMessage(msg: String): F[Unit] = showMessage(MessageType.Info, msg)
+  def showWarnMessage(msg: String): F[Unit] = showMessage(MessageType.Warning, msg)
   def showErrorMessage(msg: String): F[Unit] = showMessage(MessageType.Error, msg)
 }
 

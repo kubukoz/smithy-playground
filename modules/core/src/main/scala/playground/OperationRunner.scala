@@ -35,6 +35,7 @@ import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
 import smithy4s.kinds._
 import smithyql.syntax._
+import playground.smithyql.Prelude
 
 trait OperationRunner[F[_]] {
   def run(q: CompiledInput): F[InputNode[Id]]
@@ -43,7 +44,12 @@ trait OperationRunner[F[_]] {
 object OperationRunner {
 
   trait Resolver[F[_]] {
-    def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]]
+
+    def get(
+      parsed: Query[WithSource],
+      prelude: Prelude[WithSource],
+    ): IorNel[Issue, OperationRunner[F]]
+
   }
 
   sealed trait Issue extends Product with Serializable
@@ -52,16 +58,25 @@ object OperationRunner {
     final case class InvalidProtocol(supported: ShapeId, found: List[ShapeId]) extends Issue
     final case class Other(e: Throwable) extends Issue
 
-    final case class ProtocolIssues(supported: NonEmptyList[ShapeId], found: List[ShapeId])
+    sealed trait Squashed extends Product with Serializable
+
+    object Squashed {
+
+      final case class ProtocolIssues(
+        supported: NonEmptyList[ShapeId],
+        found: List[ShapeId],
+      ) extends Squashed
+
+      final case class OtherIssues(exceptions: NonEmptyList[Throwable]) extends Squashed
+    }
 
     // Either remove all protocol errors, or only keep those.
     // If there are any non-protocol errors, they'll be returned in Right.
     // If there are only protocol errors, they'll be returned in Left
-    // todo: this needs a cleanup
+    // this would be nice to clean up
     def squash(
       issues: NonEmptyList[Issue]
-    ): Either[ProtocolIssues, NonEmptyList[Throwable]] = {
-      // todo: use nonEmptyPartition
+    ): Squashed = {
       val (protocols, others) = issues.toList.partitionMap {
         case InvalidProtocol(p, _) => Left(p)
         case Other(e)              => Right(e)
@@ -70,7 +85,7 @@ object OperationRunner {
       others.toNel match {
         case None =>
           // must be nonempty at this point
-          ProtocolIssues(
+          Squashed.ProtocolIssues(
             NonEmptyList.fromListUnsafe(protocols),
             issues
               .collectFirst { case InvalidProtocol(_, found) => found }
@@ -79,13 +94,14 @@ object OperationRunner {
                   "Impossible - no protocol issues found, can't extract available protocols"
                 )
               ),
-          ).asLeft
-        case Some(otherErrors) => otherErrors.asRight
+          )
+        case Some(otherErrors) => Squashed.OtherIssues(otherErrors)
       }
     }
 
   }
 
+  // https://github.com/kubukoz/smithy-playground/issues/158
   def dynamicBaseUri[F[_]: MonadCancelThrow](getUri: F[Uri]): Client[F] => Client[F] =
     client =>
       Client[F] { req =>
@@ -111,43 +127,58 @@ object OperationRunner {
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
-  ): Resolver[F] = {
-    val runners: Map[QualifiedIdentifier, Resolver[F]] =
-      dsi
-        .allServices
-        .map { svc =>
-          QualifiedIdentifier.forService(svc.service) ->
-            OperationRunner.forService[svc.Alg, F](
-              svc.service,
-              client,
-              baseUri,
-              awsEnv,
-              dsi.getSchema,
-              plugins,
-            )
-        }
-        .toMap
+  ): Map[QualifiedIdentifier, Resolver[F]] = forServices(
+    services = dsi.allServices,
+    getSchema = dsi.getSchema,
+    client = client,
+    baseUri = baseUri,
+    awsEnv = awsEnv,
+    plugins = plugins,
+  )
 
+  def forServices[F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+    services: List[DynamicSchemaIndex.ServiceWrapper],
+    getSchema: ShapeId => Option[Schema[_]],
+    client: Client[F],
+    baseUri: F[Uri],
+    awsEnv: Resource[F, AwsEnvironment[F]],
+    plugins: List[PlaygroundPlugin],
+  ): Map[QualifiedIdentifier, Resolver[F]] =
+    services.map { svc =>
+      QualifiedIdentifier.forService(svc.service) ->
+        OperationRunner.forService[svc.Alg, svc.Op, F](
+          svc.service,
+          client,
+          baseUri,
+          awsEnv,
+          getSchema,
+          plugins,
+        )
+    }.toMap
+
+  def merge[F[_]](
+    runners: Map[QualifiedIdentifier, Resolver[F]],
+    serviceIndex: ServiceIndex,
+  ): Resolver[F] =
     new Resolver[F] {
-      def get(q: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = MultiServiceResolver
+
+      def get(
+        q: Query[WithSource],
+        prelude: Prelude[WithSource],
+      ): IorNel[Issue, OperationRunner[F]] = MultiServiceResolver
         .resolveService(
-          q.mapK(WithSource.unwrap).collectServiceIdentifiers,
-          runners,
+          queryOperationName = q.operationName.value,
+          serviceIndex = serviceIndex,
+          useClauses = prelude.useClauses.map(_.value),
         )
-        .leftMap(rf =>
-          CompilationFailed.one(
-            CompilationError.error(
-              CompilationErrorDetails.fromResolutionFailure(rf),
-              q.useClause.value.fold(q.operationName.range)(_.identifier.range),
-            )
-          )
-        )
+        .map(runners(_))
+        .leftMap(CompilationFailed(_))
         .toIor
         .leftMap(Issue.Other(_))
         .toIorNel
-        .flatMap(_.get(q))
+        .flatMap(_.get(q, prelude))
+
     }
-  }
 
   def forService[Alg[_[_, _, _, _, _]], F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
     service: Service[Alg],
@@ -171,24 +202,18 @@ object OperationRunner {
 
       private def simpleFromBuilder(
         builder: SimpleHttpBuilder
-      ): IorNel[Issue, service.FunctorInterpreter[F]] =
-        Either
-          .catchNonFatal {
-            builder
-              .client(
-                service,
-                dynamicBaseUri[F](
-                  baseUri.flatTap { uri =>
-                    std.Console[F].println(s"Using base URI: $uri")
-                  }
-                ).apply(client),
-              )
-          }
-          .leftMap(Issue.Other(_))
-          .flatMap {
-            _.leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
-          }
-          .map(service.toPolyFunction(_))
+      ): IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+        builder
+          .client(
+            service,
+            dynamicBaseUri[F](
+              baseUri.flatTap { uri =>
+                std.Console[F].println(s"Using base URI: $uri")
+              }
+            ).apply(client),
+          )
+          .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
+          .map(service.asTransformation)
           .toIor
           .toIorNel
 
@@ -203,9 +228,12 @@ object OperationRunner {
           .toIorNel *> {
           val proxy = new DynamicServiceProxy[Alg, service.Operation](service)
 
-          proxy
-            .tryProxy(StdlibRuntime[F].random)
-            .orElse(proxy.tryProxy(StdlibRuntime[F].clock))
+          NonEmptyList
+            .of(
+              proxy.tryProxy(StdlibRuntime[F].random),
+              proxy.tryProxy(StdlibRuntime[F].clock),
+            )
+            .reduceK // orElse
             .toRightIor(Issue.Other(new Throwable("unknown standard service")))
             .toIorNel
         }
@@ -226,10 +254,10 @@ object OperationRunner {
             .map(Issue.InvalidProtocol(_, serviceProtocols))
         )
 
-      private def perform[I, E, O](
-        interpreter: service.FunctorInterpreter[F],
-        q: CompiledInput.Aux[I, E, O, service.Operation],
-      ) = Defer[F].defer(interpreter(q.wrap(q.input))).map { response =>
+      private def perform[E, O](
+        interpreter: smithy4s.Interpreter[Op, F],
+        q: CompiledInput.Aux[E, O, service.Operation],
+      ) = Defer[F].defer(interpreter(q.op)).map { response =>
         q.writeOutput.toNode(response)
       }
 
@@ -243,10 +271,10 @@ object OperationRunner {
         .map(
           _.map { interpreter =>
             new OperationRunner[F] {
-              def run(q: CompiledInput): F[InputNode[Id]] = perform[q.I, q.E, q.O](
+              def run(q: CompiledInput): F[InputNode[Id]] = perform[q.E, q.O](
                 interpreter,
                 // note: this is safe... for real
-                q.asInstanceOf[CompiledInput.Aux[q.I, q.E, q.O, service.Operation]],
+                q.asInstanceOf[CompiledInput.Aux[q.E, q.O, service.Operation]],
               )
             }
           }
@@ -256,7 +284,11 @@ object OperationRunner {
         IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]]
       )
 
-      def get(parsed: Query[WithSource]): IorNel[Issue, OperationRunner[F]] = getInternal
+      def get(
+        parsed: Query[WithSource],
+        prelude: Prelude[WithSource],
+      ): IorNel[Issue, OperationRunner[F]] = getInternal
+
     }
 
   def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], F[_]](

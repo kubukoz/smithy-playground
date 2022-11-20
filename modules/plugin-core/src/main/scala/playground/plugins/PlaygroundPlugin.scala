@@ -8,9 +8,17 @@ import smithy4s.kinds._
 import cats.effect.Concurrent
 import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._
+import scala.annotation.nowarn
 
 trait PlaygroundPlugin {
-  def simpleBuilders: List[SimpleHttpBuilder]
+  @deprecated("Implement simpleBuilders instead", "0.5.3")
+  def http4sBuilders: List[SimpleProtocolBuilder[_]] = Nil
+
+  @nowarn("cat=deprecation")
+  def simpleBuilders: List[SimpleHttpBuilder] = http4sBuilders.map(
+    SimpleHttpBuilder.fromSimpleProtocolBuilder
+  )
+
 }
 
 object PlaygroundPlugin {

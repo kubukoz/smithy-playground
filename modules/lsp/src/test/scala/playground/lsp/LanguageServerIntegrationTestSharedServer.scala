@@ -13,6 +13,7 @@ import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.implicits._
 import org.http4s.server.Server
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
@@ -43,7 +44,7 @@ object LanguageServerIntegrationTestSharedServer
         ),
       TestClient.MessageLog(
         MessageType.Info,
-        "Loaded Smithy Playground server with 1 imports, 0 dependencies and 0 plugins",
+        "Loaded Smithy Playground server with 2 imports, 0 dependencies and 0 plugins",
       ),
     )
 
@@ -73,6 +74,7 @@ object LanguageServerIntegrationTestSharedServer
             List(
               "NextUUID",
               "GetWeather",
+              "Noop",
               "CurrentTimestamp",
             ),
           )
@@ -85,7 +87,7 @@ object LanguageServerIntegrationTestSharedServer
       .diagnostic(
         new DocumentDiagnosticParams(
           new TextDocumentIdentifier(
-            (f.workspaceDir.toPath / "empty.smithyql").toNioPath.toUri().toString()
+            (f.workspaceDir.toPath / "broken.smithyql").toNioPath.toUri().toString()
           )
         )
       )
@@ -127,7 +129,7 @@ object LanguageServerIntegrationTestSharedServer
           lenses.map(_.getCommand()),
           List(
             new Command(
-              "Run query",
+              "Run SmithyQL file",
               "smithyql.runQuery",
               List(
                 Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value: Object
@@ -138,12 +140,48 @@ object LanguageServerIntegrationTestSharedServer
       }
   }
 
+  test("smithyql/runQuery (empty file)") { f =>
+    f.client
+      .scoped {
+        f.server
+          .runFile(
+            RunFileParams(
+              Uri.fromPath(f.workspaceDir.toPath / "empty.smithyql")
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.same(
+          evs,
+          List(TestClient.MessageLog(MessageType.Warning, "No operations to run in file")),
+        )
+      }
+  }
+
+  test("smithyql/runQuery (output panel)") { f =>
+    f.client
+      .scoped {
+        f.server
+          .runFile(
+            RunFileParams(
+              Uri.fromUriString("output:anything_here")
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.same(
+          evs,
+          Nil,
+        )
+      }
+  }
+
   test("smithyql/runQuery (in memory)") { f =>
     f.client
       .scoped {
         f.server
-          .runQuery(
-            RunQueryParams(
+          .runFile(
+            RunFileParams(
               Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql")
             )
           ) *> f.client.getEvents
@@ -156,6 +194,54 @@ object LanguageServerIntegrationTestSharedServer
       }
   }
 
+  // this and some others could become component tests for the runner...
+  // ...if we ever get any.
+  test("smithyql/runQuery (in memory, multiple queries)") { f =>
+    f.client
+      .scoped {
+        f.server
+          .runFile(
+            RunFileParams(
+              Uri.fromPath(f.workspaceDir.toPath / "multi-query.smithyql")
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.eql(evs.size, 5) &&
+        assert.same(evs(0), TestClient.OutputPanelShow) &&
+        assert(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
+        assert(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID")) &&
+        assert(
+          evs(3).asInstanceOf[TestClient.OutputLog].text.contains("Calling CurrentTimestamp")
+        ) &&
+        assert(
+          evs(4).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded CurrentTimestamp")
+        )
+      }
+  }
+
+  test("smithyql/runQuery (in memory, multiple queries, multiple without runner)") { f =>
+    f.client
+      .scoped {
+        f.server
+          .runFile(
+            RunFileParams(
+              Uri.fromPath(f.workspaceDir.toPath / "multi-query-partial-runner.smithyql")
+            )
+          ) *> f.client.getEvents
+      }
+      .map { evs =>
+        assert.eql(evs.size, 1) &&
+        assert.same(evs(0).asInstanceOf[TestClient.MessageLog].tpe, MessageType.Error) &&
+        assert(
+          evs(0)
+            .asInstanceOf[TestClient.MessageLog]
+            .msg
+            .startsWith("At least 1 service in the file uses an unsupported protocol.")
+        )
+      }
+  }
+
   val fakeServer: Resource[IO, Server] =
     EmberServerBuilder
       .default[IO]
@@ -163,7 +249,8 @@ object LanguageServerIntegrationTestSharedServer
       // as there's no need
       .withHost(host"localhost")
       .withPort(port"0")
-      .withShutdownTimeout(1.second)
+      // https://github.com/http4s/http4s/pull/6781
+      .withShutdownTimeout(1.nano)
       .withHttpApp(
         SimpleRestJsonBuilder
           .routes(
@@ -194,8 +281,8 @@ object LanguageServerIntegrationTestSharedServer
 
         env {
           f.server
-            .runQuery(
-              RunQueryParams(
+            .runFile(
+              RunFileParams(
                 Uri.fromPath(f.workspaceDir.toPath / "http-demo.smithyql")
               )
             ) *> f.client.getEvents
@@ -207,6 +294,29 @@ object LanguageServerIntegrationTestSharedServer
           .exists(_.text.contains("Succeeded GetWeather"))
 
         assert(hasMatchingLog)
+      }
+  }
+
+  test("HTTP calls: connection failure cancels the request") { f =>
+    val env = f
+      .client
+      .scoped
+      .compose(f.client.withConfiguration(ConfigurationValue.baseUri(uri"http://localhost:80")))
+
+    env {
+      f.server
+        .runFile(
+          RunFileParams(
+            Uri.fromPath(f.workspaceDir.toPath / "multi-query-one-failing.smithyql")
+          )
+        ) *> f.client.getEvents
+    }
+      .map { events =>
+        assert.eql(events.length, 4) &&
+        assert.same(events(0), TestClient.OutputPanelShow) &&
+        assert(events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")) &&
+        assert(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
+        assert(events(3).asInstanceOf[TestClient.OutputLog].text.contains("// ERROR"))
       }
   }
 

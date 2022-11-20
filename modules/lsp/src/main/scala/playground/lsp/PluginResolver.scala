@@ -25,9 +25,8 @@ trait PluginResolver[F[_]] {
     config
       .plugins
       .flatMap(_.smithyPlayground)
-      .flatMap(_.extensions)
-      .combineAll,
-    config.mavenRepositories.combineAll,
+      .foldMap(_.extensions),
+    config.mavenRepositories,
   )
 
 }
