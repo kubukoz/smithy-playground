@@ -20,6 +20,8 @@ object Parsers {
       (string("//") *> anyChar.repUntil0(newline | Parser.end).string.map(Comment(_)))
         .withContext("comment")
 
+    val requiredWhitespace: Parser[Unit] = charsWhile(_.isWhitespace).void
+
     val whitespace: Parser0[Unit] = charsWhile0(_.isWhitespace).void
 
     val comments: Parser0[List[Comment]] = comment
@@ -153,9 +155,8 @@ object Parsers {
     }.withContext("qualified_ident")
 
     val useClause: Parser[UseClause[T]] = {
-      string("use") *>
-        string("service")
-          .surroundedBy(tokens.whitespace) *>
+      string("use") *> tokens.requiredWhitespace *>
+        string("service") *> tokens.requiredWhitespace *>
         tokens.withRange(qualifiedIdent)
     }.map(UseClause.apply[T]).withContext("useClause")
 
