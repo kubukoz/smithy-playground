@@ -91,7 +91,7 @@ The runner needs a base URL to target with its queries. This defaults to `http:/
 
 or by manually changing the key in  `./vscode/settings.json`.
 
-If a query typechecks, it can be executed by clicking on the "Run query" code lens...
+If a query typechecks, it can be executed by clicking on the "Run SmithyQL file" code lens...
 
 ![code lens](./images/lens.png)
 
@@ -104,9 +104,11 @@ or triggering the command from the Command Palette:
 - Running queries via code lens or command
 - Formatting
 - Enabling/disabling line comments
-- Completions on: operation name, structure fields, union cases, enums (inside the string literal).
-- Documentation in completions (operation docs, input/output types, structure field type)
+- Completions (as long as the code is at least syntactically valid)
+- Documentation in completions (operation docs, input/output types, structure member types)
+- Document outline / breadcrumbs / "go to symbol in editor"
 - Rough error highlighting on parse errors, type mismatches, missing fields
+- AWS client calls for services supporting `@awsJson1_0` and `awsJson1_1`
 
 ## Syntax
 
@@ -177,35 +179,46 @@ In this case, the syntax would be `"HOT"` or `"COLD"`.
 - smithy4s refinements: all validations provided by smithy4s are supported. If you find one that isn't, file an issue!
   Supporting additional validations, like your own, may be enabled in the future using the plugin infrastructure of Smithy Playground.
 
+### Prelude
+
+A SmithyQL file starts with a section called a prelude. It can contain use clauses (described below) available to all queries in the file.
+
+For example:
+
+```
+use service playground.std#Clock
+use service playground.std#Random
+```
+
+Use clauses are optional, as queries can refer to a service explicitly.
+
 ### Queries
 
-<!-- https://github.com/kubukoz/smithy-playground/issues/151 -->
+A SmithyQL file can contain any number of Queries. A Query is formed of the following:
 
-Currently, a SmithyQL file is a single Query. A Query is formed of the following:
-
-- (optional) a `use service` clause: `use service playground.std#Clock`
 - an operation name
 - the operation input (a structure literal)
 
 An operation name can be either:
 
-- fully qualified, in which case it looks like this: `playground.std#Clock.CurrentTimestamp`
-- implicitly qualified, in which case it's just the operation name: `CurrentTimestamp`
+- fully qualified, in which case it looks like this: `playground.std#Clock.CurrentTimestamp` (using the service `playground.std#Clock` for just this single query)
+- implicitly qualified, in which case it's just the operation name: `CurrentTimestamp`. You can only use implicitly qualified operation names if there's exactly one service in scope (added with `use service`) that contains an operation of the given name. Otherwise, you have to use an explicit reference.
 
-#### on `use service`
+Explicit (fully qualified) references always have priority over implicit ones.
 
-The `use service` clause sets the service that will implicitly be used for all queries in a file.
-Currently, there's only one query per file, but that will change in the future.
+#### use clauses - `use service`
 
-`use service` and a fully qualified operation name are **mutually exclusive**: you can only use **exactly one** of them in a file.
+A `use service` clause adds a service to the set of services that will implicitly be used as the default for all queries in a file.
 
-To sum up, these are equivalent:
+For a single-query file, an explicit and implicit service reference are always equivalent:
 
 ```
 use service playground.std#Clock
 
 CurrentTimestamp {}
 ```
+
+is the same as
 
 ```
 playground.std#Clock.CurrentTimestamp {}
@@ -221,7 +234,7 @@ The operation input is always a structure, even if there is no explicitly define
 
 - Trailing commas are supported in lists and objects, and they're preferred by the standard formatter. No, there aren't any other formatters.
 
-- Formatting is quite whitespace-happy and optimizes for consistency. It's not perfect and has known bugs (e.g. too much indentation in lists), but improvements in that area are on the roadmap.
+- Formatting is quite whitespace-happy and optimizes for consistency.
 
 - Syntax may change in the future, but any breaking changes will be phased in with a deprecation cycle, and an automated rewrite.
 
@@ -230,7 +243,7 @@ The operation input is always a structure, even if there is no explicitly define
 
 ## Known issues
 
-- ~Not all Smithy shapes are supported in all areas~ This has been fixed in [the main plugin](https://github.com/kubukoz/smithy-playground/releases/tag/v0.3.8).
 - Type errors and completions are only shown if the file parses. This is being worked on.
 - It can take a couple seconds to activate the extension when the project is opened (JVM startup)
-- AWS support is very barebones (the whole editor needs to be loaded with AWS credentials in the environment)
+- AWS support requires credentials in scope for the entire editor instance
+- See issue list
