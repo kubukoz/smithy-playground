@@ -1,8 +1,8 @@
 package playground.smithyql
 
-import cats.implicits._
 import cats.data.Chain
 import cats.data.Chain.==:
+import cats.implicits._
 
 // The path to a position in the parsed source
 sealed trait NodeContext extends Product with Serializable with NodeContext.PathEntry.TraversalOps {
@@ -14,7 +14,9 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
 
         context
           .map {
-            case AtUseClause        => ".useClause"
+            case AtPrelude          => ".prelude"
+            case InQuery(index)     => s".query($index)"
+            case AtUseClause(index) => s".useClause($index)"
             case AtOperationName    => ".operationName"
             case AtOperationInput   => ".input"
             case CollectionEntry(i) => s".[${i.getOrElse("")}]"
@@ -57,17 +59,39 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
 object NodeContext {
 
   object ^^: {
+
+    /** Extractor for path entry prefixes. You can use this to assert on a prefix of a path (when
+      * you consider paths L->R). For example, in a file like "hello {}", the path at "hello" would
+      * be something like
+      *
+      * {{{EmptyPath.inQuery(0).inOperationName}}}
+      *
+      * which could be matched with the following pattern:
+      *
+      * {{{case InQuery(0) ^^: InOperationName ^^: EmptyPath}}}
+      *
+      * or, if you only want to match on a prefix and keep the rest up for more matching:
+      *
+      * {{{case InQuery(0) ^^: rest}}}
+      */
     def unapply(items: NodeContext): Option[(PathEntry, NodeContext)] = items.uncons
   }
 
-  val Root: NodeContext = Impl(Chain.nil)
+  val EmptyPath: NodeContext = Impl(Chain.nil)
+
+  // This is a bad name really, what it actually means is "empty path" or "no more path" (e.g. in extractors).
+  // refactor usages to refer to EmptyPath
+  // https://github.com/kubukoz/smithy-playground/issues/159
+  val Root: NodeContext = EmptyPath
 
   private final case class Impl(context: Chain[PathEntry]) extends NodeContext
 
   sealed trait PathEntry extends Product with Serializable
 
   object PathEntry {
-    case object AtUseClause extends PathEntry
+    case object AtPrelude extends PathEntry
+    case class InQuery(index: Int) extends PathEntry
+    final case class AtUseClause(index: Int) extends PathEntry
     case object AtOperationName extends PathEntry
     case object AtOperationInput extends PathEntry
     final case class StructValue(key: String) extends PathEntry
@@ -79,7 +103,9 @@ object NodeContext {
     trait TraversalOps {
       self: NodeContext =>
 
-      def inUseClause: NodeContext = append(PathEntry.AtUseClause)
+      def inQuery(index: Int): NodeContext = append(PathEntry.InQuery(index))
+      def inPrelude: NodeContext = append(PathEntry.AtPrelude)
+      def inUseClause(index: Int): NodeContext = append(PathEntry.AtUseClause(index))
       def inOperationName: NodeContext = append(PathEntry.AtOperationName)
       def inOperationInput: NodeContext = append(PathEntry.AtOperationInput)
       def inStructValue(key: String): NodeContext = append(PathEntry.StructValue(key))

@@ -2,7 +2,7 @@
   "name": "smithy-playground",
   "displayName": "Smithy Playground",
   "description": "Experimental integration for queries in the Smithy language.",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "engines": {
     "vscode": "^1.69.0"
   },
@@ -41,7 +41,7 @@
     "commands": [
       {
         "command": "smithyql.runQuery",
-        "title": "Smithy Playground: Run SmithyQL Query",
+        "title": "Smithy Playground: Run SmithyQL file",
         "enablement": "editorLangId == 'smithyql'"
       },
       {

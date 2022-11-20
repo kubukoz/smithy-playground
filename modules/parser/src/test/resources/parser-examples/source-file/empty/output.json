@@ -1,0 +1,18 @@
+{
+  "prelude": {
+    "useClauses": []
+  },
+  "statements": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 0
+      },
+      "end": {
+        "index": 0
+      }
+    },
+    "value": []
+  }
+}

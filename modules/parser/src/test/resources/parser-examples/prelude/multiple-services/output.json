@@ -1,0 +1,64 @@
+{
+  "useClauses": [
+    {
+      "commentsLeft": [],
+      "commentsRight": [],
+      "range": {
+        "start": {
+          "index": 0
+        },
+        "end": {
+          "index": 17
+        }
+      },
+      "value": {
+        "identifier": {
+          "commentsLeft": [],
+          "commentsRight": [],
+          "range": {
+            "start": {
+              "index": 12
+            },
+            "end": {
+              "index": 17
+            }
+          },
+          "value": {
+            "segments": ["com"],
+            "selection": "A"
+          }
+        }
+      }
+    },
+    {
+      "commentsLeft": [],
+      "commentsRight": [],
+      "range": {
+        "start": {
+          "index": 18
+        },
+        "end": {
+          "index": 35
+        }
+      },
+      "value": {
+        "identifier": {
+          "commentsLeft": [],
+          "commentsRight": [],
+          "range": {
+            "start": {
+              "index": 30
+            },
+            "end": {
+              "index": 35
+            }
+          },
+          "value": {
+            "segments": ["com"],
+            "selection": "B"
+          }
+        }
+      }
+    }
+  ]
+}
