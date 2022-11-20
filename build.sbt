@@ -35,6 +35,9 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 ThisBuild / scalaVersion := "2.13.10"
 ThisBuild / crossScalaVersions := Seq("2.13.10")
 
+// For coursier's "latest.integration"
+ThisBuild / dynverSeparator := "-"
+
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
