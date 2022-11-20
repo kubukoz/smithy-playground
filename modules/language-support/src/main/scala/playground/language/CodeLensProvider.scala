@@ -5,9 +5,9 @@ import playground.FileCompiler
 import playground.FileRunner
 import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
+import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
 import playground.types._
-import playground.smithyql.WithSource
 
 trait CodeLensProvider[F[_]] {
   def provide(documentUri: Uri, documentText: String): List[CodeLens]

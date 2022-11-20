@@ -16,10 +16,13 @@ import com.google.gson.JsonPrimitive
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
+import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
 import playground.FileRunner
 import playground.OperationCompiler
+import playground.PreludeCompiler
+import playground.ServiceIndex
 import playground.TextDocumentManager
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
@@ -36,10 +39,8 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+
 import ToUriOps._
-import playground.PreludeCompiler
-import playground.ServiceIndex
-import playground.CompilationError
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]

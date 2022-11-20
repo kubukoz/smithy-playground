@@ -2,8 +2,8 @@ package playground.language
 
 import fs2.io.file.Path
 
-import java.nio.file.Paths
 import java.net.URI
+import java.nio.file.Paths
 
 final case class Uri private (value: String) extends AnyVal {
   def toPath: Path = Path.fromNioPath(Paths.get(new URI(value)))

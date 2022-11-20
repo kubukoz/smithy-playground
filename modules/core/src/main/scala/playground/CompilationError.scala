@@ -1,6 +1,7 @@
 package playground
 
 import cats.Id
+import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
 import playground.CompilationErrorDetails._
@@ -8,7 +9,6 @@ import playground.smithyql._
 import playground.smithyql.format.Formatter
 import smithy.api.TimestampFormat
 import smithy4s.ShapeId
-import cats.data.IorNel
 
 // this is more like "Diagnostic".
 final case class CompilationError(

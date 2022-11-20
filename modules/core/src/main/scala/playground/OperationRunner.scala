@@ -18,6 +18,7 @@ import playground._
 import playground.plugins.PlaygroundPlugin
 import playground.plugins.SimpleHttpBuilder
 import playground.smithyql.InputNode
+import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.WithSource
@@ -33,9 +34,7 @@ import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.schema.Schema
-
 import smithyql.syntax._
-import playground.smithyql.Prelude
 
 trait OperationRunner[F[_]] {
   def run(q: CompiledInput): F[InputNode[Id]]

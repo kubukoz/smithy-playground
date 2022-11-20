@@ -16,7 +16,6 @@ import smithy.api
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
-
 import smithyql.syntax._
 import types._
 import util.chaining._
