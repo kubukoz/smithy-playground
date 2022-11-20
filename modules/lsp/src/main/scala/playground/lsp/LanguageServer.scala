@@ -5,7 +5,6 @@ import cats.FlatMap
 import cats.MonadThrow
 import cats.effect.implicits._
 import cats.effect.kernel.Async
-import cats.effect.std.Supervisor
 import cats.implicits._
 import cats.parse.LocationMap
 import cats.tagless.Derive
@@ -78,8 +77,6 @@ object LanguageServer {
   ](
     dsi: DynamicSchemaIndex,
     runner: FileRunner.Resolver[F],
-  )(
-    implicit sup: Supervisor[F]
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
@@ -266,14 +263,11 @@ object LanguageServer {
                   )
                 }
                 .flatMap { stats =>
-                  // Can't make (and wait for) client requests while handling a client request (file change)
-                  {
-                    LanguageClient[F].refreshDiagnostics *>
-                      LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
-                        .showInfoMessage(
-                          s"Reloaded Smithy Playground server with ${stats.render}"
-                        )
-                  }.supervise(sup).void
+                  LanguageClient[F].refreshDiagnostics *>
+                    LanguageClient[F].refreshCodeLenses *>
+                    LanguageClient[F].showInfoMessage(
+                      s"Reloaded Smithy Playground server with ${stats.render}"
+                    )
                 }
         }
         .onError { case e =>
