@@ -1,0 +1,16 @@
+================================================================================
+Service reference
+================================================================================
+namespace#Service.OpName {}
+--------------------------------------------------------------------------------
+
+(source_file
+  (top_level_statement
+    (operation_call
+      (operation_name
+        (qualified_identifier
+          (identifier)
+          (identifier))
+        (identifier))
+      (whitespace)
+      (struct))))

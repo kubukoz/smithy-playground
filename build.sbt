@@ -57,6 +57,7 @@ val commonSettings = Seq(
   scalacOptions ++= Seq("-Xsource:3.0"),
   javacOptions ++= Seq("-source", "8", "-target", "8"),
   mimaFailOnNoPrevious := false,
+  resolvers += "Sonatype S01 snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
 )
 
 def module(name: String) = Project(name, file("modules") / name)
@@ -84,6 +85,7 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "0.3.8",
+      "org.polyvariant.treesitter4s" %% "core" % "0.3-b944a3d-SNAPSHOT",
       "io.circe" %% "circe-generic" % "0.14.3" % Test,
       "io.circe" %% "circe-parser" % "0.14.3" % Test,
       "co.fs2" %% "fs2-io" % "3.3.0" % Test,
@@ -117,6 +119,8 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
+      "org.typelevel" %% "paiges-cats" % "0.4.2",
+      "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
