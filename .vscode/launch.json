@@ -5,7 +5,9 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode-extension"
+      ],
       "name": "Client",
       "outFiles": [
         "${workspaceFolder}/vscode-extension/out/*.js",
@@ -23,6 +25,21 @@
       "buildTarget": "lsp",
       "hostName": "localhost",
       "port": 5010
+    },
+    {
+      "name": "Run Extension Tests",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode-extension",
+        "--extensionTestsPath=${workspaceFolder}/vscode-extension/out/test/suite/index",
+        "--disable-extensions",
+        "${workspaceFolder}/vscode-extension/fixture"
+      ],
+      "outFiles": ["${workspaceFolder}/vscode-extension/out/test/**/*.js"],
+      // "preLaunchTask": "build",
+      "sourceMaps": true
     }
   ]
 }

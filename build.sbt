@@ -153,11 +153,16 @@ lazy val lsp = module("lsp")
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(languageSupport)
 
+val writeVersion = taskKey[Unit]("Writes the current version to the `.version` file")
+
 lazy val root = project
   .in(file("."))
   .settings(
     publish / skip := true,
     mimaFailOnNoPrevious := false,
-    addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
+    addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
+    writeVersion := {
+      IO.write(file(".version"), version.value)
+    },
   )
   .aggregate(ast, source, core, parser, formatter, languageSupport, lsp, pluginCore)
