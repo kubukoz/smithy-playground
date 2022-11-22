@@ -7,9 +7,9 @@ import playground.BuildConfig
 import playground.BuildConfigDecoder
 import playground.ModelReader
 import playground.language.TextDocumentProvider
+import playground.language.Uri
 import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
-import playground.language.Uri
 
 trait BuildLoader[F[_]] {
   def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded]
@@ -82,7 +82,6 @@ object BuildLoader {
                 loaded
                   .config
                   .imports
-                  .combineAll
                   .map(
                     loaded
                       .configFilePath
@@ -93,10 +92,11 @@ object BuildLoader {
                       .toFile()
                   )
                   .toSet,
-              dependencies = loaded.config.mavenDependencies.combineAll,
-              repositories = loaded.config.mavenRepositories.combineAll,
+              dependencies = loaded.config.mavenDependencies,
+              repositories = loaded.config.mavenRepositories,
               transformers = Nil,
-              // todo: this should be false really
+              // this should be false really
+              // https://github.com/kubukoz/smithy-playground/pull/140
               discoverModels = true,
               localJars = Nil,
             )

@@ -1,11 +1,13 @@
 package playground.smithyql.parser
 
 import io.circe.Codec
-import playground.smithyql.Query
-import playground.smithyql.WithSource
 import playground.smithyql.Listed
+import playground.smithyql.Prelude
+import playground.smithyql.Query
+import playground.smithyql.SourceFile
 import playground.smithyql.Struct
 import playground.smithyql.UseClause
+import playground.smithyql.WithSource
 
 object Codecs {
 
@@ -20,4 +22,7 @@ object Codecs {
 
   implicit val queryWithSourceCodec: Codec[Query[WithSource]] = deriveCodec
 
+  implicit val preludeWithSourceCodec: Codec[Prelude[WithSource]] = deriveCodec
+
+  implicit val sourceFileWithSourceCodec: Codec[SourceFile[WithSource]] = deriveCodec
 }

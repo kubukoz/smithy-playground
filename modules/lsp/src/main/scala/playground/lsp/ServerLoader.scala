@@ -30,9 +30,9 @@ object ServerLoader {
   object WorkspaceStats {
 
     def fromBuildConfig(bc: BuildConfig): WorkspaceStats = WorkspaceStats(
-      importCount = bc.imports.combineAll.size,
-      dependencyCount = bc.mavenDependencies.combineAll.size,
-      pluginCount = bc.plugins.flatMap(_.smithyPlayground).flatMap(_.extensions).combineAll.size,
+      importCount = bc.imports.size,
+      dependencyCount = bc.mavenDependencies.size,
+      pluginCount = bc.plugins.flatMap(_.smithyPlayground).foldMap(_.extensions).size,
     )
 
   }

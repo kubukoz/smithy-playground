@@ -9,8 +9,6 @@ import org.eclipse.lsp4j
 import playground.CompilationError
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
-import playground.DocumentReference.SameFile
-import playground.RelativeLocation
 import playground.language.CodeLens
 import playground.language.CompletionItem
 import playground.language.CompletionItemKind
@@ -23,19 +21,18 @@ import playground.smithyql.SourceRange
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import playground.language.Uri
 
 object converters {
 
   object toLSP {
 
-    def documentSymbol(docText: String, sym: DocumentSymbol): lsp4j.DocumentSymbol =
+    def documentSymbol(map: LocationMap, sym: DocumentSymbol): lsp4j.DocumentSymbol =
       new lsp4j.DocumentSymbol(
         sym.name,
         symbolKind(sym.kind),
-        range(docText, sym.range),
-        range(docText, sym.range),
-      ).tap(_.setChildren(sym.children.map(documentSymbol(docText, _)).asJava))
+        range(map, sym.range),
+        range(map, sym.range),
+      ).tap(_.setChildren(sym.children.map(documentSymbol(map, _)).asJava))
 
     def symbolKind(kind: SymbolKind): lsp4j.SymbolKind =
       kind match {
@@ -46,7 +43,7 @@ object converters {
       }
 
     def completionItem(
-      doc: String,
+      map: LocationMap,
       item: CompletionItem,
     ): lsp4j.CompletionItem = {
       val convertKind: CompletionItemKind => lsp4j.CompletionItemKind = {
@@ -70,13 +67,9 @@ object converters {
           case _: InsertText.SnippetString => lsp4j.InsertTextFormat.Snippet
         }
 
-      val additionalTextEdits: List[lsp4j.TextEdit] = item.extraTextEdits.map {
-        case TextEdit.Insert(what, where) =>
-          val pos = converters.toLSP.position(doc, where)
-          new lsp4j.TextEdit()
-            .tap(_.setNewText(what))
-            .tap(_.setRange(new lsp4j.Range(pos, pos)))
-      }
+      val additionalTextEdits: List[lsp4j.TextEdit] = item
+        .extraTextEdits
+        .map(textEdit(_, map))
 
       new lsp4j.CompletionItem(
         item.label
@@ -110,30 +103,30 @@ object converters {
           case Some(theDocs) =>
             _.setDocumentation(new lsp4j.MarkupContent(lsp4j.MarkupKind.MARKDOWN, theDocs))
         })
+        .tap(_.setSortText(item.sortText.orNull))
     }
 
-    def diagnostic(doc: String, documentUri: Uri, diag: CompilationError): lsp4j.Diagnostic =
+    def textEdit(edit: TextEdit, map: LocationMap): lsp4j.TextEdit =
+      edit match {
+        case TextEdit.Insert(what, where) =>
+          val pos = converters.toLSP.position(map, where)
+          new lsp4j.TextEdit(new lsp4j.Range(pos, pos), what)
+
+        case TextEdit.Overwrite(what, range) =>
+          val r = converters.toLSP.range(map, range)
+
+          new lsp4j.TextEdit(r, what)
+      }
+
+    def diagnostic(map: LocationMap, diag: CompilationError): lsp4j.Diagnostic =
       new lsp4j.Diagnostic()
-        .tap(_.setRange(toLSP.range(doc, diag.range)))
+        .tap(_.setRange(toLSP.range(map, diag.range)))
         .tap(_.setMessage(diag.err.render))
         .tap(_.setSeverity(diag.severity match {
           case DiagnosticSeverity.Error       => lsp4j.DiagnosticSeverity.Error
           case DiagnosticSeverity.Information => lsp4j.DiagnosticSeverity.Information
           case DiagnosticSeverity.Warning     => lsp4j.DiagnosticSeverity.Warning
         }))
-        .tap(
-          _.setRelatedInformation(
-            diag
-              .relatedInfo
-              .map { info =>
-                new lsp4j.DiagnosticRelatedInformation(
-                  location(doc, documentUri, info.location),
-                  info.message.render,
-                )
-              }
-              .asJava
-          )
-        )
         .tap(
           _.setTags(
             diag
@@ -149,16 +142,8 @@ object converters {
           )
         )
 
-    private def location(doc: String, documentUri: Uri, loc: RelativeLocation): lsp4j.Location =
-      new lsp4j.Location(
-        loc.document match {
-          case SameFile => documentUri.value
-        },
-        range(doc, loc.range),
-      )
-
-    def codeLens(documentText: String, lens: CodeLens): lsp4j.CodeLens =
-      new lsp4j.CodeLens(range(documentText, lens.range))
+    def codeLens(map: LocationMap, lens: CodeLens): lsp4j.CodeLens =
+      new lsp4j.CodeLens(range(map, lens.range))
         .tap(
           _.setCommand(
             new lsp4j.Command()
@@ -169,15 +154,15 @@ object converters {
         )
 
     def range(
-      doc: String,
+      map: LocationMap,
       coreRange: SourceRange,
-    ): lsp4j.Range = new lsp4j.Range(position(doc, coreRange.start), position(doc, coreRange.end))
+    ): lsp4j.Range = new lsp4j.Range(position(map, coreRange.start), position(map, coreRange.end))
 
     def position(
-      doc: String,
+      map: LocationMap,
       pos: Position,
     ): lsp4j.Position = {
-      val caret = LocationMap(doc).toCaretUnsafe(pos.index)
+      val caret = map.toCaretUnsafe(pos.index)
       new lsp4j.Position(caret.line, caret.col)
     }
 
@@ -186,10 +171,10 @@ object converters {
   object fromLSP {
 
     def position(
-      doc: String,
+      map: LocationMap,
       pos: lsp4j.Position,
     ): Position = Position(
-      LocationMap(doc).toOffset(pos.getLine(), pos.getCharacter()).getOrElse(-1)
+      map.toOffset(pos.getLine(), pos.getCharacter()).getOrElse(-1)
     )
 
   }

@@ -1,11 +1,10 @@
 package playground.language
 
+import playground.Assertions._
+import playground.language.Diffs._
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
 import weaver._
-
-import playground.Assertions._
-import playground.language.Diffs._
 
 object DocumentSymbolProviderTests extends FunSuite {
 

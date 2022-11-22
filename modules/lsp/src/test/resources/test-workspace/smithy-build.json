@@ -1,5 +1,5 @@
 {
-  "imports": ["./weather.smithy"],
+  "imports": ["./weather.smithy", "./no-runner.smithy"],
   "mavenDependencies-ignored": [
     "com.disneystreaming.smithy4s:smithy4s-protocol:latest.release"
   ]

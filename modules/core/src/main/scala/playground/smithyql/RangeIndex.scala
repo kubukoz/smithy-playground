@@ -3,18 +3,39 @@ package playground.smithyql
 import cats.implicits._
 
 trait RangeIndex {
-  def findAtPosition(pos: Position): Option[ContextRange]
+  def findAtPosition(pos: Position): NodeContext
 }
 
 object RangeIndex {
 
-  def build(q: Query[WithSource]): RangeIndex =
+  def build(sf: SourceFile[WithSource]): RangeIndex =
     new RangeIndex {
 
-      private val allRanges: List[ContextRange] =
-        findInUseClause(q.useClause) ++
-          findInOperationName(q.operationName) ++
-          findInNode(q.input, NodeContext.Root.inOperationInput)
+      private val allRanges: List[ContextRange] = {
+        val path = NodeContext.EmptyPath
+
+        val preludeRanges: List[ContextRange] = sf
+          .prelude
+          .useClauses
+          .toNel
+          .foldMap { useClauses =>
+            val newBase = path.inPrelude
+
+            ContextRange(useClauses.map(_.range).reduceLeft(_.fakeUnion(_)), newBase) ::
+              sf.prelude
+                .useClauses
+                .mapWithIndex { (uc, i) =>
+                  findInUseClause(uc, newBase.inUseClause(i))
+                }
+                .combineAll
+          }
+
+        val queryRanges = sf.queries(WithSource.unwrap).zipWithIndex.flatMap { case (rq, index) =>
+          findInQuery(rq.query, path.inQuery(index))
+        }
+
+        preludeRanges ++ queryRanges
+      }
 
       // Console
       //   .err
@@ -27,26 +48,35 @@ object RangeIndex {
 
       def findAtPosition(
         pos: Position
-      ): Option[ContextRange] = allRanges.filter(_.range.contains(pos)).maxByOption(_.ctx.length)
+      ): NodeContext = allRanges
+        .filter(_.range.contains(pos))
+        .maxByOption(_.ctx.length)
+        .map(_.ctx)
+        // By default, we're on root level
+        .getOrElse(NodeContext.EmptyPath)
 
     }
 
+  private def findInQuery(q: WithSource[Query[WithSource]], path: NodeContext) = {
+    val qv = q.value
+
+    List(ContextRange(q.range, path)) ++
+      findInOperationName(qv.operationName, path.inOperationName) ++
+      findInNode(qv.input, path.inOperationInput)
+  }
+
   private def findInUseClause(
-    useClauseOpt: WithSource[Option[UseClause[WithSource]]]
-  ): List[ContextRange] =
-    useClauseOpt
-      .value
-      .map { useClause =>
-        ContextRange(useClause.identifier.range, NodeContext.Root.inUseClause)
-      }
-      .toList
+    useClause: WithSource[UseClause[WithSource]],
+    path: NodeContext,
+  ): List[ContextRange] = ContextRange(useClause.value.identifier.range, path) :: Nil
 
   private def findInOperationName(
-    operationName: WithSource[QueryOperationName[WithSource]]
+    operationName: WithSource[QueryOperationName[WithSource]],
+    path: NodeContext,
   ): List[ContextRange] =
     ContextRange(
       operationName.value.operationName.range,
-      NodeContext.Root.inOperationName,
+      path,
     ) :: Nil
 
   private def findInNode(
@@ -55,24 +85,30 @@ object RangeIndex {
   ): List[ContextRange] = {
     def entireNode(ctx: NodeContext) = ContextRange(node.range, ctx)
 
-    node.value match {
-      case l @ Listed(_) => entireNode(ctx) :: findInList(l, ctx)
+    val default = Function.const(
+      // Default case: can be triggered e.g. inside a string literal
+      // which would affect completions of enum values and timestamps.
+      entireNode(ctx) :: Nil
+    )
 
-      case s @ Struct(_) => entireNode(ctx) :: findInStruct(s, ctx.inStructBody)
+    node
+      .value
+      .fold(
+        listed = l => entireNode(ctx) :: findInList(l, ctx),
+        struct = s => entireNode(ctx) :: findInStruct(s, ctx.inStructBody),
+        string =
+          _ => {
+            val inQuotes = ContextRange(
+              node.range.shrink1,
+              ctx.inQuotes,
+            )
 
-      case StringLiteral(_) =>
-        val inQuotes = ContextRange(
-          node.range.shrink1,
-          ctx.inQuotes,
-        )
-
-        inQuotes :: entireNode(ctx) :: Nil
-
-      case _ =>
-        // Default case: can be triggered e.g. inside a string literal
-        // which would affect completions of enum values and timestamps.
-        entireNode(ctx) :: Nil
-    }
+            inQuotes :: entireNode(ctx) :: Nil
+          },
+        int = default,
+        bool = default,
+        nul = default,
+      )
 
   }
 

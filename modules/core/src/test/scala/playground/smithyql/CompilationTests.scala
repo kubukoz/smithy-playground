@@ -4,7 +4,9 @@ import cats.Show
 import cats.data.Chain
 import cats.data.Ior
 import cats.data.NonEmptyChain
+import cats.data.NonEmptyList
 import cats.implicits._
+import com.softwaremill.diffx.cats._
 import demo.smithy.Bad
 import demo.smithy.DeprecatedServiceGen
 import demo.smithy.FriendSet
@@ -12,6 +14,7 @@ import demo.smithy.Good
 import demo.smithy.HasConstraintFields
 import demo.smithy.HasDefault
 import demo.smithy.HasDeprecations
+import demo.smithy.HasMixin
 import demo.smithy.Hero
 import demo.smithy.IntSet
 import demo.smithy.Ints
@@ -19,15 +22,27 @@ import demo.smithy.MyInstant
 import demo.smithy.Person
 import demo.smithy.Power
 import demo.smithy.StringWithLength
-import demo.smithy.HasMixin
 import org.scalacheck.Arbitrary
+import playground.Assertions._
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
+import playground.CompiledInput
+import playground.DeprecatedInfo
 import playground.DiagnosticTag
+import playground.Diffs._
+import playground.DynamicModel
+import playground.OperationCompiler
+import playground.PreludeCompiler
 import playground.QueryCompiler
 import playground.QueryCompilerVisitor
-import smithy.api
+import playground.ServiceIndex
+import playground.ServiceUtils._
+import playground.smithyql.parser.SourceParser
+import playground.smithyql.syntax._
+import playground.std.ClockGen
+import playground.std.RandomGen
+import playground.types.IorThrow
 import smithy.api.TimestampFormat
 import smithy4s.ByteArray
 import smithy4s.Document
@@ -38,7 +53,6 @@ import smithy4s.ShapeTag
 import smithy4s.Timestamp
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Schema
-import software.amazon.smithy.model.{Model => SModel}
 import weaver._
 import weaver.scalacheck.Checkers
 
@@ -46,25 +60,45 @@ import java.time
 import java.util.UUID
 
 import Arbitraries._
-import playground.smithyql.parser.SourceParser
+import StringRangeUtils._
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
   import DSL._
 
-  def compile[A: smithy4s.Schema](
+  private def compile[A: smithy4s.Schema](
     in: QueryCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerVisitor.full).compile(in)
 
-  val dynamicModel = {
-    val model = SModel
-      .assembler()
-      .discoverModels()
-      .assemble()
-      .unwrap()
+  private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
+    service: Service[Alg, Op]
+  )(
+    q: String
+  ): IorThrow[List[CompiledInput]] =
+    compileMulti(wrapService(service) :: Nil)(
+      SourceParser[SourceFile].parse(q).toTry.get
+    )
 
-    DynamicSchemaIndex.loadModel(model).toTry.get
-  }
+  private def parseAndCompileMulti(
+    services: List[DynamicSchemaIndex.ServiceWrapper]
+  )(
+    q: String
+  ) = compileMulti(services)(SourceParser[SourceFile].parse(q).toTry.get)
+
+  private def compileMulti(
+    services: List[DynamicSchemaIndex.ServiceWrapper]
+  )(
+    q: SourceFile[WithSource]
+  ): IorThrow[List[CompiledInput]] = playground
+    .FileCompiler
+    .instance(
+      PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
+      OperationCompiler.fromServices(services),
+    )
+    .mapK(CompilationFailed.wrapK)
+    .compile(q)
+
+  val dynamicModel: DynamicSchemaIndex = DynamicModel.discover()
 
   def dynamicSchemaFor[A: ShapeTag]: Schema[_] = {
     val shapeId = ShapeTag[A].id
@@ -384,7 +418,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         Chain(
           (
             CompilationErrorDetails.DeprecatedItem(
-              info = api.Deprecated(
+              info = DeprecatedInfo(
                 message = "Made-up reason".some,
                 since = None,
               )
@@ -514,7 +548,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       CompilationError
         .warning(
           CompilationErrorDetails.DeprecatedItem(
-            info = api.Deprecated(
+            info = DeprecatedInfo(
               message = "No reason".some,
               since = "0.0.1".some,
             )
@@ -843,110 +877,123 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(result == Ior.right(ts))
   }
 
-  private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
-  )(
-    q: String
-  ) = playground
-    .OperationCompiler
-    .fromService(service)
-    .compile(
-      SourceParser[Query].parse(q).toTry.get
+  pureTest("a use clause is present") {
+    val result =
+      parseAndCompileMulti(List(wrapService(RandomGen), wrapService(ClockGen)))(
+        """use service playground.std#Random
+          |NextUUID {}""".stripMargin
+      ).toEither
+
+    assert(result.isRight)
+  }
+
+  pureTest("a use clause is present - it doesn't refer to a known service") {
+    val result =
+      parseAndCompileMulti(List(wrapService(ClockGen)))(
+        """use service playground.std#Random
+          |NextUUID {}""".stripMargin
+      ).toEither
+
+    assert.same(
+      result.left.toOption.get.asInstanceOf[CompilationFailed].errors.map(_.err),
+      NonEmptyList.of(
+        CompilationErrorDetails.UnknownService(List(QualifiedIdentifier.forService(ClockGen))),
+        CompilationErrorDetails.AmbiguousService(QualifiedIdentifier.forService(ClockGen) :: Nil),
+      ),
     )
+  }
+
+  pureTest("multiple use clauses are present, only one query") {
+    val result =
+      parseAndCompileMulti(List(wrapService(RandomGen), wrapService(ClockGen)))(
+        """use service playground.std#Random
+          |use service playground.std#Clock
+          |NextUUID {}""".stripMargin
+      ).toEither
+
+    assert(result.isRight)
+  }
+
+  pureTest("multiple use clauses are present, multiple queries") {
+    val result =
+      parseAndCompileMulti(List(wrapService(RandomGen), wrapService(ClockGen)))(
+        """use service playground.std#Random
+          |use service playground.std#Clock
+          |
+          |CurrentTimestamp {}
+          |NextUUID {}""".stripMargin
+      ).toEither
+
+    assert(result.isRight)
+  }
 
   pureTest("deprecated service's use clause") {
+    val input = "use service demo.smithy#DeprecatedService"
     parseAndCompile(DeprecatedServiceGen)(
-      """use service demo.smithy#LiterallyAnyService
-        |hello {}""".stripMargin
+      input
     ).left match {
       case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
+        val result = cf.errors
 
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service ".length),
-              Position("use service demo.smithy#LiterallyAnyService".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#DeprecatedService"),
           )
         )
 
-        assert(result == expected)
+        assertNoDiff(
+          result,
+          expected,
+        )
 
       case e => failure("Unexpected exception: " + e)
     }
   }
 
   pureTest("deprecated operation") {
+    val input = """demo.smithy#DeprecatedService.DeprecatedOperation { }""".stripMargin
     parseAndCompile(DeprecatedServiceGen)(
-      """DeprecatedOperation { a = 42 }""".stripMargin
+      input
     ).left match {
       case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
-
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position(0),
-              Position("DeprecatedOperation".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
-          )
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#DeprecatedService"),
+          ),
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use op"), Some("0.0.0")),
+            input.rangeOf("DeprecatedOperation"),
+          ),
         )
 
-        assert(result == expected)
+        assertNoDiff(
+          cf.errors,
+          expected,
+        )
 
       case e => failure("Unexpected exception: " + e)
     }
   }
 
   pureTest("deprecated operation - only warnings") {
-    parseAndCompile(DeprecatedServiceGen)(
-      "use service demo.smithy#DeprecatedService\nDeprecatedOperation { }"
-    ).left match {
-      case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
+    val input = "use service demo.smithy#DeprecatedService\nDeprecatedOperation { }"
 
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service demo.smithy#DeprecatedService\n".length),
-              Position("use service demo.smithy#DeprecatedService\nDeprecatedOperation".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+    parseAndCompile(DeprecatedServiceGen)(input).left match {
+      case Some(cf: CompilationFailed) =>
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#DeprecatedService"),
           ),
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service ".length),
-              Position("use service demo.smithy#DeprecatedService".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use op"), Some("0.0.0")),
+            input.rangeOf("DeprecatedOperation"),
           ),
         )
 
-        assert(result == expected)
+        assertNoDiff(cf.errors, expected)
 
       case e => failure("Unexpected exception: " + e)
     }
