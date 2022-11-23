@@ -26,7 +26,7 @@ trait PluginResolver[F[_]] {
       .plugins
       .flatMap(_.smithyPlayground)
       .foldMap(_.extensions),
-    config.mavenRepositories,
+    config.mavenRepositories ++ config.maven.foldMap(_.repositories).map(_.url),
   )
 
 }
@@ -60,7 +60,7 @@ object PluginResolver {
 
         (depsF, reposF)
           .mapN { (deps, repos) =>
-            Fetch(FileCache[Task]().noCredentials.withTtl(1.hour))
+            Fetch(FileCache[Task]().withTtl(1.hour))
               .addDependencies(deps: _*)
               .addRepositories(repos: _*)
           }
