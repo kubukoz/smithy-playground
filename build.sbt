@@ -41,7 +41,7 @@ ThisBuild / dynverSeparator := "-"
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.8.0",
+    "org.typelevel" %% "cats-core" % "2.9.0",
     "org.typelevel" %% "cats-mtl" % "1.3.0",
     "com.disneystreaming" %% "weaver-cats" % "0.8.1" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.8.1" % Test,
@@ -88,7 +88,7 @@ lazy val parser = module("parser")
       "org.typelevel" %% "cats-parse" % "0.3.8",
       "io.circe" %% "circe-generic" % "0.14.3" % Test,
       "io.circe" %% "circe-parser" % "0.14.3" % Test,
-      "co.fs2" %% "fs2-io" % "3.3.0" % Test,
+      "co.fs2" %% "fs2-io" % "3.4.0" % Test,
     )
   )
   .dependsOn(
@@ -142,7 +142,7 @@ lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.17.0",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.19.0",
       "io.circe" %% "circe-core" % "0.14.3",
       "org.http4s" %% "http4s-ember-client" % "0.23.16",
       "org.http4s" %% "http4s-ember-server" % "0.23.16" % Test,
@@ -157,11 +157,16 @@ lazy val lsp = module("lsp")
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(languageSupport)
 
+val writeVersion = taskKey[Unit]("Writes the current version to the `.version` file")
+
 lazy val root = project
   .in(file("."))
   .settings(
     publish / skip := true,
     mimaFailOnNoPrevious := false,
-    addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
+    addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
+    writeVersion := {
+      IO.write(file(".version"), version.value)
+    },
   )
   .aggregate(ast, source, core, parser, formatter, languageSupport, lsp, pluginCore)

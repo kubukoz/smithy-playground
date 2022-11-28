@@ -92,8 +92,12 @@ object BuildLoader {
                       .toFile()
                   )
                   .toSet,
-              dependencies = loaded.config.mavenDependencies,
-              repositories = loaded.config.mavenRepositories,
+              dependencies =
+                loaded.config.mavenDependencies ++ loaded.config.maven.foldMap(_.dependencies),
+              repositories =
+                loaded
+                  .config
+                  .mavenRepositories ++ loaded.config.maven.foldMap(_.repositories).map(_.url),
               transformers = Nil,
               // this should be false really
               // https://github.com/kubukoz/smithy-playground/pull/140

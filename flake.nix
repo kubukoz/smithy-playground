@@ -18,7 +18,9 @@
             pkgs.sbt
             pkgs.jless
             pkgs.gnupg
-          ];
+            # temporary, while we don't download coursier ourselves
+            pkgs.coursier
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.xvfb-run ];
         };
       }
     );

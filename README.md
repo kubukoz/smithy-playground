@@ -247,3 +247,7 @@ The operation input is always a structure, even if there is no explicitly define
 - It can take a couple seconds to activate the extension when the project is opened (JVM startup)
 - AWS support requires credentials in scope for the entire editor instance
 - See issue list
+
+## Contributing / development notes
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md)
