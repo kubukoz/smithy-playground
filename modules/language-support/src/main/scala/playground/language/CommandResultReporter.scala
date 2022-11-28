@@ -5,22 +5,21 @@ import cats.Monad
 import cats.data.NonEmptyList
 import cats.effect.kernel.Ref
 import cats.implicits._
-import playground.smithyql.format.Formatter
+import playground.CompiledInput
 import playground.smithyql.InputNode
 import playground.smithyql.Query
 import playground.smithyql.WithSource
-
-import playground.OperationRunner.Issue.ProtocolIssues
-import playground.CompiledInput
+import playground.smithyql.format.Formatter
 
 trait CommandResultReporter[F[_]] {
   type RequestId
-  def onUnsupportedProtocol(issues: ProtocolIssues): F[Unit]
+  def onUnsupportedProtocol: F[Unit]
   def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
   def onCompilationFailed: F[Unit]
-  def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
+  def onFileCompiled(queries: List[Any]): F[Unit]
+  def onQueryStart(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
   def onQuerySuccess(parsed: Query[Id], requestId: RequestId, output: InputNode[Id]): F[Unit]
-  def onQueryFailure(e: Throwable, compiled: CompiledInput, requestId: RequestId): F[Unit]
+  def onQueryFailure(compiled: CompiledInput, requestId: RequestId, e: Throwable): F[Unit]
 }
 
 object CommandResultReporter {
@@ -37,18 +36,10 @@ object CommandResultReporter {
 
       type RequestId = Int
 
-      def onUnsupportedProtocol(
-        issues: ProtocolIssues
-      ): F[Unit] = {
-        val supportedString = issues.supported.map(_.show).mkString_(", ")
-        val foundOnServiceString = issues.found.map(_.show).mkString(", ")
-
-        Feedback[F].showErrorMessage(
-          s"""The service uses an unsupported protocol.
-             |Supported protocols: $supportedString
-             |Found protocols: $foundOnServiceString""".stripMargin
-        )
-      }
+      def onUnsupportedProtocol: F[Unit] = Feedback[F].showErrorMessage(
+        """At least 1 service in the file uses an unsupported protocol.
+          |Check diagnostics/problems in the file.""".stripMargin
+      )
 
       def onIssues(issues: NonEmptyList[Throwable]): F[Unit] = Feedback[F].showErrorMessage(
         issues.map(_.toString).mkString_("\n\n")
@@ -58,14 +49,21 @@ object CommandResultReporter {
         "Couldn't run query because of compilation errors."
       )
 
-      def onQueryCompiled(parsed: Query[Id], compiled: CompiledInput): F[RequestId] =
-        Feedback[F].showOutputPanel *>
-          requestCounter.updateAndGet(_ + 1).flatTap { requestId =>
-            Feedback[F]
-              .logOutput(
-                s"// Calling ${parsed.operationName.operationName.text} ($requestId)"
-              )
-          }
+      def onFileCompiled(queries: List[Any]): F[Unit] =
+        if (queries.nonEmpty)
+          Feedback[F].showOutputPanel
+        else
+          Feedback[F].showWarnMessage("No operations to run in file")
+
+      def onQueryStart(
+        parsed: Query[Id],
+        compiled: CompiledInput,
+      ): F[RequestId] = requestCounter.updateAndGet(_ + 1).flatTap { requestId =>
+        Feedback[F]
+          .logOutput(
+            s"// Calling ${parsed.operationName.operationName.text} ($requestId)"
+          )
+      }
 
       def onQuerySuccess(parsed: Query[Id], requestId: RequestId, out: InputNode[Id]): F[Unit] =
         Feedback[F].logOutput(
@@ -73,7 +71,7 @@ object CommandResultReporter {
             + writeOutput(out)
         )
 
-      def onQueryFailure(e: Throwable, compiled: CompiledInput, requestId: Int): F[Unit] = {
+      def onQueryFailure(compiled: CompiledInput, requestId: Int, e: Throwable): F[Unit] = {
         val rendered =
           compiled
             .catchError(e)
@@ -87,7 +85,7 @@ object CommandResultReporter {
 
       private def writeOutput(
         node: InputNode[cats.Id]
-      ) = Formatter.writeInputNode(node.mapK(WithSource.liftId)).renderTrim(80)
+      ) = Formatter.inputNodeFormatter.format(node.mapK(WithSource.liftId), 80)
 
     }
 

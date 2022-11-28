@@ -1,9 +1,8 @@
 package playground
 
-import weaver._
 import cats.data.Ior
-
 import cats.implicits._
+import weaver._
 
 object IorUtilsTests extends FunSuite {
   case class Case(lhs: Ior[Int, String], rhs: Ior[Int, String], expected: Ior[Int, String])

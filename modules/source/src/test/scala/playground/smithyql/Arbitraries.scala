@@ -1,11 +1,11 @@
 package playground.smithyql
 
+import cats.data.NonEmptyList
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
-import cats.data.NonEmptyList
 
 object Arbitraries {
-  implicit val arbitraryString: Arbitrary[String] = Arbitrary(Gen.asciiPrintableStr)
+  implicit val arbitraryString: Arbitrary[String] = Arbitrary(Gen.identifier)
 
   implicit def arbitraryNel[A: Arbitrary]: Arbitrary[NonEmptyList[A]] = Arbitrary(
     Gen.resultOf(NonEmptyList.apply[A])
@@ -116,6 +116,18 @@ object Arbitraries {
 
   implicit val arbQuery: Arbitrary[Query[WithSource]] = Arbitrary {
     Gen.resultOf(Query.apply[WithSource])
+  }
+
+  implicit val arbPrelude: Arbitrary[Prelude[WithSource]] = Arbitrary {
+    Gen.resultOf(Prelude.apply[WithSource])
+  }
+
+  implicit val arbStatement: Arbitrary[Statement[WithSource]] = Arbitrary {
+    Arbitrary.arbitrary[WithSource[Query[WithSource]]].map(RunQuery.apply[WithSource])
+  }
+
+  implicit val arbSourceFile: Arbitrary[SourceFile[WithSource]] = Arbitrary {
+    Gen.resultOf(SourceFile.apply[WithSource])
   }
 
 }

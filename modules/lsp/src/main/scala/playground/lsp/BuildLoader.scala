@@ -7,8 +7,8 @@ import playground.BuildConfig
 import playground.BuildConfigDecoder
 import playground.ModelReader
 import playground.language.TextDocumentProvider
-import smithy4s.dynamic.DynamicSchemaIndex
 import playground.language.Uri
+import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
   def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded]
@@ -82,6 +82,7 @@ object BuildLoader {
               .combineAll
               .map(
                 loaded
+<<<<<<< HEAD
                   .configFilePath
                   .parent
                   .getOrElse(sys.error("impossible - no parent"))
@@ -94,6 +95,34 @@ object BuildLoader {
           repositories = loaded.config.mavenRepositories.combineAll,
         )
         .map(_._2)
+=======
+                  .config
+                  .imports
+                  .map(
+                    loaded
+                      .configFilePath
+                      .parent
+                      .getOrElse(sys.error("impossible - no parent"))
+                      .resolve(_)
+                      .toNioPath
+                      .toFile()
+                  )
+                  .toSet,
+              dependencies =
+                loaded.config.mavenDependencies ++ loaded.config.maven.foldMap(_.dependencies),
+              repositories =
+                loaded
+                  .config
+                  .mavenRepositories ++ loaded.config.maven.foldMap(_.repositories).map(_.url),
+              transformers = Nil,
+              // this should be false really
+              // https://github.com/kubukoz/smithy-playground/pull/140
+              discoverModels = true,
+              localJars = Nil,
+            )
+            ._2
+        }
+>>>>>>> main
         .flatMap(ModelReader.buildSchemaIndex[F])
 
     }

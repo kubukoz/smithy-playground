@@ -8,11 +8,7 @@
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        jvm = final: prev: { jdk = final.openjdk17; jre = final.jdk; };
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ jvm ];
-        };
+        pkgs = import nixpkgs { inherit system; };
       in
       {
         devShell = pkgs.mkShell {
@@ -22,7 +18,9 @@
             pkgs.sbt
             pkgs.jless
             pkgs.gnupg
-          ];
+            # temporary, while we don't download coursier ourselves
+            pkgs.coursier
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.xvfb-run ];
         };
       }
     );

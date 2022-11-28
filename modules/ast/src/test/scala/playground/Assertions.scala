@@ -18,7 +18,13 @@ object Assertions extends Expectations.Helpers {
   ): Expectations =
     Diff[A].apply(expected, actual) match {
       case d if d.isIdentical => success
-      case d => failure("Diff failed: " + Console.RESET + d.show()(ShowConfig.dark))
+      case d =>
+        val conf = ShowConfig.dark
+        val stringWithResets = d.show()(conf).linesWithSeparators.map(Console.RESET + _).mkString
+
+        failure(
+          s"Diff failed:\n${Console.RESET}(${conf.right("expected")}, ${conf.left("actual")})\n\n" + stringWithResets
+        )
     }
 
   def compareQuery(
