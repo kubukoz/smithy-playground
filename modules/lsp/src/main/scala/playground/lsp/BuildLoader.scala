@@ -8,7 +8,6 @@ import playground.BuildConfigDecoder
 import playground.ModelReader
 import playground.language.TextDocumentProvider
 import playground.language.Uri
-import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
@@ -74,38 +73,30 @@ object BuildLoader {
           }
       }
 
-      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = Sync[F]
-        .interruptibleMany {
-          ModelLoader
-            .load(
-              specs =
+      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = ModelLoader
+        .load(
+          specs =
+            loaded
+              .config
+              .imports
+              .map(
                 loaded
-                  .config
-                  .imports
-                  .map(
-                    loaded
-                      .configFilePath
-                      .parent
-                      .getOrElse(sys.error("impossible - no parent"))
-                      .resolve(_)
-                      .toNioPath
-                      .toFile()
-                  )
-                  .toSet,
-              dependencies =
-                loaded.config.mavenDependencies ++ loaded.config.maven.foldMap(_.dependencies),
-              repositories =
-                loaded
-                  .config
-                  .mavenRepositories ++ loaded.config.maven.foldMap(_.repositories).map(_.url),
-              transformers = Nil,
-              // this should be false really
-              // https://github.com/kubukoz/smithy-playground/pull/140
-              discoverModels = true,
-              localJars = Nil,
-            )
-            ._2
-        }
+                  .configFilePath
+                  .parent
+                  .getOrElse(sys.error("impossible - no parent"))
+                  .resolve(_)
+                  .toNioPath
+                  .toFile()
+              )
+              .toSet,
+          dependencies =
+            loaded.config.mavenDependencies ++ loaded.config.maven.foldMap(_.dependencies),
+          repositories =
+            loaded
+              .config
+              .mavenRepositories ++ loaded.config.maven.foldMap(_.repositories).map(_.url),
+        )
+        .map(_._2)
         .flatMap(ModelReader.buildSchemaIndex[F])
 
     }

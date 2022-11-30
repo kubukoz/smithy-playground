@@ -141,7 +141,7 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.19.0",
       "io.circe" %% "circe-core" % "0.14.3",
       "org.http4s" %% "http4s-ember-client" % "0.23.16",
@@ -150,7 +150,7 @@ lazy val lsp = module("lsp")
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
-    buildInfoKeys ++= Seq(version),
+    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
     Smithy4sCodegenPlugin.defaultSettings(Test),
     Test / smithy4sSmithyLibrary := false,
   )
