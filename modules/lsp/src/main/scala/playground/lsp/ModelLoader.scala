@@ -2,9 +2,12 @@ package playground.lsp
 
 // fork of smithy4s's ModelLoader
 
+import cats.effect.Sync
 import coursier._
+import coursier.cache.FileCache
 import coursier.parse.DependencyParser
 import coursier.parse.RepositoryParser
+import coursier.util.Task
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
@@ -12,8 +15,6 @@ import software.amazon.smithy.model.loader.ModelAssembler
 import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
-import scala.util.chaining._
-import cats.effect.Sync
 
 object ModelLoader {
 
@@ -26,28 +27,22 @@ object ModelLoader {
 
     val modelAssembler: ModelAssembler = Model
       .assembler()
-      .pipe(addPlaygroundModels(currentClassLoader))
       .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
 
-    // add imports/specs
-
+    // add local imports
     specs.map(_.toPath()).foreach {
       modelAssembler.addImport
     }
 
-    // fetch and add deps
-
+    // fetch deps
     val modelClassLoader =
-      resolveDependencies(dependencies, repositories) match {
-        case Some(deps) =>
-          val upstreamClassLoader = new URLClassLoader(deps)
+      new URLClassLoader(resolveDependencies(dependencies, repositories).toArray)
 
-          modelAssembler.discoverModels(upstreamClassLoader)
+    // add deps to assembler
+    modelAssembler.discoverModels(modelClassLoader)
 
-          upstreamClassLoader
-
-        case None => currentClassLoader
-      }
+    // add playground shapes - this depends on alloy, which should already be in scope
+    addPlaygroundModels(currentClassLoader)(modelAssembler): Unit
 
     val model = modelAssembler.assemble().unwrap()
 
@@ -59,9 +54,7 @@ object ModelLoader {
   ): ModelAssembler => ModelAssembler =
     assembler => {
       List(
-        "META-INF/smithy/std.smithy",
-        // for UUID
-        "META-INF/smithy/smithy4s.smithy",
+        "META-INF/smithy/std.smithy"
       ).map(classLoader.getResource).foreach(assembler.addImport)
 
       assembler
@@ -70,12 +63,13 @@ object ModelLoader {
   private def resolveDependencies(
     dependencies: List[String],
     repositories: List[String],
-  ): Option[Array[URL]] = {
+  ): List[URL] = {
     val maybeRepos = RepositoryParser.repositories(repositories).either
     val maybeDeps =
       DependencyParser
         .dependencies(
-          dependencies,
+          // quick hack
+          "com.disneystreaming.alloy:alloy-core:0.1.2" :: dependencies,
           defaultScalaVersion = BuildInfo.scalaBinaryVersion,
         )
         .either
@@ -95,19 +89,13 @@ object ModelLoader {
           )
         case Right(d) => d
       }
-    val resolvedDeps: Seq[java.io.File] =
-      if (deps.nonEmpty) {
-        val fetch = Fetch().addRepositories(repos: _*).addDependencies(deps: _*)
-        fetch.run()
-      } else {
-        Seq.empty
-      }
-    val allDeps = resolvedDeps
-    if (allDeps.nonEmpty) {
-      Some(allDeps.map(_.toURI().toURL()).toArray)
-    } else {
-      None
-    }
+
+    Fetch(FileCache[Task]())
+      .addRepositories(repos: _*)
+      .addDependencies(deps: _*)
+      .run()
+      .map(_.toURI.toURL)
+      .toList
   }
 
 }
