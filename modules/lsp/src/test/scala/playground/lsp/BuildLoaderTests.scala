@@ -12,7 +12,7 @@ object BuildLoaderTests extends SimpleIOSuite {
 
   val loader = BuildLoader.instance[IO]
 
-  test("build loader can see stdlib".only) {
+  test("build loader can see stdlib") {
     val result = loader
       .buildSchemaIndex(BuildLoader.Loaded(BuildConfig(), Path(".")))
       .map(_.allServices)
