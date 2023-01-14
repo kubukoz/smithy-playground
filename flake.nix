@@ -11,7 +11,7 @@
         pkgs = import nixpkgs { inherit system; };
       in
       {
-        devShell = pkgs.mkShell {
+        devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.yarn
             pkgs.nodejs-14_x
@@ -22,6 +22,8 @@
             pkgs.coursier
           ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.xvfb-run ];
         };
+
+        packages.default = pkgs.hello;
       }
     );
 }
