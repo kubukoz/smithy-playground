@@ -35,7 +35,7 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     }
 
     val endpointMapping =
-      new (smithy4s.Transformation[Endpoint[Op, *, *, *, *, *], Proxy]) {
+      new smithy4s.Transformation[Endpoint[Op, *, *, *, *, *], Proxy] {
         private val trans = serviceStatic.asTransformation(interp)
 
         private def applyWithStatic[I, E, O, SI, SO, STI, STE, STO, STSI, STSO](
