@@ -84,8 +84,8 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "0.3.9",
-      "io.circe" %% "circe-generic" % "0.14.3" % Test,
-      "io.circe" %% "circe-parser" % "0.14.3" % Test,
+      "io.circe" %% "circe-generic" % "0.14.4" % Test,
+      "io.circe" %% "circe-parser" % "0.14.4" % Test,
       "co.fs2" %% "fs2-io" % "3.6.0" % Test,
     )
   )
@@ -139,7 +139,7 @@ lazy val lsp = module("lsp")
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.19.0",
-      "io.circe" %% "circe-core" % "0.14.3",
+      "io.circe" %% "circe-core" % "0.14.4",
       "org.http4s" %% "http4s-ember-client" % "0.23.18",
       "org.http4s" %% "http4s-ember-server" % "0.23.18" % Test,
       "io.get-coursier" %% "coursier" % "2.0.16",
