@@ -2,7 +2,6 @@ package playground.lsp
 
 // fork of smithy4s's ModelLoader
 
-import cats.effect.Sync
 import coursier._
 import coursier.cache.FileCache
 import coursier.parse.DependencyParser
@@ -38,7 +37,10 @@ object ModelLoader {
       .pipe(addFileImports(specs))
 
     (
-      new URLClassLoader(dependencyJars.map(_.toURI().toURL()).toArray),
+      new URLClassLoader(
+        dependencyJars.map(_.toURI().toURL()).toArray,
+        getClass().getClassLoader(),
+      ),
       modelAssembler.assemble().unwrap(),
     )
   }
