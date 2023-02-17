@@ -84,7 +84,11 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
 
   override def prelude(
     useClauses: List[WithSource[UseClause[WithSource]]]
-  ): Doc = useClauses.map(printGeneric).intercalate(Doc.hardLine)
+  ): Doc = useClauses
+    // keeping range here to avoid merging duplicate entries when formatting
+    .sortBy(ws => (ws.value.identifier.value, ws.range))
+    .map(printGeneric)
+    .intercalate(Doc.hardLine)
 
   override def operationName(text: String): Doc = Doc.text(text)
 

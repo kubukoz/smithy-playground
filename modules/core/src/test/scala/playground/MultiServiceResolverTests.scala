@@ -13,9 +13,9 @@ import playground.smithyql.SourceRange
 import playground.smithyql.StringRangeUtils._
 import playground.smithyql.parser.SourceParser
 import weaver._
-import ServiceIndex.ServiceMetadata
 
 import Assertions._
+import ServiceIndex.ServiceMetadata
 
 object MultiServiceResolverTests extends FunSuite {
   private def mkIndex(servicesToOps: (QualifiedIdentifier, Set[OperationName[Id]])*): ServiceIndex =

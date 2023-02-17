@@ -1,8 +1,8 @@
 package playground.smithyql
 
+import cats.data.NonEmptyList
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
-import cats.data.NonEmptyList
 
 object Arbitraries {
   implicit val arbitraryString: Arbitrary[String] = Arbitrary(Gen.identifier)

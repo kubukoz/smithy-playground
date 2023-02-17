@@ -2,14 +2,12 @@ package playground.lsp
 
 import cats.effect.kernel.Sync
 import cats.implicits._
-import fs2.io.file.Files
 import fs2.io.file.Path
 import playground.BuildConfig
 import playground.BuildConfigDecoder
 import playground.ModelReader
 import playground.language.TextDocumentProvider
 import playground.language.Uri
-import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
@@ -78,7 +76,7 @@ object BuildLoader {
       def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = Sync[F]
         .interruptibleMany {
           ModelLoader
-            .load(
+            .loadUnsafe(
               specs =
                 loaded
                   .config
@@ -93,16 +91,15 @@ object BuildLoader {
                       .toFile()
                   )
                   .toSet,
-              dependencies = loaded.config.mavenDependencies,
-              repositories = loaded.config.mavenRepositories,
-              transformers = Nil,
-              // this should be false really
-              // https://github.com/kubukoz/smithy-playground/pull/140
-              discoverModels = true,
-              localJars = Nil,
+              dependencies =
+                loaded.config.mavenDependencies ++ loaded.config.maven.foldMap(_.dependencies),
+              repositories =
+                loaded
+                  .config
+                  .mavenRepositories ++ loaded.config.maven.foldMap(_.repositories).map(_.url),
             )
-            ._2
         }
+        .map(_._2)
         .flatMap(ModelReader.buildSchemaIndex[F])
 
     }

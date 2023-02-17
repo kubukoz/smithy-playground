@@ -2,11 +2,10 @@ package playground.language
 
 import cats.FlatMap
 import cats.implicits._
-import playground.smithyql.parser.SourceParser
 import playground.smithyql.SourceFile
-import playground.smithyql.format.Formatter
 import playground.smithyql.SourceRange
-import playground.smithyql.Position
+import playground.smithyql.format.Formatter
+import playground.smithyql.parser.SourceParser
 
 object FormattingProvider {
 
@@ -28,10 +27,7 @@ object FormattingProvider {
                   List(
                     TextEdit.Overwrite(
                       formatted,
-                      SourceRange(
-                        Position.origin,
-                        Position.lastInString(text),
-                      ),
+                      SourceRange.forEntireString(text),
                     )
                   )
                 }

@@ -1,11 +1,11 @@
 package playground.lsp
 
-import io.circe.Codec
-import io.circe.Encoder
-import io.circe.Decoder
-import org.http4s.Uri
 import cats.implicits._
+import io.circe.Codec
+import io.circe.Decoder
+import io.circe.Encoder
 import io.circe.Json
+import org.http4s.Uri
 
 trait ConfigurationValue[T] {
   def key: String

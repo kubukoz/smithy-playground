@@ -2,7 +2,7 @@ $version: "2"
 
 namespace weather
 
-use smithy4s.api#simpleRestJson
+use alloy#simpleRestJson
 
 @simpleRestJson
 service WeatherService {

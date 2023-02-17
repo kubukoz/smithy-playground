@@ -2,11 +2,11 @@ $version: "2"
 
 namespace playground.std
 
-use smithy4s.api#UUID
-
 @trait(selector: "service")
 @protocolDefinition
 structure stdlib {}
+
+string UUID
 
 @stdlib
 @documentation("A standard library service providing random generators of data.")

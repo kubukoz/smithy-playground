@@ -6,3 +6,4 @@
 .smithy.lsp.log
 .sbt
 smithyql-log.txt
+.version

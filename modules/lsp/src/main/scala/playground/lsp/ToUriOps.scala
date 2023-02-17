@@ -1,9 +1,9 @@
 package playground.lsp
 
 import org.eclipse.lsp4j.TextDocumentIdentifier
-import playground.language.Uri
-import org.eclipse.lsp4j.WorkspaceFolder
 import org.eclipse.lsp4j.TextDocumentItem
+import org.eclipse.lsp4j.WorkspaceFolder
+import playground.language.Uri
 
 object ToUriOps {
 

@@ -1,14 +1,16 @@
 package playground.language
 
-import weaver._
-import playground.std.ClockGen
+import demo.smithy.Hero
+import demo.smithy.Subscription
+import playground.Assertions._
+import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.syntax._
-import playground.Assertions._
-import Diffs._
-import demo.smithy.Hero
+import playground.std.ClockGen
 import smithy4s.schema.Schema
-import demo.smithy.Subscription
+import weaver._
+
+import Diffs._
 
 object CompletionItemTests extends FunSuite {
   test("CompletionItem.forOperation: no use clause") {
@@ -16,6 +18,7 @@ object CompletionItemTests extends FunSuite {
       insertUseClause = CompletionItem.InsertUseClause.NotRequired,
       endpoint = ClockGen.CurrentTimestamp,
       serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
+      CompletionItem.InsertBodyStruct.Yes,
     )
 
     assertNoDiff(
@@ -26,6 +29,58 @@ object CompletionItemTests extends FunSuite {
         insertText = InsertText.SnippetString("""CurrentTimestamp {
                                                 |  $0
                                                 |}""".stripMargin),
+        detail = ": Unit => CurrentTimestampOutput",
+        description = None,
+        deprecated = false,
+        docs = Some("Provides the current time as a Timestamp."),
+        extraTextEdits = Nil,
+        sortText = Some("1_CurrentTimestamp"),
+      ),
+    )
+  }
+
+  test("CompletionItem.forOperation: insert use clause") {
+    val result = CompletionItem.forOperation(
+      insertUseClause = CompletionItem.InsertUseClause.Required,
+      endpoint = ClockGen.CurrentTimestamp,
+      serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
+      CompletionItem.InsertBodyStruct.Yes,
+    )
+
+    assertNoDiff(
+      result,
+      CompletionItem(
+        kind = CompletionItemKind.Function,
+        label = "CurrentTimestamp",
+        insertText = InsertText.SnippetString("""CurrentTimestamp {
+                                                |  $0
+                                                |}""".stripMargin),
+        detail = "(from playground.std#Clock): Unit => CurrentTimestampOutput",
+        description = None,
+        deprecated = false,
+        docs = Some("Provides the current time as a Timestamp."),
+        extraTextEdits = List(
+          TextEdit.Insert("use service playground.std#Clock\n\n", Position.origin)
+        ),
+        sortText = Some("2_CurrentTimestamp"),
+      ),
+    )
+  }
+
+  test("CompletionItem.forOperation: no struct body") {
+    val result = CompletionItem.forOperation(
+      insertUseClause = CompletionItem.InsertUseClause.NotRequired,
+      endpoint = ClockGen.CurrentTimestamp,
+      serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
+      CompletionItem.InsertBodyStruct.No,
+    )
+
+    assertNoDiff(
+      result,
+      CompletionItem(
+        kind = CompletionItemKind.Function,
+        label = "CurrentTimestamp",
+        insertText = InsertText.JustString("CurrentTimestamp"),
         detail = ": Unit => CurrentTimestampOutput",
         description = None,
         deprecated = false,

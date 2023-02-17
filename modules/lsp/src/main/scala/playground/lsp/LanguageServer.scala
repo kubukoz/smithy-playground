@@ -5,7 +5,6 @@ import cats.FlatMap
 import cats.MonadThrow
 import cats.effect.implicits._
 import cats.effect.kernel.Async
-import cats.effect.std.Supervisor
 import cats.implicits._
 import cats.parse.LocationMap
 import cats.tagless.Derive
@@ -17,10 +16,13 @@ import com.google.gson.JsonPrimitive
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j._
+import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
 import playground.FileRunner
 import playground.OperationCompiler
+import playground.PreludeCompiler
+import playground.ServiceIndex
 import playground.TextDocumentManager
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
@@ -37,10 +39,8 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
+
 import ToUriOps._
-import playground.PreludeCompiler
-import playground.ServiceIndex
-import playground.CompilationError
 
 trait LanguageServer[F[_]] {
   def initialize(params: InitializeParams): F[InitializeResult]
@@ -78,8 +78,6 @@ object LanguageServer {
   ](
     dsi: DynamicSchemaIndex,
     runner: FileRunner.Resolver[F],
-  )(
-    implicit sup: Supervisor[F]
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
@@ -266,14 +264,11 @@ object LanguageServer {
                   )
                 }
                 .flatMap { stats =>
-                  // Can't make (and wait for) client requests while handling a client request (file change)
-                  {
-                    LanguageClient[F].refreshDiagnostics *>
-                      LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
-                        .showInfoMessage(
-                          s"Reloaded Smithy Playground server with ${stats.render}"
-                        )
-                  }.supervise(sup).void
+                  LanguageClient[F].refreshDiagnostics *>
+                    LanguageClient[F].refreshCodeLenses *>
+                    LanguageClient[F].showInfoMessage(
+                      s"Reloaded Smithy Playground server with ${stats.render}"
+                    )
                 }
         }
         .onError { case e =>

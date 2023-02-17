@@ -18,7 +18,8 @@ object StdlibRuntime {
 
       val random: Random[F] =
         new playground.std.Random[F] {
-          def nextUUID(): F[NextUUIDOutput] = UUIDGen[F].randomUUID.map(NextUUIDOutput(_))
+          def nextUUID(
+          ): F[NextUUIDOutput] = UUIDGen[F].randomUUID.map(_.toString).map(NextUUIDOutput(_))
         }
 
       val clock: Clock[F] =

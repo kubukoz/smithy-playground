@@ -44,7 +44,7 @@ object LanguageServerIntegrationTestSharedServer
         ),
       TestClient.MessageLog(
         MessageType.Info,
-        "Loaded Smithy Playground server with 2 imports, 0 dependencies and 0 plugins",
+        "Loaded Smithy Playground server with 2 imports, 2 dependencies and 0 plugins",
       ),
     )
 
@@ -249,8 +249,7 @@ object LanguageServerIntegrationTestSharedServer
       // as there's no need
       .withHost(host"localhost")
       .withPort(port"0")
-      // https://github.com/http4s/http4s/pull/6781
-      .withShutdownTimeout(1.nano)
+      .withShutdownTimeout(Duration.Zero)
       .withHttpApp(
         SimpleRestJsonBuilder
           .routes(

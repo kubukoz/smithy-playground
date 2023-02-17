@@ -13,13 +13,12 @@ import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy.api
-import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
-
 import smithyql.syntax._
 import types._
 import util.chaining._
+import smithy4s.Endpoint
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -79,7 +78,7 @@ object OperationCompiler {
     val compilers: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
       services.map { svc =>
         QualifiedIdentifier
-          .forService(svc.service) -> OperationCompiler.fromService[svc.Alg, svc.Op](svc.service)
+          .forService(svc.service) -> OperationCompiler.fromService(svc.service)
       }.toMap
 
     new MultiServiceCompiler(
@@ -88,8 +87,8 @@ object OperationCompiler {
     )
   }
 
-  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
+  def fromService[Alg[_[_, _, _, _, _]]](
+    service: Service[Alg]
   ): OperationCompiler[IorNel[CompilationError, *]] = new ServiceCompiler(service)
 
 }
@@ -125,12 +124,12 @@ object CompilationFailed {
 
 }
 
-private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  service: Service[Alg, Op]
+private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
+  service: Service[Alg]
 ) extends OperationCompiler[IorNel[CompilationError, *]] {
 
   private def compileEndpoint[In, Err, Out](
-    e: Endpoint[Op, In, Err, Out, _, _]
+    e: Endpoint[service.Operation, In, Err, Out, _, _]
   ): QueryCompiler[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
     val outputEncoder = NodeEncoder.derive(e.output)
@@ -141,11 +140,11 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
         .compile(ast)
         .map { compiled =>
           new CompiledInput {
-            type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
+            type _Op[_I, _E, _O, _SE, _SO] = service.Operation[_I, _E, _O, _SE, _SO]
             type E = Err
             type O = Out
 
-            val op: Op[_, Err, Out, _, _] = e.wrap(compiled)
+            val op: _Op[_, Err, Out, _, _] = e.wrap(compiled)
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
             val catchError: Throwable => Option[Err] = e.Error.unapply(_).map(_._2)
@@ -180,7 +179,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
   private def deprecatedOperationCheck(
     q: Query[WithSource],
-    endpoint: Endpoint[Op, _, _, _, _, _],
+    endpoint: Endpoint[service.Operation, _, _, _, _, _],
   ): IorNel[CompilationError, Unit] =
     endpoint
       .hints

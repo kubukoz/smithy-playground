@@ -31,6 +31,7 @@ import playground.CompiledInput
 import playground.DeprecatedInfo
 import playground.DiagnosticTag
 import playground.Diffs._
+import playground.DynamicModel
 import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.QueryCompiler
@@ -52,7 +53,6 @@ import smithy4s.ShapeTag
 import smithy4s.Timestamp
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Schema
-import software.amazon.smithy.model.{Model => SModel}
 import weaver._
 import weaver.scalacheck.Checkers
 
@@ -70,8 +70,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     in: QueryCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerVisitor.full).compile(in)
 
-  private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
+  private def parseAndCompile[Alg[_[_, _, _, _, _]]](
+    service: Service[Alg]
   )(
     q: String
   ): IorThrow[List[CompiledInput]] =
@@ -98,15 +98,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     .mapK(CompilationFailed.wrapK)
     .compile(q)
 
-  val dynamicModel = {
-    val model = SModel
-      .assembler()
-      .discoverModels()
-      .assemble()
-      .unwrap()
-
-    DynamicSchemaIndex.loadModel(model).toTry.get
-  }
+  val dynamicModel: DynamicSchemaIndex = DynamicModel.discover()
 
   def dynamicSchemaFor[A: ShapeTag]: Schema[_] = {
     val shapeId = ShapeTag[A].id

@@ -1,6 +1,7 @@
 {
   "imports": ["./weather.smithy", "./no-runner.smithy"],
-  "mavenDependencies-ignored": [
-    "com.disneystreaming.smithy4s:smithy4s-protocol:latest.release"
+  "mavenDependencies": [
+    "com.disneystreaming.alloy:alloy-core:0.1.11",
+    "com.disneystreaming.smithy4s:smithy4s-protocol:0.17.4"
   ]
 }

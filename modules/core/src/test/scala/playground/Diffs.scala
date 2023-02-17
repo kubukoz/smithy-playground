@@ -1,14 +1,15 @@
 package playground
 
+import cats.data.Ior
 import playground.smithyql.ContextRange
 import playground.smithyql.NodeContext
-import cats.data.Ior
+
 import scala.annotation.nowarn
 
 object Diffs {
   import com.softwaremill.diffx._
-  import com.softwaremill.diffx.generic.auto._
   import com.softwaremill.diffx.cats._
+  import com.softwaremill.diffx.generic.auto._
 
   implicit val diffNodeContext: Diff[NodeContext] = Diff.derivedDiff
   implicit val diffContextRange: Diff[ContextRange] = Diff.derivedDiff

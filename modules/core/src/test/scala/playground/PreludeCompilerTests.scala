@@ -1,9 +1,12 @@
 package playground
 
+import cats.Id
+import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
 import com.softwaremill.diffx.cats._
+import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.StringRangeUtils._
@@ -12,9 +15,6 @@ import weaver._
 
 import Assertions._
 import Diffs._
-import playground.smithyql.OperationName
-import cats.Id
-import cats.data.Ior
 
 object PreludeCompilerTests extends FunSuite {
 

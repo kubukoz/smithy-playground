@@ -3,16 +3,15 @@ package playground.language
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._
+import playground.ServiceUtils._
 import playground.language.Diffs._
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.StringRangeUtils._
 import playground.smithyql.syntax._
 import playground.std.ClockGen
 import playground.std.RandomGen
 import weaver._
-
-import playground.smithyql.StringRangeUtils._
-import playground.ServiceUtils._
 
 object CompletionProviderTests extends SimpleIOSuite {
 
@@ -32,6 +31,7 @@ object CompletionProviderTests extends SimpleIOSuite {
           insertUseClause = CompletionItem.InsertUseClause.Required,
           endpoint,
           QualifiedIdentifier.forService(RandomGen),
+          CompletionItem.InsertBodyStruct.Yes,
         )
       )
 
@@ -55,12 +55,37 @@ object CompletionProviderTests extends SimpleIOSuite {
         insertUseClause = CompletionItem.InsertUseClause.Required,
         endpoint = ClockGen.CurrentTimestamp,
         serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
+        CompletionItem.InsertBodyStruct.Yes,
       ),
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.Required,
         endpoint = RandomGen.NextUUID,
         serviceId = QualifiedIdentifier.fromShapeId(RandomGen.id),
+        CompletionItem.InsertBodyStruct.Yes,
       ),
+    )
+
+    assertNoDiff(result, expected)
+  }
+
+  pureTest("completing existing operation name doesn't insert struct") {
+    val service = wrapService(RandomGen)
+
+    val provider = CompletionProvider.forServices(List(service))
+
+    val input = """playground.std#Random.NextUUID {}""".stripMargin
+    val result = provider.provide(
+      input,
+      input.positionOf("NextUUID"),
+    )
+
+    val expected = List(
+      CompletionItem.forOperation(
+        CompletionItem.InsertUseClause.NotRequired,
+        RandomGen.NextUUID,
+        QualifiedIdentifier.forService(service.service),
+        CompletionItem.InsertBodyStruct.No,
+      )
     )
 
     assertNoDiff(result, expected)
@@ -107,11 +132,13 @@ object CompletionProviderTests extends SimpleIOSuite {
         insertUseClause = CompletionItem.InsertUseClause.NotRequired,
         endpoint = ClockGen.CurrentTimestamp,
         serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
+        CompletionItem.InsertBodyStruct.Yes,
       ),
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.Required,
         endpoint = RandomGen.NextUUID,
         serviceId = QualifiedIdentifier.fromShapeId(RandomGen.id),
+        CompletionItem.InsertBodyStruct.Yes,
       ),
     )
 
@@ -166,11 +193,13 @@ object CompletionProviderTests extends SimpleIOSuite {
         insertUseClause = CompletionItem.InsertUseClause.NotRequired,
         ClockGen.CurrentTimestamp,
         QualifiedIdentifier.forService(ClockGen),
+        CompletionItem.InsertBodyStruct.Yes,
       ),
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.Required,
         RandomGen.NextUUID,
         QualifiedIdentifier.forService(RandomGen),
+        CompletionItem.InsertBodyStruct.Yes,
       ),
     )
 

@@ -19,21 +19,20 @@ import playground.FileCompiler
 import playground.FileRunner
 import playground.OperationCompiler
 import playground.OperationRunner
+import playground.PreludeCompiler
+import playground.ServiceIndex
+import playground.ServiceUtils._
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.SourceRange
+import playground.smithyql.StringRangeUtils._
 import playground.std.ClockGen
 import playground.std.RandomGen
 import playground.std.Stdlib
 import playground.std.StdlibRuntime
 import smithy4s.HasId
-import smithy4s.api.SimpleRestJson
+import alloy.SimpleRestJson
 import smithy4s.aws.AwsEnvironment
 import weaver._
-
-import playground.smithyql.StringRangeUtils._
-import playground.ServiceUtils._
-import playground.ServiceIndex
-import playground.PreludeCompiler
 
 object DiagnosticProviderTests extends SimpleIOSuite {
 

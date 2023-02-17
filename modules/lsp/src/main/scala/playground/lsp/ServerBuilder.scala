@@ -3,21 +3,20 @@ package playground.lsp
 import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.std
-import cats.effect.std.Supervisor
 import cats.implicits._
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
+import playground.FileRunner
 import playground.OperationRunner
+import playground.ServiceIndex
 import playground.TextDocumentManager
 import playground.language.CommandResultReporter
 import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
-import playground.FileRunner
-import playground.ServiceIndex
 
 trait ServerBuilder[F[_]] {
   def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]]
@@ -49,10 +48,8 @@ object ServerBuilder {
       client <- makeClient
       awsEnv <- AwsEnvironment.default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1).memoize
       tdm <- TextDocumentManager.instance[F].toResource
-      sup <- Supervisor[F]
     } yield new ServerBuilder[F] {
       private implicit val textManager: TextDocumentManager[F] = tdm
-      private implicit val supervisor: Supervisor[F] = sup
 
       def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]] =
         for {
