@@ -73,29 +73,32 @@ object BuildLoader {
           }
       }
 
-      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = ModelLoader
-        .load(
-          specs =
-            loaded
-              .config
-              .imports
-              .map(
+      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = Sync[F]
+        .interruptibleMany {
+          ModelLoader
+            .loadUnsafe(
+              specs =
                 loaded
-                  .configFilePath
-                  .parent
-                  .getOrElse(sys.error("impossible - no parent"))
-                  .resolve(_)
-                  .toNioPath
-                  .toFile()
-              )
-              .toSet,
-          dependencies =
-            loaded.config.mavenDependencies ++ loaded.config.maven.foldMap(_.dependencies),
-          repositories =
-            loaded
-              .config
-              .mavenRepositories ++ loaded.config.maven.foldMap(_.repositories).map(_.url),
-        )
+                  .config
+                  .imports
+                  .map(
+                    loaded
+                      .configFilePath
+                      .parent
+                      .getOrElse(sys.error("impossible - no parent"))
+                      .resolve(_)
+                      .toNioPath
+                      .toFile()
+                  )
+                  .toSet,
+              dependencies =
+                loaded.config.mavenDependencies ++ loaded.config.maven.foldMap(_.dependencies),
+              repositories =
+                loaded
+                  .config
+                  .mavenRepositories ++ loaded.config.maven.foldMap(_.repositories).map(_.url),
+            )
+        }
         .map(_._2)
         .flatMap(ModelReader.buildSchemaIndex[F])
 

@@ -11,43 +11,57 @@ import coursier.util.Task
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
+import software.amazon.smithy.model.loader.ModelDiscovery
+import software.amazon.smithy.model.loader.ModelManifestException
 
 import java.io.File
-import java.net.URL
 import java.net.URLClassLoader
+import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
+import scala.util.chaining._
 
 object ModelLoader {
 
-  def load[F[_]: Sync](
+  def loadUnsafe(
     specs: Set[File],
     dependencies: List[String],
     repositories: List[String],
-  ): F[(ClassLoader, Model)] = Sync[F].interruptibleMany { // blocking just for convenience
-    val currentClassLoader = this.getClass().getClassLoader()
+  ): (ClassLoader, Model) = {
+
+    val dependencyJars = resolveDependencies(dependencies, repositories)
 
     val modelAssembler: ModelAssembler = Model
       .assembler()
       .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
+      .pipe(addModelsFromJars(dependencyJars))
+      .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
+      .pipe(addFileImports(specs))
 
-    // add local imports
-    specs.map(_.toPath()).foreach {
-      modelAssembler.addImport
+    (
+      new URLClassLoader(dependencyJars.map(_.toURI().toURL()).toArray),
+      modelAssembler.assemble().unwrap(),
+    )
+  }
+
+  private def addModelsFromJars(jarFiles: Iterable[File]): ModelAssembler => ModelAssembler =
+    assembler => {
+      val modelsInJars = jarFiles.flatMap { file =>
+        val manifestUrl = ModelDiscovery.createSmithyJarManifestUrl(file.getAbsolutePath())
+        try ModelDiscovery.findModels(manifestUrl).asScala
+        catch {
+          case _: ModelManifestException => Nil
+        }
+      }
+
+      modelsInJars.foreach(assembler.addImport)
+      assembler
     }
 
-    // fetch deps
-    val modelClassLoader =
-      new URLClassLoader(resolveDependencies(dependencies, repositories).toArray)
-
-    // add deps to assembler
-    modelAssembler.discoverModels(modelClassLoader)
-
-    // add playground shapes - this depends on alloy, which should already be in scope
-    addPlaygroundModels(currentClassLoader)(modelAssembler): Unit
-
-    val model = modelAssembler.assemble().unwrap()
-
-    (modelClassLoader, model)
-  }
+  private def addFileImports(imports: Iterable[File]): ModelAssembler => ModelAssembler =
+    assembler => {
+      imports.foreach(f => assembler.addImport(f.toPath()))
+      assembler
+    }
 
   private def addPlaygroundModels(
     classLoader: ClassLoader
@@ -63,7 +77,7 @@ object ModelLoader {
   private def resolveDependencies(
     dependencies: List[String],
     repositories: List[String],
-  ): List[URL] = {
+  ): List[File] = {
     val maybeRepos = RepositoryParser.repositories(repositories).either
     val maybeDeps =
       DependencyParser
@@ -89,11 +103,10 @@ object ModelLoader {
         case Right(d) => d
       }
 
-    Fetch(FileCache[Task]())
+    Fetch(FileCache[Task]().withTtl(1.hour))
       .addRepositories(repos: _*)
       .addDependencies(deps: _*)
       .run()
-      .map(_.toURI.toURL)
       .toList
   }
 

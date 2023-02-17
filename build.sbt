@@ -118,12 +118,10 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "software.amazon.smithy" % "smithy-waiters" %
-        smithy4s.codegen.BuildInfo.smithyVersion % s"${Smithy4s.name},${Test.name}",
-      "software.amazon.smithy" % "smithy-aws-traits" %
-        smithy4s.codegen.BuildInfo.smithyVersion % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % smithy4s.codegen.BuildInfo.alloyVersion,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
+      "software.amazon.smithy" % "smithy-waiters" % "1.27.2" % s"${Smithy4s.name},${Test.name}",
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.27.2" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.1.11",
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
