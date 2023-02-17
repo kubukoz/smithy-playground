@@ -12,6 +12,11 @@ on:
         required: true
         default: false
         type: boolean
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
   SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
@@ -55,7 +60,7 @@ jobs:
       run: nix develop --command sbt ci-release
     -
       name: release plugin
-      if: github.event.inputs.publishSnapshot
+      if: github.event.inputs.publishExtension
       run: nix develop --command ./release-plugin.sh
       env:
         VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
