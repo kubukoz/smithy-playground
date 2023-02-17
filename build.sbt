@@ -86,9 +86,9 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "0.3.9",
-      "io.circe" %% "circe-generic" % "0.14.3" % Test,
-      "io.circe" %% "circe-parser" % "0.14.3" % Test,
-      "co.fs2" %% "fs2-io" % "3.5.0" % Test,
+      "io.circe" %% "circe-generic" % "0.14.4" % Test,
+      "io.circe" %% "circe-parser" % "0.14.4" % Test,
+      "co.fs2" %% "fs2-io" % "3.6.0" % Test,
     )
   )
   .dependsOn(
@@ -114,7 +114,7 @@ lazy val formatter = module("formatter")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.4.5",
+      "org.typelevel" %% "cats-effect" % "3.4.7",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
@@ -146,7 +146,7 @@ lazy val lsp = module("lsp")
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.19.0",
-      "io.circe" %% "circe-core" % "0.14.3",
+      "io.circe" %% "circe-core" % "0.14.4",
       "org.http4s" %% "http4s-ember-client" % "0.23.18",
       "org.http4s" %% "http4s-ember-server" % "0.23.18" % Test,
       "io.get-coursier" %% "coursier" % "2.0.16",
