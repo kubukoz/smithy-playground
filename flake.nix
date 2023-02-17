@@ -8,7 +8,17 @@
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [
+            (final: prev:
+              let
+                jre = final.openjdk11;
+                jdk = jre;
+              in
+              { inherit jdk jre; })
+          ];
+        };
       in
       {
         devShell = pkgs.mkShell {

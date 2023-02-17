@@ -56,7 +56,7 @@ val commonSettings = Seq(
   scalacOptions += "-Wnonunit-statement",
   scalacOptions ++= Seq("-Xsource:3.0"),
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
-  javacOptions ++= Seq("-source", "8", "-target", "8"),
+  javacOptions ++= Seq("-source", "11", "-target", "11"),
   mimaFailOnNoPrevious := false,
   resolvers ++= Resolver.sonatypeOssRepos("releases"),
 )
@@ -126,9 +126,9 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.1.11" % Test,
       "software.amazon.smithy" % "smithy-waiters" % "1.27.2" % s"${Smithy4s.name},${Test.name}",
       "software.amazon.smithy" % "smithy-aws-traits" % "1.27.2" % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.1.11",
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
@@ -160,7 +160,7 @@ lazy val lsp = module("lsp")
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),
     Smithy4sCodegenPlugin.defaultSettings(Test),
     Test / smithy4sSmithyLibrary := false,
-    test := {
+    (Test / test) := {
       (pluginCore / publishLocal).value
       (pluginSample / publishLocal).value
 
