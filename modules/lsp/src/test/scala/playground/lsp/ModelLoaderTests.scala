@@ -19,8 +19,8 @@ object ModelLoaderTests extends FunSuite {
     assert.eql(result.map(_.getName()), Set("Random", "Clock"))
   }
 
-  test("Empty loader cannot see UUID without a dependency") {
-    val shapeId = ShapeId.from("smithy4s.api#UUID")
+  test("Empty loader cannot see alloy without a dependency") {
+    val shapeId = ShapeId.from("alloy#UUID")
     val result =
       loadModelEmpty()
         .getShape(shapeId)
@@ -30,11 +30,11 @@ object ModelLoaderTests extends FunSuite {
   }
 
   test("Loader with dependencies can see external shapes") {
-    val shapeId = ShapeId.from("smithy4s.api#UUID")
+    val shapeId = ShapeId.from("alloy#UUID")
     val result = ModelLoader
       .loadUnsafe(
         specs = Set.empty,
-        dependencies = List("com.disneystreaming.smithy4s:smithy4s-protocol:0.16.10"),
+        dependencies = List("com.disneystreaming.alloy:alloy-core:0.1.11"),
         repositories = Nil,
       )
       ._2
