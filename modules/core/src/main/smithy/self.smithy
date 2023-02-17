@@ -7,11 +7,6 @@ structure BuildConfig {
   mavenRepositories: Strings = [],
   maven: MavenConfig,
   imports: Strings = [],
-  plugins: Plugins
-}
-
-structure Plugins {
-  @jsonName("smithy-playground")
   smithyPlayground: SmithyPlaygroundPluginConfig
 }
 
