@@ -8,18 +8,10 @@ import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.kinds._
 
 import java.util.ServiceLoader
-import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
 trait PlaygroundPlugin {
-  @deprecated("Implement simpleBuilders instead", "0.5.3")
-  def http4sBuilders: List[SimpleProtocolBuilder[_]] = Nil
-
-  @nowarn("cat=deprecation")
-  def simpleBuilders: List[SimpleHttpBuilder] = http4sBuilders.map(
-    SimpleHttpBuilder.fromSimpleProtocolBuilder
-  )
-
+  def simpleBuilders: List[SimpleHttpBuilder]
 }
 
 object PlaygroundPlugin {
