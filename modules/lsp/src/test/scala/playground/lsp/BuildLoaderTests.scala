@@ -23,25 +23,23 @@ object BuildLoaderTests extends SimpleIOSuite {
   }
 
   // TODO
-  // test("build loader can see external services") {
-  //   val result = loader
-  //     .buildSchemaIndex(
-  //       BuildLoader.Loaded(
-  //         BuildConfig(mavenDependencies =
-  //           Some(
-  //             List(
-  //               // todo
-  //             )
-  //           )
-  //         ),
-  //         Path("."),
-  //       )
-  //     )
-  //     .map(_.allServices)
+  test("build loader can see external services".ignore) {
+    val result = loader
+      .buildSchemaIndex(
+        BuildLoader.Loaded(
+          BuildConfig(mavenDependencies =
+            List(
+              // todo
+            )
+          ),
+          Path("."),
+        )
+      )
+      .map(_.allServices)
 
-  //   result.map { services =>
-  //     assert.eql(services.map(_.service.id.name), List("Random", "Clock", "SthElse"))
-  //   }
-  // }
+    result.map { services =>
+      assert.eql(services.map(_.service.id.name), List("Random", "Clock", "SthElse"))
+    }
+  }
 
 }

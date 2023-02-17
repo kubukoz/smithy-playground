@@ -68,8 +68,7 @@ object ModelLoader {
     val maybeDeps =
       DependencyParser
         .dependencies(
-          // quick hack
-          "com.disneystreaming.alloy:alloy-core:0.1.2" :: dependencies,
+          dependencies,
           defaultScalaVersion = BuildInfo.scalaBinaryVersion,
         )
         .either

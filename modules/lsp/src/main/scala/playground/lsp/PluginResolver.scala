@@ -23,8 +23,7 @@ trait PluginResolver[F[_]] {
 
   def resolveFromConfig(config: BuildConfig): F[List[PlaygroundPlugin]] = resolve(
     config
-      .plugins
-      .flatMap(_.smithyPlayground)
+      .smithyPlayground
       .foldMap(_.extensions),
     config.mavenRepositories ++ config.maven.foldMap(_.repositories).map(_.url),
   )
