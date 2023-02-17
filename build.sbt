@@ -58,7 +58,6 @@ val commonSettings = Seq(
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   javacOptions ++= Seq("-source", "11", "-target", "11"),
   mimaFailOnNoPrevious := false,
-  resolvers ++= Resolver.sonatypeOssRepos("releases"),
 )
 
 def module(name: String) = Project(name, file("modules") / name)
