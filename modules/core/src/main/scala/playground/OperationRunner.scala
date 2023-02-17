@@ -269,7 +269,7 @@ object OperationRunner {
           simpleFromBuilder(SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)),
           awsInterpreter,
         )
-        .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder))
+        .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder(_)))
         .append(stdlibRunner)
         .map(
           _.map { interpreter =>

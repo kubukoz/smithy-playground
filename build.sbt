@@ -72,6 +72,13 @@ lazy val pluginCore = module("plugin-core").settings(
   mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
 )
 
+lazy val pluginSample = module("plugin-sample")
+  .dependsOn(pluginCore)
+  .settings(
+    // used for tests only
+    mimaPreviousArtifacts := Set.empty
+  )
+
 // AST of SmithyQL language (plus DSL and minor utilities for building these)
 lazy val ast = module("ast")
 
@@ -116,7 +123,9 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
+      "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
+      "software.amazon.smithy" % "smithy-waiters" % "1.27.2" % s"${Smithy4s.name},${Test.name}",
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.27.2" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
@@ -137,18 +146,23 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.19.0",
       "io.circe" %% "circe-core" % "0.14.4",
       "org.http4s" %% "http4s-ember-client" % "0.23.18",
       "org.http4s" %% "http4s-ember-server" % "0.23.18" % Test,
-      "io.get-coursier" %% "coursier" % "2.0.16",
+      "io.get-coursier" %% "coursier" % "2.1.0-RC6",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
-    buildInfoKeys ++= Seq(version),
+    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
     Smithy4sCodegenPlugin.defaultSettings(Test),
     Test / smithy4sSmithyLibrary := false,
+    test := {
+      (pluginCore / publishLocal).value
+      (pluginSample / publishLocal).value
+
+      (Test / test).value
+    },
   )
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(languageSupport)
@@ -165,4 +179,14 @@ lazy val root = project
       IO.write(file(".version"), version.value)
     },
   )
-  .aggregate(ast, source, core, parser, formatter, languageSupport, lsp, pluginCore)
+  .aggregate(
+    ast,
+    source,
+    core,
+    parser,
+    formatter,
+    languageSupport,
+    lsp,
+    pluginCore,
+    pluginSample,
+  )

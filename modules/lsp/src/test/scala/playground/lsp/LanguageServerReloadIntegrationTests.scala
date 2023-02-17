@@ -16,14 +16,12 @@ object LanguageServerReloadIntegrationTests
   extends SimpleIOSuite
   with LanguageServerIntegrationTests {
 
-  private def write(path: Path, text: String): IO[Unit] =
-    fs2
-      .Stream
-      .emit(text)
-      .through(fs2.text.utf8.encode[IO])
-      .through(Files[IO].writeAll(path))
-      .compile
-      .drain
+  private def readBytes(path: Path): IO[Array[Byte]] = Files[IO]
+    .readAll(path)
+    .compile
+    .to(Array)
+
+  private def write(path: Path, text: String): IO[Unit] = writeBytes(path, text.getBytes)
 
   private def writeBytes(path: Path, bytes: Array[Byte]): IO[Unit] =
     fs2
@@ -34,6 +32,7 @@ object LanguageServerReloadIntegrationTests
       .drain
 
   test("workspace reload results in code lenses showing up") {
+
     Files[IO]
       .tempDirectory
       .evalTap { base =>
@@ -55,21 +54,30 @@ object LanguageServerReloadIntegrationTests
                 )
               )
 
-            val weatherPath =
+            val workspacePath =
               Path("modules") /
                 "lsp" /
                 "src" /
                 "test" /
                 "resources" /
-                "test-workspace" /
-                "weather.smithy"
+                "test-workspace"
 
-            val addLibrary = writeBytes(
-              base / "smithy-build.json",
-              BuildConfigDecoder.encode(
-                BuildConfig(imports = weatherPath.absolute.toString :: Nil)
-              ),
-            )
+            val weatherPath = workspacePath / "weather.smithy"
+
+            val addLibrary = readBytes(workspacePath / "smithy-build.json")
+              .flatMap { bytes =>
+                BuildConfigDecoder.decode(bytes).liftTo[IO]
+              }
+              .flatMap { baseConfig =>
+                writeBytes(
+                  base / "smithy-build.json",
+                  BuildConfigDecoder.encode(
+                    baseConfig.copy(
+                      imports = weatherPath.absolute.toString :: Nil
+                    )
+                  ),
+                )
+              }
 
             getLenses.flatMap { lensesBefore =>
               assert.same(lensesBefore, Nil).failFast[IO]

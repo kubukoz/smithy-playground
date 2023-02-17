@@ -21,7 +21,13 @@ Currently available as a LSP server with a client implementation for VS Code.
   // To access non-standard Maven repositories
   "mavenRepositories": [
     "https://<path-to-artifactory>"
-  ]
+  ],
+  // for Playground plugins
+  "smithyPlayground": {
+    "extensions": [
+      "com.kubukoz::playground-extension:0.0.1"
+    ]
+  }
 }
 ```
 
