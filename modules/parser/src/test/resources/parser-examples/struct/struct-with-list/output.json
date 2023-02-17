@@ -1,0 +1,64 @@
+{
+  "fields": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 14
+      }
+    },
+    "value": {
+      "value": [
+        {
+          "identifier": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 2
+              },
+              "end": {
+                "index": 8
+              }
+            },
+            "value": {
+              "text": "values"
+            }
+          },
+          "value": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 10
+              },
+              "end": {
+                "index": 13
+              }
+            },
+            "value": {
+              "Listed": {
+                "values": {
+                  "commentsLeft": [],
+                  "commentsRight": [],
+                  "range": {
+                    "start": {
+                      "index": 11
+                    },
+                    "end": {
+                      "index": 12
+                    }
+                  },
+                  "value": []
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

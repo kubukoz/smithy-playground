@@ -1,0 +1,19 @@
+{
+  "values": {
+    "commentsLeft": [
+      {
+        "text": "in list"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 14
+      }
+    },
+    "value": []
+  }
+}

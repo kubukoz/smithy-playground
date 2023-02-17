@@ -1,1 +1,0 @@
-../../../smithy/std.smithy

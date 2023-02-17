@@ -1,6 +1,7 @@
 import { commands, ExtensionContext, window, workspace } from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 import { getCoursierExecutable } from "./coursier/coursier";
+import { buildArgs, CoursierCall, withDebug, withTracer } from "./coursier";
 
 export async function activate(context: ExtensionContext) {
   const serverArtifact = workspace
@@ -28,36 +29,26 @@ export async function activate(context: ExtensionContext) {
     .getConfiguration()
     .get<boolean>("smithyql.server.debug");
 
-  const tracerArgs = enableTracer
-    ? [
-        "tech.neander:langoustine-tracer_3:latest.release",
-        "--", //separator for coursier launch
-        "--", //separator for tracer
-        "cs",
-        "launch",
-      ]
-    : [];
-
-  const debugArgs = enableDebug
-    ? [
-        "--java-opt",
-        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,quiet=y,address=5010",
-      ]
-    : [];
+  const base: CoursierCall = {
+    coursierArgs: ["--ttl", coursierTTL],
+    app: {
+      maven: { artifact: serverArtifact, version: serverVersion },
+      args: [],
+    },
+  };
 
   const lspClient = new LanguageClient(
     "smithyPlayground",
     "Smithy Playground",
     {
-      command: coursierBinary,
-      args: [
-        "launch",
-        ...tracerArgs,
-        `${serverArtifact}:${serverVersion}`,
-        "--ttl",
-        coursierTTL,
-        ...debugArgs,
-      ],
+      command:coursierBinary,
+      args: buildArgs(
+        withTracer(enableTracer)(
+          //
+          withDebug(enableDebug)(base)
+          //
+        )
+      ),
     },
     {
       documentSelector: [{ language: "smithyql" }],
@@ -79,6 +70,13 @@ export async function activate(context: ExtensionContext) {
     }
   );
 
+  const registerRestartCommand = commands.registerCommand(
+    "smithyql.restart",
+    () => {
+      lspClient.restart();
+    }
+  );
+
   const registerOutputPanelNotification = lspClient.onNotification(
     "smithyql/showOutputPanel",
     (_) => lspClient.outputChannel.show(true)
@@ -89,6 +87,7 @@ export async function activate(context: ExtensionContext) {
   context.subscriptions.push(
     lspClient,
     registerRunCommand,
+    registerRestartCommand,
     registerOutputPanelNotification
   );
 }

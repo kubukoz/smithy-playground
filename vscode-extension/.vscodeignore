@@ -23,3 +23,4 @@ node_modules/@types
 flake.lock
 .direnv
 .envrc
+**/*.d.ts
