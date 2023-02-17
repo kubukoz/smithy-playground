@@ -157,7 +157,7 @@ lazy val lsp = module("lsp")
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),
     Smithy4sCodegenPlugin.defaultSettings(Test),
     Test / smithy4sSmithyLibrary := false,
-    test := {
+    (Test / test) := {
       (pluginCore / publishLocal).value
       (pluginSample / publishLocal).value
 
