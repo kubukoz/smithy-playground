@@ -19,7 +19,12 @@ import playground.smithyql.syntax._
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait CompletionProvider {
-  def provide(documentText: String, pos: Position): List[CompletionItem]
+
+  def provide(
+    documentText: String,
+    pos: Position,
+  ): List[CompletionItem]
+
 }
 
 object CompletionProvider {
@@ -159,7 +164,10 @@ object CompletionProvider {
       }
     }
 
-    (doc, pos) =>
+    (
+      doc,
+      pos,
+    ) =>
       SourceParser[SourceFile].parse(doc) match {
         case Left(_) =>
           // we can try to deal with this later

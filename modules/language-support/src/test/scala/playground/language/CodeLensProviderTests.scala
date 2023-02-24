@@ -19,8 +19,14 @@ import weaver._
 
 object CodeLensProviderTests extends FunSuite {
 
-  private val runnerStub = FileRunner.instance[IO]((_, _) =>
-    ((_ => IO.stub): OperationRunner[IO]).rightIor
+  private val runnerStub = FileRunner.instance[IO](
+    (
+      _,
+      _,
+    ) =>
+      ((
+        _ => IO.stub
+      ): OperationRunner[IO]).rightIor
   )
 
   private val services = List(wrapService(RandomGen))

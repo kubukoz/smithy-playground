@@ -38,7 +38,11 @@ import smithy4s.schema.Schema
 import smithyql.syntax._
 
 trait OperationRunner[F[_]] {
-  def run(q: CompiledInput): F[InputNode[Id]]
+
+  def run(
+    q: CompiledInput
+  ): F[InputNode[Id]]
+
 }
 
 object OperationRunner {
@@ -55,8 +59,15 @@ object OperationRunner {
   sealed trait Issue extends Product with Serializable
 
   object Issue {
-    final case class InvalidProtocol(supported: ShapeId, found: List[ShapeId]) extends Issue
-    final case class Other(e: Throwable) extends Issue
+
+    final case class InvalidProtocol(
+      supported: ShapeId,
+      found: List[ShapeId],
+    ) extends Issue
+
+    final case class Other(
+      e: Throwable
+    ) extends Issue
 
     sealed trait Squashed extends Product with Serializable
 
@@ -67,7 +78,10 @@ object OperationRunner {
         found: List[ShapeId],
       ) extends Squashed
 
-      final case class OtherIssues(exceptions: NonEmptyList[Throwable]) extends Squashed
+      final case class OtherIssues(
+        exceptions: NonEmptyList[Throwable]
+      ) extends Squashed
+
     }
 
     // Either remove all protocol errors, or only keep those.
@@ -102,7 +116,9 @@ object OperationRunner {
   }
 
   // https://github.com/kubukoz/smithy-playground/issues/158
-  def dynamicBaseUri[F[_]: MonadCancelThrow](getUri: F[Uri]): Client[F] => Client[F] =
+  def dynamicBaseUri[F[_]: MonadCancelThrow](
+    getUri: F[Uri]
+  ): Client[F] => Client[F] =
     client =>
       Client[F] { req =>
         getUri.toResource.flatMap { uri =>
@@ -271,7 +287,9 @@ object OperationRunner {
         .map(
           _.map { interpreter =>
             new OperationRunner[F] {
-              def run(q: CompiledInput): F[InputNode[Id]] = perform[q.E, q.O](
+              def run(
+                q: CompiledInput
+              ): F[InputNode[Id]] = perform[q.E, q.O](
                 interpreter,
                 // note: this is safe... for real
                 q.asInstanceOf[CompiledInput.Aux[q.E, q.O, service.Operation]],

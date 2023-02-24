@@ -13,12 +13,12 @@ import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy.api
+import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithyql.syntax._
 import types._
 import util.chaining._
-import smithy4s.Endpoint
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -42,27 +42,44 @@ object CompiledInput {
 }
 
 trait OperationCompiler[F[_]] { self =>
-  def compile(q: Query[WithSource]): F[CompiledInput]
 
-  def mapK[G[_]](fk: F ~> G): OperationCompiler[G] =
+  def compile(
+    q: Query[WithSource]
+  ): F[CompiledInput]
+
+  def mapK[G[_]](
+    fk: F ~> G
+  ): OperationCompiler[G] =
     new OperationCompiler[G] {
-      def compile(q: Query[WithSource]): G[CompiledInput] = fk(self.compile(q))
+
+      def compile(
+        q: Query[WithSource]
+      ): G[CompiledInput] = fk(self.compile(q))
+
     }
 
 }
 
 object OperationCompiler {
 
-  final case class Context(prelude: Prelude[WithSource])
+  final case class Context(
+    prelude: Prelude[WithSource]
+  )
 
   type EffF[F[_], A] = Kleisli[F, Context, A]
   type Eff[A] = EffF[IorNel[CompilationError, *], A]
 
   object Eff {
-    def liftF[A](fa: IorNel[CompilationError, A]): Eff[A] = Kleisli.liftF(fa)
+
+    def liftF[A](
+      fa: IorNel[CompilationError, A]
+    ): Eff[A] = Kleisli.liftF(fa)
+
     val getContext: Eff[Context] = Kleisli.ask
 
-    def perform(prelude: Prelude[WithSource]): Eff ~> IorThrow = Kleisli
+    def perform(
+      prelude: Prelude[WithSource]
+    ): Eff ~> IorThrow = Kleisli
       .liftFunctionK(CompilationFailed.wrapK)
       .andThen(Kleisli.applyK(Context(prelude)))
 
@@ -93,10 +110,15 @@ object OperationCompiler {
 
 }
 
-final case class CompilationFailed(errors: NonEmptyList[CompilationError]) extends Throwable
+final case class CompilationFailed(
+  errors: NonEmptyList[CompilationError]
+) extends Throwable
 
 object CompilationFailed {
-  def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
+
+  def one(
+    e: CompilationError
+  ): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
 
   // this is a bit overused
   // https://github.com/kubukoz/smithy-playground/issues/157
@@ -113,7 +135,10 @@ object CompilationFailed {
       ): IorNel[CompilationError, A] = result.fold(
         Ior.left(_),
         Ior.right(_),
-        (e, a) =>
+        (
+          e,
+          a,
+        ) =>
           if (e.exists(_.isError))
             Ior.left(e)
           else
@@ -193,7 +218,9 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
       .toBothLeft(())
       .toIorNel
 
-  def compile(q: Query[WithSource]): IorNel[CompilationError, CompiledInput] = {
+  def compile(
+    q: Query[WithSource]
+  ): IorNel[CompilationError, CompiledInput] = {
     val (endpoint, inputCompiler) = endpoints
       .get(q.operationName.value.operationName.value.text)
       // https://github.com/kubukoz/smithy-playground/issues/154

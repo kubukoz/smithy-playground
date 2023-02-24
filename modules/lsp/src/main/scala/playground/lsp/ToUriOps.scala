@@ -7,15 +7,21 @@ import playground.language.Uri
 
 object ToUriOps {
 
-  implicit final class TextDocumentIdentifierToUriSyntax(tdi: TextDocumentIdentifier) {
+  implicit final class TextDocumentIdentifierToUriSyntax(
+    tdi: TextDocumentIdentifier
+  ) {
     def toUri: Uri = Uri.fromUriString(tdi.getUri())
   }
 
-  implicit final class TextDocumentItemToUriSyntax(tdi: TextDocumentItem) {
+  implicit final class TextDocumentItemToUriSyntax(
+    tdi: TextDocumentItem
+  ) {
     def toUri: Uri = Uri.fromUriString(tdi.getUri())
   }
 
-  implicit final class WorkspaceFolderToUriSyntax(wf: WorkspaceFolder) {
+  implicit final class WorkspaceFolderToUriSyntax(
+    wf: WorkspaceFolder
+  ) {
     def toUri: Uri = Uri.fromUriString(wf.getUri())
   }
 

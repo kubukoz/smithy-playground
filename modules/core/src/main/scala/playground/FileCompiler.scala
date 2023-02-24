@@ -9,8 +9,15 @@ import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
 
 trait FileCompiler[F[_]] {
-  def compile(f: SourceFile[WithSource]): F[List[CompiledInput]]
-  def mapK[G[_]](fk: F ~> G): FileCompiler[G] = f => fk(compile(f))
+
+  def compile(
+    f: SourceFile[WithSource]
+  ): F[List[CompiledInput]]
+
+  def mapK[G[_]](
+    fk: F ~> G
+  ): FileCompiler[G] = f => fk(compile(f))
+
 }
 
 object FileCompiler {

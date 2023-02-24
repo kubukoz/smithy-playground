@@ -30,13 +30,27 @@ object Parsers {
 
     val pos = Parser.index.map(Position(_))
 
-    def mergeComments[A]: (((List[Comment], T[A]), List[Comment])) => T[A] = {
-      case ((commentsBefore, v), commentsAfter) => v.withComments(commentsBefore, commentsAfter)
+    def mergeComments[A]: (
+      (
+        (
+          List[Comment],
+          T[A],
+        ),
+        List[Comment],
+      )
+    ) => T[A] = { case ((commentsBefore, v), commentsAfter) =>
+      v.withComments(commentsBefore, commentsAfter)
     }
 
-    def mergeRange[
-      A
-    ]: (((Position, A), Position)) => T[A] = { case ((indexBefore, v), indexAfter) =>
+    def mergeRange[A]: (
+      (
+        (
+          Position,
+          A,
+        ),
+        Position,
+      )
+    ) => T[A] = { case ((indexBefore, v), indexAfter) =>
       val range = SourceRange(indexBefore, indexAfter)
 
       WithSource.liftId(v).withRange(range)
@@ -86,13 +100,20 @@ object Parsers {
         .withContext("withComments0")
     }
 
-    def withRange[A](p: Parser[A]): Parser[T[A]] = (pos.with1 ~ p ~ pos).map(mergeRange)
-    def withRange0[A](p: Parser0[A]): Parser0[T[A]] = (pos ~ p ~ pos).map(mergeRange)
+    def withRange[A](
+      p: Parser[A]
+    ): Parser[T[A]] = (pos.with1 ~ p ~ pos).map(mergeRange)
+
+    def withRange0[A](
+      p: Parser0[A]
+    ): Parser0[T[A]] = (pos ~ p ~ pos).map(mergeRange)
 
     // A bit of a hack: replace the ranges of the given parser's WithSource
     // with ones containing the whole parser.
     // It's a short-term solution as the real one would involve adding new syntax nodes keeping the ranges.
-    def expandRange0[S](p: Parser0[T[S]]): Parser0[T[S]] = tokens.withRange0(p).map { forRange =>
+    def expandRange0[S](
+      p: Parser0[T[S]]
+    ): Parser0[T[S]] = tokens.withRange0(p).map { forRange =>
       forRange.value.withRange(forRange.range)
     }
 
@@ -118,7 +139,9 @@ object Parsers {
 
     val nullLiteral: Parser[Unit] = string("null")
 
-    def punctuation(c: Char): Parser[Unit] = char(c)
+    def punctuation(
+      c: Char
+    ): Parser[Unit] = char(c)
 
     val colon = punctuation(':')
     val equalsSign = punctuation('=')
@@ -252,7 +275,9 @@ object Parsers {
     val sourceFile: Parser0[SourceFile[T]] = (prelude, tokens.withComments0(statement.rep0))
       .mapN(SourceFile.apply[T])
 
-    implicit class ParserOps[A](parser: Parser[A]) {
+    implicit class ParserOps[A](
+      parser: Parser[A]
+    ) {
 
       // like repSep0, but allows a trailing occurrence of the separator
       // if there's at least one occurrence of the main parser/

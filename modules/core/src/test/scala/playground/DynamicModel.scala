@@ -5,7 +5,8 @@ import software.amazon.smithy.model.Model
 
 object DynamicModel {
 
-  def discover(): DynamicSchemaIndex = {
+  def discover(
+  ): DynamicSchemaIndex = {
     val model = Model
       .assembler()
       .discoverModels()

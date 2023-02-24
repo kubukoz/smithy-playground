@@ -10,18 +10,27 @@ import org.http4s.Uri
 trait ConfigurationValue[T] {
   def key: String
   def codec: Codec[T]
-  def apply(value: T): ConfigurationValue.Applied[T] = ConfigurationValue.Applied(this, value)
+
+  def apply(
+    value: T
+  ): ConfigurationValue.Applied[T] = ConfigurationValue.Applied(this, value)
+
 }
 
 object ConfigurationValue {
 
-  def make[A: Encoder: Decoder](k: String): ConfigurationValue[A] =
+  def make[A: Encoder: Decoder](
+    k: String
+  ): ConfigurationValue[A] =
     new ConfigurationValue[A] {
       val key: String = k
       val codec: Codec[A] = Codec.from(implicitly, implicitly)
     }
 
-  final case class Applied[T](cv: ConfigurationValue[T], value: T) {
+  final case class Applied[T](
+    cv: ConfigurationValue[T],
+    value: T,
+  ) {
     def encoded: Json = cv.codec.apply(value)
   }
 

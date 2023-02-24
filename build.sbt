@@ -16,7 +16,9 @@ inThisBuild(
 
 import scala.sys.process._
 
-def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
+def crossPlugin(
+  x: sbt.librarymanagement.ModuleID
+) = compilerPlugin(x.cross(CrossVersion.full))
 
 val compilerPlugins =
   libraryDependencies ++= List(
@@ -60,7 +62,9 @@ val commonSettings = Seq(
   mimaFailOnNoPrevious := false,
 )
 
-def module(name: String) = Project(name, file("modules") / name)
+def module(
+  name: String
+) = Project(name, file("modules") / name)
   .settings(
     commonSettings
   )

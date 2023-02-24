@@ -11,16 +11,27 @@ import playground.language.Uri
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
-  def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded]
 
-  def buildSchemaIndex(info: BuildLoader.Loaded): F[DynamicSchemaIndex]
+  def load(
+    workspaceFolders: List[Uri]
+  ): F[BuildLoader.Loaded]
+
+  def buildSchemaIndex(
+    info: BuildLoader.Loaded
+  ): F[DynamicSchemaIndex]
 
 }
 
 object BuildLoader {
-  def apply[F[_]](implicit F: BuildLoader[F]): BuildLoader[F] = F
 
-  case class Loaded(config: BuildConfig, configFilePath: Path)
+  def apply[F[_]](
+    implicit F: BuildLoader[F]
+  ): BuildLoader[F] = F
+
+  case class Loaded(
+    config: BuildConfig,
+    configFilePath: Path,
+  )
 
   object Loaded {
     // Path is irrelevant when no imports are provided.
@@ -30,7 +41,9 @@ object BuildLoader {
   def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
     new BuildLoader[F] {
 
-      def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded] = {
+      def load(
+        workspaceFolders: List[Uri]
+      ): F[BuildLoader.Loaded] = {
         val configFiles = List(
           "build/smithy-dependencies.json",
           ".smithy.json",
@@ -73,7 +86,9 @@ object BuildLoader {
           }
       }
 
-      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = Sync[F]
+      def buildSchemaIndex(
+        loaded: BuildLoader.Loaded
+      ): F[DynamicSchemaIndex] = Sync[F]
         .interruptibleMany {
           ModelLoader
             .loadUnsafe(

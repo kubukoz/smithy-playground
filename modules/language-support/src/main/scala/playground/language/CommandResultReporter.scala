@@ -14,20 +14,45 @@ import playground.smithyql.format.Formatter
 trait CommandResultReporter[F[_]] {
   type RequestId
   def onUnsupportedProtocol: F[Unit]
-  def onIssues(issues: NonEmptyList[Throwable]): F[Unit]
+
+  def onIssues(
+    issues: NonEmptyList[Throwable]
+  ): F[Unit]
+
   def onCompilationFailed: F[Unit]
-  def onFileCompiled(queries: List[Any]): F[Unit]
-  def onQueryStart(parsed: Query[Id], compiled: CompiledInput): F[RequestId]
-  def onQuerySuccess(parsed: Query[Id], requestId: RequestId, output: InputNode[Id]): F[Unit]
-  def onQueryFailure(compiled: CompiledInput, requestId: RequestId, e: Throwable): F[Unit]
+
+  def onFileCompiled(
+    queries: List[Any]
+  ): F[Unit]
+
+  def onQueryStart(
+    parsed: Query[Id],
+    compiled: CompiledInput,
+  ): F[RequestId]
+
+  def onQuerySuccess(
+    parsed: Query[Id],
+    requestId: RequestId,
+    output: InputNode[Id],
+  ): F[Unit]
+
+  def onQueryFailure(
+    compiled: CompiledInput,
+    requestId: RequestId,
+    e: Throwable,
+  ): F[Unit]
+
 }
 
 object CommandResultReporter {
-  def apply[F[_]](implicit F: CommandResultReporter[F]): F.type = F
 
-  def instance[
-    F[_]: Feedback: Monad: Ref.Make
-  ]: F[CommandResultReporter[F]] = Ref[F].of(0).map(withRequestCounter(_))
+  def apply[F[_]](
+    implicit F: CommandResultReporter[F]
+  ): F.type = F
+
+  def instance[F[_]: Feedback: Monad: Ref.Make]: F[CommandResultReporter[F]] = Ref[F]
+    .of(0)
+    .map(withRequestCounter(_))
 
   def withRequestCounter[F[_]: Feedback: Monad](
     requestCounter: Ref[F, Int]
@@ -41,7 +66,9 @@ object CommandResultReporter {
           |Check diagnostics/problems in the file.""".stripMargin
       )
 
-      def onIssues(issues: NonEmptyList[Throwable]): F[Unit] = Feedback[F].showErrorMessage(
+      def onIssues(
+        issues: NonEmptyList[Throwable]
+      ): F[Unit] = Feedback[F].showErrorMessage(
         issues.map(_.toString).mkString_("\n\n")
       )
 
@@ -49,7 +76,9 @@ object CommandResultReporter {
         "Couldn't run query because of compilation errors."
       )
 
-      def onFileCompiled(queries: List[Any]): F[Unit] =
+      def onFileCompiled(
+        queries: List[Any]
+      ): F[Unit] =
         if (queries.nonEmpty)
           Feedback[F].showOutputPanel
         else
@@ -65,13 +94,20 @@ object CommandResultReporter {
           )
       }
 
-      def onQuerySuccess(parsed: Query[Id], requestId: RequestId, out: InputNode[Id]): F[Unit] =
-        Feedback[F].logOutput(
-          s"// Succeeded ${parsed.operationName.operationName.text} ($requestId), response:\n"
-            + writeOutput(out)
-        )
+      def onQuerySuccess(
+        parsed: Query[Id],
+        requestId: RequestId,
+        out: InputNode[Id],
+      ): F[Unit] = Feedback[F].logOutput(
+        s"// Succeeded ${parsed.operationName.operationName.text} ($requestId), response:\n"
+          + writeOutput(out)
+      )
 
-      def onQueryFailure(compiled: CompiledInput, requestId: Int, e: Throwable): F[Unit] = {
+      def onQueryFailure(
+        compiled: CompiledInput,
+        requestId: Int,
+        e: Throwable,
+      ): F[Unit] = {
         val rendered =
           compiled
             .catchError(e)

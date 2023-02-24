@@ -4,12 +4,22 @@ import cats.Applicative
 import cats.implicits._
 
 trait TextDocumentProvider[F[_]] {
-  def get(uri: Uri): F[String]
-  def getOpt(uri: Uri): F[Option[String]]
+
+  def get(
+    uri: Uri
+  ): F[String]
+
+  def getOpt(
+    uri: Uri
+  ): F[Option[String]]
+
 }
 
 object TextDocumentProvider {
-  def apply[F[_]](implicit F: TextDocumentProvider[F]): TextDocumentProvider[F] = F
+
+  def apply[F[_]](
+    implicit F: TextDocumentProvider[F]
+  ): TextDocumentProvider[F] = F
 
   def always[F[_]: Applicative](
     fileContent: String
@@ -20,7 +30,9 @@ object TextDocumentProvider {
         uri: Uri
       ): F[String] = fileContent.pure[F]
 
-      def getOpt(uri: Uri): F[Option[String]] = fileContent.some.pure[F]
+      def getOpt(
+        uri: Uri
+      ): F[Option[String]] = fileContent.some.pure[F]
 
     }
 

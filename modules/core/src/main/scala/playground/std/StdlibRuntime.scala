@@ -11,7 +11,10 @@ trait StdlibRuntime[F[_]] {
 }
 
 object StdlibRuntime {
-  def apply[F[_]](implicit F: StdlibRuntime[F]): StdlibRuntime[F] = F
+
+  def apply[F[_]](
+    implicit F: StdlibRuntime[F]
+  ): StdlibRuntime[F] = F
 
   def instance[F[_]: cats.effect.Clock: UUIDGen: Functor]: StdlibRuntime[F] =
     new StdlibRuntime[F] {

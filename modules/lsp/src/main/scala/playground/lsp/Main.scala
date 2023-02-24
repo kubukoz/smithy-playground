@@ -30,19 +30,37 @@ object Main extends IOApp.Simple {
         charset: Charset
       ): IO[String] = IO.consoleForIO.readLineWithCharset(charset)
 
-      def print[A](a: A)(implicit S: Show[A]): IO[Unit] = IO(logWriter.print(a.show))
+      def print[A](
+        a: A
+      )(
+        implicit S: Show[A]
+      ): IO[Unit] = IO(logWriter.print(a.show))
 
-      def println[A](a: A)(implicit S: Show[A]): IO[Unit] = IO(logWriter.println(a.show))
+      def println[A](
+        a: A
+      )(
+        implicit S: Show[A]
+      ): IO[Unit] = IO(logWriter.println(a.show))
 
-      def error[A](a: A)(implicit S: Show[A]): IO[Unit] = IO(logWriter.print("ERROR: " + a.show))
+      def error[A](
+        a: A
+      )(
+        implicit S: Show[A]
+      ): IO[Unit] = IO(logWriter.print("ERROR: " + a.show))
 
-      def errorln[A](a: A)(implicit S: Show[A]): IO[Unit] = IO(
+      def errorln[A](
+        a: A
+      )(
+        implicit S: Show[A]
+      ): IO[Unit] = IO(
         logWriter.println("ERROR: " + a.show)
       )
 
     }
 
-  def log[F[_]: std.Console](s: String): F[Unit] = std.Console[F].println(s)
+  def log[F[_]: std.Console](
+    s: String
+  ): F[Unit] = std.Console[F].println(s)
 
   def run: IO[Unit] = {
     val stdin = System.in

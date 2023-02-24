@@ -1,9 +1,14 @@
 package playground.smithyql
 
 // I _wish_ this was generated boilerplate.
-trait ASTVisitor[F[_], T] extends (AST[F] => T) {
+trait ASTVisitor[F[_], T]
+  extends (
+    AST[F] => T
+  ) {
 
-  def apply(ast: AST[F]): T =
+  def apply(
+    ast: AST[F]
+  ): T =
     ast match {
       case QueryOperationName(identifier, operationName) =>
         queryOperationName(identifier, operationName)
@@ -26,10 +31,17 @@ trait ASTVisitor[F[_], T] extends (AST[F] => T) {
     statements: F[List[Statement[F]]],
   ): T
 
-  def prelude(useClauses: List[F[UseClause[F]]]): T
-  def runQuery(query: F[Query[F]]): T
+  def prelude(
+    useClauses: List[F[UseClause[F]]]
+  ): T
 
-  def useClause(identifier: F[QualifiedIdentifier]): T
+  def runQuery(
+    query: F[Query[F]]
+  ): T
+
+  def useClause(
+    identifier: F[QualifiedIdentifier]
+  ): T
 
   def query(
     operationName: F[QueryOperationName[F]],
@@ -41,14 +53,30 @@ trait ASTVisitor[F[_], T] extends (AST[F] => T) {
     operationName: F[OperationName[F]],
   ): T
 
-  def operationName(text: String): T
+  def operationName(
+    text: String
+  ): T
 
-  def struct(fields: F[Struct.Fields[F]]): T
-  def listed(values: F[List[F[InputNode[F]]]]): T
+  def struct(
+    fields: F[Struct.Fields[F]]
+  ): T
 
-  def booleanLiteral(value: Boolean): T
-  def stringLiteral(value: String): T
-  def intLiteral(value: String): T
+  def listed(
+    values: F[List[F[InputNode[F]]]]
+  ): T
+
+  def booleanLiteral(
+    value: Boolean
+  ): T
+
+  def stringLiteral(
+    value: String
+  ): T
+
+  def intLiteral(
+    value: String
+  ): T
+
   def nullLiteral: T
 }
 
@@ -57,10 +85,22 @@ object ASTVisitor {
   trait Default[F[_], T] extends ASTVisitor[F, T] {
     def default: T
 
-    def sourceFile(prelude: Prelude[F], statements: F[List[Statement[F]]]): T = default
-    def prelude(useClauses: List[F[UseClause[F]]]): T = default
-    def runQuery(query: F[Query[F]]): T = default
-    def useClause(identifier: F[QualifiedIdentifier]): T = default
+    def sourceFile(
+      prelude: Prelude[F],
+      statements: F[List[Statement[F]]],
+    ): T = default
+
+    def prelude(
+      useClauses: List[F[UseClause[F]]]
+    ): T = default
+
+    def runQuery(
+      query: F[Query[F]]
+    ): T = default
+
+    def useClause(
+      identifier: F[QualifiedIdentifier]
+    ): T = default
 
     def query(
       operationName: F[QueryOperationName[F]],
@@ -72,14 +112,30 @@ object ASTVisitor {
       operationName: F[OperationName[F]],
     ): T = default
 
-    def operationName(text: String): T = default
+    def operationName(
+      text: String
+    ): T = default
 
-    def struct(fields: F[Struct.Fields[F]]): T = default
-    def listed(values: F[List[F[InputNode[F]]]]): T = default
+    def struct(
+      fields: F[Struct.Fields[F]]
+    ): T = default
 
-    def booleanLiteral(value: Boolean): T = default
-    def stringLiteral(value: String): T = default
-    def intLiteral(value: String): T = default
+    def listed(
+      values: F[List[F[InputNode[F]]]]
+    ): T = default
+
+    def booleanLiteral(
+      value: Boolean
+    ): T = default
+
+    def stringLiteral(
+      value: String
+    ): T = default
+
+    def intLiteral(
+      value: String
+    ): T = default
+
     def nullLiteral: T = default
 
   }

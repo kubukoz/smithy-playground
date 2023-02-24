@@ -41,11 +41,20 @@ import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 trait NodeEncoder[A] {
-  def toNode(a: A): InputNode[Id]
-  def transform(f: InputNode[Id] => InputNode[Id]): NodeEncoder[A] = toNode.andThen(f).apply(_)
+
+  def toNode(
+    a: A
+  ): InputNode[Id]
+
+  def transform(
+    f: InputNode[Id] => InputNode[Id]
+  ): NodeEncoder[A] = toNode.andThen(f).apply(_)
+
   def listed: NodeEncoder[List[A]] = as => Listed[Id](as.map(this.toNode))
 
-  def atKey(key: String): NodeEncoder[A] = transform { result =>
+  def atKey(
+    key: String
+  ): NodeEncoder[A] = transform { result =>
     Struct.one[Id](
       key = Identifier(key),
       value = result,
@@ -58,24 +67,42 @@ object NodeEncoder {
 
   implicit val encoderK: EncoderK[NodeEncoder, InputNode[Id]] =
     new EncoderK[NodeEncoder, InputNode[Id]] {
-      def apply[A](fa: NodeEncoder[A], a: A): InputNode[Id] = fa.toNode(a)
 
-      def absorb[A](f: A => InputNode[Id]): NodeEncoder[A] = f(_)
+      def apply[A](
+        fa: NodeEncoder[A],
+        a: A,
+      ): InputNode[Id] = fa.toNode(a)
+
+      def absorb[A](
+        f: A => InputNode[Id]
+      ): NodeEncoder[A] = f(_)
 
     }
 
   implicit val catsContravariant: Contravariant[NodeEncoder] =
     new Contravariant[NodeEncoder] {
-      def contramap[A, B](fa: NodeEncoder[A])(f: B => A): NodeEncoder[B] = b => fa.toNode(f(b))
+
+      def contramap[A, B](
+        fa: NodeEncoder[A]
+      )(
+        f: B => A
+      ): NodeEncoder[B] = b => fa.toNode(f(b))
+
     }
 
-  def derive[A](schema: Schema[A]): NodeEncoder[A] = schema.compile(NodeEncoderVisitor)
+  def derive[A](
+    schema: Schema[A]
+  ): NodeEncoder[A] = schema.compile(NodeEncoderVisitor)
 
 }
 
 object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
 
-  def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): NodeEncoder[P] =
+  def primitive[P](
+    shapeId: ShapeId,
+    hints: Hints,
+    tag: Primitive[P],
+  ): NodeEncoder[P] =
     tag match {
       case PInt        => int
       case PShort      => short
@@ -105,7 +132,9 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case IndexedSeqTag | SetTag | VectorTag => listOf(member).contramap(_.toList)
     }
 
-  private def listOf[A](member: Schema[A]): NodeEncoder[List[A]] = member.compile(this).listed
+  private def listOf[A](
+    member: Schema[A]
+  ): NodeEncoder[List[A]] = member.compile(this).listed
 
   def map[K, V](
     shapeId: ShapeId,
@@ -191,7 +220,9 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     refinement: Refinement[A, B],
   ): NodeEncoder[B] = schema.compile(this).contramap(refinement.from)
 
-  def lazily[A](suspend: Lazy[Schema[A]]): NodeEncoder[A] = {
+  def lazily[A](
+    suspend: Lazy[Schema[A]]
+  ): NodeEncoder[A] = {
     val mapped = suspend.map(_.compile(this))
     value => mapped.value.toNode(value)
   }

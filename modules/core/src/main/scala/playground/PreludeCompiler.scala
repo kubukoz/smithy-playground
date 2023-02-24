@@ -12,7 +12,11 @@ import playground.smithyql.Prelude
 import playground.smithyql.WithSource
 
 trait PreludeCompiler[F[_]] {
-  def compile(f: Prelude[WithSource]): F[Unit]
+
+  def compile(
+    f: Prelude[WithSource]
+  ): F[Unit]
+
 }
 
 object PreludeCompiler {
@@ -24,7 +28,9 @@ object PreludeCompiler {
   ): PreludeCompiler[F] =
     new PreludeCompiler[F] {
 
-      def compile(f: Prelude[WithSource]): F[Unit] = f.useClauses.parTraverse_ { clause =>
+      def compile(
+        f: Prelude[WithSource]
+      ): F[Unit] = f.useClauses.parTraverse_ { clause =>
         val serviceId = clause.value.identifier.value
 
         serviceIndex.getService(serviceId) match {

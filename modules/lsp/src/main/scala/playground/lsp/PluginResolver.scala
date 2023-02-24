@@ -12,7 +12,9 @@ trait PluginResolver[F[_]] {
     repositories: List[String],
   ): F[List[PlaygroundPlugin]]
 
-  def resolveFromConfig(config: BuildConfig): F[List[PlaygroundPlugin]] = resolve(
+  def resolveFromConfig(
+    config: BuildConfig
+  ): F[List[PlaygroundPlugin]] = resolve(
     config.mavenDependencies ++ config.maven.foldMap(_.dependencies) ++
       config
         .smithyPlayground
@@ -24,7 +26,9 @@ trait PluginResolver[F[_]] {
 
 object PluginResolver {
 
-  def apply[F[_]](implicit F: PluginResolver[F]): PluginResolver[F] = F
+  def apply[F[_]](
+    implicit F: PluginResolver[F]
+  ): PluginResolver[F] = F
 
   def instance[F[_]: Sync]: PluginResolver[F] =
     new PluginResolver[F] {

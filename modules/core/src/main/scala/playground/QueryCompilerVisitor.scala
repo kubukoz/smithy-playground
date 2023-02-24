@@ -72,7 +72,11 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       .toIorNec
   }
 
-  def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): QueryCompiler[P] =
+  def primitive[P](
+    shapeId: ShapeId,
+    hints: Hints,
+    tag: Primitive[P],
+  ): QueryCompiler[P] =
     tag match {
       case PString => string
       case PBoolean =>
@@ -156,7 +160,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     }
   }
 
-  private def uniqueListOf[A](member: Schema[A]): QueryCompiler[List[A]] = {
+  private def uniqueListOf[A](
+    member: Schema[A]
+  ): QueryCompiler[List[A]] = {
     val memberToDoc = Document.Encoder.fromSchema(member)
 
     listWithPos(member.compile(this)).emap { items =>
@@ -181,7 +187,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     }
   }
 
-  private def listOf[A](member: Schema[A]) = listWithPos(member.compile(this)).map(_.map(_._1))
+  private def listOf[A](
+    member: Schema[A]
+  ) = listWithPos(member.compile(this)).map(_.map(_._1))
 
   def map[K, V](
     shapeId: ShapeId,
@@ -218,7 +226,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   private val compileField: Schema ~> FieldCompiler =
     new (Schema ~> FieldCompiler) {
 
-      def apply[A](schema: Schema[A]): FieldCompiler[A] =
+      def apply[A](
+        schema: Schema[A]
+      ): FieldCompiler[A] =
         new FieldCompiler[A] {
           def compiler: QueryCompiler[A] = schema.compile(QueryCompilerVisitorInternal)
 
@@ -413,7 +423,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       .toIorNec
   }
 
-  def lazily[A](suspend: Lazy[Schema[A]]): QueryCompiler[A] = {
+  def lazily[A](
+    suspend: Lazy[Schema[A]]
+  ): QueryCompiler[A] = {
     val it = suspend.map(_.compile(this))
 
     it.value.compile(_)
@@ -468,7 +480,12 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
 
   private def listWithPos[S](
     fs: QueryCompiler[S]
-  ): QueryCompiler[List[(S, SourceRange)]] = QueryCompiler
+  ): QueryCompiler[List[
+    (
+      S,
+      SourceRange,
+    )
+  ]] = QueryCompiler
     .typeCheck(NodeKind.Listed) { case l @ Listed(_) => l }
     .emap(
       _.value

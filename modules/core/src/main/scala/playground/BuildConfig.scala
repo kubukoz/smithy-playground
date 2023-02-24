@@ -6,8 +6,10 @@ import smithy4s.http.PayloadError
 
 object BuildConfigDecoder {
 
-  private val codec
-    : (Array[Byte] => Either[PayloadError, BuildConfig], BuildConfig => Array[Byte]) = {
+  private val codec: (
+    Array[Byte] => Either[PayloadError, BuildConfig],
+    BuildConfig => Array[Byte],
+  ) = {
     // https://github.com/disneystreaming/smithy4s/issues/615
     val capi = smithy4s
       .http

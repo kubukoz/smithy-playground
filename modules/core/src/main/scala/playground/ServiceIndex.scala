@@ -10,9 +10,16 @@ import smithyql.syntax._
 
 // Abstraction for service metadata. Can be used by multi-service compilers/runners/completion providers etc.
 trait ServiceIndex {
-  def getService(id: QualifiedIdentifier): Option[ServiceIndexEntry]
+
+  def getService(
+    id: QualifiedIdentifier
+  ): Option[ServiceIndexEntry]
+
   // Note: this ignores missing services.
-  def getServices(ids: Set[QualifiedIdentifier]): List[ServiceIndexEntry]
+  def getServices(
+    ids: Set[QualifiedIdentifier]
+  ): List[ServiceIndexEntry]
+
   def serviceIds: Set[QualifiedIdentifier]
   def allServices: List[ServiceIndexEntry]
 }
@@ -74,7 +81,11 @@ object ServiceIndex {
 trait ServiceIndexEntry {
   def id: QualifiedIdentifier
   def operationNames: Set[OperationName[Id]]
-  def hasOperation(op: OperationName[Id]): Boolean
+
+  def hasOperation(
+    op: OperationName[Id]
+  ): Boolean
+
   def deprecated: Option[DeprecatedInfo]
 }
 
@@ -86,7 +97,9 @@ object ServiceIndexEntry {
   ) extends ServiceIndexEntry {
     def operationNames: Set[OperationName[Id]] = metadata.operationNames
 
-    def hasOperation(op: OperationName[Id]): Boolean = operationNames.contains_(op)
+    def hasOperation(
+      op: OperationName[Id]
+    ): Boolean = operationNames.contains_(op)
 
     def deprecated: Option[DeprecatedInfo] = metadata.deprecated
   }

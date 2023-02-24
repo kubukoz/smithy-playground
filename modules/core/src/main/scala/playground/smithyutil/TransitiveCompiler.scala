@@ -13,9 +13,13 @@ import smithy4s.schema.Schema.UnionSchema
 import smithy4s.~>
 
 // Applies the underlying transformation on each node of the schema that has its own hints
-final class TransitiveCompiler(underlying: Schema ~> Schema) extends (Schema ~> Schema) {
+final class TransitiveCompiler(
+  underlying: Schema ~> Schema
+) extends (Schema ~> Schema) {
 
-  def apply[A](fa: Schema[A]): Schema[A] =
+  def apply[A](
+    fa: Schema[A]
+  ): Schema[A] =
     fa match {
       case e @ EnumerationSchema(_, _, _, _) => underlying(e)
       case p @ PrimitiveSchema(_, _, _)      => underlying(p)

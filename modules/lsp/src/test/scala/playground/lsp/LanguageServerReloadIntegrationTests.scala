@@ -16,14 +16,22 @@ object LanguageServerReloadIntegrationTests
   extends SimpleIOSuite
   with LanguageServerIntegrationTests {
 
-  private def readBytes(path: Path): IO[Array[Byte]] = Files[IO]
+  private def readBytes(
+    path: Path
+  ): IO[Array[Byte]] = Files[IO]
     .readAll(path)
     .compile
     .to(Array)
 
-  private def write(path: Path, text: String): IO[Unit] = writeBytes(path, text.getBytes)
+  private def write(
+    path: Path,
+    text: String,
+  ): IO[Unit] = writeBytes(path, text.getBytes)
 
-  private def writeBytes(path: Path, bytes: Array[Byte]): IO[Unit] =
+  private def writeBytes(
+    path: Path,
+    bytes: Array[Byte],
+  ): IO[Unit] =
     fs2
       .Stream
       .emits(bytes)
