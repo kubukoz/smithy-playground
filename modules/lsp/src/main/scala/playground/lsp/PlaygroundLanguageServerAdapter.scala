@@ -20,7 +20,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
 ) {
 
   // no backpressure whatsoever for now
-  private def handleNotification(job: F[Unit]): Unit = d.unsafeRunAndForget(job)
+  private def handleNotification(
+    job: F[Unit]
+  ): Unit = d.unsafeRunAndForget(job)
 
   @JsonRequest("initialize")
   def initialize(
@@ -93,7 +95,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   )
 
   @JsonRequest("workspace/executeCommand")
-  def executeCommand(params: ExecuteCommandParams): CompletableFuture[Object] = d
+  def executeCommand(
+    params: ExecuteCommandParams
+  ): CompletableFuture[Object] = d
     .unsafeToCompletableFuture(
       impl
         .executeCommand(params)
@@ -115,9 +119,13 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
     )
 
   @JsonRequest("smithyql/runQuery")
-  def runQuery(params: RunFileParams): CompletableFuture[Object] = d
+  def runQuery(
+    params: RunFileParams
+  ): CompletableFuture[Object] = d
     .unsafeToCompletableFuture(impl.runFile(params).as(null: Object))
 
   @JsonRequest("exit")
-  def exit(): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))
+  def exit(
+  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))
+
 }

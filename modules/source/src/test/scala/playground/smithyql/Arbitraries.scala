@@ -64,7 +64,9 @@ object Arbitraries {
     Gen.resultOf(BooleanLiteral[WithSource])
   }
 
-  def genInputNode(depth: Int): Gen[InputNode[WithSource]] =
+  def genInputNode(
+    depth: Int
+  ): Gen[InputNode[WithSource]] =
     if (depth > 0) {
       val deeper = genInputNode(depth - 1)
       Gen.oneOf(
@@ -93,7 +95,9 @@ object Arbitraries {
     implicit arbBind: Arbitrary[Binding[F]]
   ): Arbitrary[Struct.Fields[F]] = Arbitrary(Gen.resultOf(Struct.Fields[F](_)))
 
-  def genStruct(recurse: Gen[InputNode[WithSource]]): Gen[Struct[WithSource]] = {
+  def genStruct(
+    recurse: Gen[InputNode[WithSource]]
+  ): Gen[Struct[WithSource]] = {
     implicit val arbNodes: Arbitrary[InputNode[WithSource]] = Arbitrary(recurse)
 
     Gen

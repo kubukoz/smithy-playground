@@ -43,7 +43,8 @@ object ModelLoaderTests extends FunSuite {
     assert.same(result.getId(), shapeId)
   }
 
-  private def loadModelEmpty() =
+  private def loadModelEmpty(
+  ) =
     ModelLoader
       .loadUnsafe(specs = Set.empty, dependencies = Nil, repositories = Nil)
       ._2

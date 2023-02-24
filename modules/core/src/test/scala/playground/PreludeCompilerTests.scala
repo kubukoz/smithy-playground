@@ -18,7 +18,10 @@ import Diffs._
 
 object PreludeCompilerTests extends FunSuite {
 
-  private def compile(services: ServiceIndex, preludeString: String) = PreludeCompiler
+  private def compile(
+    services: ServiceIndex,
+    preludeString: String,
+  ) = PreludeCompiler
     .instance[IorNel[CompilationError, *]](services)
     .compile(SourceParser[Prelude].parse(preludeString).toTry.get)
 

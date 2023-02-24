@@ -18,7 +18,12 @@ import playground.smithyql.parser.SourceParser
 import scala.collection.immutable.ListMap
 
 trait CommandProvider[F[_]] {
-  def runCommand(name: String, args: List[String]): F[Unit]
+
+  def runCommand(
+    name: String,
+    args: List[String],
+  ): F[Unit]
+
 }
 
 object CommandProvider {
@@ -30,8 +35,9 @@ object CommandProvider {
     new CommandProvider[F] {
       private val reporter = CommandResultReporter[F]
 
-      private case class RunnerBuildErrors(issues: NonEmptyList[OperationRunner.Issue.Squashed])
-        extends Exception {
+      private case class RunnerBuildErrors(
+        issues: NonEmptyList[OperationRunner.Issue.Squashed]
+      ) extends Exception {
 
         def report: F[Unit] = {
           val (protocolIssues, otherIssues) = issues.toList.partitionMap {
@@ -90,7 +96,9 @@ object CommandProvider {
             }
       }
 
-      private def runFile(documentUri: Uri): F[Unit] = {
+      private def runFile(
+        documentUri: Uri
+      ): F[Unit] = {
         for {
           documentText <- TextDocumentProvider[F].get(documentUri)
           file <- SourceParser[SourceFile].parse(documentText).liftTo[F]

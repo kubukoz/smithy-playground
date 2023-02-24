@@ -36,12 +36,17 @@ object DiagnosticProvider {
   ): DiagnosticProvider[F] =
     new DiagnosticProvider[F] {
 
-      def getDiagnostics(fileName: String, documentText: String): List[CompilationError] =
-        compilationErrors(documentText).fold(
-          _.toList,
-          parsed => runnerErrors(parsed),
-          (errors, parsed) => errors.toList ++ runnerErrors(parsed),
-        )
+      def getDiagnostics(
+        fileName: String,
+        documentText: String,
+      ): List[CompilationError] = compilationErrors(documentText).fold(
+        _.toList,
+        parsed => runnerErrors(parsed),
+        (
+          errors,
+          parsed,
+        ) => errors.toList ++ runnerErrors(parsed),
+      )
 
       private def runnerErrors(
         parsed: SourceFile[WithSource]
@@ -124,7 +129,10 @@ object DiagnosticProvider {
         range: SourceRange,
       ) = CompilationError.error(CompilationErrorDetails.Message(msg), range)
 
-      private def info(msg: String, range: SourceRange) =
+      private def info(
+        msg: String,
+        range: SourceRange,
+      ) =
         new CompilationError(
           CompilationErrorDetails.Message(msg),
           range,

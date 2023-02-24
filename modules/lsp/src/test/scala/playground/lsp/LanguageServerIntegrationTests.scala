@@ -18,7 +18,9 @@ trait LanguageServerIntegrationTests {
     workspaceDir: Uri,
   )
 
-  def initParams(workspaceDir: Uri) = new InitializeParams().tap(
+  def initParams(
+    workspaceDir: Uri
+  ) = new InitializeParams().tap(
     _.setWorkspaceFolders(
       List(
         new WorkspaceFolder(workspaceDir.value)
@@ -41,7 +43,9 @@ trait LanguageServerIntegrationTests {
       }
   }
 
-  def resourceUri(resourcePath: String): Uri = Uri.fromUriString(
+  def resourceUri(
+    resourcePath: String
+  ): Uri = Uri.fromUriString(
     Option(getClass.getResource(resourcePath))
       .getOrElse(sys.error(s"oops, not found: resource $resourcePath"))
       .toURI()

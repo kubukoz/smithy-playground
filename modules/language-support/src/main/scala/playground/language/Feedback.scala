@@ -1,13 +1,31 @@
 package playground.language
 
 trait Feedback[F[_]] {
-  def showInfoMessage(msg: String): F[Unit]
-  def showWarnMessage(msg: String): F[Unit]
-  def showErrorMessage(msg: String): F[Unit]
+
+  def showInfoMessage(
+    msg: String
+  ): F[Unit]
+
+  def showWarnMessage(
+    msg: String
+  ): F[Unit]
+
+  def showErrorMessage(
+    msg: String
+  ): F[Unit]
+
   def showOutputPanel: F[Unit]
-  def logOutput(msg: String): F[Unit]
+
+  def logOutput(
+    msg: String
+  ): F[Unit]
+
 }
 
 object Feedback {
-  def apply[F[_]](implicit F: Feedback[F]): Feedback[F] = F
+
+  def apply[F[_]](
+    implicit F: Feedback[F]
+  ): Feedback[F] = F
+
 }

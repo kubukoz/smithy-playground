@@ -28,7 +28,10 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
     type Proxy[I, E, O, SE, EO] = I => F[O]
 
-    def makeProxy[A, B](schemaIn: Schema[A], schemaOut: Schema[B]): A => F[B] = {
+    def makeProxy[A, B](
+      schemaIn: Schema[A],
+      schemaOut: Schema[B],
+    ): A => F[B] = {
       val inputEncoder = Document.Encoder.fromSchema(schemaIn)
       val outputDecoder = Document.Decoder.fromSchema(schemaOut)
 
@@ -70,13 +73,16 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
               .flatMap(mapOutput)
         }
 
-        def apply[I, E, O, SI, SO](endpoint: Endpoint[Op, I, E, O, SI, SO]): I => F[O] =
-          applyWithStatic(endpoint, grp(endpoint.id))
+        def apply[I, E, O, SI, SO](
+          endpoint: Endpoint[Op, I, E, O, SI, SO]
+        ): I => F[O] = applyWithStatic(endpoint, grp(endpoint.id))
       }
         .precomputeBy(service.endpoints, _.name)
 
     new FunctorInterpreter[Op, F] {
-      def apply[I, E, O, SI, SO](op: Op[I, E, O, SI, SO]): F[O] = {
+      def apply[I, E, O, SI, SO](
+        op: Op[I, E, O, SI, SO]
+      ): F[O] = {
         val (input, endpoint) = service.endpoint(op)
         endpointMapping(endpoint)(input)
       }
@@ -104,7 +110,9 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
           builder.result()
         }
 
-        def apply[A0, A1, A2, A3, A4](input: F[A0, A1, A2, A3, A4]): G[A0, A1, A2, A3, A4] = map(
+        def apply[A0, A1, A2, A3, A4](
+          input: F[A0, A1, A2, A3, A4]
+        ): G[A0, A1, A2, A3, A4] = map(
           getKey(Kind5.existential(input))
         ).asInstanceOf[G[A0, A1, A2, A3, A4]]
 

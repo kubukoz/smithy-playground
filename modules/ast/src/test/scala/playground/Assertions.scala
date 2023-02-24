@@ -31,13 +31,23 @@ object Assertions extends Expectations.Helpers {
     lhs: Query[Id],
     rhs: Query[Id],
   ): Expectations = {
-    def ensureEqual[A](lhs: A, rhs: A)(ctx: List[String]): Expectations =
+    def ensureEqual[A](
+      lhs: A,
+      rhs: A,
+    )(
+      ctx: List[String]
+    ): Expectations =
       if (lhs != rhs)
         failure(s"(${ctx.reverse.mkString("root / ", " / ", "")}) Comparison failed: $lhs != $rhs")
       else
         success
 
-    def compareNode(lhs: InputNode[Id], rhs: InputNode[Id])(ctx: List[String]): Expectations =
+    def compareNode(
+      lhs: InputNode[Id],
+      rhs: InputNode[Id],
+    )(
+      ctx: List[String]
+    ): Expectations =
       (lhs, rhs) match {
         case (IntLiteral(i), IntLiteral(i2))       => ensureEqual(i, i2)("int" :: ctx)
         case (StringLiteral(s), StringLiteral(s2)) => ensureEqual(s, s2)("string" :: ctx)
@@ -57,7 +67,12 @@ object Assertions extends Expectations.Helpers {
           ensureEqual(tpe(a), tpe(b))(ctx)
       }
 
-    def compareStruct(lhs: Struct[Id], rhs: Struct[Id])(ctx: List[String]): Expectations =
+    def compareStruct(
+      lhs: Struct[Id],
+      rhs: Struct[Id],
+    )(
+      ctx: List[String]
+    ): Expectations =
       ensureEqual(
         lhs.fields.size,
         lhs.fields.keySet(identity).size,

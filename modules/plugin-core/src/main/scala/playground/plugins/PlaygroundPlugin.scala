@@ -16,7 +16,9 @@ trait PlaygroundPlugin {
 
 object PlaygroundPlugin {
 
-  def getAllPlugins(loader: ClassLoader): List[PlaygroundPlugin] =
+  def getAllPlugins(
+    loader: ClassLoader
+  ): List[PlaygroundPlugin] =
     ServiceLoader
       .load(
         classOf[PlaygroundPlugin],
@@ -40,7 +42,9 @@ trait SimpleHttpBuilder {
 
 object SimpleHttpBuilder {
 
-  def fromSimpleProtocolBuilder(builder: SimpleProtocolBuilder[_]): SimpleHttpBuilder =
+  def fromSimpleProtocolBuilder(
+    builder: SimpleProtocolBuilder[_]
+  ): SimpleHttpBuilder =
     new SimpleHttpBuilder {
 
       def client[Alg[_[_, _, _, _, _]], F[_]: Concurrent](

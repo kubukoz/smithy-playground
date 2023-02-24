@@ -5,7 +5,12 @@ import cats.implicits._
 import weaver._
 
 object IorUtilsTests extends FunSuite {
-  case class Case(lhs: Ior[Int, String], rhs: Ior[Int, String], expected: Ior[Int, String])
+
+  case class Case(
+    lhs: Ior[Int, String],
+    rhs: Ior[Int, String],
+    expected: Ior[Int, String],
+  )
 
   List(
     Case(10.leftIor, 15.leftIor, 25.leftIor),

@@ -255,7 +255,9 @@ object LanguageServerIntegrationTestSharedServer
           .routes(
             new WeatherService[IO] {
 
-              def getWeather(city: String): IO[GetWeatherOutput] = IO.pure(
+              def getWeather(
+                city: String
+              ): IO[GetWeatherOutput] = IO.pure(
                 GetWeatherOutput(Weather.GoodCase(GoodWeather(reallyGood = Some(true))))
               )
 

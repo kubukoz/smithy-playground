@@ -18,8 +18,15 @@ import Assertions._
 import ServiceIndex.ServiceMetadata
 
 object MultiServiceResolverTests extends FunSuite {
-  private def mkIndex(servicesToOps: (QualifiedIdentifier, Set[OperationName[Id]])*): ServiceIndex =
-    ServiceIndex.fromMappings(servicesToOps.map(_.map(ServiceMetadata(_, deprecated = None))).toMap)
+
+  private def mkIndex(
+    servicesToOps: (
+      QualifiedIdentifier,
+      Set[OperationName[Id]],
+    )*
+  ): ServiceIndex = ServiceIndex.fromMappings(
+    servicesToOps.map(_.map(ServiceMetadata(_, deprecated = None))).toMap
+  )
 
   private def resolveService(
     operationNameSource: String,

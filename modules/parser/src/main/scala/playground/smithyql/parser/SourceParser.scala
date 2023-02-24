@@ -11,13 +11,22 @@ import cats.parse.Parser0
 import playground.smithyql._
 
 trait SourceParser[Alg[_[_]]] {
-  def parse(s: String): Either[ParsingFailure, Alg[WithSource]]
-  def map[Alg2[_[_]]](f: Alg[WithSource] => Alg2[WithSource]): SourceParser[Alg2] = parse(_).map(f)
+
+  def parse(
+    s: String
+  ): Either[ParsingFailure, Alg[WithSource]]
+
+  def map[Alg2[_[_]]](
+    f: Alg[WithSource] => Alg2[WithSource]
+  ): SourceParser[Alg2] = parse(_).map(f)
+
 }
 
 object SourceParser {
 
-  def apply[Alg[_[_]]](implicit F: SourceParser[Alg]): SourceParser[Alg] = F
+  def apply[Alg[_[_]]](
+    implicit F: SourceParser[Alg]
+  ): SourceParser[Alg] = F
 
   def fromCatsParseParser[Alg[_[_]]](
     parser: Parser0[Alg[WithSource]]
@@ -51,11 +60,17 @@ object SourceParser {
 
 }
 
-case class ParsingFailure(underlying: Parser.Error, text: String) extends Exception {
+case class ParsingFailure(
+  underlying: Parser.Error,
+  text: String,
+) extends Exception {
 
   override def getMessage: String = msg
 
-  private def showExpectation(verbose: Boolean, e: Parser.Expectation): String =
+  private def showExpectation(
+    verbose: Boolean,
+    e: Parser.Expectation,
+  ): String =
     e match {
       case OneOfStr(_, List(str))             => prep(str)
       case OneOfStr(_, strs)                  => strs.map(prep).mkString_(" OR ")
@@ -71,14 +86,20 @@ case class ParsingFailure(underlying: Parser.Error, text: String) extends Except
       case e                          => e.toString
     }
 
-  def expectationString(verbose: Boolean): String = underlying
+  def expectationString(
+    verbose: Boolean
+  ): String = underlying
     .expected
     .map(showExpectation(verbose, _))
     .mkString_(" OR ")
 
-  private def prep(s: String): String = s.replace(' ', '·').replace("\n", "⏎\n")
+  private def prep(
+    s: String
+  ): String = s.replace(' ', '·').replace("\n", "⏎\n")
 
-  private def messageInternal(verbose: Boolean): String = {
+  private def messageInternal(
+    verbose: Boolean
+  ): String = {
     val (valid, failed) = text.splitAt(
       underlying.failedAtOffset
     )

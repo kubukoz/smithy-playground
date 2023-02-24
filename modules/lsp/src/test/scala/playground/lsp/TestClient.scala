@@ -11,20 +11,37 @@ import org.eclipse.lsp4j.MessageType
 trait TestClient[F[_]] extends LanguageClient[F] {
   def getEvents: F[List[TestClient.Event]]
   def scoped: F ~> F
-  def withConfiguration(v: ConfigurationValue.Applied[_]*): F ~> F
+
+  def withConfiguration(
+    v: ConfigurationValue.Applied[_]*
+  ): F ~> F
+
 }
 
 object TestClient {
   sealed trait Event
-  case class MessageLog(tpe: MessageType, msg: String) extends Event
+
+  case class MessageLog(
+    tpe: MessageType,
+    msg: String,
+  ) extends Event
+
   case object OutputPanelShow extends Event
   case object RefreshCodeLenses extends Event
   case object RefreshDiagnostics extends Event
-  case class OutputLog(text: String) extends Event
 
-  final case class State(log: Chain[Event], configuration: Map[String, Json]) {
+  case class OutputLog(
+    text: String
+  ) extends Event
 
-    def addConfig(values: ConfigurationValue.Applied[_]*): State = copy(configuration =
+  final case class State(
+    log: Chain[Event],
+    configuration: Map[String, Json],
+  ) {
+
+    def addConfig(
+      values: ConfigurationValue.Applied[_]*
+    ): State = copy(configuration =
       configuration ++ values.map { v =>
         v.cv.key -> v.encoded
       }
@@ -38,7 +55,9 @@ object TestClient {
     )
   ).map { state =>
     new TestClient[IO] {
-      private def append(events: Event*): IO[Unit] = state.update { s =>
+      private def append(
+        events: Event*
+      ): IO[Unit] = state.update { s =>
         s.copy(log = s.log.concat(Chain.fromSeq(events)))
       }
 
@@ -49,7 +68,9 @@ object TestClient {
 
       def showOutputPanel: IO[Unit] = show("showing output panel") *> append(OutputPanelShow)
 
-      def logOutput(msg: String): IO[Unit] = show(s"logging output: $msg") *> append(OutputLog(msg))
+      def logOutput(
+        msg: String
+      ): IO[Unit] = show(s"logging output: $msg") *> append(OutputLog(msg))
 
       def configuration[A](
         v: ConfigurationValue[A]
@@ -58,7 +79,10 @@ object TestClient {
         .flatMap(_.configuration.get(v.key).liftTo[IO](new Throwable(s"key not found: ${v.key}")))
         .flatMap(_.as[A](v.codec).liftTo[IO])
 
-      def showMessage(tpe: MessageType, msg: String): IO[Unit] = {
+      def showMessage(
+        tpe: MessageType,
+        msg: String,
+      ): IO[Unit] = {
         val color =
           tpe match {
             case MessageType.Error   => Console.MAGENTA
@@ -82,12 +106,18 @@ object TestClient {
 
       def scoped: IO ~> IO =
         new (IO ~> IO) {
-          def apply[A](fa: IO[A]): IO[A] = state.getAndReset.bracket(_ => fa)(state.set)
+          def apply[A](
+            fa: IO[A]
+          ): IO[A] = state.getAndReset.bracket(_ => fa)(state.set)
         }
 
-      def withConfiguration(v: ConfigurationValue.Applied[_]*): IO ~> IO =
+      def withConfiguration(
+        v: ConfigurationValue.Applied[_]*
+      ): IO ~> IO =
         new (IO ~> IO) {
-          def apply[T](fa: IO[T]): IO[T] =
+          def apply[T](
+            fa: IO[T]
+          ): IO[T] =
             state
               .modify { old =>
                 (

@@ -25,7 +25,10 @@ object ModelLoader {
     specs: Set[File],
     dependencies: List[String],
     repositories: List[String],
-  ): (ClassLoader, Model) = {
+  ): (
+    ClassLoader,
+    Model,
+  ) = {
 
     val dependencyJars = resolveDependencies(dependencies, repositories)
 
@@ -45,7 +48,9 @@ object ModelLoader {
     )
   }
 
-  private def addModelsFromJars(jarFiles: Iterable[File]): ModelAssembler => ModelAssembler =
+  private def addModelsFromJars(
+    jarFiles: Iterable[File]
+  ): ModelAssembler => ModelAssembler =
     assembler => {
       val modelsInJars = jarFiles.flatMap { file =>
         val manifestUrl = ModelDiscovery.createSmithyJarManifestUrl(file.getAbsolutePath())
@@ -59,7 +64,9 @@ object ModelLoader {
       assembler
     }
 
-  private def addFileImports(imports: Iterable[File]): ModelAssembler => ModelAssembler =
+  private def addFileImports(
+    imports: Iterable[File]
+  ): ModelAssembler => ModelAssembler =
     assembler => {
       imports.foreach(f => assembler.addImport(f.toPath()))
       assembler

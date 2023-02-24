@@ -43,7 +43,11 @@ import smithy4s.schema.SchemaVisitor
 import java.util.UUID
 
 trait CompletionResolver[+A] {
-  def getCompletions(ctx: NodeContext): List[CompletionItem]
+
+  def getCompletions(
+    ctx: NodeContext
+  ): List[CompletionItem]
+
   def retag[B]: CompletionResolver[B] = getCompletions(_)
 }
 
@@ -68,15 +72,31 @@ final case class CompletionItem(
 sealed trait TextEdit extends Product with Serializable
 
 object TextEdit {
-  final case class Insert(text: String, pos: Position) extends TextEdit
-  final case class Overwrite(text: String, range: SourceRange) extends TextEdit
+
+  final case class Insert(
+    text: String,
+    pos: Position,
+  ) extends TextEdit
+
+  final case class Overwrite(
+    text: String,
+    range: SourceRange,
+  ) extends TextEdit
+
 }
 
 sealed trait InsertText extends Product with Serializable
 
 object InsertText {
-  final case class JustString(value: String) extends InsertText
-  final case class SnippetString(value: String) extends InsertText
+
+  final case class JustString(
+    value: String
+  ) extends InsertText
+
+  final case class SnippetString(
+    value: String
+  ) extends InsertText
+
 }
 
 object CompletionItem {
@@ -148,7 +168,10 @@ object CompletionItem {
     )
   }
 
-  def describeType(isField: Boolean, schema: Schema[_]): String = {
+  def describeType(
+    isField: Boolean,
+    schema: Schema[_],
+  ): String = {
     val isOptional = isField && schema.hints.get(smithy.api.Required).isEmpty
 
     val optionalPrefix =
@@ -192,11 +215,15 @@ object CompletionItem {
     }
   }
 
-  def describeService(service: DynamicSchemaIndex.ServiceWrapper): String =
-    s": service ${ServiceNameExtractor.fromService(service.service).selection}"
+  def describeService(
+    service: DynamicSchemaIndex.ServiceWrapper
+  ): String = s": service ${ServiceNameExtractor.fromService(service.service).selection}"
 
   // nice to have: precompile this? caching?
-  def describeSchema(schema: Schema[_]): () => String =
+  def describeSchema(
+    schema: Schema[_]
+  ): (
+  ) => String =
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
 
@@ -222,7 +249,12 @@ object CompletionItem {
       case BijectionSchema(underlying, _) => describeSchema(underlying)
     }
 
-  private def now(s: String): () => String = () => s
+  private def now(
+    s: String
+  ): (
+  ) => String =
+    (
+    ) => s
 
   sealed trait InsertUseClause extends Product with Serializable
 
@@ -313,7 +345,9 @@ object CompletionItem {
     )
   }
 
-  def deprecationString(info: api.Deprecated): String = {
+  def deprecationString(
+    info: api.Deprecated
+  ): String = {
     val reasonString = info.message.foldMap(": " + _)
     val sinceString = info.since.foldMap(" (since " + _ + ")")
 
@@ -364,7 +398,9 @@ object CompletionItemKind {
 object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
   private def quoteAware[A](
-    makeCompletion: (String => String) => List[CompletionItem]
+    makeCompletion: (
+      String => String
+    ) => List[CompletionItem]
   ): CompletionResolver[A] = {
     case PathEntry.Quotes ^^: Root => makeCompletion(identity)
     case Root                      => makeCompletion(TextUtils.quote)
@@ -439,7 +475,11 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       inBody = fk.getCompletions(NodeContext.Root).map { item =>
         item.asValueCompletion
       },
-      inValue = (_, t) => fv.getCompletions(t),
+      inValue =
+        (
+          _,
+          t,
+        ) => fv.getCompletions(t),
     )
   }
 
@@ -462,7 +502,10 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
   private def structLike[S](
     inBody: List[CompletionItem],
-    inValue: (String, NodeContext) => List[CompletionItem],
+    inValue: (
+      String,
+      NodeContext,
+    ) => List[CompletionItem],
   ): CompletionResolver[S] = {
     case PathEntry.StructBody ^^: Root                              => inBody
     case PathEntry.StructBody ^^: PathEntry.StructValue(h) ^^: rest => inValue(h, rest)
@@ -485,7 +528,10 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
           .map(CompletionItem.fromField.tupled)
           .toList,
       inValue =
-        (h, rest) =>
+        (
+          h,
+          rest,
+        ) =>
           compiledFields
             .collectFirst {
               case (field, _) if field.label === h => field
@@ -507,13 +553,17 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     structLike(
       inBody = allWithIds.map(CompletionItem.fromAlt.tupled).toList,
       inValue =
-        (head, tail) =>
-          allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
+        (
+          head,
+          tail,
+        ) => allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
     )
   }
 
-  override def biject[A, B](schema: Schema[A], bijection: Bijection[A, B]): CompletionResolver[B] =
-    schema.compile(this).retag
+  override def biject[A, B](
+    schema: Schema[A],
+    bijection: Bijection[A, B],
+  ): CompletionResolver[B] = schema.compile(this).retag
 
   override def refine[A, B](
     schema: Schema[A],
@@ -521,7 +571,9 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   ): CompletionResolver[B] = schema.compile(this).retag
 
   // might need some testing
-  override def lazily[A](suspend: Lazy[Schema[A]]): CompletionResolver[A] = {
+  override def lazily[A](
+    suspend: Lazy[Schema[A]]
+  ): CompletionResolver[A] = {
     val underlying = suspend.map(_.compile(this))
 
     underlying.value.getCompletions(_)
