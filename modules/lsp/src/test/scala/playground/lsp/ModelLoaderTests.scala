@@ -34,7 +34,7 @@ object ModelLoaderTests extends FunSuite {
     val result = ModelLoader
       .loadUnsafe(
         specs = Set.empty,
-        dependencies = List("com.disneystreaming.alloy:alloy-core:0.1.11"),
+        dependencies = List("com.disneystreaming.alloy:alloy-core:0.1.13"),
         repositories = Nil,
       )
       ._2
