@@ -1,12 +1,13 @@
 package playground.lsp
 
-// fork of smithy4s's ModelLoader
-
+import cats.implicits._
 import coursier._
 import coursier.cache.FileCache
 import coursier.parse.DependencyParser
 import coursier.parse.RepositoryParser
 import coursier.util.Task
+import fs2.io.file.Path
+import playground.BuildConfig
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
@@ -15,38 +16,43 @@ import software.amazon.smithy.model.loader.ModelManifestException
 
 import java.io.File
 import java.net.URLClassLoader
+import java.nio.file.Paths
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
 object ModelLoader {
 
-  def loadUnsafe(
-    specs: Set[File],
-    dependencies: List[String],
-    repositories: List[String],
-  ): (
-    ClassLoader,
-    Model,
-  ) = {
+  def makeClassLoaderUnsafe(
+    buildConfig: BuildConfig
+  ): URLClassLoader = {
+    val dependencies =
+      buildConfig.mavenDependencies ++
+        buildConfig.maven.foldMap(_.dependencies)
+
+    val repositories =
+      buildConfig.mavenRepositories ++
+        buildConfig.maven.foldMap(_.repositories).map(_.url)
 
     val dependencyJars = resolveDependencies(dependencies, repositories)
 
-    val modelAssembler: ModelAssembler = Model
-      .assembler()
-      .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
-      .pipe(addModelsFromJars(dependencyJars))
-      .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
-      .pipe(addFileImports(specs))
-
-    (
-      new URLClassLoader(
-        dependencyJars.map(_.toURI().toURL()).toArray,
-        getClass().getClassLoader(),
-      ),
-      modelAssembler.assemble().unwrap(),
+    new URLClassLoader(
+      dependencyJars.map(_.toURI().toURL()).toArray,
+      getClass().getClassLoader(),
     )
   }
+
+  def load(
+    specs: Set[File],
+    classLoader: URLClassLoader,
+  ): Model = Model
+    .assembler()
+    .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
+    .pipe(addModelsFromJars(classLoader.getURLs().map(_.toURI()).map(Paths.get(_).toFile())))
+    .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
+    .pipe(addFileImports(specs))
+    .assemble()
+    .unwrap()
 
   private def addModelsFromJars(
     jarFiles: Iterable[File]

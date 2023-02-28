@@ -8,19 +8,8 @@ import playground.plugins.PlaygroundPlugin
 trait PluginResolver[F[_]] {
 
   def resolve(
-    artifacts: List[String],
-    repositories: List[String],
-  ): F[List[PlaygroundPlugin]]
-
-  def resolveFromConfig(
     config: BuildConfig
-  ): F[List[PlaygroundPlugin]] = resolve(
-    config.mavenDependencies ++ config.maven.foldMap(_.dependencies) ++
-      config
-        .smithyPlayground
-        .foldMap(_.extensions),
-    config.mavenRepositories ++ config.maven.foldMap(_.repositories).map(_.url),
-  )
+  ): F[List[PlaygroundPlugin]]
 
 }
 
@@ -34,18 +23,9 @@ object PluginResolver {
     new PluginResolver[F] {
 
       def resolve(
-        artifacts: List[String],
-        repositories: List[String],
+        config: BuildConfig
       ): F[List[PlaygroundPlugin]] = Sync[F]
-        .interruptibleMany(
-          ModelLoader
-            .loadUnsafe(
-              specs = Set.empty,
-              dependencies = artifacts,
-              repositories = repositories,
-            )
-            ._1
-        )
+        .interruptibleMany(ModelLoader.makeClassLoaderUnsafe(config))
         .map(PlaygroundPlugin.getAllPlugins(_))
 
     }

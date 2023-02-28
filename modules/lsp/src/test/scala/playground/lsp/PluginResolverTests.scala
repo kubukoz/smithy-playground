@@ -1,13 +1,14 @@
 package playground.lsp
 
 import cats.effect.IO
+import playground.BuildConfig
 import weaver._
 
 object PluginResolverTests extends SimpleIOSuite {
   test("Empty plugin resolver finds no plugins") {
     PluginResolver
       .instance[IO]
-      .resolve(artifacts = Nil, repositories = Nil)
+      .resolve(BuildConfig(mavenDependencies = Nil, mavenRepositories = Nil))
       .map(assert.same(_, Nil))
   }
 
@@ -15,10 +16,12 @@ object PluginResolverTests extends SimpleIOSuite {
     PluginResolver
       .instance[IO]
       .resolve(
-        artifacts = List(
-          "com.kubukoz.playground::plugin-sample:latest.integration"
-        ),
-        repositories = Nil,
+        BuildConfig(
+          mavenDependencies = List(
+            "com.kubukoz.playground::plugin-sample:latest.integration"
+          ),
+          mavenRepositories = Nil,
+        )
       )
       .map(_.map(_.getClass().getName()))
       .map(assert.same(_, List("playground.sample.SamplePlaygroundPlugin")))

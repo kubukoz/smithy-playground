@@ -1,5 +1,6 @@
 package playground.lsp
 
+import playground.BuildConfig
 import software.amazon.smithy.model.shapes.ShapeId
 import weaver._
 
@@ -32,21 +33,26 @@ object ModelLoaderTests extends FunSuite {
   test("Loader with dependencies can see external shapes") {
     val shapeId = ShapeId.from("alloy#UUID")
     val result = ModelLoader
-      .loadUnsafe(
+      .load(
         specs = Set.empty,
-        dependencies = List("com.disneystreaming.alloy:alloy-core:0.1.13"),
-        repositories = Nil,
+        ModelLoader.makeClassLoaderUnsafe(
+          BuildConfig(
+            mavenDependencies = List("com.disneystreaming.alloy:alloy-core:0.1.13"),
+            mavenRepositories = Nil,
+          )
+        ),
       )
-      ._2
       .expectShape(shapeId)
 
     assert.same(result.getId(), shapeId)
   }
 
   private def loadModelEmpty(
-  ) =
-    ModelLoader
-      .loadUnsafe(specs = Set.empty, dependencies = Nil, repositories = Nil)
-      ._2
+  ) = ModelLoader
+    .load(
+      specs = Set.empty,
+      classLoader = ModelLoader
+        .makeClassLoaderUnsafe(BuildConfig()),
+    )
 
 }
