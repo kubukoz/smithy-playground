@@ -65,7 +65,7 @@ object ServerBuilder {
       ): F[LanguageServer[F]] =
         for {
           dsi <- BuildLoader[F].buildSchemaIndex(buildInfo)
-          plugins <- PluginResolver[F].resolveFromConfig(buildInfo.config)
+          plugins <- PluginResolver[F].resolve(buildInfo.config)
           rep <- CommandResultReporter.instance[F]
         } yield {
           val runners = OperationRunner
