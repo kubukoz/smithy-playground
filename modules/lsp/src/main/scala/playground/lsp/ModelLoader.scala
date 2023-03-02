@@ -41,6 +41,23 @@ object ModelLoader {
     )
   }
 
+  def makeClassLoaderForPluginsUnsafe(
+    buildConfig: BuildConfig
+  ): URLClassLoader = {
+    val dependencies = buildConfig.smithyPlayground.foldMap(_.extensions)
+
+    val repositories =
+      buildConfig.mavenRepositories ++
+        buildConfig.maven.foldMap(_.repositories).map(_.url)
+
+    val dependencyJars = resolveDependencies(dependencies, repositories)
+
+    new URLClassLoader(
+      dependencyJars.map(_.toURI().toURL()).toArray,
+      getClass().getClassLoader(),
+    )
+  }
+
   def load(
     specs: Set[File],
     classLoader: URLClassLoader,
