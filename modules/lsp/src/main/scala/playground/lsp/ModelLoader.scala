@@ -24,39 +24,31 @@ object ModelLoader {
 
   def makeClassLoaderUnsafe(
     buildConfig: BuildConfig
-  ): URLClassLoader = {
-    val dependencies =
-      buildConfig.mavenDependencies ++
-        buildConfig.maven.foldMap(_.dependencies)
-
-    val repositories =
-      buildConfig.mavenRepositories ++
-        buildConfig.maven.foldMap(_.repositories).map(_.url)
-
-    val dependencyJars = resolveDependencies(dependencies, repositories)
-
-    new URLClassLoader(
-      dependencyJars.map(_.toURI().toURL()).toArray,
-      getClass().getClassLoader(),
+  ): URLClassLoader = makeClassLoaderForJars(
+    resolveDependencies(
+      dependencies = buildConfig.mavenDependencies ++ buildConfig.maven.foldMap(_.dependencies),
+      repositories =
+        buildConfig.mavenRepositories ++ buildConfig.maven.foldMap(_.repositories).map(_.url),
     )
-  }
+  )
 
   def makeClassLoaderForPluginsUnsafe(
     buildConfig: BuildConfig
-  ): URLClassLoader = {
-    val dependencies = buildConfig.smithyPlayground.foldMap(_.extensions)
+  ): URLClassLoader = makeClassLoaderForJars(
+    resolveDependencies(
+      dependencies = buildConfig.smithyPlayground.foldMap(_.extensions),
+      repositories =
+        buildConfig.mavenRepositories ++ buildConfig.maven.foldMap(_.repositories).map(_.url),
+    )
+  )
 
-    val repositories =
-      buildConfig.mavenRepositories ++
-        buildConfig.maven.foldMap(_.repositories).map(_.url)
-
-    val dependencyJars = resolveDependencies(dependencies, repositories)
-
+  private def makeClassLoaderForJars(
+    jars: List[File]
+  ): URLClassLoader =
     new URLClassLoader(
-      dependencyJars.map(_.toURI().toURL()).toArray,
+      jars.map(_.toURI().toURL()).toArray,
       getClass().getClassLoader(),
     )
-  }
 
   def load(
     specs: Set[File],
