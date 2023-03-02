@@ -10,14 +10,10 @@ import playground.BuildConfig
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
-import software.amazon.smithy.model.loader.ModelDiscovery
-import software.amazon.smithy.model.loader.ModelManifestException
 
 import java.io.File
 import java.net.URLClassLoader
-import java.nio.file.Paths
 import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
 object ModelLoader {
@@ -29,7 +25,8 @@ object ModelLoader {
       dependencies = buildConfig.mavenDependencies ++ buildConfig.maven.foldMap(_.dependencies),
       repositories =
         buildConfig.mavenRepositories ++ buildConfig.maven.foldMap(_.repositories).map(_.url),
-    )
+    ),
+    isolated = true,
   )
 
   def makeClassLoaderForPluginsUnsafe(
@@ -39,15 +36,20 @@ object ModelLoader {
       dependencies = buildConfig.smithyPlayground.foldMap(_.extensions),
       repositories =
         buildConfig.mavenRepositories ++ buildConfig.maven.foldMap(_.repositories).map(_.url),
-    )
+    ),
+    isolated = false,
   )
 
   private def makeClassLoaderForJars(
-    jars: List[File]
+    jars: List[File],
+    isolated: Boolean,
   ): URLClassLoader =
     new URLClassLoader(
       jars.map(_.toURI().toURL()).toArray,
-      getClass().getClassLoader(),
+      if (isolated)
+        null
+      else
+        this.getClass().getClassLoader(),
     )
 
   def load(
@@ -56,27 +58,11 @@ object ModelLoader {
   ): Model = Model
     .assembler()
     .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
-    .pipe(addModelsFromJars(classLoader.getURLs().map(_.toURI()).map(Paths.get(_).toFile())))
+    .discoverModels(classLoader)
     .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
     .pipe(addFileImports(specs))
     .assemble()
     .unwrap()
-
-  private def addModelsFromJars(
-    jarFiles: Iterable[File]
-  ): ModelAssembler => ModelAssembler =
-    assembler => {
-      val modelsInJars = jarFiles.flatMap { file =>
-        val manifestUrl = ModelDiscovery.createSmithyJarManifestUrl(file.getAbsolutePath())
-        try ModelDiscovery.findModels(manifestUrl).asScala
-        catch {
-          case _: ModelManifestException => Nil
-        }
-      }
-
-      modelsInJars.foreach(assembler.addImport)
-      assembler
-    }
 
   private def addFileImports(
     imports: Iterable[File]
