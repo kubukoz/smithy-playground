@@ -6,17 +6,14 @@ import coursier.cache.FileCache
 import coursier.parse.DependencyParser
 import coursier.parse.RepositoryParser
 import coursier.util.Task
-import fs2.io.file.Path
 import playground.BuildConfig
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
 import software.amazon.smithy.model.loader.ModelDiscovery
-import software.amazon.smithy.model.loader.ModelManifestException
 
 import java.io.File
 import java.net.URLClassLoader
-import java.nio.file.Paths
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
@@ -25,7 +22,7 @@ object ModelLoader {
 
   def makeClassLoaderUnsafe(
     buildConfig: BuildConfig
-  ): URLClassLoader = {
+  ): ClassLoader = {
     val dependencies =
       buildConfig.mavenDependencies ++
         buildConfig.maven.foldMap(_.dependencies)
@@ -44,27 +41,24 @@ object ModelLoader {
 
   def load(
     specs: Set[File],
-    classLoader: URLClassLoader,
+    classLoader: ClassLoader,
   ): Model = Model
     .assembler()
     .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
-    .pipe(addModelsFromJars(classLoader.getURLs().map(_.toURI()).map(Paths.get(_).toFile())))
+    .pipe(addModelsFromJars(classLoader))
     .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
     .pipe(addFileImports(specs))
     .assemble()
     .unwrap()
 
   private def addModelsFromJars(
-    jarFiles: Iterable[File]
+    classLoader: ClassLoader
   ): ModelAssembler => ModelAssembler =
     assembler => {
-      val modelsInJars = jarFiles.flatMap { file =>
-        val manifestUrl = ModelDiscovery.createSmithyJarManifestUrl(file.getAbsolutePath())
-        try ModelDiscovery.findModels(manifestUrl).asScala
-        catch {
-          case _: ModelManifestException => Nil
-        }
-      }
+      val modelsInJars =
+        ModelDiscovery
+          .findModels(classLoader)
+          .asScala
 
       modelsInJars.foreach(assembler.addImport)
       assembler
