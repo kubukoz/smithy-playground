@@ -4,6 +4,7 @@ import playground.BuildConfig
 import software.amazon.smithy.model.shapes.ShapeId
 import weaver._
 
+import java.util.stream.Collectors
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 
@@ -24,7 +25,7 @@ object ModelLoaderTests extends FunSuite {
     val result =
       loadModelEmpty()
         .shapes()
-        .toList()
+        .collect(Collectors.toList())
         .asScala
         .map(_.getId().getNamespace())
         .toSet
