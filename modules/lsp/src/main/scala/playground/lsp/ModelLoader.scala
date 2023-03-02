@@ -6,7 +6,6 @@ import coursier.cache.FileCache
 import coursier.parse.DependencyParser
 import coursier.parse.RepositoryParser
 import coursier.util.Task
-import fs2.io.file.Path
 import playground.BuildConfig
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
