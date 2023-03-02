@@ -20,6 +20,18 @@ object ModelLoaderTests extends FunSuite {
     assert.eql(result.map(_.getName()), Set("Random", "Clock"))
   }
 
+  test("Empty loader can only see smithy.api and playground.std namespaces") {
+    val result =
+      loadModelEmpty()
+        .shapes()
+        .toList()
+        .asScala
+        .map(_.getId().getNamespace())
+        .toSet
+
+    assert.same(result, Set("smithy.api", "playground.std"))
+  }
+
   test("Empty loader cannot see alloy without a dependency") {
     val shapeId = ShapeId.from("alloy#UUID")
     val result =
