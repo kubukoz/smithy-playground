@@ -50,7 +50,7 @@ object ModelLoaderTests extends FunSuite {
         specs = Set.empty,
         ModelLoader.makeClassLoaderUnsafe(
           BuildConfig(
-            mavenDependencies = List("com.disneystreaming.alloy:alloy-core:0.1.13"),
+            mavenDependencies = List("com.disneystreaming.alloy:alloy-core:0.1.14"),
             mavenRepositories = Nil,
           )
         ),
