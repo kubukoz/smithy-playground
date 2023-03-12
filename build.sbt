@@ -58,7 +58,7 @@ val commonSettings = Seq(
   scalacOptions += "-Wnonunit-statement",
   scalacOptions ++= Seq("-Xsource:3.0"),
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
-  javacOptions ++= Seq("-source", "11", "-target", "11"),
+  scalacOptions ++= Seq("-release", "11"),
   mimaFailOnNoPrevious := false,
 )
 
@@ -97,8 +97,8 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "0.3.9",
-      "io.circe" %% "circe-generic" % "0.14.4" % Test,
-      "io.circe" %% "circe-parser" % "0.14.4" % Test,
+      "io.circe" %% "circe-generic" % "0.14.5" % Test,
+      "io.circe" %% "circe-parser" % "0.14.5" % Test,
       "co.fs2" %% "fs2-io" % "3.6.1" % Test,
     )
   )
@@ -131,7 +131,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.1.13" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.28.0" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.28.1" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
@@ -153,7 +153,7 @@ lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.20.1",
-      "io.circe" %% "circe-core" % "0.14.4",
+      "io.circe" %% "circe-core" % "0.14.5",
       "org.http4s" %% "http4s-ember-client" % "0.23.18",
       "org.http4s" %% "http4s-ember-server" % "0.23.18" % Test,
       "io.get-coursier" %% "coursier" % "2.1.0-RC6",
