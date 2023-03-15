@@ -29,12 +29,16 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 30
     steps:
+
     - uses: actions/checkout@v3.3.0
+
     - uses: cachix/install-nix-action@v20
+
     - uses: cachix/cachix-action@v12
       with:
         name: kubukoz
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
     - name: Cache sbt
       uses: actions/cache@v3.2.6
       with:
@@ -47,19 +51,26 @@ jobs:
           ~/AppData/Local/Coursier/Cache/v1
           ~/Library/Caches/Coursier/v1
         key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+    # This step isn't strictly necessary, but separating it means we can inspect its run time more easily.
+    - name: Setup environment
+      run: nix develop --command echo Environment ready
+
     - name: Server tests
       run: nix develop --command sbt ci
+
     - name: VS Code extension tests
       run: nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'
+
     - name: Show extension test logs
       if: job.status == 'failure'
       run: cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000
-    -
-      name: release
+
+    - name: release
       if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
       run: nix develop --command sbt ci-release
-    -
-      name: release plugin
+
+    - name: release plugin
       if: github.event.inputs.publishExtension
       run: nix develop --command ./release-plugin.sh
       env:
