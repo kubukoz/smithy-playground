@@ -147,6 +147,13 @@ object CompletionItem {
   ): CompletionItem = {
     val isField = kind == CompletionItemKind.Field
 
+    val sortText =
+      isField match {
+        case true if isRequiredField(schema) => Some(s"1_$label")
+        case true                            => Some(s"2_$label")
+        case false                           => None
+      }
+
     CompletionItem(
       kind = kind,
       label = label,
@@ -162,7 +169,7 @@ object CompletionItem {
         isField,
       ),
       extraTextEdits = Nil,
-      sortText = None,
+      sortText = sortText,
     )
   }
 
@@ -170,7 +177,7 @@ object CompletionItem {
     isField: Boolean,
     schema: Schema[_],
   ): String = {
-    val isOptional = isField && !schema.hints.has(smithy.api.Required)
+    val isOptional = isField && !isRequiredField(schema)
 
     val optionalPrefix =
       if (isOptional)
@@ -179,6 +186,10 @@ object CompletionItem {
         ""
     show"$optionalPrefix: ${describeSchema(schema)()}"
   }
+
+  private def isRequiredField(
+    schema: Schema[_]
+  ): Boolean = schema.hints.has(smithy.api.Required)
 
   private val describePrimitive: Primitive[_] => String = {
     import smithy4s.schema.Primitive._

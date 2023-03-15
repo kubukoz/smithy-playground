@@ -29,10 +29,11 @@ object CompletionItemTests extends FunSuite {
         deprecated = false,
         docs = None,
         extraTextEdits = Nil,
-        sortText = None,
+        sortText = Some("1_test"),
       ),
     )
   }
+
   test("CompletionItem.fromField: optional field") {
     val result = CompletionItem.fromField(
       Schema.string.optional[Option[String]]("test", identity(_))
@@ -49,7 +50,7 @@ object CompletionItemTests extends FunSuite {
         deprecated = false,
         docs = Some("**Optional**"),
         extraTextEdits = Nil,
-        sortText = None,
+        sortText = Some("2_test"),
       ),
     )
   }
