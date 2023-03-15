@@ -13,6 +13,47 @@ import weaver._
 import Diffs._
 
 object CompletionItemTests extends FunSuite {
+  test("CompletionItem.fromField: required field") {
+    val result = CompletionItem.fromField(
+      Schema.string.required[String]("test", identity(_)).addHints(smithy.api.Required())
+    )
+
+    assertNoDiff(
+      result,
+      CompletionItem(
+        kind = CompletionItemKind.Field,
+        label = "test",
+        insertText = InsertText.JustString("test: "),
+        detail = ": string String",
+        description = Some("smithy.api"),
+        deprecated = false,
+        docs = None,
+        extraTextEdits = Nil,
+        sortText = None,
+      ),
+    )
+  }
+  test("CompletionItem.fromField: optional field") {
+    val result = CompletionItem.fromField(
+      Schema.string.optional[Option[String]]("test", identity(_))
+    )
+
+    assertNoDiff(
+      result,
+      CompletionItem(
+        kind = CompletionItemKind.Field,
+        label = "test",
+        insertText = InsertText.JustString("test: "),
+        detail = "?: string String",
+        description = Some("smithy.api"),
+        deprecated = false,
+        docs = Some("**Optional**"),
+        extraTextEdits = Nil,
+        sortText = None,
+      ),
+    )
+  }
+
   test("CompletionItem.forOperation: no use clause") {
     val result = CompletionItem.forOperation(
       insertUseClause = CompletionItem.InsertUseClause.NotRequired,
@@ -93,8 +134,7 @@ object CompletionItemTests extends FunSuite {
 
   test("CompletionItem.fromAlt: struct item") {
     val result = CompletionItem.fromAlt(
-      Hero.GoodCase.alt.mapK(CompletionVisitor),
-      Hero.GoodCase.schema,
+      Hero.GoodCase.alt
     )
 
     assertNoDiff(
@@ -117,8 +157,7 @@ object CompletionItemTests extends FunSuite {
 
   test("CompletionItem.fromAlt: non-struct item") {
     val result = CompletionItem.fromAlt(
-      Hero.GoodCase.alt.mapK(CompletionVisitor),
-      Schema.string,
+      Schema.string.oneOf[String]("good")
     )
 
     assertNoDiff(

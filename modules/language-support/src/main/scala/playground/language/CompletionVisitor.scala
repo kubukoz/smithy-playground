@@ -114,31 +114,29 @@ object CompletionItem {
   ).copy(detail = describeService(service))
 
   def fromField(
-    field: Field[CompletionResolver, _, _],
-    schema: Schema[_],
+    field: Field[Schema, _, _]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.Field,
     label = field.label,
     insertText = InsertText.JustString(s"${field.label}: "),
-    schema = schema,
+    schema = field.instance,
   )
 
   def fromAlt(
-    alt: Alt[CompletionResolver, _, _],
-    schema: Schema[_],
+    alt: Alt[Schema, _, _]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
     // needs proper completions for the inner schema
     // https://github.com/kubukoz/smithy-playground/pull/120
     insertText =
-      if (describeSchema(schema).apply().startsWith("structure "))
+      if (describeSchema(alt.instance).apply().startsWith("structure "))
         InsertText.SnippetString(s"""${alt.label}: {
                                     |  $$0
                                     |},""".stripMargin)
       else
         InsertText.JustString(s"${alt.label}: "),
-    schema = schema,
+    alt.instance,
   )
 
   def fromHints(
@@ -172,7 +170,7 @@ object CompletionItem {
     isField: Boolean,
     schema: Schema[_],
   ): String = {
-    val isOptional = isField && schema.hints.get(smithy.api.Required).isEmpty
+    val isOptional = isField && !schema.hints.has(smithy.api.Required)
 
     val optionalPrefix =
       if (isOptional)
@@ -522,10 +520,10 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
     structLike(
       inBody =
-        compiledFields
+        fields
           // todo: filter out present fields
-          .sortBy { case (field, _) => (field.isRequired, field.label) }
-          .map(CompletionItem.fromField.tupled)
+          .sortBy(field => (field.isRequired, field.label))
+          .map(CompletionItem.fromField)
           .toList,
       inValue =
         (
@@ -551,7 +549,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     }
 
     structLike(
-      inBody = allWithIds.map(CompletionItem.fromAlt.tupled).toList,
+      inBody = alternatives.map(CompletionItem.fromAlt).toList,
       inValue =
         (
           head,
