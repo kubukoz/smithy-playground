@@ -27,10 +27,8 @@ import playground.std.StdlibRuntime
 import smithy.api.ProtocolDefinition
 import smithy4s.Service
 import smithy4s.ShapeId
-import smithy4s.aws.AwsCall
 import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
-import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.kinds._
