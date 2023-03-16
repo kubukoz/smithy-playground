@@ -10,7 +10,9 @@ import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.StringRangeUtils._
 import playground.smithyql.syntax._
 import playground.std.ClockGen
+import playground.std.ClockOperation
 import playground.std.RandomGen
+import playground.std.RandomOperation
 import weaver._
 
 object CompletionProviderTests extends SimpleIOSuite {
@@ -53,13 +55,13 @@ object CompletionProviderTests extends SimpleIOSuite {
     val expected = List(
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.Required,
-        endpoint = ClockGen.CurrentTimestamp,
+        endpoint = ClockOperation.CurrentTimestamp,
         serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
         CompletionItem.InsertBodyStruct.Yes,
       ),
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.Required,
-        endpoint = RandomGen.NextUUID,
+        endpoint = RandomOperation.NextUUID,
         serviceId = QualifiedIdentifier.fromShapeId(RandomGen.id),
         CompletionItem.InsertBodyStruct.Yes,
       ),
@@ -82,7 +84,7 @@ object CompletionProviderTests extends SimpleIOSuite {
     val expected = List(
       CompletionItem.forOperation(
         CompletionItem.InsertUseClause.NotRequired,
-        RandomGen.NextUUID,
+        RandomOperation.NextUUID,
         QualifiedIdentifier.forService(service.service),
         CompletionItem.InsertBodyStruct.No,
       )
@@ -130,13 +132,13 @@ object CompletionProviderTests extends SimpleIOSuite {
     val expected = List(
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.NotRequired,
-        endpoint = ClockGen.CurrentTimestamp,
+        endpoint = ClockOperation.CurrentTimestamp,
         serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
         CompletionItem.InsertBodyStruct.Yes,
       ),
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.Required,
-        endpoint = RandomGen.NextUUID,
+        endpoint = RandomOperation.NextUUID,
         serviceId = QualifiedIdentifier.fromShapeId(RandomGen.id),
         CompletionItem.InsertBodyStruct.Yes,
       ),
@@ -191,13 +193,13 @@ object CompletionProviderTests extends SimpleIOSuite {
     val expected = List(
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.NotRequired,
-        ClockGen.CurrentTimestamp,
+        ClockOperation.CurrentTimestamp,
         QualifiedIdentifier.forService(ClockGen),
         CompletionItem.InsertBodyStruct.Yes,
       ),
       CompletionItem.forOperation(
         insertUseClause = CompletionItem.InsertUseClause.Required,
-        RandomGen.NextUUID,
+        RandomOperation.NextUUID,
         QualifiedIdentifier.forService(RandomGen),
         CompletionItem.InsertBodyStruct.Yes,
       ),
