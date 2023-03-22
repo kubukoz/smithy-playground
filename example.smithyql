@@ -7,17 +7,16 @@ use service demo.smithy#DemoService
 //     createdAt = "2020-04-01T00:00:00Z",
 //   }
 // }
-
 CreateHero {
   hero: {
     good: // bgasdfasldf
-    {
-      howGood: 10,
-    },
+      {
+        howGood: 10,
+      },
   },
   intSet: [
-       1,
-       2,
-       1,
-    ],
+    1,
+    2,
+    1,
+  ],
 }
