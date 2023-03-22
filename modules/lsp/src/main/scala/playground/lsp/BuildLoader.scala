@@ -3,9 +3,8 @@ package playground.lsp
 import cats.effect.kernel.Sync
 import cats.implicits._
 import fs2.io.file.Path
-import playground.BuildConfig
-import playground.BuildConfigDecoder
 import playground.ModelReader
+import playground.PlaygroundConfig
 import playground.language.TextDocumentProvider
 import playground.language.Uri
 import smithy4s.dynamic.DynamicSchemaIndex
@@ -29,13 +28,13 @@ object BuildLoader {
   ): BuildLoader[F] = F
 
   case class Loaded(
-    config: BuildConfig,
+    config: PlaygroundConfig,
     configFilePath: Path,
   )
 
   object Loaded {
     // Path is irrelevant when no imports are provided.
-    val default: Loaded = Loaded(BuildConfig(), Path("/"))
+    val default: Loaded = Loaded(PlaygroundConfig.empty, Path("/"))
   }
 
   def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
@@ -79,7 +78,7 @@ object BuildLoader {
             )
           }
           .flatMap { case (fileContents, filePath) =>
-            BuildConfigDecoder
+            PlaygroundConfig
               .decode(fileContents.getBytes())
               .liftTo[F]
               .map(BuildLoader.Loaded.apply(_, filePath))
