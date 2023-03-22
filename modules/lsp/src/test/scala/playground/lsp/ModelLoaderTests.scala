@@ -1,6 +1,6 @@
 package playground.lsp
 
-import playground.BuildConfig
+import playground.PlaygroundConfig
 import software.amazon.smithy.model.shapes.ShapeId
 import weaver._
 
@@ -49,10 +49,11 @@ object ModelLoaderTests extends FunSuite {
       .load(
         specs = Set.empty,
         ModelLoader.makeClassLoaderUnsafe(
-          BuildConfig(
-            mavenDependencies = List("com.disneystreaming.alloy:alloy-core:0.1.15"),
-            mavenRepositories = Nil,
-          )
+          PlaygroundConfig
+            .empty
+            .copy(
+              dependencies = List("com.disneystreaming.alloy:alloy-core:0.1.15")
+            )
         ),
       )
       .expectShape(shapeId)
@@ -65,7 +66,7 @@ object ModelLoaderTests extends FunSuite {
     .load(
       specs = Set.empty,
       classLoader = ModelLoader
-        .makeClassLoaderUnsafe(BuildConfig()),
+        .makeClassLoaderUnsafe(PlaygroundConfig.empty),
     )
 
 }
