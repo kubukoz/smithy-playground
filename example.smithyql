@@ -1,11 +1,11 @@
 use service demo.smithy#DemoService
 
 // CreateSubscription {
-//   subscription = {
-//     id = "subscription_id",
-//     name = "name",
-//     createdAt = "2020-04-01T00:00:00Z",
-//   }
+//   subscription: {
+//     id: "subscription_id",
+//     name: "name",
+//     createdAt: "2020-04-01T00:00:00Z",
+//   },
 // }
 CreateHero {
   hero: {
