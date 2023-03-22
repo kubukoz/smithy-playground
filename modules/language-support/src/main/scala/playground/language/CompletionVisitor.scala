@@ -7,8 +7,8 @@ import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
 import playground.language.CompletionItem.InsertUseClause.Required
 import playground.smithyql.NodeContext
+import playground.smithyql.NodeContext.EmptyPath
 import playground.smithyql.NodeContext.PathEntry
-import playground.smithyql.NodeContext.Root
 import playground.smithyql.NodeContext.^^:
 import playground.smithyql.OperationName
 import playground.smithyql.Position
@@ -411,9 +411,9 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       String => String
     ) => List[CompletionItem]
   ): CompletionResolver[A] = {
-    case PathEntry.Quotes ^^: Root => makeCompletion(identity)
-    case Root                      => makeCompletion(TextUtils.quote)
-    case _                         => Nil
+    case PathEntry.Quotes ^^: EmptyPath => makeCompletion(identity)
+    case EmptyPath                      => makeCompletion(TextUtils.quote)
+    case _                              => Nil
   }
 
   override def primitive[P](
@@ -481,7 +481,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     val fv = value.compile(this)
 
     structLike(
-      inBody = fk.getCompletions(NodeContext.Root).map { item =>
+      inBody = fk.getCompletions(NodeContext.EmptyPath).map { item =>
         item.asValueCompletion
       },
       inValue =
@@ -516,7 +516,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       NodeContext,
     ) => List[CompletionItem],
   ): CompletionResolver[S] = {
-    case PathEntry.StructBody ^^: Root                              => inBody
+    case PathEntry.StructBody ^^: EmptyPath                         => inBody
     case PathEntry.StructBody ^^: PathEntry.StructValue(h) ^^: rest => inValue(h, rest)
     case _                                                          => Nil
   }

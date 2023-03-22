@@ -96,11 +96,6 @@ object NodeContext {
 
   val EmptyPath: NodeContext = Impl(Chain.nil)
 
-  // This is a bad name really, what it actually means is "empty path" or "no more path" (e.g. in extractors).
-  // refactor usages to refer to EmptyPath
-  // https://github.com/kubukoz/smithy-playground/issues/159
-  val Root: NodeContext = EmptyPath
-
   private final case class Impl(
     context: Chain[PathEntry]
   ) extends NodeContext
