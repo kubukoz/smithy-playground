@@ -1,6 +1,5 @@
 package playground.lsp
 
-import cats.implicits._
 import coursier._
 import coursier.cache.FileCache
 import coursier.parse.DependencyParser
@@ -14,15 +13,19 @@ import software.amazon.smithy.model.loader.ModelDiscovery
 import software.amazon.smithy.model.loader.ModelManifestException
 
 import java.io.File
+import java.net.URL
 import java.net.URLClassLoader
-import java.nio.file.Paths
+import java.nio.file.FileSystems
+import java.nio.file.Files
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
+import scala.util.Using
 import scala.util.chaining._
 
+// NOTE: methods in this object are mostly side effecting and blocking.
 object ModelLoader {
 
-  def makeClassLoaderUnsafe(
+  def makeClassLoader(
     buildConfig: PlaygroundConfig
   ): URLClassLoader = makeClassLoaderForJars(
     resolveDependencies(
@@ -31,7 +34,7 @@ object ModelLoader {
     )
   )
 
-  def makeClassLoaderForPluginsUnsafe(
+  def makeClassLoaderForPlugins(
     buildConfig: PlaygroundConfig
   ): URLClassLoader = makeClassLoaderForJars(
     resolveDependencies(
@@ -45,35 +48,59 @@ object ModelLoader {
   ): URLClassLoader =
     new URLClassLoader(
       jars.map(_.toURI().toURL()).toArray,
-      getClass().getClassLoader(),
+      this.getClass().getClassLoader(),
     )
 
   def load(
     specs: Set[File],
-    classLoader: URLClassLoader,
+    jars: List[File],
   ): Model = Model
     .assembler()
     .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
-    .pipe(addModelsFromJars(classLoader.getURLs().map(_.toURI()).map(Paths.get(_).toFile())))
+    .pipe(addJarModels(jars))
     .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
     .pipe(addFileImports(specs))
     .assemble()
     .unwrap()
 
-  private def addModelsFromJars(
-    jarFiles: Iterable[File]
-  ): ModelAssembler => ModelAssembler =
-    assembler => {
-      val modelsInJars = jarFiles.flatMap { file =>
-        val manifestUrl = ModelDiscovery.createSmithyJarManifestUrl(file.getAbsolutePath())
-        try ModelDiscovery.findModels(manifestUrl).asScala
+  // Credits: myself, in smithy4s 0.17.5
+  private def addJarModels(
+    jars: List[File]
+  ): ModelAssembler => ModelAssembler = { m =>
+    jars
+      .flatMap(loadModelsFromJar)
+      .foreach(
+        m.addImport(_)
+      )
+
+    m
+  }
+
+  private def loadModelsFromJar(
+    file: File
+  ): List[URL] =
+    Using.resource(
+      // Note: On JDK13+, the second parameter is redundant.
+      FileSystems.newFileSystem(file.toPath(), null)
+    ) { jarFS =>
+      val manifestPath = jarFS.getPath("META-INF", "smithy", "manifest")
+
+      // model discovery would throw if we tried to pass a non-existent path
+      if (!Files.exists(manifestPath))
+        Nil
+      else {
+        try ModelDiscovery.findModels(manifestPath.toUri().toURL()).asScala.toList
         catch {
-          case _: ModelManifestException => Nil
+          case e: ModelManifestException =>
+            System
+              .err
+              .println(
+                s"Unexpected exception while loading model from $file, skipping: $e"
+              )
+
+            Nil
         }
       }
-
-      modelsInJars.foreach(assembler.addImport)
-      assembler
     }
 
   private def addFileImports(
@@ -95,7 +122,14 @@ object ModelLoader {
       assembler
     }
 
-  private def resolveDependencies(
+  def resolveModelDependencies(
+    config: PlaygroundConfig
+  ): List[File] = resolveDependencies(
+    dependencies = config.dependencies,
+    repositories = config.repositories,
+  )
+
+  def resolveDependencies(
     dependencies: List[String],
     repositories: List[String],
   ): List[File] = {

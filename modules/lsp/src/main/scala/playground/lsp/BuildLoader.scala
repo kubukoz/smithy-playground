@@ -105,7 +105,7 @@ object BuildLoader {
                       .toFile()
                   )
                   .toSet,
-              classLoader = ModelLoader.makeClassLoaderUnsafe(loaded.config),
+              jars = ModelLoader.resolveModelDependencies(loaded.config),
             )
         }
         .flatMap(ModelReader.buildSchemaIndex[F])
