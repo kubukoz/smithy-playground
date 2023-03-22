@@ -27,10 +27,8 @@ import playground.std.StdlibRuntime
 import smithy.api.ProtocolDefinition
 import smithy4s.Service
 import smithy4s.ShapeId
-import smithy4s.aws.AwsCall
 import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
-import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.kinds._
@@ -256,13 +254,12 @@ object OperationRunner {
 
       val awsInterpreter: IorNel[Issue, service.FunctorInterpreter[F]] = AwsClient
         .prepare(service)
-        .as {
-          liftFunctorInterpreterResource(
-            awsEnv
-              .flatMap(AwsClient(service, _))
-              .map(flattenAwsInterpreter(_, service))
-          )
+        .map { builder =>
+          awsEnv
+            .map(builder.buildSimple(_))
+            .map(service.toPolyFunction(_))
         }
+        .map(liftFunctorInterpreterResource(_))
         .toIor
         .leftMap(_ =>
           NonEmptyList
@@ -308,21 +305,6 @@ object OperationRunner {
       ): IorNel[Issue, OperationRunner[F]] = getInternal
 
     }
-
-  def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], F[_]](
-    alg: AwsClient[Alg, F],
-    service: Service[Alg],
-  ): FunctorInterpreter[service.Operation, F] = service
-    .toPolyFunction(alg)
-    .andThen(new FunctorInterpreter[AwsCall[F, *, *, *, *, *], F] {
-
-      def apply[I, E, O, SI, SO](
-        fa: AwsCall[F, I, E, O, SI, SO]
-      ): F[O] =
-        // todo big hack!
-        fa.run(AwsOperationKind.Unary.unary.asInstanceOf[AwsOperationKind.Unary[SI, SO]])
-
-    })
 
   def liftFunctorInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
     fir: Resource[F, FunctorInterpreter[Op, F]]
