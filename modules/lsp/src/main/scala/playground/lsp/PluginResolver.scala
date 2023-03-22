@@ -25,7 +25,7 @@ object PluginResolver {
       def resolve(
         config: PlaygroundConfig
       ): F[List[PlaygroundPlugin]] = Sync[F]
-        .interruptibleMany(ModelLoader.makeClassLoaderForPluginsUnsafe(config))
+        .interruptibleMany(ModelLoader.makeClassLoaderForPlugins(config))
         .map(PlaygroundPlugin.getAllPlugins(_))
 
     }
