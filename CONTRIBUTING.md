@@ -45,8 +45,6 @@ This may not work if you already have a VS Code window open: the following comma
 cd vscode-extension && yarn test
 ```
 
-The version of Code used for this is hardcoded in [`runTest.ts`](./vscode-extension/src/test/runTest.ts).
-
 ### In VS Code
 
 If you already have a VS Code instance open , you can use the "Run Extension Tests" launch configuration in [`.vscode/launch.json`](.vscode/launch.json). It may be helpful to run `yarn watch` so that your TypeScript changes get rebuilt in watch mode.

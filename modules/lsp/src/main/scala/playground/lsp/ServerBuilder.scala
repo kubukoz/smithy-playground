@@ -19,11 +19,19 @@ import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 
 trait ServerBuilder[F[_]] {
-  def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]]
+
+  def build(
+    buildInfo: BuildLoader.Loaded,
+    loader: ServerLoader[F],
+  ): F[LanguageServer[F]]
+
 }
 
 object ServerBuilder {
-  def apply[F[_]](implicit F: ServerBuilder[F]): ServerBuilder[F] = F
+
+  def apply[F[_]](
+    implicit F: ServerBuilder[F]
+  ): ServerBuilder[F] = F
 
   def instance[F[_]: Async: LanguageClient: BuildLoader: std.Console] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
@@ -51,10 +59,13 @@ object ServerBuilder {
     } yield new ServerBuilder[F] {
       private implicit val textManager: TextDocumentManager[F] = tdm
 
-      def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]] =
+      def build(
+        buildInfo: BuildLoader.Loaded,
+        loader: ServerLoader[F],
+      ): F[LanguageServer[F]] =
         for {
           dsi <- BuildLoader[F].buildSchemaIndex(buildInfo)
-          plugins <- PluginResolver[F].resolveFromConfig(buildInfo.config)
+          plugins <- PluginResolver[F].resolve(buildInfo.config)
           rep <- CommandResultReporter.instance[F]
         } yield {
           val runners = OperationRunner

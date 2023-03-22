@@ -43,24 +43,63 @@ import scala.util.chaining._
 import ToUriOps._
 
 trait LanguageServer[F[_]] {
-  def initialize(params: InitializeParams): F[InitializeResult]
-  def initialized(params: InitializedParams): F[Unit]
-  def didChange(params: DidChangeTextDocumentParams): F[Unit]
-  def didOpen(params: DidOpenTextDocumentParams): F[Unit]
-  def didSave(params: DidSaveTextDocumentParams): F[Unit]
-  def didClose(params: DidCloseTextDocumentParams): F[Unit]
-  def formatting(params: DocumentFormattingParams): F[List[TextEdit]]
-  def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
-  def diagnostic(params: DocumentDiagnosticParams): F[DocumentDiagnosticReport]
-  def codeLens(params: CodeLensParams): F[List[CodeLens]]
-  def documentSymbol(params: DocumentSymbolParams): F[List[DocumentSymbol]]
+
+  def initialize(
+    params: InitializeParams
+  ): F[InitializeResult]
+
+  def initialized(
+    params: InitializedParams
+  ): F[Unit]
+
+  def didChange(
+    params: DidChangeTextDocumentParams
+  ): F[Unit]
+
+  def didOpen(
+    params: DidOpenTextDocumentParams
+  ): F[Unit]
+
+  def didSave(
+    params: DidSaveTextDocumentParams
+  ): F[Unit]
+
+  def didClose(
+    params: DidCloseTextDocumentParams
+  ): F[Unit]
+
+  def formatting(
+    params: DocumentFormattingParams
+  ): F[List[TextEdit]]
+
+  def completion(
+    position: CompletionParams
+  ): F[Either[List[CompletionItem], CompletionList]]
+
+  def diagnostic(
+    params: DocumentDiagnosticParams
+  ): F[DocumentDiagnosticReport]
+
+  def codeLens(
+    params: CodeLensParams
+  ): F[List[CodeLens]]
+
+  def documentSymbol(
+    params: DocumentSymbolParams
+  ): F[List[DocumentSymbol]]
 
   def didChangeWatchedFiles(
     params: DidChangeWatchedFilesParams
   ): F[Unit]
 
-  def executeCommand(params: ExecuteCommandParams): F[Unit]
-  def runFile(params: RunFileParams): F[Unit]
+  def executeCommand(
+    params: ExecuteCommandParams
+  ): F[Unit]
+
+  def runFile(
+    params: RunFileParams
+  ): F[Unit]
+
   def shutdown: F[Unit]
   def exit: F[Unit]
 }
@@ -83,7 +122,11 @@ object LanguageServer {
 
       private val iorToF: IorThrow ~> F =
         new (IorThrow ~> F) {
-          def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
+
+          def apply[A](
+            fa: IorThrow[A]
+          ): F[A] = fa.toEither.liftTo[F]
+
         }
 
       // see if we can pass this everywhere
@@ -143,10 +186,15 @@ object LanguageServer {
             .as(new InitializeResult(capabilities))
       }
 
-      def initialized(params: InitializedParams): F[Unit] = Applicative[F].unit
+      def initialized(
+        params: InitializedParams
+      ): F[Unit] = Applicative[F].unit
+
       def shutdown: F[Unit] = Applicative[F].unit
 
-      def didChange(params: DidChangeTextDocumentParams): F[Unit] = {
+      def didChange(
+        params: DidChangeTextDocumentParams
+      ): F[Unit] = {
         val changesAsList = params.getContentChanges.asScala.toList
         if (changesAsList.isEmpty)
           Applicative[F].unit
@@ -157,7 +205,9 @@ object LanguageServer {
           )
       }
 
-      def didOpen(params: DidOpenTextDocumentParams): F[Unit] = TextDocumentManager[F].put(
+      def didOpen(
+        params: DidOpenTextDocumentParams
+      ): F[Unit] = TextDocumentManager[F].put(
         params.getTextDocument().toUri,
         params.getTextDocument().getText(),
       )
@@ -238,12 +288,14 @@ object LanguageServer {
             .map(converters.toLSP.codeLens(map, _))
         }
 
-      def documentSymbol(params: DocumentSymbolParams): F[List[DocumentSymbol]] =
-        TextDocumentManager[F].get(params.getTextDocument().toUri).map { text =>
+      def documentSymbol(
+        params: DocumentSymbolParams
+      ): F[List[DocumentSymbol]] = TextDocumentManager[F].get(params.getTextDocument().toUri).map {
+        text =>
           val map = LocationMap(text)
 
           DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(map, _))
-        }
+      }
 
       def didChangeWatchedFiles(
         params: DidChangeWatchedFilesParams
@@ -289,7 +341,9 @@ object LanguageServer {
         }
         .flatMap(commandProvider.runCommand(params.getCommand(), _))
 
-      def runFile(params: RunFileParams): F[Unit] = executeCommand(
+      def runFile(
+        params: RunFileParams
+      ): F[Unit] = executeCommand(
         new ExecuteCommandParams()
           .tap(_.setCommand(playground.language.Command.RUN_FILE))
           .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))

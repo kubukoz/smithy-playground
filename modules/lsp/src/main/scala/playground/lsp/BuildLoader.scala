@@ -3,35 +3,46 @@ package playground.lsp
 import cats.effect.kernel.Sync
 import cats.implicits._
 import fs2.io.file.Path
-import playground.BuildConfig
-import playground.BuildConfigDecoder
 import playground.ModelReader
+import playground.PlaygroundConfig
 import playground.language.TextDocumentProvider
 import playground.language.Uri
-import smithy4s.codegen.ModelLoader
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
-  def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded]
 
-  def buildSchemaIndex(info: BuildLoader.Loaded): F[DynamicSchemaIndex]
+  def load(
+    workspaceFolders: List[Uri]
+  ): F[BuildLoader.Loaded]
+
+  def buildSchemaIndex(
+    info: BuildLoader.Loaded
+  ): F[DynamicSchemaIndex]
 
 }
 
 object BuildLoader {
-  def apply[F[_]](implicit F: BuildLoader[F]): BuildLoader[F] = F
 
-  case class Loaded(config: BuildConfig, configFilePath: Path)
+  def apply[F[_]](
+    implicit F: BuildLoader[F]
+  ): BuildLoader[F] = F
+
+  case class Loaded(
+    config: PlaygroundConfig,
+    configFilePath: Path,
+  )
 
   object Loaded {
     // Path is irrelevant when no imports are provided.
-    val default: Loaded = Loaded(BuildConfig(), Path("/"))
+    val default: Loaded = Loaded(PlaygroundConfig.empty, Path("/"))
   }
 
   def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
     new BuildLoader[F] {
 
-      def load(workspaceFolders: List[Uri]): F[BuildLoader.Loaded] = {
+      def load(
+        workspaceFolders: List[Uri]
+      ): F[BuildLoader.Loaded] = {
         val configFiles = List(
           "build/smithy-dependencies.json",
           ".smithy.json",
@@ -67,14 +78,16 @@ object BuildLoader {
             )
           }
           .flatMap { case (fileContents, filePath) =>
-            BuildConfigDecoder
+            PlaygroundConfig
               .decode(fileContents.getBytes())
               .liftTo[F]
               .map(BuildLoader.Loaded.apply(_, filePath))
           }
       }
 
-      def buildSchemaIndex(loaded: BuildLoader.Loaded): F[DynamicSchemaIndex] = Sync[F]
+      def buildSchemaIndex(
+        loaded: BuildLoader.Loaded
+      ): F[DynamicSchemaIndex] = Sync[F]
         .interruptibleMany {
           ModelLoader
             .load(
@@ -92,15 +105,8 @@ object BuildLoader {
                       .toFile()
                   )
                   .toSet,
-              dependencies = loaded.config.mavenDependencies,
-              repositories = loaded.config.mavenRepositories,
-              transformers = Nil,
-              // this should be false really
-              // https://github.com/kubukoz/smithy-playground/pull/140
-              discoverModels = true,
-              localJars = Nil,
+              jars = ModelLoader.resolveModelDependencies(loaded.config),
             )
-            ._2
         }
         .flatMap(ModelReader.buildSchemaIndex[F])
 

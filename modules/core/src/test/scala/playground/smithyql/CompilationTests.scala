@@ -70,8 +70,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     in: QueryCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerVisitor.full).compile(in)
 
-  private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
+  private def parseAndCompile[Alg[_[_, _, _, _, _]]](
+    service: Service[Alg]
   )(
     q: String
   ): IorThrow[List[CompiledInput]] =
@@ -109,7 +109,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   // Kinda hacky, but does the job
-  def asDocument[A](schema: Schema[A]): Schema[Document] = {
+  def asDocument[A](
+    schema: Schema[A]
+  ): Schema[Document] = {
     val encoder = Document.Encoder.fromSchema(schema)
     val decoder = Document.Decoder.fromSchema(schema)
 
@@ -126,11 +128,17 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
         val constraint: Unit = ()
 
-        def apply(a: A): Either[String, Document] = unsafe(a).asRight
+        def apply(
+          a: A
+        ): Either[String, Document] = unsafe(a).asRight
 
-        def from(b: Document): A = b.decode(decoder).toTry.get
+        def from(
+          b: Document
+        ): A = b.decode(decoder).toTry.get
 
-        def unsafe(a: A): Document = encoder.encode(a)
+        def unsafe(
+          a: A
+        ): Document = encoder.encode(a)
       },
     )
   }
@@ -677,43 +685,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   test("set of ints has warnings when duplicates are found") {
-    forall { (range1: SourceRange, range2: SourceRange, range3: SourceRange) =>
-      val actual = compile[IntSet](
-        WithSource.liftId(
-          Listed[WithSource](
-            WithSource.liftId(
-              List(
-                WithSource.liftId(IntLiteral[WithSource]("1")).withRange(range1),
-                WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range2),
-                WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range3),
-              )
-            )
-          )
-        )
-      )
-
-      assert(
-        actual == Ior.both(
-          NonEmptyChain(
-            CompilationError.warning(
-              CompilationErrorDetails.DuplicateItem,
-              range2,
-            ),
-            CompilationError.warning(
-              CompilationErrorDetails.DuplicateItem,
-              range3,
-            ),
-          ),
-          Set(1, 2),
-        )
-      )
-    }
-  }
-
-  test("set of ints has warnings when duplicates are found - dynamic") {
-    forall { (range1: SourceRange, range2: SourceRange, range3: SourceRange) =>
-      val actual =
-        compile(
+    forall {
+      (
+        range1: SourceRange,
+        range2: SourceRange,
+        range3: SourceRange,
+      ) =>
+        val actual = compile[IntSet](
           WithSource.liftId(
             Listed[WithSource](
               WithSource.liftId(
@@ -725,23 +703,63 @@ object CompilationTests extends SimpleIOSuite with Checkers {
               )
             )
           )
-        )(asDocument(dynamicSchemaFor[IntSet]))
-
-      assert(
-        actual == Ior.both(
-          NonEmptyChain(
-            CompilationError.warning(
-              CompilationErrorDetails.DuplicateItem,
-              range2,
-            ),
-            CompilationError.warning(
-              CompilationErrorDetails.DuplicateItem,
-              range3,
-            ),
-          ),
-          Document.array(Document.fromInt(1), Document.fromInt(2)),
         )
-      )
+
+        assert(
+          actual == Ior.both(
+            NonEmptyChain(
+              CompilationError.warning(
+                CompilationErrorDetails.DuplicateItem,
+                range2,
+              ),
+              CompilationError.warning(
+                CompilationErrorDetails.DuplicateItem,
+                range3,
+              ),
+            ),
+            Set(1, 2),
+          )
+        )
+    }
+  }
+
+  test("set of ints has warnings when duplicates are found - dynamic") {
+    forall {
+      (
+        range1: SourceRange,
+        range2: SourceRange,
+        range3: SourceRange,
+      ) =>
+        val actual =
+          compile(
+            WithSource.liftId(
+              Listed[WithSource](
+                WithSource.liftId(
+                  List(
+                    WithSource.liftId(IntLiteral[WithSource]("1")).withRange(range1),
+                    WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range2),
+                    WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range3),
+                  )
+                )
+              )
+            )
+          )(asDocument(dynamicSchemaFor[IntSet]))
+
+        assert(
+          actual == Ior.both(
+            NonEmptyChain(
+              CompilationError.warning(
+                CompilationErrorDetails.DuplicateItem,
+                range2,
+              ),
+              CompilationError.warning(
+                CompilationErrorDetails.DuplicateItem,
+                range3,
+              ),
+            ),
+            Document.array(Document.fromInt(1), Document.fromInt(2)),
+          )
+        )
     }
   }
 

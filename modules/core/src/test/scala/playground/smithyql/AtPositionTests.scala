@@ -9,13 +9,20 @@ object AtPositionTests extends FunSuite {
 
   val CURSOR = """<<HERE>>"""
 
-  def extractCursor(s: String): (String, Position) = {
+  def extractCursor(
+    s: String
+  ): (
+    String,
+    Position,
+  ) = {
     val cursor = Position(s.indexOf(CURSOR))
 
     (s.replace(CURSOR, ""), cursor)
   }
 
-  def locateAtCursor(text: String) = {
+  def locateAtCursor(
+    text: String
+  ) = {
     val (extracted, position) = extractCursor(text)
     val parsed =
       SourceParser[SourceFile]

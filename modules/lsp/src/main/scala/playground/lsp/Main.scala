@@ -1,11 +1,9 @@
 package playground.lsp
 
-import cats.Show
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.implicits._
 import cats.effect.kernel.Deferred
-import cats.effect.std
 import cats.effect.std.Dispatcher
 import cats.implicits._
 import org.eclipse.lsp4j.launch.LSPLauncher
@@ -29,8 +27,6 @@ object Main extends IOApp.Simple {
         launch(stdin_raw, stdout_raw)
     )
       .use { launcher =>
-        println(System.out)
-        println(Console.out)
         IO.interruptibleMany(launcher.startListening().get())
       } *> IO.println("Server terminated without errors")
 

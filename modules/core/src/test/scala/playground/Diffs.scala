@@ -16,7 +16,12 @@ object Diffs {
   implicit val diffDiagnosticDetails: Diff[CompilationErrorDetails] = Diff.derivedDiff
   implicit val diffDiagnostic: Diff[CompilationError] = Diff.derivedDiff
 
-  implicit val diffUnit: Diff[Unit] = (_, _, _) => IdenticalValue("unit")
+  implicit val diffUnit: Diff[Unit] =
+    (
+      _,
+      _,
+      _,
+    ) => IdenticalValue("unit")
 
   @nowarn("cat=unused")
   implicit def diffForIor[E: Diff, A: Diff]: Diff[Ior[E, A]] = Diff.derivedDiff

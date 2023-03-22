@@ -27,17 +27,20 @@ import playground.std.StdlibRuntime
 import smithy.api.ProtocolDefinition
 import smithy4s.Service
 import smithy4s.ShapeId
-import smithy4s.aws.AwsCall
 import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
-import smithy4s.aws.AwsOperationKind
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleRestJsonBuilder
+import smithy4s.kinds._
 import smithy4s.schema.Schema
 import smithyql.syntax._
 
 trait OperationRunner[F[_]] {
-  def run(q: CompiledInput): F[InputNode[Id]]
+
+  def run(
+    q: CompiledInput
+  ): F[InputNode[Id]]
+
 }
 
 object OperationRunner {
@@ -54,8 +57,15 @@ object OperationRunner {
   sealed trait Issue extends Product with Serializable
 
   object Issue {
-    final case class InvalidProtocol(supported: ShapeId, found: List[ShapeId]) extends Issue
-    final case class Other(e: Throwable) extends Issue
+
+    final case class InvalidProtocol(
+      supported: ShapeId,
+      found: List[ShapeId],
+    ) extends Issue
+
+    final case class Other(
+      e: Throwable
+    ) extends Issue
 
     sealed trait Squashed extends Product with Serializable
 
@@ -66,7 +76,10 @@ object OperationRunner {
         found: List[ShapeId],
       ) extends Squashed
 
-      final case class OtherIssues(exceptions: NonEmptyList[Throwable]) extends Squashed
+      final case class OtherIssues(
+        exceptions: NonEmptyList[Throwable]
+      ) extends Squashed
+
     }
 
     // Either remove all protocol errors, or only keep those.
@@ -101,7 +114,9 @@ object OperationRunner {
   }
 
   // https://github.com/kubukoz/smithy-playground/issues/158
-  def dynamicBaseUri[F[_]: MonadCancelThrow](getUri: F[Uri]): Client[F] => Client[F] =
+  def dynamicBaseUri[F[_]: MonadCancelThrow](
+    getUri: F[Uri]
+  ): Client[F] => Client[F] =
     client =>
       Client[F] { req =>
         getUri.toResource.flatMap { uri =>
@@ -145,7 +160,7 @@ object OperationRunner {
   ): Map[QualifiedIdentifier, Resolver[F]] =
     services.map { svc =>
       QualifiedIdentifier.forService(svc.service) ->
-        OperationRunner.forService[svc.Alg, svc.Op, F](
+        OperationRunner.forService[svc.Alg, F](
           svc.service,
           client,
           baseUri,
@@ -179,12 +194,8 @@ object OperationRunner {
 
     }
 
-  def forService[
-    Alg[_[_, _, _, _, _]],
-    Op[_, _, _, _, _],
-    F[_]: StdlibRuntime: Concurrent: Defer: std.Console,
-  ](
-    service: Service[Alg, Op],
+  def forService[Alg[_[_, _, _, _, _]], F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+    service: Service[Alg],
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
@@ -205,7 +216,7 @@ object OperationRunner {
 
       private def simpleFromBuilder(
         builder: SimpleHttpBuilder
-      ): IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+      ): IorNel[Issue, FunctorInterpreter[service.Operation, F]] =
         builder
           .client(
             service,
@@ -216,11 +227,11 @@ object OperationRunner {
             ).apply(client),
           )
           .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
-          .map(service.asTransformation)
+          .map(service.toPolyFunction(_))
           .toIor
           .toIorNel
 
-      private def stdlibRunner: IorNel[Issue, smithy4s.Interpreter[Op, F]] =
+      private def stdlibRunner: IorNel[Issue, service.FunctorInterpreter[F]] =
         smithy4s
           .checkProtocol(
             service,
@@ -229,7 +240,7 @@ object OperationRunner {
           .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols): Issue)
           .toIor
           .toIorNel *> {
-          val proxy = new DynamicServiceProxy[Alg, Op](service)
+          val proxy = new DynamicServiceProxy[Alg, service.Operation](service)
 
           NonEmptyList
             .of(
@@ -241,15 +252,14 @@ object OperationRunner {
             .toIorNel
         }
 
-      val awsInterpreter: IorNel[Issue, smithy4s.Interpreter[Op, F]] = AwsClient
+      val awsInterpreter: IorNel[Issue, service.FunctorInterpreter[F]] = AwsClient
         .prepare(service)
-        .as {
-          liftInterpreterResource(
-            awsEnv
-              .flatMap(AwsClient(service, _))
-              .map(flattenAwsInterpreter(_, service))
-          )
+        .map { builder =>
+          awsEnv
+            .map(builder.buildSimple(_))
+            .map(service.toPolyFunction(_))
         }
+        .map(liftFunctorInterpreterResource(_))
         .toIor
         .leftMap(_ =>
           NonEmptyList
@@ -258,8 +268,8 @@ object OperationRunner {
         )
 
       private def perform[E, O](
-        interpreter: smithy4s.Interpreter[Op, F],
-        q: CompiledInput.Aux[E, O, Op],
+        interpreter: FunctorInterpreter[service.Operation, F],
+        q: CompiledInput.Aux[E, O, service.Operation],
       ) = Defer[F].defer(interpreter(q.op)).map { response =>
         q.writeOutput.toNode(response)
       }
@@ -269,15 +279,17 @@ object OperationRunner {
           simpleFromBuilder(SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)),
           awsInterpreter,
         )
-        .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder))
+        .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder(_)))
         .append(stdlibRunner)
         .map(
           _.map { interpreter =>
             new OperationRunner[F] {
-              def run(q: CompiledInput): F[InputNode[Id]] = perform[q.E, q.O](
+              def run(
+                q: CompiledInput
+              ): F[InputNode[Id]] = perform[q.E, q.O](
                 interpreter,
                 // note: this is safe... for real
-                q.asInstanceOf[CompiledInput.Aux[q.E, q.O, Op]],
+                q.asInstanceOf[CompiledInput.Aux[q.E, q.O, service.Operation]],
               )
             }
           }
@@ -294,26 +306,15 @@ object OperationRunner {
 
     }
 
-  def flattenAwsInterpreter[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _], F[_]](
-    alg: AwsClient[Alg, F],
-    service: Service[Alg, Op],
-  ): smithy4s.Interpreter[Op, F] = service
-    .asTransformation(alg)
-    .andThen(new smithy4s.Interpreter[AwsCall[F, *, *, *, *, *], F] {
+  def liftFunctorInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
+    fir: Resource[F, FunctorInterpreter[Op, F]]
+  ): FunctorInterpreter[Op, F] =
+    new FunctorInterpreter[Op, F] {
 
       def apply[I, E, O, SI, SO](
-        fa: AwsCall[F, I, E, O, SI, SO]
-      ): F[O] =
-        // todo big hack!
-        fa.run(AwsOperationKind.Unary.unary.asInstanceOf[AwsOperationKind.Unary[SI, SO]])
+        fa: Op[I, E, O, SI, SO]
+      ): F[O] = fir.use(_.apply(fa))
 
-    })
-
-  def liftInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
-    interpreterR: Resource[F, smithy4s.Interpreter[Op, F]]
-  ): smithy4s.Interpreter[Op, F] =
-    new smithy4s.Interpreter[Op, F] {
-      def apply[I, E, O, SI, SO](fa: Op[I, E, O, SI, SO]): F[O] = interpreterR.use(_.apply(fa))
     }
 
 }

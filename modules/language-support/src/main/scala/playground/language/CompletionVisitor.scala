@@ -43,7 +43,11 @@ import smithy4s.schema.SchemaVisitor
 import java.util.UUID
 
 trait CompletionResolver[+A] {
-  def getCompletions(ctx: NodeContext): List[CompletionItem]
+
+  def getCompletions(
+    ctx: NodeContext
+  ): List[CompletionItem]
+
   def retag[B]: CompletionResolver[B] = getCompletions(_)
 }
 
@@ -68,15 +72,31 @@ final case class CompletionItem(
 sealed trait TextEdit extends Product with Serializable
 
 object TextEdit {
-  final case class Insert(text: String, pos: Position) extends TextEdit
-  final case class Overwrite(text: String, range: SourceRange) extends TextEdit
+
+  final case class Insert(
+    text: String,
+    pos: Position,
+  ) extends TextEdit
+
+  final case class Overwrite(
+    text: String,
+    range: SourceRange,
+  ) extends TextEdit
+
 }
 
 sealed trait InsertText extends Product with Serializable
 
 object InsertText {
-  final case class JustString(value: String) extends InsertText
-  final case class SnippetString(value: String) extends InsertText
+
+  final case class JustString(
+    value: String
+  ) extends InsertText
+
+  final case class SnippetString(
+    value: String
+  ) extends InsertText
+
 }
 
 object CompletionItem {
@@ -94,31 +114,29 @@ object CompletionItem {
   ).copy(detail = describeService(service))
 
   def fromField(
-    field: Field[CompletionResolver, _, _],
-    schema: Schema[_],
+    field: Field[Schema, _, _]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.Field,
     label = field.label,
     insertText = InsertText.JustString(s"${field.label}: "),
-    schema = schema,
+    schema = field.instance,
   )
 
   def fromAlt(
-    alt: Alt[CompletionResolver, _, _],
-    schema: Schema[_],
+    alt: Alt[Schema, _, _]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
     // needs proper completions for the inner schema
     // https://github.com/kubukoz/smithy-playground/pull/120
     insertText =
-      if (describeSchema(schema).apply().startsWith("structure "))
+      if (describeSchema(alt.instance).apply().startsWith("structure "))
         InsertText.SnippetString(s"""${alt.label}: {
                                     |  $$0
                                     |},""".stripMargin)
       else
         InsertText.JustString(s"${alt.label}: "),
-    schema = schema,
+    alt.instance,
   )
 
   def fromHints(
@@ -128,6 +146,13 @@ object CompletionItem {
     schema: Schema[_],
   ): CompletionItem = {
     val isField = kind == CompletionItemKind.Field
+
+    val sortText =
+      isField match {
+        case true if isRequiredField(schema) => Some(s"1_$label")
+        case true                            => Some(s"2_$label")
+        case false                           => None
+      }
 
     CompletionItem(
       kind = kind,
@@ -144,12 +169,15 @@ object CompletionItem {
         isField,
       ),
       extraTextEdits = Nil,
-      sortText = None,
+      sortText = sortText,
     )
   }
 
-  def describeType(isField: Boolean, schema: Schema[_]): String = {
-    val isOptional = isField && schema.hints.get(smithy.api.Required).isEmpty
+  def describeType(
+    isField: Boolean,
+    schema: Schema[_],
+  ): String = {
+    val isOptional = isField && !isRequiredField(schema)
 
     val optionalPrefix =
       if (isOptional)
@@ -158,6 +186,10 @@ object CompletionItem {
         ""
     show"$optionalPrefix: ${describeSchema(schema)()}"
   }
+
+  private def isRequiredField(
+    schema: Schema[_]
+  ): Boolean = schema.hints.has(smithy.api.Required)
 
   private val describePrimitive: Primitive[_] => String = {
     import smithy4s.schema.Primitive._
@@ -192,11 +224,15 @@ object CompletionItem {
     }
   }
 
-  def describeService(service: DynamicSchemaIndex.ServiceWrapper): String =
-    s": service ${ServiceNameExtractor.fromService(service.service).selection}"
+  def describeService(
+    service: DynamicSchemaIndex.ServiceWrapper
+  ): String = s": service ${ServiceNameExtractor.fromService(service.service).selection}"
 
   // nice to have: precompile this? caching?
-  def describeSchema(schema: Schema[_]): () => String =
+  def describeSchema(
+    schema: Schema[_]
+  ): (
+  ) => String =
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
 
@@ -222,7 +258,12 @@ object CompletionItem {
       case BijectionSchema(underlying, _) => describeSchema(underlying)
     }
 
-  private def now(s: String): () => String = () => s
+  private def now(
+    s: String
+  ): (
+  ) => String =
+    (
+    ) => s
 
   sealed trait InsertUseClause extends Product with Serializable
 
@@ -313,7 +354,9 @@ object CompletionItem {
     )
   }
 
-  def deprecationString(info: api.Deprecated): String = {
+  def deprecationString(
+    info: api.Deprecated
+  ): String = {
     val reasonString = info.message.foldMap(": " + _)
     val sinceString = info.since.foldMap(" (since " + _ + ")")
 
@@ -364,7 +407,9 @@ object CompletionItemKind {
 object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
   private def quoteAware[A](
-    makeCompletion: (String => String) => List[CompletionItem]
+    makeCompletion: (
+      String => String
+    ) => List[CompletionItem]
   ): CompletionResolver[A] = {
     case PathEntry.Quotes ^^: Root => makeCompletion(identity)
     case Root                      => makeCompletion(TextUtils.quote)
@@ -439,7 +484,11 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       inBody = fk.getCompletions(NodeContext.Root).map { item =>
         item.asValueCompletion
       },
-      inValue = (_, t) => fv.getCompletions(t),
+      inValue =
+        (
+          _,
+          t,
+        ) => fv.getCompletions(t),
     )
   }
 
@@ -462,7 +511,10 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
   private def structLike[S](
     inBody: List[CompletionItem],
-    inValue: (String, NodeContext) => List[CompletionItem],
+    inValue: (
+      String,
+      NodeContext,
+    ) => List[CompletionItem],
   ): CompletionResolver[S] = {
     case PathEntry.StructBody ^^: Root                              => inBody
     case PathEntry.StructBody ^^: PathEntry.StructValue(h) ^^: rest => inValue(h, rest)
@@ -479,13 +531,16 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
     structLike(
       inBody =
-        compiledFields
+        fields
           // todo: filter out present fields
-          .sortBy { case (field, _) => (field.isRequired, field.label) }
-          .map(CompletionItem.fromField.tupled)
+          .sortBy(field => (field.isRequired, field.label))
+          .map(CompletionItem.fromField)
           .toList,
       inValue =
-        (h, rest) =>
+        (
+          h,
+          rest,
+        ) =>
           compiledFields
             .collectFirst {
               case (field, _) if field.label === h => field
@@ -505,15 +560,19 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     }
 
     structLike(
-      inBody = allWithIds.map(CompletionItem.fromAlt.tupled).toList,
+      inBody = alternatives.map(CompletionItem.fromAlt).toList,
       inValue =
-        (head, tail) =>
-          allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
+        (
+          head,
+          tail,
+        ) => allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
     )
   }
 
-  override def biject[A, B](schema: Schema[A], bijection: Bijection[A, B]): CompletionResolver[B] =
-    schema.compile(this).retag
+  override def biject[A, B](
+    schema: Schema[A],
+    bijection: Bijection[A, B],
+  ): CompletionResolver[B] = schema.compile(this).retag
 
   override def refine[A, B](
     schema: Schema[A],
@@ -521,7 +580,9 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   ): CompletionResolver[B] = schema.compile(this).retag
 
   // might need some testing
-  override def lazily[A](suspend: Lazy[Schema[A]]): CompletionResolver[A] = {
+  override def lazily[A](
+    suspend: Lazy[Schema[A]]
+  ): CompletionResolver[A] = {
     val underlying = suspend.map(_.compile(this))
 
     underlying.value.getCompletions(_)

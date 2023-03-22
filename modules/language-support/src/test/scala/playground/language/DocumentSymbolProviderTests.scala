@@ -8,13 +8,19 @@ import weaver._
 
 object DocumentSymbolProviderTests extends FunSuite {
 
-  def makeDSL(documentText: String) = new DocumentDSL(documentText)
+  def makeDSL(
+    documentText: String
+  ) = new DocumentDSL(documentText)
 
-  final class DocumentDSL(documentText: String) {
+  final class DocumentDSL(
+    documentText: String
+  ) {
 
     def symbols = DocumentSymbolProvider.make(documentText)
 
-    def textRange(text: String): SourceRange = {
+    def textRange(
+      text: String
+    ): SourceRange = {
       val i = documentText.indexOf(text)
       SourceRange(
         Position(i),

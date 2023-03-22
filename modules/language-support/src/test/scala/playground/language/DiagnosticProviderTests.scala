@@ -1,5 +1,6 @@
 package playground.language
 
+import alloy.SimpleRestJson
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 import cats.data.NonEmptyList
@@ -30,7 +31,6 @@ import playground.std.RandomGen
 import playground.std.Stdlib
 import playground.std.StdlibRuntime
 import smithy4s.HasId
-import smithy4s.api.SimpleRestJson
 import smithy4s.aws.AwsEnvironment
 import weaver._
 

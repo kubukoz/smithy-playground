@@ -14,7 +14,9 @@ import playground.smithyql.parser.SourceParser
 
 object DocumentSymbolProvider {
 
-  def make(text: String): List[DocumentSymbol] =
+  def make(
+    text: String
+  ): List[DocumentSymbol] =
     SourceParser[SourceFile].parse(text) match {
       case Left(_) => Nil
       case Right(sf) =>
@@ -26,7 +28,9 @@ object DocumentSymbolProvider {
     p: Prelude[WithSource]
   ): List[DocumentSymbol] = p.useClauses.foldMap(findInUseClause)
 
-  private def findInQuery(wsq: WithSource[Query[WithSource]]): List[DocumentSymbol] = {
+  private def findInQuery(
+    wsq: WithSource[Query[WithSource]]
+  ): List[DocumentSymbol] = {
     val q = wsq.value
 
     DocumentSymbol(
@@ -67,7 +71,9 @@ object DocumentSymbolProvider {
     )
   }
 
-  private def findInNode(node: WithSource[InputNode[WithSource]]): List[DocumentSymbol] = node
+  private def findInNode(
+    node: WithSource[InputNode[WithSource]]
+  ): List[DocumentSymbol] = node
     .value
     .fold(
       struct = struct => findInStruct(node.copy(value = struct)),

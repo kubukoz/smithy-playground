@@ -2,7 +2,10 @@ package playground
 
 import smithy.api
 
-case class DeprecatedInfo(message: Option[String], since: Option[String])
+case class DeprecatedInfo(
+  message: Option[String],
+  since: Option[String],
+)
 
 object DeprecatedInfo {
 

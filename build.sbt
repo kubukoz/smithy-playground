@@ -16,7 +16,9 @@ inThisBuild(
 
 import scala.sys.process._
 
-def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
+def crossPlugin(
+  x: sbt.librarymanagement.ModuleID
+) = compilerPlugin(x.cross(CrossVersion.full))
 
 val compilerPlugins =
   libraryDependencies ++= List(
@@ -41,7 +43,7 @@ ThisBuild / dynverSeparator := "-"
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.8.0",
+    "org.typelevel" %% "cats-core" % "2.9.0",
     "org.typelevel" %% "cats-mtl" % "1.3.0",
     "com.disneystreaming" %% "weaver-cats" % "0.8.1" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.8.1" % Test,
@@ -55,11 +57,14 @@ val commonSettings = Seq(
   scalacOptions -= "-Vtype-diffs",
   scalacOptions += "-Wnonunit-statement",
   scalacOptions ++= Seq("-Xsource:3.0"),
-  javacOptions ++= Seq("-source", "8", "-target", "8"),
+  Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
+  scalacOptions ++= Seq("-release", "11"),
   mimaFailOnNoPrevious := false,
 )
 
-def module(name: String) = Project(name, file("modules") / name)
+def module(
+  name: String
+) = Project(name, file("modules") / name)
   .settings(
     commonSettings
   )
@@ -69,8 +74,16 @@ lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
+  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
+  mimaPreviousArtifacts := Set.empty,
 )
+
+lazy val pluginSample = module("plugin-sample")
+  .dependsOn(pluginCore)
+  .settings(
+    // used for tests only
+    mimaPreviousArtifacts := Set.empty
+  )
 
 // AST of SmithyQL language (plus DSL and minor utilities for building these)
 lazy val ast = module("ast")
@@ -83,10 +96,10 @@ lazy val source = module("source")
 lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-parse" % "0.3.8",
-      "io.circe" %% "circe-generic" % "0.14.3" % Test,
-      "io.circe" %% "circe-parser" % "0.14.3" % Test,
-      "co.fs2" %% "fs2-io" % "3.3.0" % Test,
+      "org.typelevel" %% "cats-parse" % "0.3.9",
+      "io.circe" %% "circe-generic" % "0.14.5" % Test,
+      "io.circe" %% "circe-parser" % "0.14.5" % Test,
+      "co.fs2" %% "fs2-io" % "3.6.1" % Test,
     )
   )
   .dependsOn(
@@ -112,11 +125,14 @@ lazy val formatter = module("formatter")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.4.1",
+      "org.typelevel" %% "cats-effect" % "3.4.8",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.13.5.2",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
+      "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.1.15" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.28.1" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
@@ -137,18 +153,23 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.17.0",
-      "io.circe" %% "circe-core" % "0.14.3",
-      "org.http4s" %% "http4s-ember-client" % "0.23.16",
-      "org.http4s" %% "http4s-ember-server" % "0.23.16" % Test,
-      "io.get-coursier" %% "coursier" % "2.0.16",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.20.1",
+      "io.circe" %% "circe-core" % "0.14.5",
+      "org.http4s" %% "http4s-ember-client" % "0.23.18",
+      "org.http4s" %% "http4s-ember-server" % "0.23.18" % Test,
+      "io.get-coursier" %% "coursier" % "2.1.0",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
-    buildInfoKeys ++= Seq(version),
+    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
     Smithy4sCodegenPlugin.defaultSettings(Test),
     Test / smithy4sSmithyLibrary := false,
+    (Test / test) := {
+      (pluginCore / publishLocal).value
+      (pluginSample / publishLocal).value
+
+      (Test / test).value
+    },
   )
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(languageSupport)
@@ -165,4 +186,14 @@ lazy val root = project
       IO.write(file(".version"), version.value)
     },
   )
-  .aggregate(ast, source, core, parser, formatter, languageSupport, lsp, pluginCore)
+  .aggregate(
+    ast,
+    source,
+    core,
+    parser,
+    formatter,
+    languageSupport,
+    lsp,
+    pluginCore,
+    pluginSample,
+  )

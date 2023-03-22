@@ -6,11 +6,19 @@ import org.typelevel.paiges.instances._
 import playground.smithyql._
 
 trait Formatter[-Alg[_[_]]] {
-  def format(repr: Alg[WithSource], width: Int): String
+
+  def format(
+    repr: Alg[WithSource],
+    width: Int,
+  ): String
+
 }
 
 object Formatter {
-  def apply[Alg[_[_]]](implicit F: Formatter[Alg]): Formatter[Alg] = F
+
+  def apply[Alg[_[_]]](
+    implicit F: Formatter[Alg]
+  ): Formatter[Alg] = F
 
   val writeDoc: Formatter[AST] = FormattingVisitor(_).renderTrim(_)
 
@@ -72,7 +80,9 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
      */
   }
 
-  private def printGeneric(ast: WithSource[AST[WithSource]]) = printWithComments(ast)(visit)
+  private def printGeneric(
+    ast: WithSource[AST[WithSource]]
+  ) = printWithComments(ast)(visit)
 
   override def sourceFile(
     prelude: Prelude[WithSource],
@@ -90,19 +100,26 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     .map(printGeneric)
     .intercalate(Doc.hardLine)
 
-  override def operationName(text: String): Doc = Doc.text(text)
+  override def operationName(
+    text: String
+  ): Doc = Doc.text(text)
 
-  override def useClause(identifier: WithSource[QualifiedIdentifier]): Doc =
+  override def useClause(
+    identifier: WithSource[QualifiedIdentifier]
+  ): Doc =
     // comments in clause are not allowed so we can ignore them when printing
     Doc
       .text("use")
       .space("service")
       .space(writeIdent(identifier.value))
 
-  override def runQuery(query: WithSource[Query[WithSource]]): Doc = printGeneric(query)
+  override def runQuery(
+    query: WithSource[Query[WithSource]]
+  ): Doc = printGeneric(query)
 
-  override def struct(fields: WithSource[Struct.Fields[WithSource]]): Doc =
-    writeBracketed(fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
+  override def struct(
+    fields: WithSource[Struct.Fields[WithSource]]
+  ): Doc = writeBracketed(fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
 
   private def forceLineAfterTrailingComments[A](
     printer: WithSource[A] => Doc
@@ -113,19 +130,34 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
       else
         printer(v)
 
-  override def listed(values: WithSource[List[WithSource[InputNode[WithSource]]]]): Doc =
+  override def listed(
+    values: WithSource[List[WithSource[InputNode[WithSource]]]]
+  ): Doc =
     writeBracketed(values)(Doc.char('['), Doc.char(']')) {
       forceLineAfterTrailingComments(printGeneric)
     }
 
-  override def intLiteral(value: String): Doc = Doc.text(value)
-  override def stringLiteral(value: String): Doc = Doc.text(writeStringLiteral(value))
-  override def booleanLiteral(value: Boolean): Doc = Doc.text(value.show)
+  override def intLiteral(
+    value: String
+  ): Doc = Doc.text(value)
+
+  override def stringLiteral(
+    value: String
+  ): Doc = Doc.text(writeStringLiteral(value))
+
+  override def booleanLiteral(
+    value: Boolean
+  ): Doc = Doc.text(value.show)
+
   override val nullLiteral: Doc = Doc.text("null")
 
-  private def writeKey(k: WithSource[Identifier]): Doc = printWithComments(k)(v => Doc.text(v.text))
+  private def writeKey(
+    k: WithSource[Identifier]
+  ): Doc = printWithComments(k)(v => Doc.text(v.text))
 
-  private def writeField(binding: Binding[WithSource]): Doc = {
+  private def writeField(
+    binding: Binding[WithSource]
+  ): Doc = {
     val k = binding.identifier
     val v = binding.value
 
@@ -134,7 +166,9 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
       forceLineAfterTrailingComments(writeValue)(v)
   }
 
-  private def writeValue(v: WithSource[InputNode[WithSource]]): Doc =
+  private def writeValue(
+    v: WithSource[InputNode[WithSource]]
+  ): Doc =
     v.value.kind match {
       // Structs and sequences introduce their own nesting, so we don't add it here.
       // however, if such a node occurs that has leading comments,
@@ -144,7 +178,11 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
       case _ => printGeneric(v).nested(2).grouped
     }
 
-  private def writeFields[T](fields: List[T])(renderField: T => Doc): Doc =
+  private def writeFields[T](
+    fields: List[T]
+  )(
+    renderField: T => Doc
+  ): Doc =
     // Force newlines between fields
     fields.map(renderField).intercalate(Doc.hardLine)
 
@@ -162,16 +200,24 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
       Doc.hardLine +
       after
 
-  def writeIdent(ident: QualifiedIdentifier): Doc = Doc.text(ident.render)
+  def writeIdent(
+    ident: QualifiedIdentifier
+  ): Doc = Doc.text(ident.render)
 
-  private def writeStringLiteral(s: String) = "\"" + s + "\""
+  private def writeStringLiteral(
+    s: String
+  ) = "\"" + s + "\""
 
   private def printComments(
     lines: List[Comment]
   ): Doc = lines.map(lineComment(_)).intercalate(Doc.hardLine)
 
-  private def lineComment(s: Comment) = {
-    def ensureLeadingSpace(s: String): String =
+  private def lineComment(
+    s: Comment
+  ) = {
+    def ensureLeadingSpace(
+      s: String
+    ): String =
       if (s.startsWith(" "))
         s
       else

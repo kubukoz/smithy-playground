@@ -3,12 +3,18 @@ package playground.smithyql
 import cats.implicits._
 
 trait RangeIndex {
-  def findAtPosition(pos: Position): NodeContext
+
+  def findAtPosition(
+    pos: Position
+  ): NodeContext
+
 }
 
 object RangeIndex {
 
-  def build(sf: SourceFile[WithSource]): RangeIndex =
+  def build(
+    sf: SourceFile[WithSource]
+  ): RangeIndex =
     new RangeIndex {
 
       private val allRanges: List[ContextRange] = {
@@ -24,8 +30,12 @@ object RangeIndex {
             ContextRange(useClauses.map(_.range).reduceLeft(_.fakeUnion(_)), newBase) ::
               sf.prelude
                 .useClauses
-                .mapWithIndex { (uc, i) =>
-                  findInUseClause(uc, newBase.inUseClause(i))
+                .mapWithIndex {
+                  (
+                    uc,
+                    i,
+                  ) =>
+                    findInUseClause(uc, newBase.inUseClause(i))
                 }
                 .combineAll
           }
@@ -57,7 +67,10 @@ object RangeIndex {
 
     }
 
-  private def findInQuery(q: WithSource[Query[WithSource]], path: NodeContext) = {
+  private def findInQuery(
+    q: WithSource[Query[WithSource]],
+    path: NodeContext,
+  ) = {
     val qv = q.value
 
     List(ContextRange(q.range, path)) ++
@@ -83,7 +96,9 @@ object RangeIndex {
     node: WithSource[InputNode[WithSource]],
     ctx: NodeContext,
   ): List[ContextRange] = {
-    def entireNode(ctx: NodeContext) = ContextRange(node.range, ctx)
+    def entireNode(
+      ctx: NodeContext
+    ) = ContextRange(node.range, ctx)
 
     val default = Function.const(
       // Default case: can be triggered e.g. inside a string literal
@@ -151,6 +166,9 @@ object RangeIndex {
 
 }
 
-case class ContextRange(range: SourceRange, ctx: NodeContext) {
+case class ContextRange(
+  range: SourceRange,
+  ctx: NodeContext,
+) {
   def render: String = ctx.render + " -> " + range.render
 }

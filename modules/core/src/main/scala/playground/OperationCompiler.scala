@@ -42,27 +42,44 @@ object CompiledInput {
 }
 
 trait OperationCompiler[F[_]] { self =>
-  def compile(q: Query[WithSource]): F[CompiledInput]
 
-  def mapK[G[_]](fk: F ~> G): OperationCompiler[G] =
+  def compile(
+    q: Query[WithSource]
+  ): F[CompiledInput]
+
+  def mapK[G[_]](
+    fk: F ~> G
+  ): OperationCompiler[G] =
     new OperationCompiler[G] {
-      def compile(q: Query[WithSource]): G[CompiledInput] = fk(self.compile(q))
+
+      def compile(
+        q: Query[WithSource]
+      ): G[CompiledInput] = fk(self.compile(q))
+
     }
 
 }
 
 object OperationCompiler {
 
-  final case class Context(prelude: Prelude[WithSource])
+  final case class Context(
+    prelude: Prelude[WithSource]
+  )
 
   type EffF[F[_], A] = Kleisli[F, Context, A]
   type Eff[A] = EffF[IorNel[CompilationError, *], A]
 
   object Eff {
-    def liftF[A](fa: IorNel[CompilationError, A]): Eff[A] = Kleisli.liftF(fa)
+
+    def liftF[A](
+      fa: IorNel[CompilationError, A]
+    ): Eff[A] = Kleisli.liftF(fa)
+
     val getContext: Eff[Context] = Kleisli.ask
 
-    def perform(prelude: Prelude[WithSource]): Eff ~> IorThrow = Kleisli
+    def perform(
+      prelude: Prelude[WithSource]
+    ): Eff ~> IorThrow = Kleisli
       .liftFunctionK(CompilationFailed.wrapK)
       .andThen(Kleisli.applyK(Context(prelude)))
 
@@ -78,7 +95,7 @@ object OperationCompiler {
     val compilers: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
       services.map { svc =>
         QualifiedIdentifier
-          .forService(svc.service) -> OperationCompiler.fromService[svc.Alg, svc.Op](svc.service)
+          .forService(svc.service) -> OperationCompiler.fromService(svc.service)
       }.toMap
 
     new MultiServiceCompiler(
@@ -87,16 +104,21 @@ object OperationCompiler {
     )
   }
 
-  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
+  def fromService[Alg[_[_, _, _, _, _]]](
+    service: Service[Alg]
   ): OperationCompiler[IorNel[CompilationError, *]] = new ServiceCompiler(service)
 
 }
 
-final case class CompilationFailed(errors: NonEmptyList[CompilationError]) extends Throwable
+final case class CompilationFailed(
+  errors: NonEmptyList[CompilationError]
+) extends Throwable
 
 object CompilationFailed {
-  def one(e: CompilationError): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
+
+  def one(
+    e: CompilationError
+  ): CompilationFailed = CompilationFailed(NonEmptyList.one(e))
 
   // this is a bit overused
   // https://github.com/kubukoz/smithy-playground/issues/157
@@ -113,7 +135,10 @@ object CompilationFailed {
       ): IorNel[CompilationError, A] = result.fold(
         Ior.left(_),
         Ior.right(_),
-        (e, a) =>
+        (
+          e,
+          a,
+        ) =>
           if (e.exists(_.isError))
             Ior.left(e)
           else
@@ -124,12 +149,12 @@ object CompilationFailed {
 
 }
 
-private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  service: Service[Alg, Op]
+private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
+  service: Service[Alg]
 ) extends OperationCompiler[IorNel[CompilationError, *]] {
 
   private def compileEndpoint[In, Err, Out](
-    e: Endpoint[Op, In, Err, Out, _, _]
+    e: Endpoint[service.Operation, In, Err, Out, _, _]
   ): QueryCompiler[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
     val outputEncoder = NodeEncoder.derive(e.output)
@@ -140,11 +165,11 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
         .compile(ast)
         .map { compiled =>
           new CompiledInput {
-            type _Op[_I, _E, _O, _SE, _SO] = Op[_I, _E, _O, _SE, _SO]
+            type _Op[_I, _E, _O, _SE, _SO] = service.Operation[_I, _E, _O, _SE, _SO]
             type E = Err
             type O = Out
 
-            val op: Op[_, Err, Out, _, _] = e.wrap(compiled)
+            val op: _Op[_, Err, Out, _, _] = e.wrap(compiled)
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
             val catchError: Throwable => Option[Err] = e.Error.unapply(_).map(_._2)
@@ -179,7 +204,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
 
   private def deprecatedOperationCheck(
     q: Query[WithSource],
-    endpoint: Endpoint[Op, _, _, _, _, _],
+    endpoint: Endpoint[service.Operation, _, _, _, _, _],
   ): IorNel[CompilationError, Unit] =
     endpoint
       .hints
@@ -193,7 +218,9 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       .toBothLeft(())
       .toIorNel
 
-  def compile(q: Query[WithSource]): IorNel[CompilationError, CompiledInput] = {
+  def compile(
+    q: Query[WithSource]
+  ): IorNel[CompilationError, CompiledInput] = {
     val (endpoint, inputCompiler) = endpoints
       .get(q.operationName.value.operationName.value.text)
       // https://github.com/kubukoz/smithy-playground/issues/154

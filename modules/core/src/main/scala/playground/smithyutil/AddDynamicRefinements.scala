@@ -41,9 +41,14 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
         underlying.tag
       )
 
-  private implicit class SchemaOps[A](schema: Schema[A]) {
-    def reifyHint[B](implicit rp: RefinementProvider[B, A, _]): Schema[A] =
-      schema.hints.get(rp.tag).fold(schema)(schema.validated(_)(void(rp)))
+  private implicit class SchemaOps[A](
+    schema: Schema[A]
+  ) {
+
+    def reifyHint[B](
+      implicit rp: RefinementProvider[B, A, _]
+    ): Schema[A] = schema.hints.get(rp.tag).fold(schema)(schema.validated(_)(void(rp)))
+
   }
 
   private def collection[C[_], A](
@@ -57,7 +62,9 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
         schema.reifyHint(RefinementProvider.iterableLengthConstraint[IndexedSeq, A])
     }
 
-  def apply[A](schema: Schema[A]): Schema[A] =
+  def apply[A](
+    schema: Schema[A]
+  ): Schema[A] =
     schema match {
       case PrimitiveSchema(_, _, tag) =>
         tag match {

@@ -26,7 +26,10 @@ object converters {
 
   object toLSP {
 
-    def documentSymbol(map: LocationMap, sym: DocumentSymbol): lsp4j.DocumentSymbol =
+    def documentSymbol(
+      map: LocationMap,
+      sym: DocumentSymbol,
+    ): lsp4j.DocumentSymbol =
       new lsp4j.DocumentSymbol(
         sym.name,
         symbolKind(sym.kind),
@@ -34,7 +37,9 @@ object converters {
         range(map, sym.range),
       ).tap(_.setChildren(sym.children.map(documentSymbol(map, _)).asJava))
 
-    def symbolKind(kind: SymbolKind): lsp4j.SymbolKind =
+    def symbolKind(
+      kind: SymbolKind
+    ): lsp4j.SymbolKind =
       kind match {
         case SymbolKind.Function => lsp4j.SymbolKind.Function
         case SymbolKind.Array    => lsp4j.SymbolKind.Array
@@ -106,7 +111,10 @@ object converters {
         .tap(_.setSortText(item.sortText.orNull))
     }
 
-    def textEdit(edit: TextEdit, map: LocationMap): lsp4j.TextEdit =
+    def textEdit(
+      edit: TextEdit,
+      map: LocationMap,
+    ): lsp4j.TextEdit =
       edit match {
         case TextEdit.Insert(what, where) =>
           val pos = converters.toLSP.position(map, where)
@@ -118,40 +126,44 @@ object converters {
           new lsp4j.TextEdit(r, what)
       }
 
-    def diagnostic(map: LocationMap, diag: CompilationError): lsp4j.Diagnostic =
-      new lsp4j.Diagnostic()
-        .tap(_.setRange(toLSP.range(map, diag.range)))
-        .tap(_.setMessage(diag.err.render))
-        .tap(_.setSeverity(diag.severity match {
-          case DiagnosticSeverity.Error       => lsp4j.DiagnosticSeverity.Error
-          case DiagnosticSeverity.Information => lsp4j.DiagnosticSeverity.Information
-          case DiagnosticSeverity.Warning     => lsp4j.DiagnosticSeverity.Warning
-        }))
-        .tap(
-          _.setTags(
-            diag
-              .tags
-              .map { tag =>
-                tag match {
-                  case DiagnosticTag.Deprecated => lsp4j.DiagnosticTag.Deprecated
-                  case DiagnosticTag.Unused     => lsp4j.DiagnosticTag.Unnecessary
-                }
+    def diagnostic(
+      map: LocationMap,
+      diag: CompilationError,
+    ): lsp4j.Diagnostic = new lsp4j.Diagnostic()
+      .tap(_.setRange(toLSP.range(map, diag.range)))
+      .tap(_.setMessage(diag.err.render))
+      .tap(_.setSeverity(diag.severity match {
+        case DiagnosticSeverity.Error       => lsp4j.DiagnosticSeverity.Error
+        case DiagnosticSeverity.Information => lsp4j.DiagnosticSeverity.Information
+        case DiagnosticSeverity.Warning     => lsp4j.DiagnosticSeverity.Warning
+      }))
+      .tap(
+        _.setTags(
+          diag
+            .tags
+            .map { tag =>
+              tag match {
+                case DiagnosticTag.Deprecated => lsp4j.DiagnosticTag.Deprecated
+                case DiagnosticTag.Unused     => lsp4j.DiagnosticTag.Unnecessary
               }
-              .toList
-              .asJava
-          )
+            }
+            .toList
+            .asJava
         )
+      )
 
-    def codeLens(map: LocationMap, lens: CodeLens): lsp4j.CodeLens =
-      new lsp4j.CodeLens(range(map, lens.range))
-        .tap(
-          _.setCommand(
-            new lsp4j.Command()
-              .tap(_.setTitle(lens.command.title))
-              .tap(_.setCommand(lens.command.command))
-              .tap(_.setArguments(lens.command.args.widen[Object].asJava))
-          )
+    def codeLens(
+      map: LocationMap,
+      lens: CodeLens,
+    ): lsp4j.CodeLens = new lsp4j.CodeLens(range(map, lens.range))
+      .tap(
+        _.setCommand(
+          new lsp4j.Command()
+            .tap(_.setTitle(lens.command.title))
+            .tap(_.setCommand(lens.command.command))
+            .tap(_.setArguments(lens.command.args.widen[Object].asJava))
         )
+      )
 
     def range(
       map: LocationMap,
@@ -179,7 +191,9 @@ object converters {
 
   }
 
-  def gsonToCirce(gson: JsonElement): Json =
+  def gsonToCirce(
+    gson: JsonElement
+  ): Json =
     if (gson.isJsonPrimitive()) {
       val prim = gson.getAsJsonPrimitive()
 

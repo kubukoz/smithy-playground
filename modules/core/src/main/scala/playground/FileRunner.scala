@@ -15,11 +15,18 @@ object FileRunner {
 
     def get(
       file: SourceFile[WithSource]
-    ): Either[NonEmptyList[(SourceRange, OperationRunner.Issue.Squashed)], List[OperationRunner[F]]]
+    ): Either[NonEmptyList[
+      (
+        SourceRange,
+        OperationRunner.Issue.Squashed,
+      )
+    ], List[OperationRunner[F]]]
 
   }
 
-  def instance[F[_]](forOperation: OperationRunner.Resolver[F]): Resolver[F] =
+  def instance[F[_]](
+    forOperation: OperationRunner.Resolver[F]
+  ): Resolver[F] =
     file =>
       file
         .queries(WithSource.unwrap)

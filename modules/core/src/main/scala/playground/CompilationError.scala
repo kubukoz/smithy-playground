@@ -157,27 +157,36 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
 
 object CompilationErrorDetails {
 
-  def deprecationString(info: DeprecatedInfo): String = {
+  def deprecationString(
+    info: DeprecatedInfo
+  ): String = {
     val reasonString = info.message.foldMap(": " + _)
     val sinceString = info.since.foldMap(" (since " + _ + ")")
 
     sinceString ++ reasonString
   }
 
-  final case class ParseError(expectationString: String) extends CompilationErrorDetails
+  final case class ParseError(
+    expectationString: String
+  ) extends CompilationErrorDetails
 
   // todo: remove
-  final case class Message(text: String) extends CompilationErrorDetails
-  final case class UnknownService(knownServices: List[QualifiedIdentifier])
-    extends CompilationErrorDetails
+  final case class Message(
+    text: String
+  ) extends CompilationErrorDetails
+
+  final case class UnknownService(
+    knownServices: List[QualifiedIdentifier]
+  ) extends CompilationErrorDetails
 
   final case class UnsupportedProtocols(
     supported: NonEmptyList[ShapeId],
     available: List[ShapeId],
   ) extends CompilationErrorDetails
 
-  final case class ConflictingServiceReference(refs: List[QualifiedIdentifier])
-    extends CompilationErrorDetails
+  final case class ConflictingServiceReference(
+    refs: List[QualifiedIdentifier]
+  ) extends CompilationErrorDetails
 
   final case class AmbiguousService(
     workspaceServices: List[QualifiedIdentifier]
@@ -192,22 +201,33 @@ object CompilationErrorDetails {
     validOperations: List[OperationName[Id]]
   ) extends CompilationErrorDetails
 
-  final case class MissingField(label: String) extends CompilationErrorDetails
+  final case class MissingField(
+    label: String
+  ) extends CompilationErrorDetails
 
   case object InvalidUUID extends CompilationErrorDetails
 
-  final case class NumberOutOfRange(numberValue: String, typeName: String)
-    extends CompilationErrorDetails
+  final case class NumberOutOfRange(
+    numberValue: String,
+    typeName: String,
+  ) extends CompilationErrorDetails
 
-  final case class InvalidTimestampFormat(expected: TimestampFormat) extends CompilationErrorDetails
+  final case class InvalidTimestampFormat(
+    expected: TimestampFormat
+  ) extends CompilationErrorDetails
 
-  final case class MissingDiscriminator(possibleValues: NonEmptyList[String])
-    extends CompilationErrorDetails
+  final case class MissingDiscriminator(
+    possibleValues: NonEmptyList[String]
+  ) extends CompilationErrorDetails
 
-  final case class EmptyStruct(possibleValues: NonEmptyList[String]) extends CompilationErrorDetails
+  final case class EmptyStruct(
+    possibleValues: NonEmptyList[String]
+  ) extends CompilationErrorDetails
 
-  final case class UnknownEnumValue(value: String, possibleValues: List[String])
-    extends CompilationErrorDetails
+  final case class UnknownEnumValue(
+    value: String,
+    possibleValues: List[String],
+  ) extends CompilationErrorDetails
 
   final case class StructMismatch(
     keys: List[String],
@@ -218,13 +238,20 @@ object CompilationErrorDetails {
     remainingFields: List[String]
   ) extends CompilationErrorDetails
 
-  final case class RefinementFailure(msg: String) extends CompilationErrorDetails
+  final case class RefinementFailure(
+    msg: String
+  ) extends CompilationErrorDetails
 
   case object DuplicateItem extends CompilationErrorDetails
 
   case object InvalidBlob extends CompilationErrorDetails
 
-  case class DeprecatedItem(info: DeprecatedInfo) extends CompilationErrorDetails
+  case class DeprecatedItem(
+    info: DeprecatedInfo
+  ) extends CompilationErrorDetails
 
-  final case class EnumFallback(enumName: String) extends CompilationErrorDetails
+  final case class EnumFallback(
+    enumName: String
+  ) extends CompilationErrorDetails
+
 }

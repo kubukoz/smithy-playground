@@ -28,7 +28,9 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
 
     }
 
-  def append(elem: NodeContext.PathEntry): NodeContext =
+  def append(
+    elem: NodeContext.PathEntry
+  ): NodeContext =
     this match {
       case NodeContext.Impl(context) => NodeContext.Impl(context.append(elem))
     }
@@ -43,13 +45,20 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
       case NodeContext.Impl(ctx) => ctx.toList
     }
 
-  def uncons: Option[(NodeContext.PathEntry, NodeContext)] =
+  def uncons: Option[
+    (
+      NodeContext.PathEntry,
+      NodeContext,
+    )
+  ] =
     this match {
       case NodeContext.Impl(h ==: t) => Some((h, NodeContext.Impl(t)))
       case _                         => None
     }
 
-  def ^^:(item: NodeContext.PathEntry): NodeContext =
+  def ^^:(
+    item: NodeContext.PathEntry
+  ): NodeContext =
     this match {
       case NodeContext.Impl(context) => NodeContext.Impl(context.prepend(item))
     }
@@ -74,7 +83,15 @@ object NodeContext {
       *
       * {{{case InQuery(0) ^^: rest}}}
       */
-    def unapply(items: NodeContext): Option[(PathEntry, NodeContext)] = items.uncons
+    def unapply(
+      items: NodeContext
+    ): Option[
+      (
+        PathEntry,
+        NodeContext,
+      )
+    ] = items.uncons
+
   }
 
   val EmptyPath: NodeContext = Impl(Chain.nil)
@@ -84,33 +101,61 @@ object NodeContext {
   // https://github.com/kubukoz/smithy-playground/issues/159
   val Root: NodeContext = EmptyPath
 
-  private final case class Impl(context: Chain[PathEntry]) extends NodeContext
+  private final case class Impl(
+    context: Chain[PathEntry]
+  ) extends NodeContext
 
   sealed trait PathEntry extends Product with Serializable
 
   object PathEntry {
     case object AtPrelude extends PathEntry
-    case class InQuery(index: Int) extends PathEntry
-    final case class AtUseClause(index: Int) extends PathEntry
+
+    case class InQuery(
+      index: Int
+    ) extends PathEntry
+
+    final case class AtUseClause(
+      index: Int
+    ) extends PathEntry
+
     case object AtOperationName extends PathEntry
     case object AtOperationInput extends PathEntry
-    final case class StructValue(key: String) extends PathEntry
+
+    final case class StructValue(
+      key: String
+    ) extends PathEntry
+
     // no index if it's not in an entry - todo replace with CollectionBody?
-    final case class CollectionEntry(index: Option[Int]) extends PathEntry
+    final case class CollectionEntry(
+      index: Option[Int]
+    ) extends PathEntry
+
     case object StructBody extends PathEntry
     case object Quotes extends PathEntry
 
     trait TraversalOps {
       self: NodeContext =>
 
-      def inQuery(index: Int): NodeContext = append(PathEntry.InQuery(index))
+      def inQuery(
+        index: Int
+      ): NodeContext = append(PathEntry.InQuery(index))
+
       def inPrelude: NodeContext = append(PathEntry.AtPrelude)
-      def inUseClause(index: Int): NodeContext = append(PathEntry.AtUseClause(index))
+
+      def inUseClause(
+        index: Int
+      ): NodeContext = append(PathEntry.AtUseClause(index))
+
       def inOperationName: NodeContext = append(PathEntry.AtOperationName)
       def inOperationInput: NodeContext = append(PathEntry.AtOperationInput)
-      def inStructValue(key: String): NodeContext = append(PathEntry.StructValue(key))
 
-      def inCollectionEntry(index: Option[Int]): NodeContext = append(
+      def inStructValue(
+        key: String
+      ): NodeContext = append(PathEntry.StructValue(key))
+
+      def inCollectionEntry(
+        index: Option[Int]
+      ): NodeContext = append(
         PathEntry.CollectionEntry(index)
       )
 

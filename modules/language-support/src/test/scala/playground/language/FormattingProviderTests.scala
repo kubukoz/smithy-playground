@@ -10,7 +10,9 @@ import weaver._
 object FormattingProviderTests extends FunSuite {
   private val anyUri = Uri.fromPath(Path("file.smithyql"))
 
-  private def provideForFile(s: String) = {
+  private def provideForFile(
+    s: String
+  ) = {
     implicit val tdp: TextDocumentProvider[Id] = TextDocumentProvider.always[Id](
       s
     )

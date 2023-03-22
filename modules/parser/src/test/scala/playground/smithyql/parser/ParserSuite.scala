@@ -68,14 +68,19 @@ trait ParserSuite extends SimpleIOSuite {
     }
   }
 
-  private def readText(path: Path) =
+  private def readText(
+    path: Path
+  ) =
     Files[IO]
       .readAll(path)
       .through(fs2.text.utf8.decode)
       .compile
       .string
 
-  private def writeText(path: Path, text: String) =
+  private def writeText(
+    path: Path,
+    text: String,
+  ) =
     fs2
       .Stream
       .emit(text)
@@ -84,7 +89,10 @@ trait ParserSuite extends SimpleIOSuite {
       .compile
       .drain
 
-  private def loadTestCases(outputExtension: String, prefix: List[String]): List[TestCase] = {
+  private def loadTestCases(
+    outputExtension: String,
+    prefix: List[String],
+  ): List[TestCase] = {
     val baseDir = Paths
       .get(getClass().getResource("/parser-examples").getFile())
       .resolve(file.Path.of(prefix.head, prefix.tail: _*))
@@ -132,14 +140,19 @@ trait ParserSuite extends SimpleIOSuite {
           .liftTo[IO]
       )
 
-    def writeOutput(text: String): IO[Path] = writeText(outputPath, text).as(outputPath)
+    def writeOutput(
+      text: String
+    ): IO[Path] = writeText(outputPath, text).as(outputPath)
+
   }
 
 }
 
 object ParserSuite {
 
-  def assertParses[Alg[_[_]]: SourceParser](s: String) = SourceParser[Alg]
+  def assertParses[Alg[_[_]]: SourceParser](
+    s: String
+  ) = SourceParser[Alg]
     .parse(s)
     .leftMap(e => s"Parsing failed: \n==========\n${e.debug}\n==========")
 
