@@ -7,6 +7,7 @@ import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.syntax._
 import playground.std.ClockGen
+import playground.std.ClockOperation
 import smithy4s.schema.Schema
 import weaver._
 
@@ -58,7 +59,7 @@ object CompletionItemTests extends FunSuite {
   test("CompletionItem.forOperation: no use clause") {
     val result = CompletionItem.forOperation(
       insertUseClause = CompletionItem.InsertUseClause.NotRequired,
-      endpoint = ClockGen.CurrentTimestamp,
+      endpoint = ClockOperation.CurrentTimestamp,
       serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
       CompletionItem.InsertBodyStruct.Yes,
     )
@@ -84,7 +85,7 @@ object CompletionItemTests extends FunSuite {
   test("CompletionItem.forOperation: insert use clause") {
     val result = CompletionItem.forOperation(
       insertUseClause = CompletionItem.InsertUseClause.Required,
-      endpoint = ClockGen.CurrentTimestamp,
+      endpoint = ClockOperation.CurrentTimestamp,
       serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
       CompletionItem.InsertBodyStruct.Yes,
     )
@@ -112,7 +113,7 @@ object CompletionItemTests extends FunSuite {
   test("CompletionItem.forOperation: no struct body") {
     val result = CompletionItem.forOperation(
       insertUseClause = CompletionItem.InsertUseClause.NotRequired,
-      endpoint = ClockGen.CurrentTimestamp,
+      endpoint = ClockOperation.CurrentTimestamp,
       serviceId = QualifiedIdentifier.fromShapeId(ClockGen.id),
       CompletionItem.InsertBodyStruct.No,
     )
