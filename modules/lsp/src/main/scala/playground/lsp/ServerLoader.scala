@@ -3,7 +3,7 @@ package playground.lsp
 import cats.MonadThrow
 import cats.effect.kernel.Ref
 import cats.implicits._
-import playground.BuildConfig
+import playground.PlaygroundConfig
 import playground.language.Uri
 
 trait ServerLoader[F[_]] {
@@ -47,11 +47,11 @@ object ServerLoader {
   object WorkspaceStats {
 
     def fromBuildConfig(
-      bc: BuildConfig
+      bc: PlaygroundConfig
     ): WorkspaceStats = WorkspaceStats(
       importCount = bc.imports.size,
-      dependencyCount = bc.mavenDependencies.size,
-      pluginCount = bc.smithyPlayground.foldMap(_.extensions).size,
+      dependencyCount = bc.dependencies.size,
+      pluginCount = bc.extensions.size,
     )
 
   }

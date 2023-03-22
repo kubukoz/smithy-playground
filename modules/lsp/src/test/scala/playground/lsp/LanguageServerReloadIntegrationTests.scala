@@ -7,8 +7,7 @@ import fs2.io.file.Path
 import org.eclipse.lsp4j.CodeLensParams
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams
 import org.eclipse.lsp4j.TextDocumentIdentifier
-import playground.BuildConfig
-import playground.BuildConfigDecoder
+import playground.PlaygroundConfig
 import playground.language.Uri
 import weaver._
 
@@ -74,12 +73,12 @@ object LanguageServerReloadIntegrationTests
 
             val addLibrary = readBytes(workspacePath / "smithy-build.json")
               .flatMap { bytes =>
-                BuildConfigDecoder.decode(bytes).liftTo[IO]
+                PlaygroundConfig.decode(bytes).liftTo[IO]
               }
               .flatMap { baseConfig =>
                 writeBytes(
                   base / "smithy-build.json",
-                  BuildConfigDecoder.encode(
+                  PlaygroundConfig.encode(
                     baseConfig.copy(
                       imports = weatherPath.absolute.toString :: Nil
                     )
@@ -109,7 +108,7 @@ object LanguageServerReloadIntegrationTests
             f.client.scoped {
               writeBytes(
                 base / "smithy-build.json",
-                BuildConfigDecoder.encode(BuildConfig()),
+                PlaygroundConfig.encode(PlaygroundConfig.empty),
               ) *>
                 f.server.didChangeWatchedFiles(new DidChangeWatchedFilesParams())
             }

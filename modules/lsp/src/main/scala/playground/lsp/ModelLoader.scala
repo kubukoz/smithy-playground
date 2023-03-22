@@ -1,12 +1,11 @@
 package playground.lsp
 
-import cats.implicits._
 import coursier._
 import coursier.cache.FileCache
 import coursier.parse.DependencyParser
 import coursier.parse.RepositoryParser
 import coursier.util.Task
-import playground.BuildConfig
+import playground.PlaygroundConfig
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
@@ -19,23 +18,21 @@ import scala.util.chaining._
 object ModelLoader {
 
   def makeClassLoaderUnsafe(
-    buildConfig: BuildConfig
+    buildConfig: PlaygroundConfig
   ): URLClassLoader = makeClassLoaderForJars(
     resolveDependencies(
-      dependencies = buildConfig.mavenDependencies ++ buildConfig.maven.foldMap(_.dependencies),
-      repositories =
-        buildConfig.mavenRepositories ++ buildConfig.maven.foldMap(_.repositories).map(_.url),
+      dependencies = buildConfig.dependencies,
+      repositories = buildConfig.repositories,
     ),
     isolated = true,
   )
 
   def makeClassLoaderForPluginsUnsafe(
-    buildConfig: BuildConfig
+    buildConfig: PlaygroundConfig
   ): URLClassLoader = makeClassLoaderForJars(
     resolveDependencies(
-      dependencies = buildConfig.smithyPlayground.foldMap(_.extensions),
-      repositories =
-        buildConfig.mavenRepositories ++ buildConfig.maven.foldMap(_.repositories).map(_.url),
+      dependencies = buildConfig.extensions,
+      repositories = buildConfig.repositories,
     ),
     isolated = false,
   )
