@@ -6,6 +6,7 @@ import cats.data.Ior
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
 import cats.implicits._
+import com.softwaremill.diffx.Diff
 import com.softwaremill.diffx.cats._
 import demo.smithy.Bad
 import demo.smithy.DeprecatedServiceGen
@@ -29,6 +30,7 @@ import playground.CompilationErrorDetails
 import playground.CompilationFailed
 import playground.CompiledInput
 import playground.DeprecatedInfo
+import playground.DiagnosticSeverity
 import playground.DiagnosticTag
 import playground.Diffs._
 import playground.DynamicModel
@@ -228,10 +230,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("long") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(Long.MaxValue.mapK(WithSource.liftId))
-      }(Schema.long) == Ior.right(Long.MaxValue)
+      }(Schema.long),
+      Ior.right(Long.MaxValue),
     )
   }
 
@@ -244,10 +247,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("int") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(Schema.int) == Ior.right(42)
+      }(Schema.int),
+      Ior.right(42),
     )
   }
 
@@ -260,10 +264,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("short") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(Schema.short) == Ior.right(42.toShort)
+      }(Schema.short),
+      Ior.right(42.toShort),
     )
   }
 
@@ -276,10 +281,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("byte") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(Byte.MaxValue.mapK(WithSource.liftId))
-      }(Schema.byte) == Ior.right(127.toByte)
+      }(Schema.byte),
+      Ior.right(127.toByte),
     )
   }
 
@@ -292,10 +298,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("float") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(Float.MaxValue.mapK(WithSource.liftId))
-      }(Schema.float) == Ior.right(Float.MaxValue)
+      }(Schema.float),
+      Ior.right(Float.MaxValue),
     )
   }
 
@@ -308,27 +315,30 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("double") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(Double.MaxValue.mapK(WithSource.liftId))
-      }(Schema.double) == Ior.right(Double.MaxValue)
+      }(Schema.double),
+      Ior.right(Double.MaxValue),
     )
   }
 
   pureTest("double - out of range") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId((BigDecimal(Double.MaxValue) + 1).mapK(WithSource.liftId))
-      }(Schema.double) == Ior.right(Double.MaxValue)
+      }(Schema.double),
+      Ior.right(Double.MaxValue),
     )
   }
 
   test("bigint - OK") {
     forall { (bi: BigInt) =>
-      assert(
+      assertNoDiff(
         compile {
           WithSource.liftId(bi.mapK(WithSource.liftId))
-        }(Schema.bigint) == Ior.right(bi)
+        }(Schema.bigint),
+        Ior.right(bi),
       )
     }
   }
@@ -343,10 +353,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   test("bigdecimal - OK") {
     forall { (bd: BigDecimal) =>
-      assert(
+      assertNoDiff(
         compile {
           WithSource.liftId(bd.mapK(WithSource.liftId))
-        }(Schema.bigdecimal) == Ior.right(bd)
+        }(Schema.bigdecimal),
+        Ior.right(bd),
       )
     }
   }
@@ -360,18 +371,20 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("boolean") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(true.mapK(WithSource.liftId))
-      }(Schema.boolean) == Ior.right(true)
+      }(Schema.boolean),
+      Ior.right(true),
     )
   }
 
   pureTest("null document") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(NullLiteral[WithSource]())
-      }(Schema.document) == Ior.right(Document.nullDoc)
+      }(Schema.document),
+      Ior.right(Document.nullDoc),
     )
   }
 
@@ -384,10 +397,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("blob") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId("dGVzdA==".mapK(WithSource.liftId))
-      }(Schema.bytes) == Ior.right(ByteArray("test".getBytes()))
+      }(Schema.bytes),
+      Ior.right(ByteArray("test".getBytes())),
     )
   }
 
@@ -400,12 +414,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("Simple struct") {
-    assert(
+    implicit val diffGood: Diff[Good] = Diff.derived
+
+    assertNoDiff(
       compile[Good] {
         WithSource.liftId {
           struct("howGood" -> 200).mapK(WithSource.liftId)
         }
-      } == Ior.right(Good(200))
+      },
+      Ior.right(Good(200)),
     )
   }
 
@@ -417,24 +434,26 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           "hasMessage" -> true
         ).mapK(WithSource.liftId)
       }
-    )
-      .void
-      .leftMap(_.filter(_.isWarning).map(err => (err.err, err.tags)))
+    ).void
+      .leftMap(_.filter(_.isWarning))
 
-    assert(
-      result == Ior.left(
+    assertNoDiff(
+      result,
+      Ior.left(
         Chain(
-          (
+          CompilationError(
             CompilationErrorDetails.DeprecatedItem(
               info = DeprecatedInfo(
                 message = "Made-up reason".some,
                 since = None,
               )
             ),
-            Set(DiagnosticTag.Deprecated),
+            range = SourceRange.empty(Position.origin),
+            severity = DiagnosticSeverity.Warning,
+            tags = Set(DiagnosticTag.Deprecated),
           )
         )
-      )
+      ),
     )
   }
 
@@ -455,12 +474,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("Missing fields in struct") {
-    assert(
+    assertNoDiff(
       compile[Bad] {
         WithSource.liftId {
           struct().mapK(WithSource.liftId)
         }
-      } == Ior.left(
+      }.void,
+      Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails
@@ -472,16 +492,17 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             SourceRange(Position(0), Position(0)),
           ),
         )
-      )
+      ),
     )
   }
 
   pureTest("Missing fields in struct with mixins") {
-    val result = compile[HasMixin] {
-      WithSource.liftId {
-        struct("name" -> "foo").mapK(WithSource.liftId)
-      }
-    }
+    val result =
+      compile[HasMixin] {
+        WithSource.liftId {
+          struct("name" -> "foo").mapK(WithSource.liftId)
+        }
+      }.void
 
     val expected = Ior.left(
       NonEmptyChain.of(
@@ -492,7 +513,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )
     )
 
-    assert(result == expected)
+    assertNoDiff(result, expected)
   }
 
   pureTest("Missing fields in struct with mixins - dynamic") {
@@ -501,7 +522,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         WithSource.liftId {
           struct("name" -> "foo").mapK(WithSource.liftId)
         }
-      }(dynamicSchemaFor[HasMixin])
+      }(dynamicSchemaFor[HasMixin]).void
 
     val expected = Ior.left(
       NonEmptyChain.of(
@@ -512,23 +533,24 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )
     )
 
-    assert(result == expected)
+    assertNoDiff(result, expected)
   }
 
   pureTest("Missing fields in struct - 1 already present") {
-    assert(
+    assertNoDiff(
       compile[Bad] {
         WithSource.liftId {
           struct("evilName" -> "hello").mapK(WithSource.liftId)
         }
-      } == Ior.left(
+      }.void,
+      Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails.MissingField("powerLevel"),
             SourceRange(Position(0), Position(0)),
           )
         )
-      )
+      ),
     )
   }
   pureTest("union") {
@@ -565,10 +587,10 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         )
         .deprecated
 
+    assertNoDiff(result.void.left, warning.pure[NonEmptyChain].some) &&
     assert(
-      result == Ior.bothNec(
-        warning,
-        Hero.BadderCase(Bad("Vader", 9001)),
+      result.right == Some(
+        Hero.BadderCase(Bad("Vader", 9001))
       )
     )
   }
@@ -580,8 +602,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )
     val expected = Timestamp.parse("2022-07-11T17:42:28.000Z", TimestampFormat.DATE_TIME).get
 
-    assert(
-      result == Ior.right(expected)
+    assertNoDiff(
+      result,
+      Ior.right(expected),
     )
   }
 
@@ -593,8 +616,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     val expected = Timestamp.parse("2022-07-11T17:42:28.000Z", TimestampFormat.DATE_TIME).get
 
-    assert(
-      result == Ior.right(expected)
+    assertNoDiff(
+      result,
+      Ior.right(expected),
     )
   }
 
@@ -603,10 +627,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       Schema.timestamp
     ).leftMap(_.map(_.err))
 
-    assert(
-      result == Ior.leftNec(
+    assertNoDiff(
+      result,
+      Ior.leftNec(
         CompilationErrorDetails.InvalidTimestampFormat(TimestampFormat.DATE_TIME)
-      )
+      ),
     )
   }
 
@@ -617,8 +642,10 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )(
         Schema.uuid
       )
-    assert(
-      result == Ior.right(UUID.fromString("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f"))
+
+    assertNoDiff(
+      result,
+      Ior.right(UUID.fromString("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f")),
     )
   }
 
@@ -631,6 +658,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("enum - fallback to string value") {
+    implicit val diffPower: Diff[Power] = Diff.derived
+
     val aRange = SourceRange(Position(10), Position(20))
 
     val result = compile[Power](WithSource.liftId("Wind".mapK(WithSource.liftId)).withRange(aRange))
@@ -647,14 +676,16 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       Power.WIND,
     )
 
-    assert(
-      result == expected
+    assertNoDiff(
+      result,
+      expected,
     )
   }
 
   pureTest("enum - failure") {
-    assert(
-      compile[Power](WithSource.liftId("POISON".mapK(WithSource.liftId))) == Ior.left(
+    assertNoDiff(
+      compile[Power](WithSource.liftId("POISON".mapK(WithSource.liftId))).void,
+      Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails.UnknownEnumValue(
@@ -664,7 +695,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             SourceRange(Position(0), Position(0)),
           )
         )
-      )
+      ),
     )
   }
 
@@ -797,11 +828,12 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )(asDocument(dynamicSchemaFor[FriendSet]))
       .leftMap(_.map(_.err))
 
-    assert(
-      compiledFailures == Ior.both(
+    assertNoDiff(
+      compiledFailures,
+      Ior.both(
         NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem),
         Document.array(Document.obj("good" -> Document.obj("howGood" -> Document.fromInt(42)))),
-      )
+      ),
     )
   }
 
@@ -828,16 +860,16 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       ),
     )
 
-    assert(
-      compiledDoc == Ior.right(
-        expected
-      )
+    assertNoDiff(
+      compiledDoc,
+      Ior.right(expected),
     )
   }
 
   pureTest("list of strings where a list of ints is expected") {
-    assert(
-      compile[Ints](WithSource.liftId(List("hello", "world").mapK(WithSource.liftId))) == Ior.left(
+    assertNoDiff(
+      compile[Ints](WithSource.liftId(List("hello", "world").mapK(WithSource.liftId))).void,
+      Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
@@ -848,7 +880,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             SourceRange(Position(0), Position(0)),
           ),
         )
-      )
+      ),
     )
   }
 
@@ -864,7 +896,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("list of structs to document") {
-    assert(
+    assertNoDiff(
       compile(
         WithSource.liftId(
           List(
@@ -872,7 +904,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             struct("name" -> "aaa"),
           ).mapK(WithSource.liftId)
         )
-      )(Schema.document) == Ior.right(
+      )(Schema.document),
+      Ior.right(
         Document.array(
           Document.obj(
             "good" -> Document.fromBoolean(true),
@@ -882,7 +915,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             "name" -> Document.fromString("aaa")
           ),
         )
-      )
+      ),
     )
   }
 
@@ -912,7 +945,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           |NextUUID {}""".stripMargin
       ).toEither
 
-    assert.same(
+    assertNoDiff(
       result.left.toOption.get.asInstanceOf[CompilationFailed].errors.map(_.err),
       NonEmptyList.of(
         CompilationErrorDetails.UnknownService(List(QualifiedIdentifier.forService(ClockGen))),
