@@ -34,8 +34,8 @@ object DocumentSymbolProvider {
     val q = wsq.value
 
     DocumentSymbol(
-      q.operationName.value.operationName.value.text,
-      SymbolKind.Function,
+      name = q.operationName.value.operationName.value.text,
+      kind = SymbolKind.Function,
       selectionRange = q.operationName.range,
       range = wsq.range,
       children = findInStruct(q.input),
@@ -48,11 +48,11 @@ object DocumentSymbolProvider {
     val useClause = clause.value
 
     DocumentSymbol(
-      useClause.identifier.value.render,
-      SymbolKind.Package,
-      useClause.identifier.range,
-      useClause.identifier.range,
-      Nil,
+      name = useClause.identifier.value.render,
+      kind = SymbolKind.Package,
+      selectionRange = useClause.identifier.range,
+      range = useClause.identifier.range,
+      children = Nil,
     ) :: Nil
   }
 
@@ -63,8 +63,8 @@ object DocumentSymbolProvider {
     val value = binding.value
 
     DocumentSymbol(
-      key.value.text,
-      SymbolKind.Field,
+      name = key.value.text,
+      kind = SymbolKind.Field,
       selectionRange = key.range,
       range = key.range.fakeUnion(value.range),
       children = findInNode(value),
@@ -88,11 +88,11 @@ object DocumentSymbolProvider {
     list: WithSource[Listed[WithSource]]
   ): List[DocumentSymbol] = list.value.values.value.zipWithIndex.map { case (item, i) =>
     DocumentSymbol(
-      i.toString(),
-      SymbolKind.Array,
-      item.range,
-      item.range,
-      findInNode(item),
+      name = i.toString(),
+      kind = SymbolKind.Array,
+      selectionRange = item.range,
+      range = item.range,
+      children = findInNode(item),
     )
   }
 
