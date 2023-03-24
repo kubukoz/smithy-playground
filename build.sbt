@@ -45,9 +45,9 @@ val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-core" % "2.9.0",
     "org.typelevel" %% "cats-mtl" % "1.3.0",
-    "com.disneystreaming" %% "weaver-cats" % "0.8.1" % Test,
-    "com.disneystreaming" %% "weaver-discipline" % "0.8.1" % Test,
-    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.1" % Test,
+    "com.disneystreaming" %% "weaver-cats" % "0.8.2" % Test,
+    "com.disneystreaming" %% "weaver-discipline" % "0.8.2" % Test,
+    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.2" % Test,
     "com.softwaremill.diffx" %% "diffx-core" % "0.8.2" % Test,
     "com.softwaremill.diffx" %% "diffx-cats" % "0.8.2" % Test,
   ),
