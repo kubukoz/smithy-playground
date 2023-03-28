@@ -126,7 +126,7 @@ lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.4.8",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.22.0",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.22.1",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
