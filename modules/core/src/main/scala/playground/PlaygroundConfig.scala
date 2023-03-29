@@ -1,6 +1,7 @@
 package playground
 
 import cats.implicits._
+import cats.kernel.Eq
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 
@@ -12,6 +13,8 @@ final case class PlaygroundConfig(
 )
 
 object PlaygroundConfig {
+
+  implicit val eq: Eq[PlaygroundConfig] = Eq.fromUniversalEquals
 
   val empty: PlaygroundConfig = PlaygroundConfig(
     imports = Nil,
