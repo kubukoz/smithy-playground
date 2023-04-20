@@ -15,7 +15,6 @@ import playground.TextDocumentManager
 import playground.language.CommandResultReporter
 import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
-import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 
 trait ServerBuilder[F[_]] {
@@ -54,7 +53,7 @@ object ServerBuilder {
 
     for {
       client <- makeClient
-      awsEnv <- AwsEnvironment.default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1).memoize
+      awsEnv <- AwsEnvironment.default(client, AwsRegion.US_EAST_1).memoize
       tdm <- TextDocumentManager.instance[F].toResource
     } yield new ServerBuilder[F] {
       private implicit val textManager: TextDocumentManager[F] = tdm

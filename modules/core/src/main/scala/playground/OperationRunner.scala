@@ -256,7 +256,7 @@ object OperationRunner {
         .prepare(service)
         .map { builder =>
           awsEnv
-            .map(builder.buildSimple(_))
+            .map(builder.build(_))
             .map(service.toPolyFunction(_))
         }
         .map(liftFunctorInterpreterResource(_))
