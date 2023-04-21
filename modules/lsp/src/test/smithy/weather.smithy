@@ -1,1 +1,1 @@
-../resources/test-workspace/weather.smithy
+../resources/test-workspaces/default/weather.smithy

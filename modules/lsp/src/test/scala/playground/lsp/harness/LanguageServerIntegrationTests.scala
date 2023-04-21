@@ -1,4 +1,4 @@
-package playground.lsp
+package playground.lsp.harness
 
 import cats.effect.IO
 import cats.effect.Resource
@@ -6,6 +6,8 @@ import cats.effect.implicits._
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.WorkspaceFolder
 import playground.language.Uri
+import playground.lsp.LanguageServer
+import playground.lsp.MainServer
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
@@ -43,11 +45,9 @@ trait LanguageServerIntegrationTests {
       }
   }
 
-  def resourceUri(
-    resourcePath: String
-  ): Uri = Uri.fromUriString(
-    Option(getClass.getResource(resourcePath))
-      .getOrElse(sys.error(s"oops, not found: resource $resourcePath"))
+  def testWorkspacesBase: Uri = Uri.fromUriString(
+    getClass
+      .getResource("/test-workspaces")
       .toURI()
       .toString()
   )
