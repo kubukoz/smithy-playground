@@ -213,7 +213,7 @@ object converters {
           .getAsJsonObject()
           .entrySet()
           .asScala
-          .map { case entry =>
+          .map { entry =>
             val key = entry.getKey
             val value = gsonToCirce(entry.getValue)
             key -> value

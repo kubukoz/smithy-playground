@@ -284,7 +284,7 @@ object CompletionItem {
     endpoint: Endpoint[Op, _, _, _, _, _],
     serviceId: QualifiedIdentifier,
     insertBodyStruct: InsertBodyStruct,
-  ) = {
+  ): CompletionItem = {
     val hints = endpoint.hints
 
     val useClauseOpt =

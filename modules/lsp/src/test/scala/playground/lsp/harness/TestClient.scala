@@ -106,6 +106,7 @@ object TestClient {
 
       def getEvents: IO[List[Event]] = state.get.map(_.log.toList)
 
+      /* Clears the state for the duration of the task, then restores it */
       def scoped: IO ~> IO =
         new (IO ~> IO) {
           def apply[A](
