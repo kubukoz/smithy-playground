@@ -22,7 +22,7 @@ trait LanguageServerIntegrationTests {
 
   def initParams(
     workspaceDir: Uri
-  ) = new InitializeParams().tap(
+  ): InitializeParams = new InitializeParams().tap(
     _.setWorkspaceFolders(
       List(
         new WorkspaceFolder(workspaceDir.value)

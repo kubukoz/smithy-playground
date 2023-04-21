@@ -24,7 +24,7 @@ object NodeEncoderTests extends FunSuite {
     expected: AST[Id],
   )(
     implicit loc: SourceLocation
-  ) = {
+  ): Expectations = {
     val enc = NodeEncoder.derive(schema)
 
     assert.eql(enc.toNode(value), expected)

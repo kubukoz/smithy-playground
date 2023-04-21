@@ -22,7 +22,7 @@ object AtPositionTests extends FunSuite {
 
   def locateAtCursor(
     text: String
-  ) = {
+  ): NodeContext = {
     val (extracted, position) = extractCursor(text)
     val parsed =
       SourceParser[SourceFile]
@@ -88,7 +88,7 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - second query") {
     val actual = locateAtCursor(s"""op1 {}
-                                   |op2 ${CURSOR} {}""".stripMargin)
+                                   |op2 $CURSOR {}""".stripMargin)
 
     assertNoDiff(actual, NodeContext.EmptyPath.inQuery(1))
   }
@@ -112,7 +112,7 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - 2 levels deep") {
     val actual = locateAtCursor(
-      s"""Operation { root = { mid = {${CURSOR} child = "hello", }, }, }"""
+      s"""Operation { root = { mid = {$CURSOR child = "hello", }, }, }"""
     )
 
     assertNoDiff(
@@ -140,7 +140,7 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - on list") {
     val actual = locateAtCursor(
-      s"""Operation { root = ${CURSOR}[ { mid = { inner = "hello", }, } ],  }"""
+      s"""Operation { root = $CURSOR[ { mid = { inner = "hello", }, } ],  }"""
     )
 
     val expected = firstOp.inOperationInput.inStructBody.inStructValue("root")
@@ -153,7 +153,7 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - inside list") {
     val actual = locateAtCursor(
-      s"""Operation { root = [ ${CURSOR} { mid = { inner = "hello", }, } ],  }"""
+      s"""Operation { root = [ $CURSOR { mid = { inner = "hello", }, } ],  }"""
     )
 
     val expected = firstOp
@@ -170,7 +170,7 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - on item in list") {
     val actual = locateAtCursor(
-      s"""Operation { root = [ { ${CURSOR} mid = { inner = "hello", }, } ],  }"""
+      s"""Operation { root = [ { $CURSOR mid = { inner = "hello", }, } ],  }"""
     )
 
     val expected =
@@ -186,7 +186,7 @@ object AtPositionTests extends FunSuite {
 
   test("atPosition - on nested item in list") {
     val actual = locateAtCursor(
-      s"""Operation { root = [ {}, { mid = { ${CURSOR} inner = "hello", }, } ],  }"""
+      s"""Operation { root = [ {}, { mid = { $CURSOR inner = "hello", }, } ],  }"""
     )
 
     assertNoDiff(

@@ -2,6 +2,7 @@ package playground.lsp
 
 import cats.effect.implicits._
 import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
 import cats.effect.std
 import cats.implicits._
 import org.http4s.client.Client
@@ -33,7 +34,8 @@ object ServerBuilder {
     implicit F: ServerBuilder[F]
   ): ServerBuilder[F] = F
 
-  def instance[F[_]: Async: LanguageClient: BuildLoader: std.Console] = {
+  def instance[F[_]: Async: LanguageClient: BuildLoader: std.Console]
+    : Resource[F, ServerBuilder[F]] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
 
     implicit val stdlibRuntime: StdlibRuntime[F] = StdlibRuntime.instance[F]
@@ -81,7 +83,7 @@ object ServerBuilder {
 
           implicit val sl: ServerLoader[F] = loader
 
-          implicit val reporter = rep
+          implicit val reporter: CommandResultReporter[F] = rep
 
           LanguageServer
             .instance[F](dsi, FileRunner.instance(OperationRunner.merge[F](runners, serviceIndex)))

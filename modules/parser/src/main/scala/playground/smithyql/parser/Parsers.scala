@@ -117,9 +117,6 @@ object Parsers {
       forRange.value.withRange(forRange.range)
     }
 
-    private[Parsers] val rawIdentifier = (Rfc5234.alpha ~ Parser.charsWhile0(_.isLetterOrDigit))
-      .map { case (ch, s) => s.prepended(ch) }
-
     val identifier: Parser[String] =
       (Rfc5234.alpha ~ Parser.charsWhile0(ch => ch.isLetterOrDigit || "_".contains(ch)))
         .map { case (ch, s) => s.prepended(ch) }

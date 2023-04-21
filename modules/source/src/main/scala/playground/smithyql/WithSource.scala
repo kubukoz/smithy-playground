@@ -112,10 +112,6 @@ final case class WithSource[+A](
 
 object WithSource {
 
-  def liftValue[A](
-    value: A
-  ): WithSource[A] = liftId(value)
-
   val liftId: Id ~> WithSource =
     new (Id ~> WithSource) {
 
@@ -240,18 +236,6 @@ object WithSource {
       )(
         f: A => G[B]
       ): G[WithSource[B]] = f(fa.value).map(v => fa.copy(value = v))
-
-    }
-
-  val dropComments: WithSource ~> WithSource =
-    new (WithSource ~> WithSource) {
-
-      def apply[A](
-        fa: WithSource[A]
-      ): WithSource[A] = fa.copy(
-        commentsLeft = Nil,
-        commentsRight = Nil,
-      )
 
     }
 
