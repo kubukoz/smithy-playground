@@ -16,7 +16,7 @@ object DocumentSymbolProviderTests extends FunSuite {
     documentText: String
   ) {
 
-    def symbols = DocumentSymbolProvider.make(documentText)
+    def symbols: List[DocumentSymbol] = DocumentSymbolProvider.make(documentText)
 
     def textRange(
       text: String

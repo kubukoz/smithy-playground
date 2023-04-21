@@ -25,15 +25,6 @@ import scala.util.chaining._
 // NOTE: methods in this object are mostly side effecting and blocking.
 object ModelLoader {
 
-  def makeClassLoader(
-    buildConfig: PlaygroundConfig
-  ): URLClassLoader = makeClassLoaderForJars(
-    resolveDependencies(
-      dependencies = buildConfig.dependencies,
-      repositories = buildConfig.repositories,
-    )
-  )
-
   def makeClassLoaderForPlugins(
     buildConfig: PlaygroundConfig
   ): URLClassLoader = makeClassLoaderForJars(
@@ -81,7 +72,7 @@ object ModelLoader {
   ): List[URL] =
     Using.resource(
       // Note: On JDK13+, the second parameter is redundant.
-      FileSystems.newFileSystem(file.toPath(), null)
+      FileSystems.newFileSystem(file.toPath(), null: ClassLoader)
     ) { jarFS =>
       val manifestPath = jarFS.getPath("META-INF", "smithy", "manifest")
 

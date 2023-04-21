@@ -23,7 +23,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
     expected: String
   )(
     implicit loc: SourceLocation
-  ) =
+  ): Unit =
     pureTest(label) {
       val result = Formatter[Alg].format(v, 80)
       // not using assertNoDiff because of

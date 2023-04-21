@@ -85,7 +85,7 @@ object DiagnosticProvider {
       def compilationErrors(
         documentText: String
       ): IorNel[CompilationError, SourceFile[WithSource]] = {
-        val defaultRange = SourceRange(Position.origin, Position(documentText.size))
+        val defaultRange = SourceRange(Position.origin, Position(documentText.length))
 
         val base: Ior[Throwable, SourceFile[WithSource]] = SourceParser[SourceFile]
           .parse(documentText)

@@ -152,7 +152,7 @@ object ParserSuite {
 
   def assertParses[Alg[_[_]]: SourceParser](
     s: String
-  ) = SourceParser[Alg]
+  ): Either[String, Alg[WithSource]] = SourceParser[Alg]
     .parse(s)
     .leftMap(e => s"Parsing failed: \n==========\n${e.debug}\n==========")
 

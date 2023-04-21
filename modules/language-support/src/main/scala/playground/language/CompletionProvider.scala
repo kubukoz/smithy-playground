@@ -199,7 +199,6 @@ object CompletionProvider {
                 .toList
                 .sortBy(_._1)
                 .map(CompletionItem.useServiceClause.tupled)
-                .toList
 
             case EmptyPath => completeRootOperationName(sf, CompletionItem.InsertBodyStruct.Yes)
 
