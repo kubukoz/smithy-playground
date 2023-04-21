@@ -250,6 +250,7 @@ object LanguageServerIntegrationTestSharedServer
       // deliberately not exposing on 0.0.0.0
       // as there's no need
       .withHost(host"localhost")
+      // random port
       .withPort(port"0")
       .withShutdownTimeout(Duration.Zero)
       .withHttpApp(
@@ -319,7 +320,12 @@ object LanguageServerIntegrationTestSharedServer
         assert.same(events(0), TestClient.OutputPanelShow) &&
         assert(events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")) &&
         assert(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
-        assert(events(3).asInstanceOf[TestClient.OutputLog].text.contains("// ERROR"))
+        assert(
+          events(3)
+            .asInstanceOf[TestClient.OutputLog]
+            .text
+            .matches("// ERROR .* Connection refused")
+        )
       }
   }
 
