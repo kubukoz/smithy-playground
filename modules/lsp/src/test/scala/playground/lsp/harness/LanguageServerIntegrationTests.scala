@@ -45,11 +45,9 @@ trait LanguageServerIntegrationTests {
       }
   }
 
-  def resourceUri(
-    resourcePath: String
-  ): Uri = Uri.fromUriString(
-    Option(getClass.getResource(resourcePath))
-      .getOrElse(sys.error(s"oops, not found: resource $resourcePath"))
+  def testWorkspacesBase: Uri = Uri.fromUriString(
+    getClass
+      .getResource("/test-workspaces")
       .toURI()
       .toString()
   )

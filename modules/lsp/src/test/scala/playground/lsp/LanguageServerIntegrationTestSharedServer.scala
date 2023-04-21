@@ -35,7 +35,7 @@ object LanguageServerIntegrationTestSharedServer
 
   type Res = Fixture
 
-  def sharedResource: Resource[IO, Res] = makeServer(resourceUri("/test-workspaces/default"))
+  def sharedResource: Resource[IO, Res] = makeServer(testWorkspacesBase / "default")
 
   test("server init produces logs consistent with the workspace folder") { f =>
     val initLogs = List(

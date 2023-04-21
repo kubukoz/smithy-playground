@@ -10,7 +10,6 @@ import org.eclipse.lsp4j.TextDocumentIdentifier
 import playground.PlaygroundConfig
 import playground.language.Uri
 import playground.lsp.harness.LanguageServerIntegrationTests
-import playground.lsp.harness.TestClient
 import weaver._
 
 object LanguageServerReloadIntegrationTests
@@ -63,14 +62,7 @@ object LanguageServerReloadIntegrationTests
                 )
               )
 
-            val workspacePath =
-              Path("modules") /
-                "lsp" /
-                "src" /
-                "test" /
-                "resources" /
-                "test-workspaces" /
-                "default"
+            val workspacePath = (testWorkspacesBase / "default").toPath
 
             val weatherPath = workspacePath / "weather.smithy"
 
