@@ -17,6 +17,8 @@ import org.http4s.implicits._
 import org.http4s.server.Server
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
+import playground.lsp.harness.LanguageServerIntegrationTests
+import playground.lsp.harness.TestClient
 import smithy4s.http4s.SimpleRestJsonBuilder
 import weather.GetWeatherOutput
 import weather.GoodWeather
@@ -33,7 +35,7 @@ object LanguageServerIntegrationTestSharedServer
 
   type Res = Fixture
 
-  def sharedResource: Resource[IO, Res] = makeServer(resourceUri("/test-workspace"))
+  def sharedResource: Resource[IO, Res] = makeServer(resourceUri("/test-workspaces/default"))
 
   test("server init produces logs consistent with the workspace folder") { f =>
     val initLogs = List(

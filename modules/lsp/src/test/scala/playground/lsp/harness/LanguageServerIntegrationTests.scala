@@ -1,4 +1,4 @@
-package playground.lsp
+package playground.lsp.harness
 
 import cats.effect.IO
 import cats.effect.Resource
@@ -6,6 +6,8 @@ import cats.effect.implicits._
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.WorkspaceFolder
 import playground.language.Uri
+import playground.lsp.LanguageServer
+import playground.lsp.MainServer
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._

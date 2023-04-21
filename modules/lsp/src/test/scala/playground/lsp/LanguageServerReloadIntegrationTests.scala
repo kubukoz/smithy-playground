@@ -9,6 +9,8 @@ import org.eclipse.lsp4j.DidChangeWatchedFilesParams
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import playground.PlaygroundConfig
 import playground.language.Uri
+import playground.lsp.harness.LanguageServerIntegrationTests
+import playground.lsp.harness.TestClient
 import weaver._
 
 object LanguageServerReloadIntegrationTests
@@ -67,7 +69,8 @@ object LanguageServerReloadIntegrationTests
                 "src" /
                 "test" /
                 "resources" /
-                "test-workspace"
+                "test-workspaces" /
+                "default"
 
             val weatherPath = workspacePath / "weather.smithy"
 
