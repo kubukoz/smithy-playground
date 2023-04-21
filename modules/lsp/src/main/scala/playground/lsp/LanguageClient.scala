@@ -111,4 +111,5 @@ object LanguageClient {
     fa: F[LanguageClient[F]]
   ): LanguageClient[F] = Derive.readerT[LanguageClient, F].mapK(KleisliOps.applyEffectK(fa))
 
+  val NoChangeDetected: String = "No change detected, not rebuilding server"
 }

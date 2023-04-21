@@ -304,7 +304,7 @@ object LanguageServer {
         .flatMap {
           case prepared if !prepared.isChanged =>
             LanguageClient[F].showInfoMessage(
-              "No change detected, not rebuilding server"
+              LanguageClient.NoChangeDetected
             )
           case prepared =>
             LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
