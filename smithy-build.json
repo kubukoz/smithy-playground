@@ -3,6 +3,6 @@
   "mavenDependencies": [
     "com.disneystreaming.alloy:alloy-core:0.1.18",
     "com.disneystreaming.smithy4s:smithy4s-protocol:0.17.5",
-    "software.amazon.smithy:smithy-aws-traits:1.30.0"
+    "software.amazon.smithy:smithy-aws-traits:1.31.0"
   ]
 }
