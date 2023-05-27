@@ -99,7 +99,7 @@ lazy val parser = module("parser")
       "org.typelevel" %% "cats-parse" % "0.3.9",
       "io.circe" %% "circe-generic" % "0.14.5" % Test,
       "io.circe" %% "circe-parser" % "0.14.5" % Test,
-      "co.fs2" %% "fs2-io" % "3.6.1" % Test,
+      "co.fs2" %% "fs2-io" % "3.7.0" % Test,
     )
   )
   .dependsOn(
@@ -126,12 +126,12 @@ lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.4.10",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.23.0",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.23.1",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.1.20" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.1.21" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.31.0" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
@@ -153,10 +153,10 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.20.1",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.21.0",
       "io.circe" %% "circe-core" % "0.14.5",
-      "org.http4s" %% "http4s-ember-client" % "0.23.18",
-      "org.http4s" %% "http4s-ember-server" % "0.23.18" % Test,
+      "org.http4s" %% "http4s-ember-client" % "0.23.19",
+      "org.http4s" %% "http4s-ember-server" % "0.23.19" % Test,
       "io.get-coursier" %% "coursier" % "2.1.3",
       "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
     ),
