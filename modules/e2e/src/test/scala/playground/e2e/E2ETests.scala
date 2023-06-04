@@ -19,7 +19,6 @@ import playground.lsp.PlaygroundLanguageClient
 import weaver._
 
 import java.io.PrintWriter
-import java.nio.file.Files
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
