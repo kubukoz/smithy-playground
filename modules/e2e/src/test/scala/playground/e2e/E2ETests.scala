@@ -19,6 +19,7 @@ import playground.lsp.PlaygroundLanguageClient
 import weaver._
 
 import java.io.PrintWriter
+import java.lang.ProcessBuilder.Redirect
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
@@ -36,6 +37,7 @@ object E2ETests extends SimpleIOSuite {
   }
 
   private def runServer: Resource[IO, LanguageServerAdapter] = {
+
     val client: PlaygroundLanguageClient =
       new PlaygroundLanguageClient {
 
@@ -75,6 +77,8 @@ object E2ETests extends SimpleIOSuite {
         BuildInfo.lspClassPath.mkString(":"),
         BuildInfo.lspMainClass,
       )
+        // Watch process stderr in test runner
+        .redirectError(Redirect.INHERIT)
 
     Resource
       .make(IO.interruptibleMany(builder.start()))(p => IO(p.destroy()).void)
