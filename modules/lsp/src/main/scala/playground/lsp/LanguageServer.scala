@@ -167,6 +167,8 @@ object LanguageServer {
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
           .tap(_.setDocumentSymbolProvider(true))
 
+        val serverInfo = new ServerInfo("Smithy Playground", BuildInfo.version)
+
         val wsf = params
           .getWorkspaceFolders()
           .asScala
@@ -187,7 +189,7 @@ object LanguageServer {
             }
             .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
             .attempt
-            .as(new InitializeResult(capabilities))
+            .as(new InitializeResult(capabilities, serverInfo))
       }
 
       def initialized(

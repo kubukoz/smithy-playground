@@ -2,7 +2,6 @@ package playground.lsp
 
 import cats.effect.IO
 import cats.effect.IOApp
-import cats.effect.implicits._
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
 import cats.effect.std.Dispatcher

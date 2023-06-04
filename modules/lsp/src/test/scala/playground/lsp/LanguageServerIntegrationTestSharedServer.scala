@@ -12,6 +12,7 @@ import org.eclipse.lsp4j.DocumentSymbolParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.TextDocumentIdentifier
+import org.http4s.HttpRoutes
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits._
 import org.http4s.server.Server
@@ -19,11 +20,6 @@ import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient
-import smithy4s.http4s.SimpleRestJsonBuilder
-import weather.GetWeatherOutput
-import weather.GoodWeather
-import weather.Weather
-import weather.WeatherService
 import weaver._
 
 import scala.concurrent.duration._
@@ -253,24 +249,22 @@ object LanguageServerIntegrationTestSharedServer
       // random port
       .withPort(port"0")
       .withShutdownTimeout(Duration.Zero)
-      .withHttpApp(
-        SimpleRestJsonBuilder
-          .routes(
-            new WeatherService[IO] {
-
-              def getWeather(
-                city: String
-              ): IO[GetWeatherOutput] = IO.pure(
-                GetWeatherOutput(Weather.GoodCase(GoodWeather(reallyGood = Some(true))))
-              )
-
-            }
-          )
-          .make
-          .toTry
-          .get
+      .withHttpApp {
+        import org.http4s.dsl.io._
+        HttpRoutes
+          .of[IO] { case GET -> Root / "weather" / _ =>
+            Ok(
+              s"""{
+                 |  "weather": {
+                 |    "good": {
+                 |      "reallyGood": true
+                 |    }
+                 |  }
+                 |}""".stripMargin
+            )
+          }
           .orNotFound
-      )
+      }
       .build
 
   test("HTTP calls using configured base uri") { f =>
