@@ -162,8 +162,6 @@ lazy val lsp = module("lsp")
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),
-    Smithy4sCodegenPlugin.defaultSettings(Test),
-    Test / smithy4sSmithyLibrary := false,
     (Test / test) := {
       (pluginCore / publishLocal).value
       (pluginSample / publishLocal).value
