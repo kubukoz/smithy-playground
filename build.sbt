@@ -51,7 +51,6 @@ val commonSettings = Seq(
     "com.softwaremill.diffx" %% "diffx-core" % "0.8.3" % Test,
     "com.softwaremill.diffx" %% "diffx-cats" % "0.8.3" % Test,
   ),
-  testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
@@ -172,6 +171,26 @@ lazy val lsp = module("lsp")
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(languageSupport)
 
+lazy val e2e = module("e2e")
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys ++=
+      Seq[BuildInfoKey.Entry[_]]( // do you know how to simplify this? let me know please!
+        Def
+          .task((lsp / Compile / fullClasspath).value.map(_.data).map(_.toString))
+          .taskValue
+          .named("lspClassPath"),
+        Def
+          .task(
+            (lsp / Compile / mainClass).value.getOrElse(sys.error("didn't find main class in lsp"))
+          )
+          .taskValue
+          .named("lspMainClass"),
+      ),
+    publish / skip := true,
+  )
+  .dependsOn(lsp)
+
 val writeVersion = taskKey[Unit]("Writes the current version to the `.version` file")
 
 lazy val root = project
@@ -194,4 +213,5 @@ lazy val root = project
     lsp,
     pluginCore,
     pluginSample,
+    e2e,
   )
