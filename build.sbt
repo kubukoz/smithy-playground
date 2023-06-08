@@ -34,8 +34,8 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "2.13.10"
-ThisBuild / crossScalaVersions := Seq("2.13.10")
+ThisBuild / scalaVersion := "2.13.11"
+ThisBuild / crossScalaVersions := Seq("2.13.11")
 
 // For coursier's "latest.integration"
 ThisBuild / dynverSeparator := "-"
