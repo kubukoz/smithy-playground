@@ -43,7 +43,7 @@ object PlaygroundConfig {
     }
 
     object BuildConfig {
-      implicit val c: JsonValueCodec[BuildConfig] = JsonCodecMaker.make[BuildConfig]
+      implicit val c: JsonValueCodec[BuildConfig] = JsonCodecMaker.make
 
       def fromPlaygroundConfig(
         c: PlaygroundConfig

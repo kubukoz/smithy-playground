@@ -2,11 +2,13 @@ package playground.lsp
 
 import cats.effect.kernel.Sync
 import cats.implicits._
+import fs2.io.file.Files
 import fs2.io.file.Path
 import playground.ModelReader
 import playground.PlaygroundConfig
 import playground.language.TextDocumentProvider
 import playground.language.Uri
+import playground.lsp.util.SerializedSmithyModel
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
@@ -37,7 +39,7 @@ object BuildLoader {
     val default: Loaded = Loaded(PlaygroundConfig.empty, Path("/"))
   }
 
-  def instance[F[_]: TextDocumentProvider: Sync]: BuildLoader[F] =
+  def instance[F[_]: TextDocumentProvider: Sync: Files]: BuildLoader[F] =
     new BuildLoader[F] {
 
       def load(
@@ -87,28 +89,52 @@ object BuildLoader {
 
       def buildSchemaIndex(
         loaded: BuildLoader.Loaded
-      ): F[DynamicSchemaIndex] = Sync[F]
-        .interruptibleMany {
-          ModelLoader
-            .load(
-              specs =
-                loaded
-                  .config
-                  .imports
-                  .map(
-                    loaded
-                      .configFilePath
-                      .parent
-                      .getOrElse(sys.error("impossible - no parent"))
-                      .resolve(_)
-                      .toNioPath
-                      .toFile()
-                  )
-                  .toSet,
+      ): F[DynamicSchemaIndex] = filterImports(
+        loaded
+          .config
+          .imports
+          .map(
+            loaded
+              .configFilePath
+              .parent
+              .getOrElse(sys.error("impossible - no parent"))
+              .resolve(_)
+          )
+          .toSet
+      ).flatMap { specs =>
+        Sync[F]
+          .interruptibleMany {
+            ModelLoader.load(
+              specs = specs.map(_.toNioPath.toFile),
               jars = ModelLoader.resolveModelDependencies(loaded.config),
             )
+          }
+      }.flatMap(ModelReader.buildSchemaIndex[F])
+
+      private def filterImports(
+        specs: Set[Path]
+      ): F[Set[Path]] = fs2
+        .Stream
+        .emits(specs.toSeq)
+        .evalFilterNot(Files[F].isDirectory)
+        .evalFilter { file =>
+          val isSmithyFile = file.extName === ".smithy"
+
+          if (isSmithyFile)
+            true.pure[F]
+          else
+            isSerializedSmithyModelF(file)
         }
-        .flatMap(ModelReader.buildSchemaIndex[F])
+        .compile
+        .to(Set)
+
+      private def isSerializedSmithyModelF(
+        file: Path
+      ): F[Boolean] = Files[F]
+        .readAll(file)
+        .compile
+        .to(Array)
+        .map(SerializedSmithyModel.decode(_).isRight)
 
     }
 
