@@ -4,7 +4,6 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import fs2.io.file.Files
 import fs2.io.file.Path
-import playground.ModelReader
 import playground.PlaygroundConfig
 import playground.language.TextDocumentProvider
 import playground.language.Uri
@@ -109,7 +108,7 @@ object BuildLoader {
               jars = ModelLoader.resolveModelDependencies(loaded.config),
             )
           }
-      }.flatMap(ModelReader.buildSchemaIndex[F])
+      }.flatMap(DynamicSchemaIndex.loadModel(_).liftTo[F])
 
       private def filterImports(
         specs: Set[Path]
