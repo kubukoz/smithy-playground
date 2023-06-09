@@ -88,27 +88,33 @@ object BuildLoader {
 
       def buildSchemaIndex(
         loaded: BuildLoader.Loaded
-      ): F[DynamicSchemaIndex] = filterImports(
-        loaded
-          .config
-          .imports
-          .map(
-            loaded
-              .configFilePath
-              .parent
-              .getOrElse(sys.error("impossible - no parent"))
-              .resolve(_)
+      ): F[DynamicSchemaIndex] = {
+        // This has to be lazy, because for the default, "no imports" config, the file path points to the filesystem root.
+        lazy val workspaceBase = loaded
+          .configFilePath
+          .parent
+          .getOrElse(sys.error("impossible - no parent for " + loaded.configFilePath))
+
+        // "raw" means these can be directories etc., just like in the config file.
+        val rawImportPaths = loaded.config.imports.map(workspaceBase.resolve).toSet
+
+        for {
+          specs <- filterImports(rawImportPaths)
+          model <- loadModel(specs, loaded.config)
+          dsi <- DynamicSchemaIndex.loadModel(model).liftTo[F]
+        } yield dsi
+      }
+
+      private def loadModel(
+        specs: Set[Path],
+        config: PlaygroundConfig,
+      ) = Sync[F]
+        .interruptibleMany {
+          ModelLoader.load(
+            specs = specs.map(_.toNioPath.toFile),
+            jars = ModelLoader.resolveModelDependencies(config),
           )
-          .toSet
-      ).flatMap { specs =>
-        Sync[F]
-          .interruptibleMany {
-            ModelLoader.load(
-              specs = specs.map(_.toNioPath.toFile),
-              jars = ModelLoader.resolveModelDependencies(loaded.config),
-            )
-          }
-      }.flatMap(DynamicSchemaIndex.loadModel(_).liftTo[F])
+        }
 
       private def filterImports(
         specs: Set[Path]
