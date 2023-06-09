@@ -1,0 +1,73 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "weather#GetWeather": {
+      "type": "operation",
+      "input": {
+        "target": "weather#GetWeatherInput"
+      },
+      "output": {
+        "target": "weather#GetWeatherOutput"
+      },
+      "traits": {
+        "smithy.api#readonly": {}
+      }
+    },
+    "weather#GetWeatherInput": {
+      "type": "structure",
+      "members": {
+        "city": {
+          "target": "smithy.api#String",
+          "traits": {
+            "smithy.api#httpLabel": {},
+            "smithy.api#required": {}
+          }
+        }
+      },
+      "traits": {
+        "smithy.api#input": {}
+      }
+    },
+    "weather#GetWeatherOutput": {
+      "type": "structure",
+      "members": {
+        "weather": {
+          "target": "weather#Weather",
+          "traits": {
+            "smithy.api#required": {}
+          }
+        }
+      },
+      "traits": {
+        "smithy.api#output": {}
+      }
+    },
+    "weather#GoodWeather": {
+      "type": "structure",
+      "members": {
+        "reallyGood": {
+          "target": "smithy.api#Boolean"
+        }
+      }
+    },
+    "weather#Weather": {
+      "type": "union",
+      "members": {
+        "good": {
+          "target": "weather#GoodWeather"
+        },
+        "decent": {
+          "target": "smithy.api#Unit"
+        }
+      }
+    },
+    "weather#WeatherService": {
+      "type": "service",
+      "operations": [
+        {
+          "target": "weather#GetWeather"
+        }
+      ]
+    }
+  }
+}

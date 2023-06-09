@@ -116,6 +116,7 @@ object BuildLoader {
       ): F[Set[Path]] = fs2
         .Stream
         .emits(specs.toSeq)
+        .flatMap(Files[F].walk(_))
         .evalFilterNot(Files[F].isDirectory)
         .evalFilter { file =>
           val isSmithyFile = file.extName === ".smithy"

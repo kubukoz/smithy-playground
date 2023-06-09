@@ -6,6 +6,7 @@ import fs2.io.file.Files
 import fs2.io.file.Path
 import org.eclipse.lsp4j.CodeLensParams
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams
+import org.eclipse.lsp4j.DocumentDiagnosticParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import playground.PlaygroundConfig
@@ -13,6 +14,8 @@ import playground.language.Uri
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient.MessageLog
 import weaver._
+
+import scala.jdk.CollectionConverters._
 
 object LanguageServerReloadIntegrationTests
   extends SimpleIOSuite
@@ -122,6 +125,32 @@ object LanguageServerReloadIntegrationTests
         val errorLogs = events.collect { case MessageLog(MessageType.Error, msg) => msg }
         assert(errorLogs.isEmpty)
       }
+  }
 
+  test("JSON smithy models can be loaded") {
+    makeServer(testWorkspacesBase / "json-models")
+      .use { f =>
+        f.client.getEvents.flatMap { events =>
+          val errorLogs = events.collect { case MessageLog(MessageType.Error, msg) => msg }
+
+          f.server
+            .diagnostic(
+              new DocumentDiagnosticParams(
+                new TextDocumentIdentifier((f.workspaceDir / "input.smithyql").value)
+              )
+            )
+            .map { diags =>
+              val items = diags
+                .getRelatedFullDocumentDiagnosticReport()
+                .getItems()
+                .asScala
+                .toList
+                .map(_.getMessage())
+
+              assert(errorLogs.isEmpty) &&
+              assert(items.isEmpty)
+            }
+        }
+      }
   }
 }
