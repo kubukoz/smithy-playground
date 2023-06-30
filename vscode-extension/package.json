@@ -99,6 +99,7 @@
   },
   "main": "./out/extension",
   "dependencies": {
+    "follow-redirects": "^1.15.1",
     "semver": "^7.3.7",
     "vscode-languageclient": "^8.0.2"
   },

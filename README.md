@@ -6,9 +6,9 @@ Currently available as a LSP server with a client implementation for VS Code.
 
 ## Usage
 
-1. Make sure you have [Coursier](https://get-coursier.io/docs/cli-installation) available on the PATH as `cs`, running Java 11 or above
-2. Get the extension from [Marketplace](https://marketplace.visualstudio.com/items?itemName=kubukoz.smithy-playground)
-3. Create a file, `smithy-build.json`. Example:
+<!-- todo: does coursier install a jvm if needed? try it in docker -->
+1. Get the extension from [Marketplace](https://marketplace.visualstudio.com/items?itemName=kubukoz.smithy-playground)
+2. Create a file, `smithy-build.json`. Example:
 
 ```jsonc
 {
@@ -31,8 +31,8 @@ Currently available as a LSP server with a client implementation for VS Code.
 }
 ```
 
-4. Open/create a .smithyql file
-5. You should see output in the "Smithy Playground" panel, and after a while syntax/error highlighting in the open .smithyql files.
+3. Open/create a .smithyql file
+4. You should see output in the "Smithy Playground" panel, and after a while syntax/error highlighting in the open .smithyql files.
 
 Here's an example of a SmithyQL file that works without any setup (or even a `smithy-build.json`):
 

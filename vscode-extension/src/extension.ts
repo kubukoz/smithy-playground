@@ -1,8 +1,9 @@
 import { commands, ExtensionContext, window, workspace } from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
+import { getCoursierExecutable } from "./coursier/coursier";
 import { buildArgs, CoursierCall, withDebug, withTracer } from "./coursier";
 
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
   const serverArtifact = workspace
     .getConfiguration()
     .get<string>("smithyql.server.artifact");
@@ -17,6 +18,8 @@ export function activate(context: ExtensionContext) {
     "Smithy Playground",
     "smithyql"
   );
+
+  const coursierBinary = await getCoursierExecutable(context.extensionPath);
 
   const enableTracer = workspace
     .getConfiguration()
@@ -38,7 +41,7 @@ export function activate(context: ExtensionContext) {
     "smithyPlayground",
     "Smithy Playground",
     {
-      command: "cs",
+      command:coursierBinary,
       args: buildArgs(
         withTracer(enableTracer)(
           //
