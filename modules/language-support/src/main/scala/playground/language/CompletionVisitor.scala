@@ -227,15 +227,21 @@ object CompletionItem {
     }
   }
 
-  private def describeCollection[C[_]]: CollectionTag[C] => String = {
+  private def describeCollection[C[_]](
+    tag: CollectionTag[C],
+    hints: Hints,
+  ): String = {
     import smithy4s.schema.CollectionTag._
 
-    {
-      case ListTag       => "list"
-      case SetTag        => "set"
-      case IndexedSeqTag => "@indexedSeq list"
-      case VectorTag     => "@vector list"
-    }
+    val base =
+      tag match {
+        case ListTag       => "list"
+        case SetTag        => "set"
+        case IndexedSeqTag => "@indexedSeq list"
+        case VectorTag     => "@vector list"
+      }
+
+    sparseTraitDescription(hints).foldMap(_ + " ") + base
   }
 
   def describeService(
@@ -250,8 +256,10 @@ object CompletionItem {
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
 
-      case Schema.CollectionSchema(shapeId, _, tag, member) =>
-        now(s"${describeCollection(tag)} ${shapeId.name} { member: ${describeSchema(member)()} }")
+      case Schema.CollectionSchema(shapeId, hints, tag, member) =>
+        now(
+          s"${describeCollection(tag, hints)} ${shapeId.name} { member: ${describeSchema(member)()} }"
+        )
 
       case e @ EnumerationSchema(_, _, _, _, _) =>
         e.tag match {
@@ -260,7 +268,10 @@ object CompletionItem {
         }
 
       case MapSchema(shapeId, _, key, value) =>
-        now(s"map ${shapeId.name} { key: ${key.shapeId.name}, value: ${value.shapeId.name} }")
+        now(
+          sparseTraitDescription(schema.hints).foldMap(_ + " ") +
+            s"map ${shapeId.name} { key: ${describeSchema(key)()}, value: ${describeSchema(value)()} }"
+        )
 
       case StructSchema(shapeId, _, _, _) => now(s"structure ${shapeId.name}")
 
@@ -279,6 +290,10 @@ object CompletionItem {
 
       case BijectionSchema(underlying, _) => describeSchema(underlying)
     }
+
+  private def sparseTraitDescription(
+    hints: Hints
+  ): Option[String] = hints.get(api.Sparse).as("@sparse")
 
   private def now(
     s: String

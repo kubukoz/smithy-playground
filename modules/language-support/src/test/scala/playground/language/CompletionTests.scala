@@ -13,6 +13,8 @@ import demo.smithy.MyString
 import demo.smithy.Power
 import demo.smithy.PowerMap
 import demo.smithy.PrivacyTier
+import demo.smithy.SampleSparseList
+import demo.smithy.SampleSparseMap
 import playground.Assertions._
 import playground.language.Diffs._
 import playground.smithyql.NodeContext
@@ -340,7 +342,7 @@ object CompletionTests extends FunSuite {
   test("describe map") {
     assert.eql(
       CompletionItem.describeSchema(PowerMap.schema)(),
-      "map PowerMap { key: Power, value: Hero }",
+      "map PowerMap { key: enum Power, value: union Hero }",
     )
   }
 
@@ -376,6 +378,26 @@ object CompletionTests extends FunSuite {
     assert.eql(
       CompletionItem.describeType(isField = true, Schema.string),
       "?: string String",
+    )
+  }
+
+  test("describe sparse collection: sparse trait present") {
+    assert.eql(
+      CompletionItem.describeType(
+        isField = false,
+        SampleSparseList.schema,
+      ),
+      ": @sparse list SampleSparseList { member: integer Integer }",
+    )
+  }
+
+  test("describe sparse map: sparse trait present") {
+    assert.eql(
+      CompletionItem.describeType(
+        isField = false,
+        SampleSparseMap.schema,
+      ),
+      ": @sparse map SampleSparseMap { key: string String, value: integer Integer }",
     )
   }
 
