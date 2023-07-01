@@ -71,11 +71,9 @@ object MultiServiceResolver {
     index: ServiceIndex,
     useClauses: List[UseClause[WithSource]],
   ): EitherNel[CompilationError, QualifiedIdentifier] = {
-    val matchingServices =
-      index
-        .getServices(useClauses.map(_.identifier).map(_.value).toSet)
-        .filter(_.hasOperation(operationName.value.mapK(WithSource.unwrap)))
-        .toList
+    val matchingServices = index
+      .getServices(useClauses.map(_.identifier).map(_.value).toSet)
+      .filter(_.hasOperation(operationName.value.mapK(WithSource.unwrap)))
 
     matchingServices match {
       case one :: Nil => one.id.asRight

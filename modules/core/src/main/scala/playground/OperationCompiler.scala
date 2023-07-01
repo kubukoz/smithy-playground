@@ -71,10 +71,6 @@ object OperationCompiler {
 
   object Eff {
 
-    def liftF[A](
-      fa: IorNel[CompilationError, A]
-    ): Eff[A] = Kleisli.liftF(fa)
-
     val getContext: Eff[Context] = Kleisli.ask
 
     def perform(

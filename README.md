@@ -42,6 +42,8 @@ use service playground.std#Clock
 CurrentTimestamp {}
 ```
 
+It uses a "standard library" of smithy-playground, which is always available.
+
 Here's a more verbose example showcasing most of the language syntax. `DemoService` is defined in this repository's test suite.
 
 ```
@@ -86,8 +88,6 @@ CreateHero {
 }
 
 ```
-
-It uses a "standard library" of smithy-playground, which is always available.
 
 ## Running queries
 

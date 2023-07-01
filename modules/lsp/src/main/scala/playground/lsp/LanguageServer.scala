@@ -24,6 +24,7 @@ import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.ServiceIndex
 import playground.TextDocumentManager
+import playground.language
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
 import playground.language.CommandResultReporter
@@ -32,6 +33,7 @@ import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbolProvider
 import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
+import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.util.KleisliOps
 import playground.types._
@@ -131,26 +133,28 @@ object LanguageServer {
 
       // see if we can pass this everywhere
       // https://github.com/kubukoz/smithy-playground/issues/164
-      val serviceIndex = ServiceIndex.fromServices(dsi.allServices)
+      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices)
 
-      val compiler = FileCompiler
+      val compiler: FileCompiler[IorThrow] = FileCompiler
         .instance(
           PreludeCompiler.instance[CompilationError.InIorNel](serviceIndex),
           OperationCompiler.fromSchemaIndex(dsi),
         )
         .mapK(CompilationFailed.wrapK)
 
-      val completionProvider = CompletionProvider.forSchemaIndex(dsi)
-      val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)
-      val lensProvider = CodeLensProvider.instance(compiler, runner)
+      val completionProvider: CompletionProvider = CompletionProvider.forSchemaIndex(dsi)
+      val diagnosticProvider: DiagnosticProvider[F] = DiagnosticProvider.instance(compiler, runner)
+      val lensProvider: CodeLensProvider[F] = CodeLensProvider.instance(compiler, runner)
 
-      val commandProvider = CommandProvider
+      val commandProvider: CommandProvider[F] = CommandProvider
         .instance[F](compiler.mapK(iorToF), runner)
 
       private val getFormatterWidth: F[Int] = LanguageClient[F]
         .configuration(ConfigurationValue.maxWidth)
 
-      val formattingProvider = FormattingProvider.provider(getFormatterWidth)
+      val formattingProvider: Uri => F[List[language.TextEdit]] = FormattingProvider.provider(
+        getFormatterWidth
+      )
 
       def initialize(
         params: InitializeParams
@@ -162,6 +166,8 @@ object LanguageServer {
           .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
           .tap(_.setDocumentSymbolProvider(true))
+
+        val serverInfo = new ServerInfo("Smithy Playground", BuildInfo.version)
 
         val wsf = params
           .getWorkspaceFolders()
@@ -183,7 +189,7 @@ object LanguageServer {
             }
             .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
             .attempt
-            .as(new InitializeResult(capabilities))
+            .as(new InitializeResult(capabilities, serverInfo))
       }
 
       def initialized(
@@ -304,7 +310,7 @@ object LanguageServer {
         .flatMap {
           case prepared if !prepared.isChanged =>
             LanguageClient[F].showInfoMessage(
-              "No change detected, not rebuilding server"
+              LanguageClient.NoChangeDetected
             )
           case prepared =>
             LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>

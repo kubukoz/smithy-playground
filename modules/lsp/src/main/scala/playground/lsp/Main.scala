@@ -2,10 +2,11 @@ package playground.lsp
 
 import cats.effect.IO
 import cats.effect.IOApp
-import cats.effect.implicits._
 import cats.effect.kernel.Deferred
+import cats.effect.kernel.Resource
 import cats.effect.std.Dispatcher
 import cats.implicits._
+import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.launch.LSPLauncher
 
 import java.io.File
@@ -33,28 +34,30 @@ object Main extends IOApp.Simple {
   def launch(
     in: InputStream,
     out: OutputStream,
-  ) = Deferred[IO, LanguageClient[IO]].toResource.flatMap { clientRef =>
-    implicit val lc: LanguageClient[IO] = LanguageClient.defer(clientRef.get)
+  ): Resource[IO, Launcher[PlaygroundLanguageClient]] = Deferred[IO, LanguageClient[IO]]
+    .toResource
+    .flatMap { clientRef =>
+      implicit val lc: LanguageClient[IO] = LanguageClient.defer(clientRef.get)
 
-    MainServer
-      .makeServer[IO]
-      .flatMap { server =>
-        Dispatcher.sequential[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
-      }
-      .evalMap { serverAdapter =>
-        val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
-          .setLocalService(serverAdapter)
-          .setRemoteInterface(classOf[PlaygroundLanguageClient])
-          .setInput(in)
-          .setOutput(out)
-          .traceMessages(logWriter)
-          .create();
+      MainServer
+        .makeServer[IO]
+        .flatMap { server =>
+          Dispatcher.sequential[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
+        }
+        .evalMap { serverAdapter =>
+          val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
+            .setLocalService(serverAdapter)
+            .setRemoteInterface(classOf[PlaygroundLanguageClient])
+            .setInput(in)
+            .setOutput(out)
+            .traceMessages(logWriter)
+            .create()
 
-        IO.println("connecting") *>
-          clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
-          IO.println("Server connected")
-            .as(launcher)
-      }
-  }
+          IO.println("connecting") *>
+            clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
+            IO.println("Server connected")
+              .as(launcher)
+        }
+    }
 
 }

@@ -52,7 +52,8 @@ import java.util.Base64
 import java.util.UUID
 
 object QueryCompilerVisitor {
-  val full = new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerVisitorInternal
+  val full: Schema ~> QueryCompiler =
+    new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerVisitorInternal
 }
 
 object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
@@ -170,7 +171,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         .groupBy { case (v, _) => memberToDoc.encode(v) }
 
       val duplications = itemsGrouped
-        .map(_._2)
+        .values
         .filter(_.sizeIs > 1)
         .flatMap(_.map(_._2))
         // nice to have: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
@@ -277,7 +278,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
               unexpectedKey.range,
             )
           }
-          .toList
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
           .toBothLeft(())
@@ -431,7 +431,8 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     it.value.compile(_)
   }
 
-  val stringLiteral = QueryCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
+  val stringLiteral: QueryCompiler[WithSource[String]] =
+    QueryCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
 
   val document: QueryCompiler[Document] =
     _.value match {
@@ -452,7 +453,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       case NullLiteral() => Document.nullDoc.rightIor
     }
 
-  val string = stringLiteral.map(_.value)
+  val string: QueryCompiler[String] = stringLiteral.map(_.value)
 
   def enumeration[E](
     shapeId: ShapeId,

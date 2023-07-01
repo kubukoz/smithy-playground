@@ -34,7 +34,7 @@ object Formatter {
   def writeIdentifier(
     ident: QualifiedIdentifier,
     width: Int,
-  ) = FormattingVisitor.writeIdent(ident).renderTrim(width)
+  ): String = FormattingVisitor.writeIdent(ident).renderTrim(width)
 
 }
 

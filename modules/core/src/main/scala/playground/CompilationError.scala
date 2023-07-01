@@ -96,7 +96,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
            |Found protocols: $availableString
            |Running queries will not be possible.""".stripMargin
 
-      case ParseError(expectationString) => s"Parsing failure: expected ${expectationString}"
+      case ParseError(expectationString) => s"Parsing failure: expected $expectationString"
       case DeprecatedItem(info) => "Deprecated" + CompilationErrorDetails.deprecationString(info)
       case InvalidUUID          => "Invalid UUID"
       case InvalidBlob          => "Invalid blob, expected base64-encoded string"

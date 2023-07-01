@@ -249,20 +249,18 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       .fromSeq[Id](values)
   )
 
-  val document: NodeEncoder[Document] =
-    doc =>
-      doc match {
-        case DArray(value)   => document.listed.toNode(value.toList)
-        case DBoolean(value) => boolean.toNode(value)
-        case DNumber(value)  => number.toNode(value.toString())
-        case DNull           => NullLiteral()
-        case DString(value)  => string.toNode(value)
-        case DObject(value) =>
-          obj(
-            value
-              .toList
-              .map { case (k, v) => Binding[Id](Identifier(k), document.toNode(v)) }
-          )
-      }
+  val document: NodeEncoder[Document] = {
+    case DArray(value)   => document.listed.toNode(value.toList)
+    case DBoolean(value) => boolean.toNode(value)
+    case DNumber(value)  => number.toNode(value.toString())
+    case DNull           => NullLiteral()
+    case DString(value)  => string.toNode(value)
+    case DObject(value) =>
+      obj(
+        value
+          .toList
+          .map { case (k, v) => Binding[Id](Identifier(k), document.toNode(v)) }
+      )
+  }
 
 }

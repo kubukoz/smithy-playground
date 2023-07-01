@@ -1,4 +1,4 @@
-package playground.lsp
+package playground.lsp.harness
 
 import cats.data.Chain
 import cats.effect.IO
@@ -7,6 +7,8 @@ import cats.implicits._
 import cats.~>
 import io.circe.Json
 import org.eclipse.lsp4j.MessageType
+import playground.lsp.ConfigurationValue
+import playground.lsp.LanguageClient
 
 trait TestClient[F[_]] extends LanguageClient[F] {
   def getEvents: F[List[TestClient.Event]]
@@ -104,6 +106,7 @@ object TestClient {
 
       def getEvents: IO[List[Event]] = state.get.map(_.log.toList)
 
+      /* Clears the state for the duration of the task, then restores it */
       def scoped: IO ~> IO =
         new (IO ~> IO) {
           def apply[A](

@@ -26,7 +26,7 @@ This actually currently includes the integration tests (read on for more detail)
 These aren't very resource heavy (or slow), so they run as part of the normal `test` configuration.
 You'll find these in [`modules/lsp/src/test`](modules/lsp/src/test), and they run on almost the highest abstraction level of the LSP server: by calling an almost-real instance of `LanguageServer`.
 
-This doesn't exercise the standard I/O interface of the server, but it's still a decent way to test the composition of all the modules with a filesystem directory ([`modules/lsp/src/test/resources/test-workspace`](modules/lsp/src/test/resources/test-workspace)).
+This doesn't exercise the standard I/O interface of the server, but it's still a decent way to test the composition of all the modules with a filesystem directory ([`modules/lsp/src/test/resources/test-workspaces`](modules/lsp/src/test/resources/test-workspaces)).
 
 To run integration tests, run `lsp/test`.
 

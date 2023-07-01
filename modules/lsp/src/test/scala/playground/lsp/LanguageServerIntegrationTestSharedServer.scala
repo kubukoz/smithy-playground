@@ -12,16 +12,14 @@ import org.eclipse.lsp4j.DocumentSymbolParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.TextDocumentIdentifier
+import org.http4s.HttpRoutes
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits._
 import org.http4s.server.Server
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
-import smithy4s.http4s.SimpleRestJsonBuilder
-import weather.GetWeatherOutput
-import weather.GoodWeather
-import weather.Weather
-import weather.WeatherService
+import playground.lsp.harness.LanguageServerIntegrationTests
+import playground.lsp.harness.TestClient
 import weaver._
 
 import scala.concurrent.duration._
@@ -33,7 +31,7 @@ object LanguageServerIntegrationTestSharedServer
 
   type Res = Fixture
 
-  def sharedResource: Resource[IO, Res] = makeServer(resourceUri("/test-workspace"))
+  def sharedResource: Resource[IO, Res] = makeServer(testWorkspacesBase / "default")
 
   test("server init produces logs consistent with the workspace folder") { f =>
     val initLogs = List(
@@ -248,26 +246,25 @@ object LanguageServerIntegrationTestSharedServer
       // deliberately not exposing on 0.0.0.0
       // as there's no need
       .withHost(host"localhost")
+      // random port
       .withPort(port"0")
       .withShutdownTimeout(Duration.Zero)
-      .withHttpApp(
-        SimpleRestJsonBuilder
-          .routes(
-            new WeatherService[IO] {
-
-              def getWeather(
-                city: String
-              ): IO[GetWeatherOutput] = IO.pure(
-                GetWeatherOutput(Weather.GoodCase(GoodWeather(reallyGood = Some(true))))
-              )
-
-            }
-          )
-          .make
-          .toTry
-          .get
+      .withHttpApp {
+        import org.http4s.dsl.io._
+        HttpRoutes
+          .of[IO] { case GET -> Root / "weather" / _ =>
+            Ok(
+              s"""{
+                 |  "weather": {
+                 |    "good": {
+                 |      "reallyGood": true
+                 |    }
+                 |  }
+                 |}""".stripMargin
+            )
+          }
           .orNotFound
-      )
+      }
       .build
 
   test("HTTP calls using configured base uri") { f =>
@@ -317,7 +314,12 @@ object LanguageServerIntegrationTestSharedServer
         assert.same(events(0), TestClient.OutputPanelShow) &&
         assert(events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")) &&
         assert(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
-        assert(events(3).asInstanceOf[TestClient.OutputLog].text.contains("// ERROR"))
+        assert(
+          events(3)
+            .asInstanceOf[TestClient.OutputLog]
+            .text
+            .matches("// ERROR .* Connection refused")
+        )
       }
   }
 

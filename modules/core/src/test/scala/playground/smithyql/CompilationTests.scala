@@ -102,16 +102,18 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   val dynamicModel: DynamicSchemaIndex = DynamicModel.discover()
 
-  def dynamicSchemaFor[A: ShapeTag]: Schema[_] = {
+  def dynamicSchemaFor[A: ShapeTag]: Schema[Document] = {
     val shapeId = ShapeTag[A].id
 
     dynamicModel
       .getSchema(shapeId)
+      .map(asDocument(_))
       .getOrElse(sys.error("missing model for shape " + shapeId))
   }
 
-  // Kinda hacky, but does the job
-  def asDocument[A](
+  // Kinda hacky, but does the job.
+  // Transforms an arbitrary Schema into one that operates on documents. Mostly useful for Dynamic usecases.
+  private def asDocument[A](
     schema: Schema[A]
   ): Schema[Document] = {
     val encoder = Document.Encoder.fromSchema(schema)
@@ -466,7 +468,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("dynamic struct with default field") {
     val result =
       compile(WithSource.liftId(struct().mapK(WithSource.liftId)))(
-        asDocument(dynamicSchemaFor[HasDefault])
+        dynamicSchemaFor[HasDefault]
       )
 
     // Object is empty here, but the server shall deserialize it providing the default
@@ -774,7 +776,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
                 )
               )
             )
-          )(asDocument(dynamicSchemaFor[IntSet]))
+          )(dynamicSchemaFor[IntSet])
 
         assert(
           actual == Ior.both(
@@ -825,7 +827,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           item,
         ).mapK(WithSource.liftId)
       )
-    )(asDocument(dynamicSchemaFor[FriendSet]))
+    )(dynamicSchemaFor[FriendSet])
       .leftMap(_.map(_.err))
 
     assertNoDiff(
@@ -847,7 +849,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           ).mapK(WithSource.liftId)
         )
       )(
-        Schema.set(asDocument(dynamicSchemaFor[Person]))
+        Schema.set(dynamicSchemaFor[Person])
       )
 
     val expected = Set(

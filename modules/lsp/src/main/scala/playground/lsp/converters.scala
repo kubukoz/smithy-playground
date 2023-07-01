@@ -141,11 +141,9 @@ object converters {
         _.setTags(
           diag
             .tags
-            .map { tag =>
-              tag match {
-                case DiagnosticTag.Deprecated => lsp4j.DiagnosticTag.Deprecated
-                case DiagnosticTag.Unused     => lsp4j.DiagnosticTag.Unnecessary
-              }
+            .map {
+              case DiagnosticTag.Deprecated => lsp4j.DiagnosticTag.Deprecated
+              case DiagnosticTag.Unused     => lsp4j.DiagnosticTag.Unnecessary
             }
             .toList
             .asJava
@@ -213,7 +211,7 @@ object converters {
           .getAsJsonObject()
           .entrySet()
           .asScala
-          .map { case entry =>
+          .map { entry =>
             val key = entry.getKey
             val value = gsonToCirce(entry.getValue)
             key -> value

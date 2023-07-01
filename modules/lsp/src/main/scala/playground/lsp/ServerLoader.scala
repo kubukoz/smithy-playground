@@ -93,8 +93,11 @@ object ServerLoader {
                 stateRef.get.flatMap { state =>
                   BuildLoader[F]
                     .load(workspaceFolders)
-                    .map { case params =>
-                      PrepareResult(params, !state.lastUsedConfig.contains(params.config))
+                    .map { params =>
+                      PrepareResult(
+                        params,
+                        !state.lastUsedConfig.map(_.config).contains_(params.config),
+                      )
                     }
                 }
               }

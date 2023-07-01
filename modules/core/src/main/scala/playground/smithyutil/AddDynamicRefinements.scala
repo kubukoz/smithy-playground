@@ -5,31 +5,17 @@ import smithy.api
 import smithy4s.Refinement
 import smithy4s.RefinementProvider
 import smithy4s.Surjection
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
-import smithy4s.schema.Primitive.PBigDecimal
-import smithy4s.schema.Primitive.PBigInt
-import smithy4s.schema.Primitive.PBlob
-import smithy4s.schema.Primitive.PBoolean
-import smithy4s.schema.Primitive.PByte
-import smithy4s.schema.Primitive.PDocument
-import smithy4s.schema.Primitive.PDouble
-import smithy4s.schema.Primitive.PFloat
-import smithy4s.schema.Primitive.PInt
-import smithy4s.schema.Primitive.PLong
-import smithy4s.schema.Primitive.PShort
-import smithy4s.schema.Primitive.PString
-import smithy4s.schema.Primitive.PTimestamp
-import smithy4s.schema.Primitive.PUUID
-import smithy4s.schema.Primitive.PUnit
+import smithy4s.schema.CollectionTag._
+import smithy4s.schema.Primitive._
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema.CollectionSchema
-import smithy4s.schema.Schema.MapSchema
-import smithy4s.schema.Schema.PrimitiveSchema
+import smithy4s.schema.Schema._
 import smithy4s.~>
 
+/** Reifies refinement hints into the schema.
+  *
+  * Notably, this does NOT recurse! In order to traverse an entire schema recursively, this has to
+  * be wrapped in TransitiveCompiler. This is done for separation of concerns.
+  */
 object AddDynamicRefinements extends (Schema ~> Schema) {
 
   private def void[C, A](
@@ -83,7 +69,13 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
 
       case c: CollectionSchema[_, _] => collection(c)
       case m: MapSchema[_, _]        => m.reifyHint[api.Length]
-      case _                         => schema
+      // explicitly handling each remaining case, in order to get a "mising match" warning if the schema model changes
+      case b: BijectionSchema[_, _]  => b
+      case r: RefinementSchema[_, _] => r
+      case e: EnumerationSchema[_]   => e
+      case s: StructSchema[_]        => s
+      case l: LazySchema[_]          => l
+      case u: UnionSchema[_]         => u
     }
 
 }
