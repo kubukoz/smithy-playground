@@ -24,6 +24,7 @@ import smithy4s.schema.CollectionTag.IndexedSeqTag
 import smithy4s.schema.CollectionTag.ListTag
 import smithy4s.schema.CollectionTag.SetTag
 import smithy4s.schema.CollectionTag.VectorTag
+import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Primitive
 import smithy4s.schema.Primitive.PBigDecimal
@@ -40,7 +41,6 @@ import smithy4s.schema.Primitive.PShort
 import smithy4s.schema.Primitive.PString
 import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
-import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
@@ -84,7 +84,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         QueryCompiler
           .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
           .map(_.value.value)
-      case PUnit     => struct(shapeId, hints, Vector.empty, _ => ())
       case PLong     => checkRange(integer)("int")(_.toLongOption)
       case PInt      => checkRange(integer)("int")(_.toIntOption)
       case PShort    => checkRange(integer)("short")(_.toShortOption)
@@ -455,9 +454,22 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
 
   val string: QueryCompiler[String] = stringLiteral.map(_.value)
 
+  def nullable[A](
+    schema: Schema[A]
+  ): QueryCompiler[Option[A]] = {
+    val underlying = schema.compile(this)
+
+    in =>
+      in.value match {
+        case NullLiteral() => None.rightIor
+        case _             => underlying.compile(in).map(Some(_))
+      }
+  }
+
   def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
+    tag: EnumTag,
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): QueryCompiler[E] = (string, QueryCompiler.pos).tupled.emap { case (name, range) =>

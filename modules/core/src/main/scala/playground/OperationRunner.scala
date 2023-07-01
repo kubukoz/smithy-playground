@@ -12,6 +12,7 @@ import cats.effect.Resource
 import cats.effect.implicits._
 import cats.effect.std
 import cats.implicits._
+import fs2.compression.Compression
 import org.http4s.Uri
 import org.http4s.client.Client
 import playground._
@@ -135,7 +136,7 @@ object OperationRunner {
         }
       }
 
-  def forSchemaIndex[F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+  def forSchemaIndex[F[_]: StdlibRuntime: Concurrent: Compression: Defer: std.Console](
     dsi: DynamicSchemaIndex,
     client: Client[F],
     baseUri: F[Uri],
@@ -150,7 +151,7 @@ object OperationRunner {
     plugins = plugins,
   )
 
-  def forServices[F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+  def forServices[F[_]: StdlibRuntime: Concurrent: Compression: Defer: std.Console](
     services: List[DynamicSchemaIndex.ServiceWrapper],
     getSchema: ShapeId => Option[Schema[_]],
     client: Client[F],
@@ -194,7 +195,10 @@ object OperationRunner {
 
     }
 
-  def forService[Alg[_[_, _, _, _, _]], F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+  def forService[
+    Alg[_[_, _, _, _, _]],
+    F[_]: StdlibRuntime: Concurrent: Compression: Defer: std.Console,
+  ](
     service: Service[Alg],
     client: Client[F],
     baseUri: F[Uri],
@@ -296,7 +300,7 @@ object OperationRunner {
         )
 
       val getInternal: IorNel[Issue, OperationRunner[F]] = runners.reduce(
-        IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]]
+        IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]](_, _)
       )
 
       def get(

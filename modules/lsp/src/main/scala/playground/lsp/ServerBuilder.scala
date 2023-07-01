@@ -5,6 +5,7 @@ import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.std
 import cats.implicits._
+import fs2.compression.Compression
 import fs2.io.file.Files
 import fs2.io.net.Network
 import org.http4s.client.Client
@@ -35,7 +36,7 @@ object ServerBuilder {
     implicit F: ServerBuilder[F]
   ): ServerBuilder[F] = F
 
-  def instance[F[_]: Async: LanguageClient: BuildLoader: Files: Network: std.Console]
+  def instance[F[_]: Async: LanguageClient: BuildLoader: Files: Network: Compression: std.Console]
     : Resource[F, ServerBuilder[F]] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
 

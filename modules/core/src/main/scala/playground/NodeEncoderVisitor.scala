@@ -32,6 +32,7 @@ import smithy4s.schema.CollectionTag.IndexedSeqTag
 import smithy4s.schema.CollectionTag.ListTag
 import smithy4s.schema.CollectionTag.SetTag
 import smithy4s.schema.CollectionTag.VectorTag
+import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -115,11 +116,19 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case PDouble     => double
       case PDocument   => document
       case PFloat      => float
-      case PUnit       => _ => obj(Nil)
       case PUUID       => string.contramap(_.toString())
       case PByte       => byte
       case PTimestamp  => string.contramap(_.toString)
     }
+
+  def nullable[A](
+    schema: Schema[A]
+  ): NodeEncoder[Option[A]] = {
+    val base = schema.compile(this)
+    val nullDoc = document.toNode(Document.nullDoc)
+
+    _.fold(nullDoc)(base.toNode)
+  }
 
   def collection[C[_], A](
     shapeId: ShapeId,
@@ -162,6 +171,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
+    tag: EnumTag,
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): NodeEncoder[E] = string.contramap(total(_).name)

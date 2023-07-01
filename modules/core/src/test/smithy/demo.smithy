@@ -146,6 +146,11 @@ enum Power {
     WIND = "Wind"
 }
 
+intEnum PrivacyTier {
+    PUBLIC = 0
+    PRIVATE = 1
+}
+
 @http(method: "PUT", uri: "/subscriptions")
 @idempotent
 @documentation("""
@@ -256,4 +261,10 @@ structure SampleMixin {
 structure HasMixin with [SampleMixin] {
     @required
     name: String
+}
+
+
+@sparse
+list SampleSparseList {
+    member: Integer
 }

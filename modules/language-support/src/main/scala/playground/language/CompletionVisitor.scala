@@ -31,6 +31,9 @@ import smithy4s.Timestamp
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
+import smithy4s.schema.EnumTag
+import smithy4s.schema.EnumTag.IntEnum
+import smithy4s.schema.EnumTag.StringEnum
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -100,6 +103,18 @@ object InsertText {
 }
 
 object CompletionItem {
+
+  def forNull: CompletionItem = CompletionItem(
+    kind = CompletionItemKind.Constant,
+    label = "null",
+    insertText = InsertText.JustString("null"),
+    detail = "null",
+    description = None,
+    deprecated = false,
+    docs = None,
+    extraTextEdits = Nil,
+    sortText = None,
+  )
 
   def useServiceClause(
     ident: QualifiedIdentifier,
@@ -199,7 +214,6 @@ object CompletionItem {
       case PByte       => "byte"
       case PDouble     => "double"
       case PShort      => "short"
-      case PUnit       => "unit"
       case PBigInt     => "bigInteger"
       case PInt        => "integer"
       case PUUID       => "uuid"
@@ -239,7 +253,11 @@ object CompletionItem {
       case Schema.CollectionSchema(shapeId, _, tag, member) =>
         now(s"${describeCollection(tag)} ${shapeId.name} { member: ${describeSchema(member)()} }")
 
-      case EnumerationSchema(shapeId, _, _, _) => now(s"enum ${shapeId.name}")
+      case e @ EnumerationSchema(_, _, _, _, _) =>
+        e.tag match {
+          case IntEnum    => now(s"intEnum ${e.shapeId.name}")
+          case StringEnum => now(s"enum ${e.shapeId.name}")
+        }
 
       case MapSchema(shapeId, _, key, value) =>
         now(s"map ${shapeId.name} { key: ${key.shapeId.name}, value: ${value.shapeId.name} }")
@@ -247,6 +265,10 @@ object CompletionItem {
       case StructSchema(shapeId, _, _, _) => now(s"structure ${shapeId.name}")
 
       case UnionSchema(shapeId, _, _, _) => now(s"union ${shapeId.name}")
+
+      case NullableSchema(underlying) =>
+        // ignore the fact that it's nullable, just describe the underlying schema
+        describeSchema(underlying)
 
       case LazySchema(suspend) =>
         // we don't look at fields or whatnot,
@@ -492,9 +514,21 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     )
   }
 
+  override def nullable[A](
+    schema: Schema[A]
+  ): CompletionResolver[Option[A]] = {
+    val underlying = schema.compile(this)
+
+    {
+      case p @ EmptyPath => underlying.getCompletions(p).appended(CompletionItem.forNull)
+      case more          => underlying.getCompletions(more)
+    }
+  }
+
   override def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
+    tag: EnumTag,
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): CompletionResolver[E] = quoteAware { transformString =>
@@ -504,7 +538,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
           CompletionItemKind.EnumMember,
           enumValue.name,
           InsertText.JustString(transformString(enumValue.name)),
-          Schema.enumeration(total, values).addHints(hints).withId(shapeId),
+          Schema.enumeration(total, tag, values).addHints(hints).withId(shapeId),
         )
       }
   }

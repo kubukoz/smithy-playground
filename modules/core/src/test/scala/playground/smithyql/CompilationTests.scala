@@ -1,5 +1,6 @@
 package playground.smithyql
 
+import cats.Id
 import cats.Show
 import cats.data.Chain
 import cats.data.Ior
@@ -22,6 +23,7 @@ import demo.smithy.Ints
 import demo.smithy.MyInstant
 import demo.smithy.Person
 import demo.smithy.Power
+import demo.smithy.SampleSparseList
 import demo.smithy.StringWithLength
 import org.scalacheck.Arbitrary
 import playground.Assertions._
@@ -706,6 +708,19 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile[Ints](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
         Ints(IndexedSeq(1, 2, 3))
       )
+    )
+  }
+
+  pureTest("sparse list of ints") {
+    implicit val diffSSL: Diff[SampleSparseList] = Diff[List[Option[Int]]].contramap(_.value)
+
+    assertNoDiff(
+      compile[SampleSparseList](
+        WithSource.liftId(List[InputNode[Id]](1, NullLiteral(), 3).mapK(WithSource.liftId))
+      ).leftMap(_.map(_.err)),
+      Ior.right(
+        SampleSparseList(List(Some(1), None, Some(3)))
+      ),
     )
   }
 

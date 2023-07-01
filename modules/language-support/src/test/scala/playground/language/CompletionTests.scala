@@ -12,6 +12,9 @@ import demo.smithy.MyInt
 import demo.smithy.MyString
 import demo.smithy.Power
 import demo.smithy.PowerMap
+import demo.smithy.PrivacyTier
+import playground.Assertions._
+import playground.language.Diffs._
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.PathEntry._
 import smithy.api.TimestampFormat
@@ -115,9 +118,34 @@ object CompletionTests extends FunSuite {
     assert(completions.isEmpty)
   }
 
+  test("completions in sparse collection root contain null") {
+    val completions = getCompletions(
+      Schema.list(Schema.int.nullable),
+      NodeContext.EmptyPath.inCollectionEntry(None),
+    )
+
+    assertNoDiff(
+      completions,
+      List(
+        CompletionItem.forNull
+      ),
+    )
+  }
+
   test("completions on struct in list are available") {
     val completions = getCompletions(
       Schema.list(Good.schema),
+      NodeContext.EmptyPath.inCollectionEntry(0.some).inStructBody,
+    )
+
+    val fieldNames = completions.map(_.label)
+
+    assert.eql(fieldNames, List("howGood"))
+  }
+
+  test("completions on struct in sparse list are available") {
+    val completions = getCompletions(
+      Schema.list(Good.schema.nullable),
       NodeContext.EmptyPath.inCollectionEntry(0.some).inStructBody,
     )
 
@@ -285,6 +313,13 @@ object CompletionTests extends FunSuite {
     assert.eql(
       CompletionItem.describeSchema(Power.schema)(),
       "enum Power",
+    )
+  }
+
+  test("describe int enum") {
+    assert.eql(
+      CompletionItem.describeSchema(PrivacyTier.schema)(),
+      "intEnum PrivacyTier",
     )
   }
 

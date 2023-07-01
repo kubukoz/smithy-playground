@@ -4,9 +4,11 @@ import cats.Id
 import demo.smithy.Good
 import demo.smithy.Hero
 import demo.smithy.Power
+import demo.smithy.SampleSparseList
 import playground.NodeEncoder
 import playground.smithyql.AST
 import playground.smithyql.DSL._
+import playground.smithyql.Listed
 import playground.smithyql.NullLiteral
 import playground.smithyql.StringLiteral
 import smithy.api.TimestampFormat
@@ -79,6 +81,14 @@ object NodeEncoderTests extends FunSuite {
       Schema.document,
       Document.nullDoc,
       NullLiteral(),
+    )
+  }
+
+  test("sparse list") {
+    assertEncodes(
+      SampleSparseList.schema,
+      SampleSparseList(List(Some(1), None, Some(3))),
+      Listed[Id](List(1, NullLiteral(), 3)),
     )
   }
 }
