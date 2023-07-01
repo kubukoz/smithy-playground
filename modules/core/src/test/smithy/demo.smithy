@@ -67,7 +67,8 @@ structure CreateHeroInput {
     friendSet: FriendSet
     hasNewtypes: HasNewtypes
     hasDeprecations: HasDeprecations
-    doc: Document
+    doc: Document,
+    sparse: SampleSparseList
 }
 
 @uniqueItems

@@ -108,7 +108,7 @@ object CompletionItem {
     kind = CompletionItemKind.Constant,
     label = "null",
     insertText = InsertText.JustString("null"),
-    detail = "null",
+    detail = ": null",
     description = None,
     deprecated = false,
     docs = None,
