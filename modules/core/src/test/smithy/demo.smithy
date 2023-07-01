@@ -68,7 +68,8 @@ structure CreateHeroInput {
     hasNewtypes: HasNewtypes
     hasDeprecations: HasDeprecations
     doc: Document,
-    sparse: SampleSparseList
+    sparse: SampleSparseList,
+    sparseMap: SampleSparseMap
 }
 
 @uniqueItems
@@ -268,4 +269,10 @@ structure HasMixin with [SampleMixin] {
 @sparse
 list SampleSparseList {
     member: Integer
+}
+
+@sparse
+map SampleSparseMap {
+    key: String
+    value: Integer
 }
