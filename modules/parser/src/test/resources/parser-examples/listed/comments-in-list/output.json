@@ -1,0 +1,66 @@
+{
+  "values": {
+    "commentsLeft": [
+      {
+        "text": "before elem 1"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 84
+      }
+    },
+    "value": [
+      {
+        "commentsLeft": [],
+        "commentsRight": [
+          {
+            "text": "after elem 1"
+          }
+        ],
+        "range": {
+          "start": {
+            "index": 22
+          },
+          "end": {
+            "index": 23
+          }
+        },
+        "value": {
+          "IntLiteral": {
+            "value": "1"
+          }
+        }
+      },
+      {
+        "commentsLeft": [
+          {
+            "text": "before elem 2"
+          }
+        ],
+        "commentsRight": [
+          {
+            "text": "after elem 2"
+          }
+        ],
+        "range": {
+          "start": {
+            "index": 65
+          },
+          "end": {
+            "index": 66
+          }
+        },
+        "value": {
+          "IntLiteral": {
+            "value": "2"
+          }
+        }
+      }
+    ]
+  }
+}

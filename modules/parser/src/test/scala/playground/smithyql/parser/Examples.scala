@@ -4,6 +4,8 @@ object Examples {
   val fullOfComments = """
 // before use clause
 use service some.api#Service
+// before another clause
+use service some.api#Service2
 // before op
 op
 // after op
@@ -12,7 +14,7 @@ op
   //before key
   firstKey
   // after key
-   =
+   :
     //  before value
      "firstValue"
     //  after value
@@ -20,7 +22,7 @@ op
   // before another key
   secondKey
   // after second key
-  =
+  :
     // before value
     "secondValue"
     // after value

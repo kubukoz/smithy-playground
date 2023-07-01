@@ -45,14 +45,15 @@ import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 import smithy4s.~>
-import java.util.Base64
-import java.util.UUID
-
 import types._
 import util.chaining._
 
+import java.util.Base64
+import java.util.UUID
+
 object QueryCompilerVisitor {
-  val full = new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerVisitorInternal
+  val full: Schema ~> QueryCompiler =
+    new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerVisitorInternal
 }
 
 object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
@@ -72,7 +73,11 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       .toIorNec
   }
 
-  def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): QueryCompiler[P] =
+  def primitive[P](
+    shapeId: ShapeId,
+    hints: Hints,
+    tag: Primitive[P],
+  ): QueryCompiler[P] =
     tag match {
       case PString => string
       case PBoolean =>
@@ -156,7 +161,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     }
   }
 
-  private def uniqueListOf[A](member: Schema[A]): QueryCompiler[List[A]] = {
+  private def uniqueListOf[A](
+    member: Schema[A]
+  ): QueryCompiler[List[A]] = {
     val memberToDoc = Document.Encoder.fromSchema(member)
 
     listWithPos(member.compile(this)).emap { items =>
@@ -164,10 +171,10 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         .groupBy { case (v, _) => memberToDoc.encode(v) }
 
       val duplications = itemsGrouped
-        .map(_._2)
+        .values
         .filter(_.sizeIs > 1)
         .flatMap(_.map(_._2))
-        // todo: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
+        // nice to have: reorganize this so it only shows the warning once with extra locations (which ideally would be marked as unused, but idk if possible)
         .map(CompilationError.warning(CompilationErrorDetails.DuplicateItem, _))
         .toList
         .pipe(NonEmptyChain.fromSeq(_))
@@ -181,7 +188,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     }
   }
 
-  private def listOf[A](member: Schema[A]) = listWithPos(member.compile(this)).map(_.map(_._1))
+  private def listOf[A](
+    member: Schema[A]
+  ) = listWithPos(member.compile(this)).map(_.map(_._1))
 
   def map[K, V](
     shapeId: ShapeId,
@@ -218,7 +227,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   private val compileField: Schema ~> FieldCompiler =
     new (Schema ~> FieldCompiler) {
 
-      def apply[A](schema: Schema[A]): FieldCompiler[A] =
+      def apply[A](
+        schema: Schema[A]
+      ): FieldCompiler[A] =
         new FieldCompiler[A] {
           def compiler: QueryCompiler[A] = schema.compile(QueryCompilerVisitorInternal)
 
@@ -267,7 +278,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
               unexpectedKey.range,
             )
           }
-          .toList
           .toNel
           .map(NonEmptyChain.fromNonEmptyList)
           .toBothLeft(())
@@ -276,7 +286,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         val deprecatedFieldWarnings: QueryCompiler.Result[Unit] = presentKeys
           .flatMap { key =>
             deprecatedFields.get(key.value.text).map { info =>
-              CompilationError.deprecation(info, key.range)
+              CompilationError.deprecation(DeprecatedInfo.fromHint(info), key.range)
             }
           }
           .toList
@@ -355,7 +365,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
             .get(key.value.text)
             .map { info =>
               CompilationError
-                .deprecation(info, key.range)
+                .deprecation(DeprecatedInfo.fromHint(info), key.range)
             }
             .toList
             .toNel
@@ -413,13 +423,16 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       .toIorNec
   }
 
-  def lazily[A](suspend: Lazy[Schema[A]]): QueryCompiler[A] = {
+  def lazily[A](
+    suspend: Lazy[Schema[A]]
+  ): QueryCompiler[A] = {
     val it = suspend.map(_.compile(this))
 
     it.value.compile(_)
   }
 
-  val stringLiteral = QueryCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
+  val stringLiteral: QueryCompiler[WithSource[String]] =
+    QueryCompiler.typeCheck(NodeKind.StringLiteral) { case StringLiteral(s) => s }
 
   val document: QueryCompiler[Document] =
     _.value match {
@@ -440,7 +453,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       case NullLiteral() => Document.nullDoc.rightIor
     }
 
-  val string = stringLiteral.map(_.value)
+  val string: QueryCompiler[String] = stringLiteral.map(_.value)
 
   def enumeration[E](
     shapeId: ShapeId,
@@ -468,7 +481,12 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
 
   private def listWithPos[S](
     fs: QueryCompiler[S]
-  ): QueryCompiler[List[(S, SourceRange)]] = QueryCompiler
+  ): QueryCompiler[List[
+    (
+      S,
+      SourceRange,
+    )
+  ]] = QueryCompiler
     .typeCheck(NodeKind.Listed) { case l @ Listed(_) => l }
     .emap(
       _.value

@@ -6,7 +6,7 @@ Currently available as a LSP server with a client implementation for VS Code.
 
 ## Usage
 
-1. Make sure you have [Coursier](https://get-coursier.io/docs/cli-installation) available on the PATH as `cs`
+1. Make sure you have [Coursier](https://get-coursier.io/docs/cli-installation) available on the PATH as `cs`, running Java 11 or above
 2. Get the extension from [Marketplace](https://marketplace.visualstudio.com/items?itemName=kubukoz.smithy-playground)
 3. Create a file, `smithy-build.json`. Example:
 
@@ -21,7 +21,13 @@ Currently available as a LSP server with a client implementation for VS Code.
   // To access non-standard Maven repositories
   "mavenRepositories": [
     "https://<path-to-artifactory>"
-  ]
+  ],
+  // for Playground plugins
+  "smithyPlayground": {
+    "extensions": [
+      "com.kubukoz::playground-extension:0.0.1"
+    ]
+  }
 }
 ```
 
@@ -36,43 +42,45 @@ use service playground.std#Clock
 CurrentTimestamp {}
 ```
 
+It uses a "standard library" of smithy-playground, which is always available.
+
 Here's a more verbose example showcasing most of the language syntax. `DemoService` is defined in this repository's test suite.
 
 ```
 use service demo.smithy#DemoService
 
 CreateHero {
-  hero = {
-    good = {
-      howGood = 42,
+  hero: {
+    good: {
+      howGood: 42,
     },
   },
-  friends = [
+  friends: [
     {
-      bad = {
-        evilName = "Vader",
-        powerLevel = 9001,
+      bad: {
+        evilName: "Vader",
+        powerLevel: 9001,
       },
     },
   ],
-  doc = [
+  doc: [
     "this is a document, so you can do pretty much anything here",
     null,
     false,
     42,
     {
-      nested = "key",
+      nested: "key",
     },
     [ ],
   ],
-  hasNewtypes = {
-    anInstant = "2022-10-08T00:46:31.378493Z",
-    anUUID = "cd4f93e0-fd11-41f0-8f13-44f66e1f0997",
-    power = "FIRE",
-    powerMap = {
-      FIRE = {
-        good = {
-          howGood = 10,
+  hasNewtypes: {
+    anInstant: "2022-10-08T00:46:31.378493Z",
+    anUUID: "cd4f93e0-fd11-41f0-8f13-44f66e1f0997",
+    power: "FIRE",
+    powerMap: {
+      FIRE: {
+        good: {
+          howGood: 10,
         },
       },
     },
@@ -80,8 +88,6 @@ CreateHero {
 }
 
 ```
-
-It uses a "standard library" of smithy-playground, which is always available.
 
 ## Running queries
 
@@ -91,7 +97,7 @@ The runner needs a base URL to target with its queries. This defaults to `http:/
 
 or by manually changing the key in  `./vscode/settings.json`.
 
-If a query typechecks, it can be executed by clicking on the "Run query" code lens...
+If a query typechecks, it can be executed by clicking on the "Run SmithyQL file" code lens...
 
 ![code lens](./images/lens.png)
 
@@ -104,9 +110,11 @@ or triggering the command from the Command Palette:
 - Running queries via code lens or command
 - Formatting
 - Enabling/disabling line comments
-- Completions on: operation name, structure fields, union cases, enums (inside the string literal).
-- Documentation in completions (operation docs, input/output types, structure field type)
+- Completions (as long as the code is at least syntactically valid)
+- Documentation in completions (operation docs, input/output types, structure member types)
+- Document outline / breadcrumbs / "go to symbol in editor"
 - Rough error highlighting on parse errors, type mismatches, missing fields
+- AWS client calls for services supporting `@awsJson1_0` and `awsJson1_1`
 
 ## Syntax
 
@@ -114,13 +122,15 @@ Here's a more verbose description of the SmithyQL syntax.
 
 ### Literals
 
-In general, in SmithyQL, value literals look a bit like a mix of JSON and Nix. We have:
+In general, in SmithyQL, value literals look very similar to JSON, with minor differences. They are also very similar to [Smithy's node values](https://awslabs.github.io/smithy/2.0/spec/model.html#node-value).
+
+We have:
 
 - string literals: `"like this"`
 - numeric literals: `2137`, `42.0`, `4e10` - following the JSON spec of numbers
 - booleans: `true`, `false`
 - lists: `[ true, false, ]`
-- structures: `{ k = "value", k2 = true, k3 = [ 10, 20, ], }`
+- structures: `{ k: "value", k2: true, k3: [ 10, 20, ], }` - note that keys aren't quoted, unlike in JSON
 - null, but it's not what you think: the `null` literal only typechecks as a Smithy `Document`,
   and corresponds to the [Null document](https://awslabs.github.io/smithy/2.0/spec/simple-types.html?highlight=null#document).
 
@@ -148,14 +158,14 @@ union A {
 }
 ```
 
-to get a value corresponding to the `f` case, you should do something like `{ f = 40 }`.
+to get a value corresponding to the `f` case, you should do something like `{ f: 40 }`.
 
 - enums: Smithy enums are written as string literals using the name of the enum value.
 
 ```
 enum Temperature {
-  HOT = "Hot",
-  COLD = "Cold"
+  HOT: "Hot",
+  COLD: "Cold"
 }
 ```
 
@@ -175,33 +185,46 @@ In this case, the syntax would be `"HOT"` or `"COLD"`.
 - smithy4s refinements: all validations provided by smithy4s are supported. If you find one that isn't, file an issue!
   Supporting additional validations, like your own, may be enabled in the future using the plugin infrastructure of Smithy Playground.
 
+### Prelude
+
+A SmithyQL file starts with a section called a prelude. It can contain use clauses (described below) available to all queries in the file.
+
+For example:
+
+```
+use service playground.std#Clock
+use service playground.std#Random
+```
+
+Use clauses are optional, as queries can refer to a service explicitly.
+
 ### Queries
 
-Currently, a SmithyQL file is a single Query. A Query is formed of the following:
+A SmithyQL file can contain any number of Queries. A Query is formed of the following:
 
-- (optional) a `use service` clause: `use service playground.std#Clock`
 - an operation name
 - the operation input (a structure literal)
 
 An operation name can be either:
 
-- fully qualified, in which case it looks like this: `playground.std#Clock.CurrentTimestamp`
-- implicitly qualified, in which case it's just the operation name: `CurrentTimestamp`
+- fully qualified, in which case it looks like this: `playground.std#Clock.CurrentTimestamp` (using the service `playground.std#Clock` for just this single query)
+- implicitly qualified, in which case it's just the operation name: `CurrentTimestamp`. You can only use implicitly qualified operation names if there's exactly one service in scope (added with `use service`) that contains an operation of the given name. Otherwise, you have to use an explicit reference.
 
-#### on `use service`
+Explicit (fully qualified) references always have priority over implicit ones.
 
-The `use service` clause sets the service that will implicitly be used for all queries in a file.
-Currently, there's only one query per file, but that will change in the future.
+#### use clauses - `use service`
 
-`use service` and a fully qualified operation name are **mutually exclusive**: you can only use **exactly one** of them in a file.
+A `use service` clause adds a service to the set of services that will implicitly be used as the default for all queries in a file.
 
-To sum up, these are equivalent:
+For a single-query file, an explicit and implicit service reference are always equivalent:
 
 ```
 use service playground.std#Clock
 
 CurrentTimestamp {}
 ```
+
+is the same as
 
 ```
 playground.std#Clock.CurrentTimestamp {}
@@ -217,7 +240,7 @@ The operation input is always a structure, even if there is no explicitly define
 
 - Trailing commas are supported in lists and objects, and they're preferred by the standard formatter. No, there aren't any other formatters.
 
-- Formatting is quite whitespace-happy and optimizes for consistency. It's not perfect and has known bugs (e.g. too much indentation in lists), but improvements in that area are on the roadmap.
+- Formatting is quite whitespace-happy and optimizes for consistency.
 
 - Syntax may change in the future, but any breaking changes will be phased in with a deprecation cycle, and an automated rewrite.
 
@@ -226,7 +249,11 @@ The operation input is always a structure, even if there is no explicitly define
 
 ## Known issues
 
-- ~Not all Smithy shapes are supported in all areas~ This has been fixed in [the main plugin](https://github.com/kubukoz/smithy-playground/releases/tag/v0.3.8).
 - Type errors and completions are only shown if the file parses. This is being worked on.
 - It can take a couple seconds to activate the extension when the project is opened (JVM startup)
-- AWS support is very barebones (the whole editor needs to be loaded with AWS credentials in the environment)
+- AWS support requires credentials in scope for the entire editor instance
+- See issue list
+
+## Contributing / development notes
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md)

@@ -1,0 +1,215 @@
+{
+  "fields": {
+    "commentsLeft": [
+      {
+        "text": "bar"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 207
+      }
+    },
+    "value": {
+      "value": [
+        {
+          "identifier": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 8
+              },
+              "end": {
+                "index": 12
+              }
+            },
+            "value": {
+              "text": "hero"
+            }
+          },
+          "value": {
+            "commentsLeft": [],
+            "commentsRight": [],
+            "range": {
+              "start": {
+                "index": 14
+              },
+              "end": {
+                "index": 205
+              }
+            },
+            "value": {
+              "Struct": {
+                "fields": {
+                  "commentsLeft": [
+                    {
+                      "text": "foo"
+                    },
+                    {
+                      "text": "    bad: {"
+                    },
+                    {
+                      "text": "      evilName: \"evil\","
+                    },
+                    {
+                      "text": "      powerLevel: 9001,"
+                    },
+                    {
+                      "text": "    },"
+                    }
+                  ],
+                  "commentsRight": [],
+                  "range": {
+                    "start": {
+                      "index": 15
+                    },
+                    "end": {
+                      "index": 204
+                    }
+                  },
+                  "value": {
+                    "value": [
+                      {
+                        "identifier": {
+                          "commentsLeft": [],
+                          "commentsRight": [],
+                          "range": {
+                            "start": {
+                              "index": 100
+                            },
+                            "end": {
+                              "index": 104
+                            }
+                          },
+                          "value": {
+                            "text": "good"
+                          }
+                        },
+                        "value": {
+                          "commentsLeft": [],
+                          "commentsRight": [],
+                          "range": {
+                            "start": {
+                              "index": 106
+                            },
+                            "end": {
+                              "index": 200
+                            }
+                          },
+                          "value": {
+                            "Struct": {
+                              "fields": {
+                                "commentsLeft": [],
+                                "commentsRight": [],
+                                "range": {
+                                  "start": {
+                                    "index": 107
+                                  },
+                                  "end": {
+                                    "index": 199
+                                  }
+                                },
+                                "value": {
+                                  "value": [
+                                    {
+                                      "identifier": {
+                                        "commentsLeft": [],
+                                        "commentsRight": [],
+                                        "range": {
+                                          "start": {
+                                            "index": 114
+                                          },
+                                          "end": {
+                                            "index": 121
+                                          }
+                                        },
+                                        "value": {
+                                          "text": "howGood"
+                                        }
+                                      },
+                                      "value": {
+                                        "commentsLeft": [
+                                          {
+                                            "text": "100"
+                                          },
+                                          {
+                                            "text": "  200,"
+                                          }
+                                        ],
+                                        "commentsRight": [],
+                                        "range": {
+                                          "start": {
+                                            "index": 150
+                                          },
+                                          "end": {
+                                            "index": 153
+                                          }
+                                        },
+                                        "value": {
+                                          "IntLiteral": {
+                                            "value": "200"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "identifier": {
+                                        "commentsLeft": [],
+                                        "commentsRight": [
+                                          {
+                                            "text": "foo: \"a\""
+                                          }
+                                        ],
+                                        "range": {
+                                          "start": {
+                                            "index": 161
+                                          },
+                                          "end": {
+                                            "index": 171
+                                          }
+                                        },
+                                        "value": {
+                                          "text": "anotherKey"
+                                        }
+                                      },
+                                      "value": {
+                                        "commentsLeft": [],
+                                        "commentsRight": [],
+                                        "range": {
+                                          "start": {
+                                            "index": 191
+                                          },
+                                          "end": {
+                                            "index": 193
+                                          }
+                                        },
+                                        "value": {
+                                          "IntLiteral": {
+                                            "value": "42"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

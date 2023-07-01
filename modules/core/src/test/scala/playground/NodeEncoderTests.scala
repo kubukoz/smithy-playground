@@ -2,19 +2,19 @@ package playground
 
 import cats.Id
 import demo.smithy.Good
+import demo.smithy.Hero
+import demo.smithy.Power
 import playground.NodeEncoder
 import playground.smithyql.AST
 import playground.smithyql.DSL._
-import smithy4s.schema.Schema
-import weaver._
-import demo.smithy.Hero
-import smithy4s.Timestamp
+import playground.smithyql.NullLiteral
+import playground.smithyql.StringLiteral
 import smithy.api.TimestampFormat
 import smithy4s.ByteArray
-import playground.smithyql.StringLiteral
 import smithy4s.Document
-import playground.smithyql.NullLiteral
-import demo.smithy.Power
+import smithy4s.Timestamp
+import smithy4s.schema.Schema
+import weaver._
 
 object NodeEncoderTests extends FunSuite {
 
@@ -24,7 +24,7 @@ object NodeEncoderTests extends FunSuite {
     expected: AST[Id],
   )(
     implicit loc: SourceLocation
-  ) = {
+  ): Expectations = {
     val enc = NodeEncoder.derive(schema)
 
     assert.eql(enc.toNode(value), expected)

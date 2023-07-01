@@ -1,0 +1,21 @@
+{
+  "fields": {
+    "commentsLeft": [
+      {
+        "text": " hello"
+      }
+    ],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 11
+      }
+    },
+    "value": {
+      "value": []
+    }
+  }
+}

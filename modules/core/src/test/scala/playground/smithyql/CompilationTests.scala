@@ -4,7 +4,10 @@ import cats.Show
 import cats.data.Chain
 import cats.data.Ior
 import cats.data.NonEmptyChain
+import cats.data.NonEmptyList
 import cats.implicits._
+import com.softwaremill.diffx.Diff
+import com.softwaremill.diffx.cats._
 import demo.smithy.Bad
 import demo.smithy.DeprecatedServiceGen
 import demo.smithy.FriendSet
@@ -12,6 +15,7 @@ import demo.smithy.Good
 import demo.smithy.HasConstraintFields
 import demo.smithy.HasDefault
 import demo.smithy.HasDeprecations
+import demo.smithy.HasMixin
 import demo.smithy.Hero
 import demo.smithy.IntSet
 import demo.smithy.Ints
@@ -19,15 +23,28 @@ import demo.smithy.MyInstant
 import demo.smithy.Person
 import demo.smithy.Power
 import demo.smithy.StringWithLength
-import demo.smithy.HasMixin
 import org.scalacheck.Arbitrary
+import playground.Assertions._
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
+import playground.CompiledInput
+import playground.DeprecatedInfo
+import playground.DiagnosticSeverity
 import playground.DiagnosticTag
+import playground.Diffs._
+import playground.DynamicModel
+import playground.OperationCompiler
+import playground.PreludeCompiler
 import playground.QueryCompiler
 import playground.QueryCompilerVisitor
-import smithy.api
+import playground.ServiceIndex
+import playground.ServiceUtils._
+import playground.smithyql.parser.SourceParser
+import playground.smithyql.syntax._
+import playground.std.ClockGen
+import playground.std.RandomGen
+import playground.types.IorThrow
 import smithy.api.TimestampFormat
 import smithy4s.ByteArray
 import smithy4s.Document
@@ -38,7 +55,6 @@ import smithy4s.ShapeTag
 import smithy4s.Timestamp
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Schema
-import software.amazon.smithy.model.{Model => SModel}
 import weaver._
 import weaver.scalacheck.Checkers
 
@@ -46,36 +62,60 @@ import java.time
 import java.util.UUID
 
 import Arbitraries._
-import playground.smithyql.parser.SmithyQLParser
+import StringRangeUtils._
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
   import DSL._
 
-  def compile[A: smithy4s.Schema](
+  private def compile[A: smithy4s.Schema](
     in: QueryCompiler.WAST
   ) = implicitly[smithy4s.Schema[A]].compile(QueryCompilerVisitor.full).compile(in)
 
-  val dynamicModel = {
-    val model = SModel
-      .assembler()
-      .discoverModels()
-      .assemble()
-      .unwrap()
+  private def parseAndCompile[Alg[_[_, _, _, _, _]]](
+    service: Service[Alg]
+  )(
+    q: String
+  ): IorThrow[List[CompiledInput]] =
+    compileMulti(wrapService(service) :: Nil)(
+      SourceParser[SourceFile].parse(q).toTry.get
+    )
 
-    DynamicSchemaIndex.loadModel(model).toTry.get
-  }
+  private def parseAndCompileMulti(
+    services: List[DynamicSchemaIndex.ServiceWrapper]
+  )(
+    q: String
+  ) = compileMulti(services)(SourceParser[SourceFile].parse(q).toTry.get)
 
-  def dynamicSchemaFor[A: ShapeTag]: Schema[_] = {
+  private def compileMulti(
+    services: List[DynamicSchemaIndex.ServiceWrapper]
+  )(
+    q: SourceFile[WithSource]
+  ): IorThrow[List[CompiledInput]] = playground
+    .FileCompiler
+    .instance(
+      PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
+      OperationCompiler.fromServices(services),
+    )
+    .mapK(CompilationFailed.wrapK)
+    .compile(q)
+
+  val dynamicModel: DynamicSchemaIndex = DynamicModel.discover()
+
+  def dynamicSchemaFor[A: ShapeTag]: Schema[Document] = {
     val shapeId = ShapeTag[A].id
 
     dynamicModel
       .getSchema(shapeId)
+      .map(asDocument(_))
       .getOrElse(sys.error("missing model for shape " + shapeId))
   }
 
-  // Kinda hacky, but does the job
-  def asDocument[A](schema: Schema[A]): Schema[Document] = {
+  // Kinda hacky, but does the job.
+  // Transforms an arbitrary Schema into one that operates on documents. Mostly useful for Dynamic usecases.
+  private def asDocument[A](
+    schema: Schema[A]
+  ): Schema[Document] = {
     val encoder = Document.Encoder.fromSchema(schema)
     val decoder = Document.Decoder.fromSchema(schema)
 
@@ -92,11 +132,17 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
         val constraint: Unit = ()
 
-        def apply(a: A): Either[String, Document] = unsafe(a).asRight
+        def apply(
+          a: A
+        ): Either[String, Document] = unsafe(a).asRight
 
-        def from(b: Document): A = b.decode(decoder).toTry.get
+        def from(
+          b: Document
+        ): A = b.decode(decoder).toTry.get
 
-        def unsafe(a: A): Document = encoder.encode(a)
+        def unsafe(
+          a: A
+        ): Document = encoder.encode(a)
       },
     )
   }
@@ -186,10 +232,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("long") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(Long.MaxValue.mapK(WithSource.liftId))
-      }(Schema.long) == Ior.right(Long.MaxValue)
+      }(Schema.long),
+      Ior.right(Long.MaxValue),
     )
   }
 
@@ -202,10 +249,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("int") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(Schema.int) == Ior.right(42)
+      }(Schema.int),
+      Ior.right(42),
     )
   }
 
@@ -218,10 +266,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("short") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(Schema.short) == Ior.right(42.toShort)
+      }(Schema.short),
+      Ior.right(42.toShort),
     )
   }
 
@@ -234,10 +283,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("byte") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(Byte.MaxValue.mapK(WithSource.liftId))
-      }(Schema.byte) == Ior.right(127.toByte)
+      }(Schema.byte),
+      Ior.right(127.toByte),
     )
   }
 
@@ -250,10 +300,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("float") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(Float.MaxValue.mapK(WithSource.liftId))
-      }(Schema.float) == Ior.right(Float.MaxValue)
+      }(Schema.float),
+      Ior.right(Float.MaxValue),
     )
   }
 
@@ -266,27 +317,30 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("double") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(Double.MaxValue.mapK(WithSource.liftId))
-      }(Schema.double) == Ior.right(Double.MaxValue)
+      }(Schema.double),
+      Ior.right(Double.MaxValue),
     )
   }
 
   pureTest("double - out of range") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId((BigDecimal(Double.MaxValue) + 1).mapK(WithSource.liftId))
-      }(Schema.double) == Ior.right(Double.MaxValue)
+      }(Schema.double),
+      Ior.right(Double.MaxValue),
     )
   }
 
   test("bigint - OK") {
     forall { (bi: BigInt) =>
-      assert(
+      assertNoDiff(
         compile {
           WithSource.liftId(bi.mapK(WithSource.liftId))
-        }(Schema.bigint) == Ior.right(bi)
+        }(Schema.bigint),
+        Ior.right(bi),
       )
     }
   }
@@ -301,10 +355,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   test("bigdecimal - OK") {
     forall { (bd: BigDecimal) =>
-      assert(
+      assertNoDiff(
         compile {
           WithSource.liftId(bd.mapK(WithSource.liftId))
-        }(Schema.bigdecimal) == Ior.right(bd)
+        }(Schema.bigdecimal),
+        Ior.right(bd),
       )
     }
   }
@@ -318,18 +373,20 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("boolean") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(true.mapK(WithSource.liftId))
-      }(Schema.boolean) == Ior.right(true)
+      }(Schema.boolean),
+      Ior.right(true),
     )
   }
 
   pureTest("null document") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId(NullLiteral[WithSource]())
-      }(Schema.document) == Ior.right(Document.nullDoc)
+      }(Schema.document),
+      Ior.right(Document.nullDoc),
     )
   }
 
@@ -342,10 +399,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("blob") {
-    assert(
+    assertNoDiff(
       compile {
         WithSource.liftId("dGVzdA==".mapK(WithSource.liftId))
-      }(Schema.bytes) == Ior.right(ByteArray("test".getBytes()))
+      }(Schema.bytes),
+      Ior.right(ByteArray("test".getBytes())),
     )
   }
 
@@ -358,12 +416,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("Simple struct") {
-    assert(
+    implicit val diffGood: Diff[Good] = Diff.derived
+
+    assertNoDiff(
       compile[Good] {
         WithSource.liftId {
           struct("howGood" -> 200).mapK(WithSource.liftId)
         }
-      } == Ior.right(Good(200))
+      },
+      Ior.right(Good(200)),
     )
   }
 
@@ -375,24 +436,26 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           "hasMessage" -> true
         ).mapK(WithSource.liftId)
       }
-    )
-      .void
-      .leftMap(_.filter(_.isWarning).map(err => (err.err, err.tags)))
+    ).void
+      .leftMap(_.filter(_.isWarning))
 
-    assert(
-      result == Ior.left(
+    assertNoDiff(
+      result,
+      Ior.left(
         Chain(
-          (
+          CompilationError(
             CompilationErrorDetails.DeprecatedItem(
-              info = api.Deprecated(
+              info = DeprecatedInfo(
                 message = "Made-up reason".some,
                 since = None,
               )
             ),
-            Set(DiagnosticTag.Deprecated),
+            range = SourceRange.empty(Position.origin),
+            severity = DiagnosticSeverity.Warning,
+            tags = Set(DiagnosticTag.Deprecated),
           )
         )
-      )
+      ),
     )
   }
 
@@ -405,7 +468,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("dynamic struct with default field") {
     val result =
       compile(WithSource.liftId(struct().mapK(WithSource.liftId)))(
-        asDocument(dynamicSchemaFor[HasDefault])
+        dynamicSchemaFor[HasDefault]
       )
 
     // Object is empty here, but the server shall deserialize it providing the default
@@ -413,12 +476,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("Missing fields in struct") {
-    assert(
+    assertNoDiff(
       compile[Bad] {
         WithSource.liftId {
           struct().mapK(WithSource.liftId)
         }
-      } == Ior.left(
+      }.void,
+      Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails
@@ -430,16 +494,17 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             SourceRange(Position(0), Position(0)),
           ),
         )
-      )
+      ),
     )
   }
 
   pureTest("Missing fields in struct with mixins") {
-    val result = compile[HasMixin] {
-      WithSource.liftId {
-        struct("name" -> "foo").mapK(WithSource.liftId)
-      }
-    }
+    val result =
+      compile[HasMixin] {
+        WithSource.liftId {
+          struct("name" -> "foo").mapK(WithSource.liftId)
+        }
+      }.void
 
     val expected = Ior.left(
       NonEmptyChain.of(
@@ -450,7 +515,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )
     )
 
-    assert(result == expected)
+    assertNoDiff(result, expected)
   }
 
   pureTest("Missing fields in struct with mixins - dynamic") {
@@ -459,7 +524,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         WithSource.liftId {
           struct("name" -> "foo").mapK(WithSource.liftId)
         }
-      }(dynamicSchemaFor[HasMixin])
+      }(dynamicSchemaFor[HasMixin]).void
 
     val expected = Ior.left(
       NonEmptyChain.of(
@@ -470,23 +535,24 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )
     )
 
-    assert(result == expected)
+    assertNoDiff(result, expected)
   }
 
   pureTest("Missing fields in struct - 1 already present") {
-    assert(
+    assertNoDiff(
       compile[Bad] {
         WithSource.liftId {
           struct("evilName" -> "hello").mapK(WithSource.liftId)
         }
-      } == Ior.left(
+      }.void,
+      Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails.MissingField("powerLevel"),
             SourceRange(Position(0), Position(0)),
           )
         )
-      )
+      ),
     )
   }
   pureTest("union") {
@@ -514,7 +580,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       CompilationError
         .warning(
           CompilationErrorDetails.DeprecatedItem(
-            info = api.Deprecated(
+            info = DeprecatedInfo(
               message = "No reason".some,
               since = "0.0.1".some,
             )
@@ -523,10 +589,10 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         )
         .deprecated
 
+    assertNoDiff(result.void.left, warning.pure[NonEmptyChain].some) &&
     assert(
-      result == Ior.bothNec(
-        warning,
-        Hero.BadderCase(Bad("Vader", 9001)),
+      result.right == Some(
+        Hero.BadderCase(Bad("Vader", 9001))
       )
     )
   }
@@ -538,8 +604,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )
     val expected = Timestamp.parse("2022-07-11T17:42:28.000Z", TimestampFormat.DATE_TIME).get
 
-    assert(
-      result == Ior.right(expected)
+    assertNoDiff(
+      result,
+      Ior.right(expected),
     )
   }
 
@@ -551,8 +618,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     val expected = Timestamp.parse("2022-07-11T17:42:28.000Z", TimestampFormat.DATE_TIME).get
 
-    assert(
-      result == Ior.right(expected)
+    assertNoDiff(
+      result,
+      Ior.right(expected),
     )
   }
 
@@ -561,10 +629,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       Schema.timestamp
     ).leftMap(_.map(_.err))
 
-    assert(
-      result == Ior.leftNec(
+    assertNoDiff(
+      result,
+      Ior.leftNec(
         CompilationErrorDetails.InvalidTimestampFormat(TimestampFormat.DATE_TIME)
-      )
+      ),
     )
   }
 
@@ -575,8 +644,10 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )(
         Schema.uuid
       )
-    assert(
-      result == Ior.right(UUID.fromString("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f"))
+
+    assertNoDiff(
+      result,
+      Ior.right(UUID.fromString("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f")),
     )
   }
 
@@ -589,6 +660,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("enum - fallback to string value") {
+    implicit val diffPower: Diff[Power] = Diff.derived
+
     val aRange = SourceRange(Position(10), Position(20))
 
     val result = compile[Power](WithSource.liftId("Wind".mapK(WithSource.liftId)).withRange(aRange))
@@ -605,14 +678,16 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       Power.WIND,
     )
 
-    assert(
-      result == expected
+    assertNoDiff(
+      result,
+      expected,
     )
   }
 
   pureTest("enum - failure") {
-    assert(
-      compile[Power](WithSource.liftId("POISON".mapK(WithSource.liftId))) == Ior.left(
+    assertNoDiff(
+      compile[Power](WithSource.liftId("POISON".mapK(WithSource.liftId))).void,
+      Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails.UnknownEnumValue(
@@ -622,7 +697,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             SourceRange(Position(0), Position(0)),
           )
         )
-      )
+      ),
     )
   }
 
@@ -643,43 +718,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   test("set of ints has warnings when duplicates are found") {
-    forall { (range1: SourceRange, range2: SourceRange, range3: SourceRange) =>
-      val actual = compile[IntSet](
-        WithSource.liftId(
-          Listed[WithSource](
-            WithSource.liftId(
-              List(
-                WithSource.liftId(IntLiteral[WithSource]("1")).withRange(range1),
-                WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range2),
-                WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range3),
-              )
-            )
-          )
-        )
-      )
-
-      assert(
-        actual == Ior.both(
-          NonEmptyChain(
-            CompilationError.warning(
-              CompilationErrorDetails.DuplicateItem,
-              range2,
-            ),
-            CompilationError.warning(
-              CompilationErrorDetails.DuplicateItem,
-              range3,
-            ),
-          ),
-          Set(1, 2),
-        )
-      )
-    }
-  }
-
-  test("set of ints has warnings when duplicates are found - dynamic") {
-    forall { (range1: SourceRange, range2: SourceRange, range3: SourceRange) =>
-      val actual =
-        compile(
+    forall {
+      (
+        range1: SourceRange,
+        range2: SourceRange,
+        range3: SourceRange,
+      ) =>
+        val actual = compile[IntSet](
           WithSource.liftId(
             Listed[WithSource](
               WithSource.liftId(
@@ -691,23 +736,63 @@ object CompilationTests extends SimpleIOSuite with Checkers {
               )
             )
           )
-        )(asDocument(dynamicSchemaFor[IntSet]))
-
-      assert(
-        actual == Ior.both(
-          NonEmptyChain(
-            CompilationError.warning(
-              CompilationErrorDetails.DuplicateItem,
-              range2,
-            ),
-            CompilationError.warning(
-              CompilationErrorDetails.DuplicateItem,
-              range3,
-            ),
-          ),
-          Document.array(Document.fromInt(1), Document.fromInt(2)),
         )
-      )
+
+        assert(
+          actual == Ior.both(
+            NonEmptyChain(
+              CompilationError.warning(
+                CompilationErrorDetails.DuplicateItem,
+                range2,
+              ),
+              CompilationError.warning(
+                CompilationErrorDetails.DuplicateItem,
+                range3,
+              ),
+            ),
+            Set(1, 2),
+          )
+        )
+    }
+  }
+
+  test("set of ints has warnings when duplicates are found - dynamic") {
+    forall {
+      (
+        range1: SourceRange,
+        range2: SourceRange,
+        range3: SourceRange,
+      ) =>
+        val actual =
+          compile(
+            WithSource.liftId(
+              Listed[WithSource](
+                WithSource.liftId(
+                  List(
+                    WithSource.liftId(IntLiteral[WithSource]("1")).withRange(range1),
+                    WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range2),
+                    WithSource.liftId(IntLiteral[WithSource]("2")).withRange(range3),
+                  )
+                )
+              )
+            )
+          )(dynamicSchemaFor[IntSet])
+
+        assert(
+          actual == Ior.both(
+            NonEmptyChain(
+              CompilationError.warning(
+                CompilationErrorDetails.DuplicateItem,
+                range2,
+              ),
+              CompilationError.warning(
+                CompilationErrorDetails.DuplicateItem,
+                range3,
+              ),
+            ),
+            Document.array(Document.fromInt(1), Document.fromInt(2)),
+          )
+        )
     }
   }
 
@@ -742,14 +827,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           item,
         ).mapK(WithSource.liftId)
       )
-    )(asDocument(dynamicSchemaFor[FriendSet]))
+    )(dynamicSchemaFor[FriendSet])
       .leftMap(_.map(_.err))
 
-    assert(
-      compiledFailures == Ior.both(
+    assertNoDiff(
+      compiledFailures,
+      Ior.both(
         NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem),
         Document.array(Document.obj("good" -> Document.obj("howGood" -> Document.fromInt(42)))),
-      )
+      ),
     )
   }
 
@@ -763,7 +849,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           ).mapK(WithSource.liftId)
         )
       )(
-        Schema.set(asDocument(dynamicSchemaFor[Person]))
+        Schema.set(dynamicSchemaFor[Person])
       )
 
     val expected = Set(
@@ -776,16 +862,16 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       ),
     )
 
-    assert(
-      compiledDoc == Ior.right(
-        expected
-      )
+    assertNoDiff(
+      compiledDoc,
+      Ior.right(expected),
     )
   }
 
   pureTest("list of strings where a list of ints is expected") {
-    assert(
-      compile[Ints](WithSource.liftId(List("hello", "world").mapK(WithSource.liftId))) == Ior.left(
+    assertNoDiff(
+      compile[Ints](WithSource.liftId(List("hello", "world").mapK(WithSource.liftId))).void,
+      Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails.TypeMismatch(NodeKind.IntLiteral, NodeKind.StringLiteral),
@@ -796,7 +882,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             SourceRange(Position(0), Position(0)),
           ),
         )
-      )
+      ),
     )
   }
 
@@ -812,7 +898,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("list of structs to document") {
-    assert(
+    assertNoDiff(
       compile(
         WithSource.liftId(
           List(
@@ -820,7 +906,8 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             struct("name" -> "aaa"),
           ).mapK(WithSource.liftId)
         )
-      )(Schema.document) == Ior.right(
+      )(Schema.document),
+      Ior.right(
         Document.array(
           Document.obj(
             "good" -> Document.fromBoolean(true),
@@ -830,7 +917,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             "name" -> Document.fromString("aaa")
           ),
         )
-      )
+      ),
     )
   }
 
@@ -843,113 +930,123 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(result == Ior.right(ts))
   }
 
-  private def parseAndCompile[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
-  )(
-    q: String
-  ) = playground
-    .Compiler
-    .fromService(service)
-    .compile(
-      SmithyQLParser
-        .parseFull(q)
-        .toTry
-        .get
+  pureTest("a use clause is present") {
+    val result =
+      parseAndCompileMulti(List(wrapService(RandomGen), wrapService(ClockGen)))(
+        """use service playground.std#Random
+          |NextUUID {}""".stripMargin
+      ).toEither
+
+    assert(result.isRight)
+  }
+
+  pureTest("a use clause is present - it doesn't refer to a known service") {
+    val result =
+      parseAndCompileMulti(List(wrapService(ClockGen)))(
+        """use service playground.std#Random
+          |NextUUID {}""".stripMargin
+      ).toEither
+
+    assertNoDiff(
+      result.left.toOption.get.asInstanceOf[CompilationFailed].errors.map(_.err),
+      NonEmptyList.of(
+        CompilationErrorDetails.UnknownService(List(QualifiedIdentifier.forService(ClockGen))),
+        CompilationErrorDetails.AmbiguousService(QualifiedIdentifier.forService(ClockGen) :: Nil),
+      ),
     )
+  }
+
+  pureTest("multiple use clauses are present, only one query") {
+    val result =
+      parseAndCompileMulti(List(wrapService(RandomGen), wrapService(ClockGen)))(
+        """use service playground.std#Random
+          |use service playground.std#Clock
+          |NextUUID {}""".stripMargin
+      ).toEither
+
+    assert(result.isRight)
+  }
+
+  pureTest("multiple use clauses are present, multiple queries") {
+    val result =
+      parseAndCompileMulti(List(wrapService(RandomGen), wrapService(ClockGen)))(
+        """use service playground.std#Random
+          |use service playground.std#Clock
+          |
+          |CurrentTimestamp {}
+          |NextUUID {}""".stripMargin
+      ).toEither
+
+    assert(result.isRight)
+  }
 
   pureTest("deprecated service's use clause") {
+    val input = "use service demo.smithy#DeprecatedService"
     parseAndCompile(DeprecatedServiceGen)(
-      """use service demo.smithy#LiterallyAnyService
-      |hello {}""".stripMargin
+      input
     ).left match {
       case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
+        val result = cf.errors
 
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service ".length),
-              Position("use service demo.smithy#LiterallyAnyService".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#DeprecatedService"),
           )
         )
 
-        assert(result == expected)
+        assertNoDiff(
+          result,
+          expected,
+        )
 
       case e => failure("Unexpected exception: " + e)
     }
   }
 
   pureTest("deprecated operation") {
+    val input = """demo.smithy#DeprecatedService.DeprecatedOperation { }""".stripMargin
     parseAndCompile(DeprecatedServiceGen)(
-      """DeprecatedOperation { a = 42 }""".stripMargin
+      input
     ).left match {
       case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
-
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position(0),
-              Position("DeprecatedOperation".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
-          )
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#DeprecatedService"),
+          ),
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use op"), Some("0.0.0")),
+            input.rangeOf("DeprecatedOperation"),
+          ),
         )
 
-        assert(result == expected)
+        assertNoDiff(
+          cf.errors,
+          expected,
+        )
 
       case e => failure("Unexpected exception: " + e)
     }
   }
 
   pureTest("deprecated operation - only warnings") {
-    parseAndCompile(DeprecatedServiceGen)(
-      "use service demo.smithy#DeprecatedService\nDeprecatedOperation { }"
-    ).left match {
-      case Some(cf: CompilationFailed) =>
-        val result = cf
-          .errors
-          .filter(_.isWarning)
-          .map(e => (e.err, e.range, e.tags))
+    val input = "use service demo.smithy#DeprecatedService\nDeprecatedOperation { }"
 
-        val expected = List(
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service demo.smithy#DeprecatedService\n".length),
-              Position("use service demo.smithy#DeprecatedService\nDeprecatedOperation".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+    parseAndCompile(DeprecatedServiceGen)(input).left match {
+      case Some(cf: CompilationFailed) =>
+        val expected = NonEmptyList.of(
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use"), Some("0.0.0")),
+            input.rangeOf("demo.smithy#DeprecatedService"),
           ),
-          (
-            CompilationErrorDetails.DeprecatedItem(
-              api.Deprecated(Some("don't use"), Some("0.0.0"))
-            ),
-            SourceRange(
-              Position("use service ".length),
-              Position("use service demo.smithy#DeprecatedService".length),
-            ),
-            Set(DiagnosticTag.Deprecated),
+          CompilationError.deprecation(
+            DeprecatedInfo(Some("don't use op"), Some("0.0.0")),
+            input.rangeOf("DeprecatedOperation"),
           ),
         )
 
-        assert(result == expected)
+        assertNoDiff(cf.errors, expected)
 
       case e => failure("Unexpected exception: " + e)
     }

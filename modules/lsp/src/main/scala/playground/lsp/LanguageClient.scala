@@ -7,7 +7,6 @@ import cats.tagless.Derive
 import cats.tagless.FunctorK
 import cats.tagless.implicits._
 import com.google.gson.JsonElement
-import io.circe.Decoder
 import org.eclipse.lsp4j.ConfigurationItem
 import org.eclipse.lsp4j.ConfigurationParams
 import org.eclipse.lsp4j.MessageParams
@@ -20,22 +19,44 @@ import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
 trait LanguageClient[F[_]] extends Feedback[F] {
-  def configuration[A: Decoder](section: String): F[A]
-  def showMessage(tpe: MessageType, msg: String): F[Unit]
+
+  def configuration[A](
+    v: ConfigurationValue[A]
+  ): F[A]
+
+  def showMessage(
+    tpe: MessageType,
+    msg: String,
+  ): F[Unit]
+
   def refreshDiagnostics: F[Unit]
   def refreshCodeLenses: F[Unit]
 
-  def showInfoMessage(msg: String): F[Unit] = showMessage(MessageType.Info, msg)
-  def showErrorMessage(msg: String): F[Unit] = showMessage(MessageType.Error, msg)
+  def showInfoMessage(
+    msg: String
+  ): F[Unit] = showMessage(MessageType.Info, msg)
+
+  def showWarnMessage(
+    msg: String
+  ): F[Unit] = showMessage(MessageType.Warning, msg)
+
+  def showErrorMessage(
+    msg: String
+  ): F[Unit] = showMessage(MessageType.Error, msg)
+
 }
 
 object LanguageClient {
 
-  def apply[F[_]](implicit F: LanguageClient[F]): LanguageClient[F] = F
+  def apply[F[_]](
+    implicit F: LanguageClient[F]
+  ): LanguageClient[F] = F
 
   implicit val functorK: FunctorK[LanguageClient] = Derive.functorK
 
-  def adapt[F[_]: Async](client: PlaygroundLanguageClient): LanguageClient[F] =
+  def adapt[F[_]: Async](
+    client: PlaygroundLanguageClient
+  ): LanguageClient[F] =
     new LanguageClient[F] {
 
       private def withClientF[A](
@@ -46,12 +67,12 @@ object LanguageClient {
         f: client.type => A
       ): F[A] = Async[F].delay(f(client))
 
-      def configuration[A: Decoder](
-        section: String
+      def configuration[A](
+        v: ConfigurationValue[A]
       ): F[A] = withClientF(
         _.configuration(
           new ConfigurationParams(
-            (new ConfigurationItem().tap(_.setSection(section)) :: Nil).asJava
+            (new ConfigurationItem().tap(_.setSection(v.key)) :: Nil).asJava
           )
         )
       )
@@ -65,13 +86,18 @@ object LanguageClient {
           case e: JsonElement => converters.gsonToCirce(e)
           case e              => throw new RuntimeException(s"Unexpected configuration value: $e")
         }
-        .flatMap(_.as[A].liftTo[F])
+        .flatMap(_.as[A](v.codec).liftTo[F])
 
-      def showMessage(tpe: MessageType, msg: String): F[Unit] = withClientSync(
+      def showMessage(
+        tpe: MessageType,
+        msg: String,
+      ): F[Unit] = withClientSync(
         _.showMessage(new MessageParams(tpe, msg))
       )
 
-      def logOutput(msg: String): F[Unit] = withClientSync(
+      def logOutput(
+        msg: String
+      ): F[Unit] = withClientSync(
         _.logMessage(new MessageParams().tap(_.setMessage(msg)))
       )
 
@@ -85,4 +111,5 @@ object LanguageClient {
     fa: F[LanguageClient[F]]
   ): LanguageClient[F] = Derive.readerT[LanguageClient, F].mapK(KleisliOps.applyEffectK(fa))
 
+  val NoChangeDetected: String = "No change detected, not rebuilding server"
 }

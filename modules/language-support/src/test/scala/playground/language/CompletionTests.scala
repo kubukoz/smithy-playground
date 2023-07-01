@@ -41,14 +41,14 @@ object CompletionTests extends FunSuite {
 
   test("completions on struct are empty without StructBody") {
 
-    val completions = getCompletions(Good.schema, NodeContext.Root)
+    val completions = getCompletions(Good.schema, NodeContext.EmptyPath)
 
     assert(completions.isEmpty)
   }
 
   test("completions on struct include all field names") {
 
-    val completions = getCompletions(Good.schema, NodeContext.Root.inStructBody)
+    val completions = getCompletions(Good.schema, NodeContext.EmptyPath.inStructBody)
 
     val fieldNames = completions.map(_.label)
 
@@ -58,7 +58,7 @@ object CompletionTests extends FunSuite {
 
   test("completions on struct describe the field types") {
 
-    val completions = getCompletions(Good.schema, NodeContext.Root.inStructBody)
+    val completions = getCompletions(Good.schema, NodeContext.EmptyPath.inStructBody)
 
     val results = completions.map { field =>
       (field.label, field.detail)
@@ -70,7 +70,7 @@ object CompletionTests extends FunSuite {
   test("completions on struct add prefix/docs for optional fields") {
     val AnOptionalFieldLabel = "str"
 
-    val completions = getCompletions(HasNewtypes.schema, NodeContext.Root.inStructBody)
+    val completions = getCompletions(HasNewtypes.schema, NodeContext.EmptyPath.inStructBody)
       .filter(_.label == AnOptionalFieldLabel)
 
     val details = completions.map(_.detail)
@@ -82,14 +82,14 @@ object CompletionTests extends FunSuite {
 
   test("completions on union are empty without StructBody") {
 
-    val completions = getCompletions(Hero.schema, NodeContext.Root)
+    val completions = getCompletions(Hero.schema, NodeContext.EmptyPath)
 
     assert(completions.isEmpty)
   }
 
   test("completions on union") {
 
-    val completions = getCompletions(Hero.schema, NodeContext.Root.inStructBody)
+    val completions = getCompletions(Hero.schema, NodeContext.EmptyPath.inStructBody)
 
     val fieldNames = completions.map(_.label)
     val details = completions.map(_.detail)
@@ -101,7 +101,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on union case are the same as completions on the underlying structure") {
-    val pathToField = NodeContext.Root.inStructValue("good").inStructBody
+    val pathToField = NodeContext.EmptyPath.inStructValue("good").inStructBody
 
     val completionsOnAlt = getCompletions(
       Hero.schema,
@@ -110,7 +110,7 @@ object CompletionTests extends FunSuite {
 
     val completionsOnStruct = getCompletions(
       Good.schema,
-      NodeContext.Root.append(StructBody),
+      NodeContext.EmptyPath.append(StructBody),
     ).map(_.label)
 
     assert.eql(completionsOnAlt, completionsOnStruct)
@@ -119,7 +119,7 @@ object CompletionTests extends FunSuite {
   test("no completions on collection without entry") {
     val completions = getCompletions(
       Schema.list(Good.schema),
-      NodeContext.Root,
+      NodeContext.EmptyPath,
     )
 
     assert(completions.isEmpty)
@@ -128,7 +128,7 @@ object CompletionTests extends FunSuite {
   test("completions on struct in list are available") {
     val completions = getCompletions(
       Schema.list(Good.schema),
-      NodeContext.Root.inCollectionEntry(0.some).inStructBody,
+      NodeContext.EmptyPath.inCollectionEntry(0.some).inStructBody,
     )
 
     val fieldNames = completions.map(_.label)
@@ -138,7 +138,7 @@ object CompletionTests extends FunSuite {
 
   test("completions on enum without quotes have quotes") {
 
-    val completions = getCompletions(Power.schema, NodeContext.Root)
+    val completions = getCompletions(Power.schema, NodeContext.EmptyPath)
 
     val inserts = completions.map(_.insertText)
     val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
@@ -150,7 +150,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on enum in quotes don't have quotes") {
-    val completions = getCompletions(Power.schema, NodeContext.Root.inQuotes)
+    val completions = getCompletions(Power.schema, NodeContext.EmptyPath.inQuotes)
 
     val inserts = completions.map(_.insertText)
     val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
@@ -161,7 +161,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on enum don't have Optional docs") {
-    val completions = getCompletions(Power.schema, NodeContext.Root.inQuotes)
+    val completions = getCompletions(Power.schema, NodeContext.EmptyPath.inQuotes)
 
     val docs = completions.flatMap(_.docs)
 
@@ -169,7 +169,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on map keys that are enums") {
-    val completions = getCompletions(PowerMap.schema, NodeContext.Root.inStructBody)
+    val completions = getCompletions(PowerMap.schema, NodeContext.EmptyPath.inStructBody)
 
     val inserts = completions.map(_.insertText)
 
@@ -188,7 +188,7 @@ object CompletionTests extends FunSuite {
           Schema.string,
           Good.schema,
         ),
-      NodeContext.Root.inStructBody.inStructValue("anyKey").inStructBody,
+      NodeContext.EmptyPath.inStructBody.inStructValue("anyKey").inStructBody,
     )
 
     val fieldNames = completions.map(_.label)
@@ -198,7 +198,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on timestamp without quotes have quotes") {
-    val completions = getCompletions(Schema.timestamp, NodeContext.Root)
+    val completions = getCompletions(Schema.timestamp, NodeContext.EmptyPath)
 
     val extractQuote = """\"(.*)\"""".r
 
@@ -216,7 +216,7 @@ object CompletionTests extends FunSuite {
   test("completions on timestamp in quotes don't have quotes") {
     val completions = getCompletions(
       Schema.timestamp,
-      NodeContext.Root.inQuotes,
+      NodeContext.EmptyPath.inQuotes,
     )
 
     val inserts = completions.map(_.insertText).foldMap {
@@ -231,7 +231,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on uuid include a random uuid") {
-    val completions = getCompletions(Schema.uuid, NodeContext.Root.inQuotes)
+    val completions = getCompletions(Schema.uuid, NodeContext.EmptyPath.inQuotes)
 
     val inserts = completions.map(_.insertText).foldMap {
       case InsertText.JustString(value) =>
@@ -247,7 +247,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("completions on deprecated fields have proper hints in docs") {
-    val completions = getCompletions(HasDeprecations.schema, NodeContext.Root.inStructBody)
+    val completions = getCompletions(HasDeprecations.schema, NodeContext.EmptyPath.inStructBody)
       .filter(_.deprecated)
 
     val results = completions.map(c => (c.label, c.docs)).toMap

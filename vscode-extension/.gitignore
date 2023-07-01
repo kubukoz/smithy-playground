@@ -2,6 +2,7 @@ node_modules
 /.metals/
 /target/
 /.idea/
+.vscode-test
 out
 /.bloop/
 /project/.bloop/

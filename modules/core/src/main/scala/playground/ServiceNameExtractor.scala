@@ -7,8 +7,8 @@ import smithyql.syntax._
 
 object ServiceNameExtractor {
 
-  def fromService[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-    service: Service[Alg, Op]
+  def fromService[Alg[_[_, _, _, _, _]]](
+    service: Service[Alg]
   ): QualifiedIdentifier = QualifiedIdentifier.fromShapeId(
     service.id.copy(name = service.hints.get(api.Service).map(_.sdkId).getOrElse(service.id.name))
   )

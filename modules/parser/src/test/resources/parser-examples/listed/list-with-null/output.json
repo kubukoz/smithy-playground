@@ -1,0 +1,31 @@
+{
+  "values": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 5
+      }
+    },
+    "value": [
+      {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 1
+          },
+          "end": {
+            "index": 5
+          }
+        },
+        "value": {
+          "NullLiteral": {}
+        }
+      }
+    ]
+  }
+}

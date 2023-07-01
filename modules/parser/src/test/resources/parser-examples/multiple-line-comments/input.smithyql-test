@@ -1,6 +1,0 @@
-
-  hello {
-  //this is a comment
-  //this too
-    world = "bar"
-  }

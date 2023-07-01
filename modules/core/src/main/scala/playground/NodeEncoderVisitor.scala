@@ -3,13 +3,17 @@ package playground
 import cats.Contravariant
 import cats.Id
 import cats.implicits._
+import playground.smithyql.Binding
 import playground.smithyql.BooleanLiteral
+import playground.smithyql.Identifier
 import playground.smithyql.InputNode
 import playground.smithyql.IntLiteral
 import playground.smithyql.Listed
+import playground.smithyql.NullLiteral
 import playground.smithyql.StringLiteral
 import playground.smithyql.Struct
 import smithy4s.Bijection
+import smithy4s.ByteArray
 import smithy4s.Document
 import smithy4s.Document.DArray
 import smithy4s.Document.DBoolean
@@ -31,35 +35,26 @@ import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
-import smithy4s.schema.Primitive.PBigDecimal
-import smithy4s.schema.Primitive.PBigInt
-import smithy4s.schema.Primitive.PBlob
-import smithy4s.schema.Primitive.PBoolean
-import smithy4s.schema.Primitive.PByte
-import smithy4s.schema.Primitive.PDocument
-import smithy4s.schema.Primitive.PDouble
-import smithy4s.schema.Primitive.PFloat
-import smithy4s.schema.Primitive.PInt
-import smithy4s.schema.Primitive.PLong
-import smithy4s.schema.Primitive.PShort
-import smithy4s.schema.Primitive.PString
-import smithy4s.schema.Primitive.PTimestamp
-import smithy4s.schema.Primitive.PUUID
-import smithy4s.schema.Primitive.PUnit
+import smithy4s.schema.Primitive._
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
-import smithy4s.ByteArray
-import playground.smithyql.NullLiteral
-import playground.smithyql.Identifier
-import playground.smithyql.Binding
 
 trait NodeEncoder[A] {
-  def toNode(a: A): InputNode[Id]
-  def transform(f: InputNode[Id] => InputNode[Id]): NodeEncoder[A] = toNode.andThen(f).apply(_)
+
+  def toNode(
+    a: A
+  ): InputNode[Id]
+
+  def transform(
+    f: InputNode[Id] => InputNode[Id]
+  ): NodeEncoder[A] = toNode.andThen(f).apply(_)
+
   def listed: NodeEncoder[List[A]] = as => Listed[Id](as.map(this.toNode))
 
-  def atKey(key: String): NodeEncoder[A] = transform { result =>
+  def atKey(
+    key: String
+  ): NodeEncoder[A] = transform { result =>
     Struct.one[Id](
       key = Identifier(key),
       value = result,
@@ -72,24 +67,42 @@ object NodeEncoder {
 
   implicit val encoderK: EncoderK[NodeEncoder, InputNode[Id]] =
     new EncoderK[NodeEncoder, InputNode[Id]] {
-      def apply[A](fa: NodeEncoder[A], a: A): InputNode[Id] = fa.toNode(a)
 
-      def absorb[A](f: A => InputNode[Id]): NodeEncoder[A] = f(_)
+      def apply[A](
+        fa: NodeEncoder[A],
+        a: A,
+      ): InputNode[Id] = fa.toNode(a)
+
+      def absorb[A](
+        f: A => InputNode[Id]
+      ): NodeEncoder[A] = f(_)
 
     }
 
   implicit val catsContravariant: Contravariant[NodeEncoder] =
     new Contravariant[NodeEncoder] {
-      def contramap[A, B](fa: NodeEncoder[A])(f: B => A): NodeEncoder[B] = b => fa.toNode(f(b))
+
+      def contramap[A, B](
+        fa: NodeEncoder[A]
+      )(
+        f: B => A
+      ): NodeEncoder[B] = b => fa.toNode(f(b))
+
     }
 
-  def derive[A](schema: Schema[A]): NodeEncoder[A] = schema.compile(NodeEncoderVisitor)
+  def derive[A](
+    schema: Schema[A]
+  ): NodeEncoder[A] = schema.compile(NodeEncoderVisitor)
 
 }
 
 object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
 
-  def primitive[P](shapeId: ShapeId, hints: Hints, tag: Primitive[P]): NodeEncoder[P] =
+  def primitive[P](
+    shapeId: ShapeId,
+    hints: Hints,
+    tag: Primitive[P],
+  ): NodeEncoder[P] =
     tag match {
       case PInt        => int
       case PShort      => short
@@ -119,7 +132,9 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case IndexedSeqTag | SetTag | VectorTag => listOf(member).contramap(_.toList)
     }
 
-  private def listOf[A](member: Schema[A]): NodeEncoder[List[A]] = member.compile(this).listed
+  private def listOf[A](
+    member: Schema[A]
+  ): NodeEncoder[List[A]] = member.compile(this).listed
 
   def map[K, V](
     shapeId: ShapeId,
@@ -205,7 +220,9 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     refinement: Refinement[A, B],
   ): NodeEncoder[B] = schema.compile(this).contramap(refinement.from)
 
-  def lazily[A](suspend: Lazy[Schema[A]]): NodeEncoder[A] = {
+  def lazily[A](
+    suspend: Lazy[Schema[A]]
+  ): NodeEncoder[A] = {
     val mapped = suspend.map(_.compile(this))
     value => mapped.value.toNode(value)
   }
@@ -232,20 +249,18 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       .fromSeq[Id](values)
   )
 
-  val document: NodeEncoder[Document] =
-    doc =>
-      doc match {
-        case DArray(value)   => document.listed.toNode(value.toList)
-        case DBoolean(value) => boolean.toNode(value)
-        case DNumber(value)  => number.toNode(value.toString())
-        case DNull           => NullLiteral()
-        case DString(value)  => string.toNode(value)
-        case DObject(value) =>
-          obj(
-            value
-              .toList
-              .map { case (k, v) => Binding[Id](Identifier(k), document.toNode(v)) }
-          )
-      }
+  val document: NodeEncoder[Document] = {
+    case DArray(value)   => document.listed.toNode(value.toList)
+    case DBoolean(value) => boolean.toNode(value)
+    case DNumber(value)  => number.toNode(value.toString())
+    case DNull           => NullLiteral()
+    case DString(value)  => string.toNode(value)
+    case DObject(value) =>
+      obj(
+        value
+          .toList
+          .map { case (k, v) => Binding[Id](Identifier(k), document.toNode(v)) }
+      )
+  }
 
 }

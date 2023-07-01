@@ -1,22 +1,22 @@
 use service demo.smithy#DemoService
 
-
 // CreateSubscription {
-//   subscription = {
-//     id = "subscription_id",
-//     name = "name",
-//     createdAt = "2020-04-01T00:00:00Z",
-//   }
+//   subscription: {
+//     id: "subscription_id",
+//     name: "name",
+//     createdAt: "2020-04-01T00:00:00Z",
+//   },
 // }
 CreateHero {
-  hero = {
-    good = {
-      howGood = 10,
-    },
+  hero: {
+    good: // bgasdfasldf
+      {
+        howGood: 10,
+      },
   },
-  intSet = [
-       1,
-       2,
-       1,
-    ],
+  intSet: [
+    1,
+    2,
+    1,
+  ],
 }

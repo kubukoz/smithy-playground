@@ -1,0 +1,50 @@
+{
+  "values": {
+    "commentsLeft": [],
+    "commentsRight": [],
+    "range": {
+      "start": {
+        "index": 1
+      },
+      "end": {
+        "index": 18
+      }
+    },
+    "value": [
+      {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 1
+          },
+          "end": {
+            "index": 8
+          }
+        },
+        "value": {
+          "StringLiteral": {
+            "value": "hello"
+          }
+        }
+      },
+      {
+        "commentsLeft": [],
+        "commentsRight": [],
+        "range": {
+          "start": {
+            "index": 10
+          },
+          "end": {
+            "index": 17
+          }
+        },
+        "value": {
+          "StringLiteral": {
+            "value": "world"
+          }
+        }
+      }
+    ]
+  }
+}
