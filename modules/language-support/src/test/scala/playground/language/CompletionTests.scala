@@ -1,6 +1,7 @@
 package playground.language
 
 import cats.implicits._
+import demo.smithy.Friends
 import demo.smithy.Good
 import demo.smithy.HasDeprecations
 import demo.smithy.HasNewtypes
@@ -12,6 +13,8 @@ import demo.smithy.MyInt
 import demo.smithy.MyString
 import demo.smithy.Power
 import demo.smithy.PowerMap
+import playground.Assertions._
+import playground.language.Diffs._
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.PathEntry._
 import smithy.api.TimestampFormat
@@ -21,9 +24,6 @@ import smithy4s.schema.Schema
 import weaver._
 
 import java.util.UUID
-import demo.smithy.Friends
-import playground.Assertions._
-import playground.language.Diffs._
 
 object CompletionTests extends FunSuite {
 
@@ -34,7 +34,7 @@ object CompletionTests extends FunSuite {
 
   test("completions on list items that are structs") {
 
-    val completions = getCompletions(Friends.schema, NodeContext.Root)
+    val completions = getCompletions(Friends.schema, NodeContext.EmptyPath)
 
     assertNoDiff(completions, Nil)
   }

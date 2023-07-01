@@ -468,29 +468,30 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
 
   private def list[A](
     member: Schema[A]
-  ): CompletionResolver[List[A]] =
-    // val memberInstance = member.compile(this)
+  ): CompletionResolver[List[A]] = {
+    val memberInstance = member.compile(this)
 
-    // val aList = CompletionItem(
-    //   kind = CompletionItemKind.Constant /* todo */,
-    //   label = "[]",
-    //   insertText = InsertText.SnippetString("[$0]"),
-    //   detail = "todo",
-    //   description = Some("todo"),
-    //   deprecated = false,
-    //   // todo
-    //   docs = None,
-    //   extraTextEdits = Nil,
-    // )
+    val emptyList = CompletionItem(
+      kind = CompletionItemKind.Constant /* todo */,
+      label = "[]",
+      insertText = InsertText.SnippetString("[$0]"),
+      detail = "todo",
+      description = Some("todo"),
+      deprecated = false,
+      sortText = None,
+      // todo
+      docs = None,
+      extraTextEdits = Nil,
+    )
 
-    // {
-    //   case PathEntry.CollectionEntry(_) ^^: rest => memberInstance.getCompletions(rest)
-    //   case Root                                  => List(aList)
-    //   case _                                     =>
-    //     // other contexts are invalid
-    //     Nil
-    // }
-    ???
+    {
+      case PathEntry.CollectionEntry(_) ^^: rest => memberInstance.getCompletions(rest)
+      case EmptyPath                             => List(emptyList)
+      case _                                     =>
+        // other contexts are invalid
+        Nil
+    }
+  }
 
   override def map[K, V](
     shapeId: ShapeId,
@@ -547,46 +548,47 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     hints: Hints,
     fields: Vector[SchemaField[S, _]],
     make: IndexedSeq[Any] => S,
-  ): CompletionResolver[S] =
-    // val aStruct = CompletionItem(
-    //   kind = CompletionItemKind.Constant /* todo */,
-    //   label = "{}",
-    //   insertText = InsertText.SnippetString("{$0}"),
-    //   detail = "todo",
-    //   description = Some("todo"),
-    //   deprecated = false,
-    //   // todo
-    //   docs = None,
-    //   extraTextEdits = Nil,
-    // )
+  ): CompletionResolver[S] = {
+    val emptyStruct = CompletionItem(
+      kind = CompletionItemKind.Constant /* todo */,
+      label = "{}",
+      insertText = InsertText.SnippetString("{$0}"),
+      detail = "todo",
+      description = Some("todo"),
+      deprecated = false,
+      sortText = None,
+      // todo
+      docs = None,
+      extraTextEdits = Nil,
+    )
 
-    // val compiledFields = fields.map(field => (field.mapK(this), field.instance))
+    val compiledFields = fields.map(field => (field.mapK(this), field.instance))
 
-    // val byStructShape = structLike(
-    //   inBody =
-    //     fields
-    //       // todo: filter out present fields
-    //       .sortBy(field => (field.isRequired, field.label))
-    //       .map(CompletionItem.fromField)
-    //       .toList,
-    //   inValue =
-    //     (
-    //       h,
-    //       rest,
-    //     ) =>
-    //       compiledFields
-    //         .collectFirst {
-    //           case (field, _) if field.label === h => field
-    //         }
-    //         .foldMap(_.instance.getCompletions(rest)),
-    // )
+    val byStructShape = structLike(
+      inBody =
+        fields
+          // todo: filter out present fields
+          .sortBy(field => (field.isRequired, field.label))
+          .map(CompletionItem.fromField)
+          .toList,
+      inValue =
+        (
+          h,
+          rest,
+        ) =>
+          compiledFields
+            .collectFirst {
+              case (field, _) if field.label === h => field
+            }
+            .foldMap(_.instance.getCompletions(rest)),
+    )
 
-    // // todo this doesn't work
-    // CompletionResolver.routed {
-    //   case Root => _ => List(aStruct)
-    //   case _    => byStructShape
-    // }
-    ???
+    // todo this doesn't work
+    CompletionResolver.routed {
+      case EmptyPath => _ => List(emptyStruct)
+      case _         => byStructShape
+    }
+  }
 
   override def union[U](
     shapeId: ShapeId,
