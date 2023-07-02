@@ -6,7 +6,7 @@ import cats.Defer
 import cats.Id
 import cats.data.IorNel
 import cats.data.NonEmptyList
-import cats.effect.Concurrent
+import cats.effect.Async
 import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.effect.implicits._
@@ -136,7 +136,7 @@ object OperationRunner {
         }
       }
 
-  def forSchemaIndex[F[_]: StdlibRuntime: Concurrent: Compression: Defer: std.Console](
+  def forSchemaIndex[F[_]: StdlibRuntime: Async: Compression: std.Console](
     dsi: DynamicSchemaIndex,
     client: Client[F],
     baseUri: F[Uri],
@@ -151,7 +151,7 @@ object OperationRunner {
     plugins = plugins,
   )
 
-  def forServices[F[_]: StdlibRuntime: Concurrent: Compression: Defer: std.Console](
+  def forServices[F[_]: StdlibRuntime: Async: Compression: std.Console](
     services: List[DynamicSchemaIndex.ServiceWrapper],
     getSchema: ShapeId => Option[Schema[_]],
     client: Client[F],
@@ -195,10 +195,7 @@ object OperationRunner {
 
     }
 
-  def forService[
-    Alg[_[_, _, _, _, _]],
-    F[_]: StdlibRuntime: Concurrent: Compression: Defer: std.Console,
-  ](
+  def forService[Alg[_[_, _, _, _, _]], F[_]: StdlibRuntime: Async: Compression: std.Console](
     service: Service[Alg],
     client: Client[F],
     baseUri: F[Uri],
