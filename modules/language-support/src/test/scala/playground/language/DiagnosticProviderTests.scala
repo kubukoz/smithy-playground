@@ -3,6 +3,8 @@ package playground.language
 import alloy.SimpleRestJson
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
+import aws.protocols.AwsQuery
+import aws.protocols.RestJson1
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.kernel.Resource
@@ -60,6 +62,8 @@ object DiagnosticProviderTests extends SimpleIOSuite {
       SimpleRestJson,
       AwsJson1_0,
       AwsJson1_1,
+      RestJson1,
+      AwsQuery,
       Stdlib,
     )
     .map(_.id)
