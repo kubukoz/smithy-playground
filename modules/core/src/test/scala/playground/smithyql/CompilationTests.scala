@@ -724,6 +724,23 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("sparse list of ints - dynamic") {
+    assert.same(
+      compile(
+        WithSource.liftId(List[InputNode[Id]](1, NullLiteral(), 3).mapK(WithSource.liftId))
+      )(dynamicSchemaFor[SampleSparseList]).leftMap(_.map(_.err)),
+      Ior.right(
+        Document.array(
+          List(
+            Document.fromInt(1),
+            Document.nullDoc,
+            Document.fromInt(3),
+          )
+        )
+      ),
+    )
+  }
+
   pureTest("set of ints") {
     assert(
       compile[IntSet](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
