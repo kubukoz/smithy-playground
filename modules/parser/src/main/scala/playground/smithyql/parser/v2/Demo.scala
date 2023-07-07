@@ -1,63 +1,108 @@
 package playground.smithyql.parser.v2
 
+import cats.data.NonEmptyList
 import org.antlr.v4.runtime.BaseErrorListener
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.RecognitionException
 import org.antlr.v4.runtime.Recognizer
+import org.antlr.v4.runtime.tree.ParseTree
+import playground.smithyql.parser.v2.Yikes.PreludeContext
+import playground.smithyql.parser.v2.Yikes.Source_fileContext
+import playground.smithyql.parser.v2.Yikes.Use_clauseContext
+
+import scala.jdk.CollectionConverters._
 
 object Demo extends App {
 
   val input =
-    """use service demo.smithy#DemoService
-
-CreateHero {
-  empty: [],
-  emptyObj: {},
-  hero: {
-    good: {
-      howGood: 42,
-    },
-  },
-  friends: [
-    {
-      bad: {
-        evilName: "Vader",
-        powerLevel: 9001,
-      },
-    },
-  ],
-  doc: [
-    "this is a document, so you can do pretty much anything here",
-    null,
-    false,
-    42,
-    {
-      nested: "key",
-    },
-    [ ],
-  ],
-  hasNewtypes: {
-    anInstant: "2022-10-08T00:46:31.378493Z",
-    anUUID: "cd4f93e0-fd11-41f0-8f13-44f66e1f0997",
-    power: "FIRE",
-    powerMap: {
-      FIRE: {
-        good: {
-          howGood: 10,
-        },
-      },
-    },
-  },
-}
-
-  """.stripMargin
+    """
+    use service foo.bar#Hello
+    use service foo#Hello2
+    """.stripMargin
 
   val l = new Tokens(CharStreams.fromString(input))
 
-  val p = new SmithyQL(new CommonTokenStream(l))
+  val p = new Yikes(new CommonTokenStream(l))
 
-  // p.removeParseListeners()
+  case class UseClause(
+    namespace: NonEmptyList[String],
+    service: String,
+  )
+
+  case class Prelude(
+    clauses: List[UseClause]
+  )
+
+  case class SourceFile(
+    prelude: Prelude
+  )
+
+  def parseFull(
+    p: Yikes
+  ): SourceFile = SourceFile(
+    Prelude(
+      p
+        .source_file()
+        .prelude()
+        .use_clause()
+        .asScala
+        .toList
+        .map { useClause =>
+          UseClause(
+            namespace = NonEmptyList.fromListUnsafe(
+              useClause
+                .qualified_identifier()
+                .namespace()
+                .ID()
+                .asScala
+                .toList
+                .map(_.getText)
+            ),
+            service = useClause.qualified_identifier().ID().getText(),
+          )
+        }
+    )
+  )
+
+  val parseFullVis: YikesVisitor[List[UseClause]] =
+    new YikesBaseVisitor[List[UseClause]] {
+      override protected def defaultResult(
+      ): List[UseClause] = Nil
+
+      override def visitSource_file(
+        ctx: Source_fileContext
+      ): List[UseClause] = ctx.prelude().accept(this)
+
+      override def visitPrelude(
+        ctx: PreludeContext
+      ): List[UseClause] = ctx.use_clause().asScala.toList.flatMap(_.accept(this))
+
+      override def visitUse_clause(
+        ctx: Use_clauseContext
+      ): List[UseClause] = List(
+        UseClause(
+          namespace = NonEmptyList.fromListUnsafe(
+            ctx
+              .qualified_identifier()
+              .namespace()
+              .ID()
+              .asScala
+              .toList
+              .map(_.getText)
+          ),
+          service = ctx.qualified_identifier().ID().getText(),
+        )
+      )
+
+    }
+
+  println(parseFull(p))
+
+  p.reset()
+
+  println(SourceFile(Prelude(p.source_file().accept(parseFullVis))))
+
   p.removeErrorListeners()
 
   p.addErrorListener(new BaseErrorListener {
@@ -89,6 +134,5 @@ CreateHero {
     }
 
   })
-  println(p.source_file())
 
 }

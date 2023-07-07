@@ -3,6 +3,8 @@ options {
 	tokenVocab = Tokens;
 }
 
+// todos: comments, forced newlines (e.g. separate use clauses)
+
 qualified_identifier: ident ('.' ident)* '#' ident;
 
 soft_keyword: 'use' | 'service';
