@@ -19,7 +19,7 @@ query_operation_name: service_reference;
 
 number: NUMBER;
 bool: 'true' | 'false';
-node: number | bool | STRING_LITERAL | NULL | struct | listed;
+node: number | bool | STRING | NULL | struct | listed;
 
 field: key = ident (':' | '=') value = node;
 
