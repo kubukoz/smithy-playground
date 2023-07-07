@@ -6,10 +6,6 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.RecognitionException
 import org.antlr.v4.runtime.Recognizer
-import org.antlr.v4.runtime.tree.ParseTree
-import playground.smithyql.parser.v2.Yikes.PreludeContext
-import playground.smithyql.parser.v2.Yikes.Source_fileContext
-import playground.smithyql.parser.v2.Yikes.Use_clauseContext
 
 import scala.jdk.CollectionConverters._
 
@@ -17,91 +13,55 @@ object Demo extends App {
 
   val input =
     """
-    use service foo.bar#Hello
-    use service foo#Hello2
+    use service a
+    use service b
+    use service #foo
     """.stripMargin
 
   val l = new Tokens(CharStreams.fromString(input))
 
   val p = new Yikes(new CommonTokenStream(l))
 
-  case class UseClause(
-    namespace: NonEmptyList[String],
-    service: String,
+  case class SourceFile[F[_]](
+    clauses: List[F[UseClause[F]]]
   )
 
-  case class Prelude(
-    clauses: List[UseClause]
+  case class UseClause[F[_]](
+    namespace: F[NonEmptyList[F[String]]],
+    service: F[String],
   )
 
-  case class SourceFile(
-    prelude: Prelude
-  )
+  implicit class NullableOps[T](
+    t: T
+  ) {
+    def toOption: Option[T] = Option(t)
+  }
 
   def parseFull(
     p: Yikes
-  ): SourceFile = SourceFile(
-    Prelude(
-      p
-        .source_file()
-        .prelude()
-        .use_clause()
-        .asScala
-        .toList
-        .map { useClause =>
+  ): SourceFile[Option] = SourceFile[Option](
+    p
+      .source_file()
+      .use_clause()
+      .asScala
+      .toList
+      .map { useClause =>
+        Some {
           UseClause(
-            namespace = NonEmptyList.fromListUnsafe(
+            namespace = NonEmptyList.fromList(
               useClause
                 .qualified_identifier()
                 .namespace()
                 .ID()
                 .asScala
                 .toList
-                .map(_.getText)
+                .map(_.toOption.map(_.getText))
             ),
-            service = useClause.qualified_identifier().ID().getText(),
+            service = useClause.qualified_identifier().ID().toOption.map(_.getText()),
           )
         }
-    )
+      }
   )
-
-  val parseFullVis: YikesVisitor[List[UseClause]] =
-    new YikesBaseVisitor[List[UseClause]] {
-      override protected def defaultResult(
-      ): List[UseClause] = Nil
-
-      override def visitSource_file(
-        ctx: Source_fileContext
-      ): List[UseClause] = ctx.prelude().accept(this)
-
-      override def visitPrelude(
-        ctx: PreludeContext
-      ): List[UseClause] = ctx.use_clause().asScala.toList.flatMap(_.accept(this))
-
-      override def visitUse_clause(
-        ctx: Use_clauseContext
-      ): List[UseClause] = List(
-        UseClause(
-          namespace = NonEmptyList.fromListUnsafe(
-            ctx
-              .qualified_identifier()
-              .namespace()
-              .ID()
-              .asScala
-              .toList
-              .map(_.getText)
-          ),
-          service = ctx.qualified_identifier().ID().getText(),
-        )
-      )
-
-    }
-
-  println(parseFull(p))
-
-  p.reset()
-
-  println(SourceFile(Prelude(p.source_file().accept(parseFullVis))))
 
   p.removeErrorListeners()
 
@@ -134,5 +94,9 @@ object Demo extends App {
     }
 
   })
+
+  parseFull(p).clauses.foreach(println)
+
+  p.reset()
 
 }
