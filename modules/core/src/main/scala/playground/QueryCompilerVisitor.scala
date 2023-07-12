@@ -256,15 +256,15 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     QueryCompiler
       .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
       .emap { struct =>
+        val presentKeys = struct.value.fields.value.keys
+
         // this is a list to keep the original type's ordering
         val remainingValidFields =
           validFields
             .filterNot(
-              struct.value.fields.value.keys.map(_.value.text).toSet
+              presentKeys.map(_.value.text).toSet
             )
             .toList
-
-        val presentKeys = struct.value.fields.value.keys
 
         val extraFieldErrors: QueryCompiler.Result[Unit] = presentKeys
           .filterNot(field => validFields.contains(field.value.text))
