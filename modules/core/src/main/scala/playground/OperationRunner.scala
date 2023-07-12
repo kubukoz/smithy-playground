@@ -4,7 +4,6 @@ import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 import aws.protocols.AwsQuery
 import aws.protocols.RestJson1
-import aws.protocols.RestXml
 import cats.Defer
 import cats.Id
 import cats.data.IorNel
