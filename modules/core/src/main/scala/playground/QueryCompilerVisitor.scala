@@ -26,6 +26,7 @@ import smithy4s.schema.CollectionTag.SetTag
 import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumValue
+import smithy4s.schema.Field
 import smithy4s.schema.Primitive
 import smithy4s.schema.Primitive.PBigDecimal
 import smithy4s.schema.Primitive.PBigInt
@@ -232,11 +233,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         new FieldCompiler[A] {
           def compiler: QueryCompiler[A] = schema.compile(QueryCompilerVisitorInternal)
 
-          def default: Option[A] = schema
-            .hints
-            .get(api.Default)
-            // Ignoring precise error, as this should generally be a Right _always_ due to smithy-level validation
-            .flatMap(v => Document.Decoder.fromSchema(schema).decode(v.value).toOption)
+          def default: Option[A] = schema.getDefaultValue
 
         }
 
@@ -294,31 +291,52 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
           .toBothLeft(())
           .combine(Ior.right(()))
 
-        val buildStruct = fields
-          .parTraverse { field =>
-            val fieldOpt = struct
+        def handleField[T](
+          field: Field[FieldCompiler, S, T]
+        ): QueryCompiler.Result[T] = {
+          val fieldByName =
+            struct
               .value
               .fields
               .value
               .byName(field.label)(_.value)
-              .parTraverse(field.instance.compiler.compile)
 
-            if (field.isOptional)
-              fieldOpt
-            else
-              // Note: defaults get no special handling in dynamic schemas (in which a field with a default is considered optional).
-              // There's no real need to provide the default value in a dynamic client, as it can just omit the field in the request being sent.
-              // The server shall provide the default value on its own.
-              // This `orElse` fallback will arguably never be hit in practice, but it's here for completeness - just in case the compiler ends up being used with static services.
-              fieldOpt.map(_.orElse(field.instance.default)).flatMap {
-                _.toRightIor(
-                  CompilationError.error(
-                    MissingField(field.label),
-                    struct.value.fields.range,
-                  )
-                ).toIorNec
-              }
-          }
+          field.foldK(
+            new Field.FolderK[FieldCompiler, S, QueryCompiler.Result] {
+
+              override def onOptional[A](
+                label: String,
+                instance: FieldCompiler[A],
+                get: S => Option[A],
+              ): QueryCompiler.Result[Option[A]] = fieldByName
+                .parTraverse(instance.compiler.compile)
+
+              override def onRequired[A](
+                label: String,
+                instance: FieldCompiler[A],
+                get: S => A,
+              ): QueryCompiler.Result[A] =
+                // Note: defaults get no special handling in dynamic schemas (in which a field with a default is considered optional).
+                // There's no real need to provide the default value in a dynamic client, as it can just omit the field in the request being sent.
+                // The server shall provide the default value on its own.
+                // This `orElse` fallback will arguably never be hit in practice, but it's here for completeness - just in case the compiler ends up being used with static services.
+                fieldByName
+                  .parTraverse(instance.compiler.compile)
+                  .map(_.orElse(instance.default))
+                  .flatMap {
+                    _.toRightIor(
+                      CompilationError.error(
+                        MissingField(field.label),
+                        struct.value.fields.range,
+                      )
+                    ).toIorNec
+                  }
+            }
+          )
+        }
+
+        val buildStruct = fields
+          .parTraverse(handleField(_))
 
         buildStruct.map(make) <& extraFieldErrors <& deprecatedFieldWarnings
       }
@@ -466,7 +484,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       }
   }
 
-  def enumeration[E](
+  override def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
     tag: EnumTag,
