@@ -230,9 +230,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         schema: Schema[A]
       ): FieldCompiler[A] =
         new FieldCompiler[A] {
-          def compiler: QueryCompiler[A] = schema.compile(QueryCompilerVisitorInternal)
+          val compiler: QueryCompiler[A] = schema.compile(QueryCompilerVisitorInternal)
 
-          def default: Option[A] = schema.getDefaultValue
+          val default: Option[A] = schema.getDefaultValue
 
         }
 
