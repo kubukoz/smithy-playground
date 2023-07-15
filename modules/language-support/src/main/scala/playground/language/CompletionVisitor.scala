@@ -573,48 +573,53 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     hints: Hints,
     fields: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
-  ): CompletionResolver[S] =
-    // val compiledFields = fields.map(field => (field.mapK(this), field.instance))
+  ): CompletionResolver[S] = {
+    val compiledFields = fields.map(field => (field, field.schema.compile(this)))
 
-    // structLike(
-    //   inBody =
-    //     fields
-    //       // todo: filter out present fields
-    //       .sortBy(field => (field.isRequired, field.label))
-    //       .map(CompletionItem.fromField)
-    //       .toList,
-    //   inValue =
-    //     (
-    //       h,
-    //       rest,
-    //     ) =>
-    //       compiledFields
-    //         .collectFirst {
-    //           case (field, _) if field.label === h => field
-    //         }
-    //         .foldMap(_.instance.getCompletions(rest)),
-    // )
-    ???
+    structLike(
+      inBody =
+        fields
+          // todo: filter out present fields
+          .sortBy(field => (field.isStrictlyRequired, field.label))
+          .map(CompletionItem.fromField)
+          .toList,
+      inValue =
+        (
+          h,
+          rest,
+        ) =>
+          compiledFields
+            .collectFirst {
+              case (field, instance) if field.label === h => instance
+            }
+            .foldMap(_.getCompletions(rest)),
+    )
+  }
 
   override def union[U](
     shapeId: ShapeId,
     hints: Hints,
     alternatives: Vector[Alt[U, _]],
     dispatcher: Alt.Dispatcher[U],
-  ): CompletionResolver[U] =
-    // val allWithIds = alternatives.map { alt =>
-    //   (alt.mapK(this), alt.instance)
-    // }
+  ): CompletionResolver[U] = {
+    val compiledAlts = alternatives.map { alt =>
+      (alt, alt.schema.compile(this))
+    }
 
-    // structLike(
-    //   inBody = alternatives.map(CompletionItem.fromAlt).toList,
-    //   inValue =
-    //     (
-    //       head,
-    //       tail,
-    //     ) => allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
-    // )
-    ???
+    structLike(
+      inBody = alternatives.map(CompletionItem.fromAlt).toList,
+      inValue =
+        (
+          head,
+          tail,
+        ) =>
+          compiledAlts
+            .collect {
+              case (alt, instance) if alt.label === head => instance
+            }
+            .foldMap(_.getCompletions(tail)),
+    )
+  }
 
   override def biject[A, B](
     schema: Schema[A],
