@@ -180,29 +180,23 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     hints: Hints,
     fieldsRaw: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
-  ): NodeEncoder[S] = ???
-  // val fields = fieldsRaw.map(_.mapK(this))
+  ): NodeEncoder[S] = {
 
-  // def go[A](
-  //   f: Field[NodeEncoder, S, A],
-  //   s: S,
-  // ): Option[Binding[Id]] = f.fold(
-  //   new Field.Folder[NodeEncoder, S, Option[Binding[Id]]] {
-  //     def onRequired[F](
-  //       label: String,
-  //       instance: NodeEncoder[F],
-  //       get: S => F,
-  //     ): Option[Binding[Id]] = Binding[Id](Identifier(label), instance.toNode(get(s))).some
+    def go[A](
+      f: Field[S, A]
+    ): S => Option[Binding[Id]] = {
+      val instance = f.schema.compile(this)
 
-  //     def onOptional[F](
-  //       label: String,
-  //       instance: NodeEncoder[F],
-  //       get: S => Option[F],
-  //     ): Option[Binding[Id]] = get(s).map(f => Binding[Id](Identifier(label), instance.toNode(f)))
-  //   }
-  // )
+      s =>
+        f.getUnlessDefault(s).map(instance.toNode(_)).map { v =>
+          Binding[Id](Identifier(f.label), v)
+        }
+    }
 
-  // s => obj(fields.flatMap(go(_, s)).toList)
+    val fields = fieldsRaw.map(go(_))
+
+    s => obj(fields.mapFilter(_.apply(s)).toList)
+  }
 
   def union[U](
     shapeId: ShapeId,

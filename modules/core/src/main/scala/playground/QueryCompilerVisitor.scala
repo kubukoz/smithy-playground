@@ -245,6 +245,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     make: IndexedSeq[Any] => S,
   ): QueryCompiler[S] = ???
 
+  // TODO-SMITHY
   // val fields = fieldsRaw.map(_.mapK(compileField))
 
   // val validFields = fields.map(_.label)

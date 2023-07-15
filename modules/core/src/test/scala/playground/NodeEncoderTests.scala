@@ -3,6 +3,7 @@ package playground
 import cats.Id
 import demo.smithy.Good
 import demo.smithy.Hero
+import demo.smithy.Person
 import demo.smithy.Power
 import demo.smithy.SampleSparseList
 import playground.NodeEncoder
@@ -50,6 +51,22 @@ object NodeEncoderTests extends FunSuite {
 
   test("simple struct") {
     assertEncodes(Good.schema, Good(42), struct("howGood" -> 42))
+  }
+
+  test("struct with optionals: defined") {
+    assertEncodes(
+      Person.schema,
+      Person("My name", age = Some(42)),
+      struct("name" -> "My name", "age" -> 42),
+    )
+  }
+
+  test("struct with optionals: empty") {
+    assertEncodes(
+      Person.schema,
+      Person("My name", age = None),
+      struct("name" -> "My name"),
+    )
   }
 
   test("enum") {
