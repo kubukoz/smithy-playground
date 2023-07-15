@@ -243,176 +243,216 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     hints: Hints,
     fieldsRaw: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
-  ): QueryCompiler[S] = ???
+  ): QueryCompiler[S] = {
+    val fields = fieldsRaw.map(FieldCompilerField.fromField(_))
 
-  // TODO-SMITHY
-  // val fields = fieldsRaw.map(_.mapK(compileField))
+    val validFields = fields.map(_.label)
+    val deprecatedFields =
+      fieldsRaw.flatMap { f =>
+        f.hints.get(api.Deprecated).tupleLeft(f.label)
+      }.toMap
 
-  // val validFields = fields.map(_.label)
-  // val deprecatedFields =
-  //   fieldsRaw.flatMap { f =>
-  //     f.hints.get(api.Deprecated).tupleLeft(f.label)
-  //   }.toMap
+    QueryCompiler
+      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
+      .emap { struct =>
+        val presentKeys = struct.value.fields.value.keys
 
-  // QueryCompiler
-  //   .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
-  //   .emap { struct =>
-  //     val presentKeys = struct.value.fields.value.keys
+        // this is a list to keep the original type's ordering
+        val remainingValidFields =
+          validFields
+            .filterNot(
+              presentKeys.map(_.value.text).toSet
+            )
+            .toList
 
-  //     // this is a list to keep the original type's ordering
-  //     val remainingValidFields =
-  //       validFields
-  //         .filterNot(
-  //           presentKeys.map(_.value.text).toSet
-  //         )
-  //         .toList
+        val extraFieldErrors: QueryCompiler.Result[Unit] = presentKeys
+          .filterNot(field => validFields.contains(field.value.text))
+          .map { unexpectedKey =>
+            CompilationError.error(
+              UnexpectedField(remainingValidFields),
+              unexpectedKey.range,
+            )
+          }
+          .toNel
+          .map(NonEmptyChain.fromNonEmptyList)
+          .toBothLeft(())
+          .combine(Ior.right(()))
 
-  //     val extraFieldErrors: QueryCompiler.Result[Unit] = presentKeys
-  //       .filterNot(field => validFields.contains(field.value.text))
-  //       .map { unexpectedKey =>
-  //         CompilationError.error(
-  //           UnexpectedField(remainingValidFields),
-  //           unexpectedKey.range,
-  //         )
-  //       }
-  //       .toNel
-  //       .map(NonEmptyChain.fromNonEmptyList)
-  //       .toBothLeft(())
-  //       .combine(Ior.right(()))
+        val deprecatedFieldWarnings: QueryCompiler.Result[Unit] = presentKeys
+          .flatMap { key =>
+            deprecatedFields.get(key.value.text).map { info =>
+              CompilationError.deprecation(DeprecatedInfo.fromHint(info), key.range)
+            }
+          }
+          .toList
+          .toNel
+          .map(NonEmptyChain.fromNonEmptyList)
+          .toBothLeft(())
+          .combine(Ior.right(()))
 
-  //     val deprecatedFieldWarnings: QueryCompiler.Result[Unit] = presentKeys
-  //       .flatMap { key =>
-  //         deprecatedFields.get(key.value.text).map { info =>
-  //           CompilationError.deprecation(DeprecatedInfo.fromHint(info), key.range)
-  //         }
-  //       }
-  //       .toList
-  //       .toNel
-  //       .map(NonEmptyChain.fromNonEmptyList)
-  //       .toBothLeft(())
-  //       .combine(Ior.right(()))
+        def handleField[T](
+          field: FieldCompilerField[S, T]
+        ): QueryCompiler.Result[T] = {
+          val fieldByName =
+            struct
+              .value
+              .fields
+              .value
+              .byName(field.label)(_.value)
 
-  //     def handleField[T](
-  //       field: Field[FieldCompiler, S, T]
-  //     ): QueryCompiler.Result[T] = {
-  //       val fieldByName =
-  //         struct
-  //           .value
-  //           .fields
-  //           .value
-  //           .byName(field.label)(_.value)
+          // Note: defaults get no special handling in dynamic schemas (in which a field with a default is considered optional).
+          // There's no real need to provide the default value in a dynamic client, as it can just omit the field in the request being sent.
+          // The server shall provide the default value on its own.
+          // This `orElse` fallback will arguably never be hit in practice, but it's here for completeness - just in case the compiler ends up being used with static
+          fieldByName
+            .parTraverse(field.instance.compiler.compile)
+            .map(_.orElse(field.instance.default))
+            .flatMap {
+              _.toRightIor(
+                CompilationError.error(
+                  MissingField(field.label),
+                  struct.value.fields.range,
+                )
+              ).toIorNec
+            }
+        }
 
-  //       field.foldK(
-  //         new Field.FolderK[FieldCompiler, S, QueryCompiler.Result] {
+        val buildStruct = fields
+          .parTraverse(handleField(_))
 
-  //           override def onOptional[A](
-  //             label: String,
-  //             instance: FieldCompiler[A],
-  //             get: S => Option[A],
-  //           ): QueryCompiler.Result[Option[A]] = fieldByName
-  //             .parTraverse(instance.compiler.compile)
+        buildStruct.map(make) <& extraFieldErrors <& deprecatedFieldWarnings
+      }
+  }
 
-  //           override def onRequired[A](
-  //             label: String,
-  //             instance: FieldCompiler[A],
-  //             get: S => A,
-  //           ): QueryCompiler.Result[A] =
-  //             // Note: defaults get no special handling in dynamic schemas (in which a field with a default is considered optional).
-  //             // There's no real need to provide the default value in a dynamic client, as it can just omit the field in the request being sent.
-  //             // The server shall provide the default value on its own.
-  //             // This `orElse` fallback will arguably never be hit in practice, but it's here for completeness - just in case the compiler ends up being used with static services.
-  //             fieldByName
-  //               .parTraverse(instance.compiler.compile)
-  //               .map(_.orElse(instance.default))
-  //               .flatMap {
-  //                 _.toRightIor(
-  //                   CompilationError.error(
-  //                     MissingField(field.label),
-  //                     struct.value.fields.range,
-  //                   )
-  //                 ).toIorNec
-  //               }
-  //         }
-  //       )
-  //     }
+  // todo: get rid of these
+  private trait QueryCompilerAlt[U, A] {
+    def instance: QueryCompiler[A]
+    def alt: Alt[U, A]
+    def label = alt.label
 
-  //     val buildStruct = fields
-  //       .parTraverse(handleField(_))
+    def inject(
+      a: A
+    ): U = alt.inject(a)
 
-  //     buildStruct.map(make) <& extraFieldErrors <& deprecatedFieldWarnings
-  //   }
+  }
+
+  private object QueryCompilerAlt {
+
+    def fromAlt[U, A](
+      _alt: Alt[U, A]
+    ): QueryCompilerAlt[U, A] =
+      new QueryCompilerAlt[U, A] {
+        override val alt: Alt[U, A] = _alt
+
+        override val instance: QueryCompiler[A] = alt
+          .schema
+          .compile(QueryCompilerVisitorInternal.this)
+
+      }
+
+  }
+
+  private trait FieldCompilerField[S, A] {
+    def instance: FieldCompiler[A]
+    def field: Field[S, A]
+    def label = field.label
+
+    def get(
+      s: S
+    ): A = field.get(s)
+
+  }
+
+  private object FieldCompilerField {
+
+    def fromField[S, A](
+      _field: Field[S, A]
+    ): FieldCompilerField[S, A] =
+      new FieldCompilerField[S, A] {
+
+        override val field: Field[S, A] = _field
+
+        override val instance: FieldCompiler[A] = compileField(_field.schema)
+
+      }
+
+  }
 
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
     alternatives: Vector[Alt[U, _]],
     dispatcher: Alt.Dispatcher[U],
-  ): QueryCompiler[U] = ???
+  ): QueryCompiler[U] = {
+    val alternativesCompiled = alternatives
+      .map(QueryCompilerAlt.fromAlt(_))
+      .groupBy(_.label)
+      .map(_.map(_.head))
 
-  // val alternativesCompiled = alternatives.map(_.mapK(this)).groupBy(_.label).map(_.map(_.head))
-  // val deprecatedAlternativeLabels =
-  //   alternatives.flatMap(alt => alt.hints.get(api.Deprecated).tupleLeft(alt.label)).toMap
+    val deprecatedAlternativeLabels =
+      alternatives.flatMap(alt => alt.hints.get(api.Deprecated).tupleLeft(alt.label)).toMap
 
-  // val labels = NonEmptyList.fromListUnsafe(alternatives.toList).map(_.label)
+    val labels = NonEmptyList.fromListUnsafe(alternatives.toList).map(_.label)
 
-  // QueryCompiler
-  //   // todo: should say it's a union
-  //   .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
-  //   .emap {
-  //     case s if s.value.fields.value.size == 1 =>
-  //       val definition = s.value.fields.value.head
-  //       val key = definition.identifier
+    QueryCompiler
+      // todo: should say it's a union
+      .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
+      .emap {
+        case s if s.value.fields.value.size == 1 =>
+          val definition = s.value.fields.value.head
+          val key = definition.identifier
 
-  //       def go[A](
-  //         alt: Alt[QueryCompiler, U, A]
-  //       ): QueryCompiler[U] = alt.instance.map(alt.inject)
+          def go[A](
+            alt: QueryCompilerAlt[U, A]
+          ): QueryCompiler[U] = alt.instance.map(alt.inject)
 
-  //       val op =
-  //         alternativesCompiled
-  //           .get(key.value.text)
-  //           .toRightIor(
-  //             CompilationError.error(
-  //               MissingDiscriminator(labels),
-  //               s.range,
-  //             )
-  //           )
-  //           .toIorNec
+          val op =
+            alternativesCompiled
+              .get(key.value.text)
+              .toRightIor(
+                CompilationError.error(
+                  MissingDiscriminator(labels),
+                  s.range,
+                )
+              )
+              .toIorNec
 
-  //       val deprecationWarning: QueryCompiler.Result[Unit] = deprecatedAlternativeLabels
-  //         .get(key.value.text)
-  //         .map { info =>
-  //           CompilationError
-  //             .deprecation(DeprecatedInfo.fromHint(info), key.range)
-  //         }
-  //         .toList
-  //         .toNel
-  //         .map(NonEmptyChain.fromNonEmptyList)
-  //         .toBothLeft(())
-  //         .combine(Ior.right(()))
+          val deprecationWarning: QueryCompiler.Result[Unit] = deprecatedAlternativeLabels
+            .get(key.value.text)
+            .map { info =>
+              CompilationError
+                .deprecation(DeprecatedInfo.fromHint(info), key.range)
+            }
+            .toList
+            .toNel
+            .map(NonEmptyChain.fromNonEmptyList)
+            .toBothLeft(())
+            .combine(Ior.right(()))
 
-  //       op.flatMap(go(_).compile(definition.value)) <& deprecationWarning
+          op.flatMap(go(_).compile(definition.value)) <& deprecationWarning
 
-  //     case s if s.value.fields.value.isEmpty =>
-  //       CompilationError
-  //         .error(
-  //           EmptyStruct(labels),
-  //           s.range,
-  //         )
-  //         .leftIor
-  //         .toIorNec
+        case s if s.value.fields.value.isEmpty =>
+          CompilationError
+            .error(
+              EmptyStruct(labels),
+              s.range,
+            )
+            .leftIor
+            .toIorNec
 
-  //     case s =>
-  //       CompilationError
-  //         .error(
-  //           StructMismatch(
-  //             s.value.fields.value.keys.map(_.value.text),
-  //             labels,
-  //           ),
-  //           s.range,
-  //         )
-  //         .leftIor
-  //         .toIorNec
-  //   }
+        case s =>
+          CompilationError
+            .error(
+              StructMismatch(
+                s.value.fields.value.keys.map(_.value.text),
+                labels,
+              ),
+              s.range,
+            )
+            .leftIor
+            .toIorNec
+      }
+  }
 
   def biject[A, B](
     schema: Schema[A],
