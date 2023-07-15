@@ -76,7 +76,7 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
       case s: StructSchema[_]        => s
       case l: LazySchema[_]          => l
       case u: UnionSchema[_]         => u
-      case n: NullableSchema[_]      => n
+      case n: OptionSchema[_]        => n
     }
 
 }

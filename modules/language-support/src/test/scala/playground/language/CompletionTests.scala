@@ -122,7 +122,7 @@ object CompletionTests extends FunSuite {
 
   test("completions in sparse collection root contain null") {
     val completions = getCompletions(
-      Schema.list(Schema.int.nullable),
+      Schema.list(Schema.int.option),
       NodeContext.EmptyPath.inCollectionEntry(None),
     )
 
@@ -136,7 +136,7 @@ object CompletionTests extends FunSuite {
 
   test("completions in sparse map root contain null") {
     val completions = getCompletions(
-      Schema.map(Schema.string, Schema.int.nullable),
+      Schema.map(Schema.string, Schema.int.option),
       NodeContext.EmptyPath.inStructBody.inStructValue("test"),
     )
 
@@ -161,7 +161,7 @@ object CompletionTests extends FunSuite {
 
   test("completions on struct in sparse list are available") {
     val completions = getCompletions(
-      Schema.list(Good.schema.nullable),
+      Schema.list(Good.schema.option),
       NodeContext.EmptyPath.inCollectionEntry(0.some).inStructBody,
     )
 

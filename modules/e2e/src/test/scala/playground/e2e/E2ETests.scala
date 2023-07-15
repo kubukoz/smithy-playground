@@ -21,6 +21,7 @@ import weaver._
 import java.io.PrintWriter
 import java.lang.ProcessBuilder.Redirect
 import java.util.concurrent.CompletableFuture
+import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
 
@@ -92,7 +93,7 @@ object E2ETests extends SimpleIOSuite {
           .create()
 
         Resource
-          .make(IO(launcher.startListening()))(f => IO(f.cancel(true): Unit))
+          .make(IO(launcher.startListening()).timeout(5.seconds))(f => IO(f.cancel(true): Unit))
           .as(new LanguageServerAdapter(launcher.getRemoteProxy()))
       }
   }
@@ -123,5 +124,6 @@ object E2ETests extends SimpleIOSuite {
         }
 
       }
+      .timeout(10.seconds)
   }
 }

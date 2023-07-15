@@ -39,8 +39,6 @@ import smithy4s.schema.Field
 import smithy4s.schema.Primitive
 import smithy4s.schema.Schema
 import smithy4s.schema.Schema._
-import smithy4s.schema.SchemaAlt
-import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
@@ -129,29 +127,29 @@ object CompletionItem {
   ).copy(detail = describeService(service))
 
   def fromField(
-    field: Field[Schema, _, _]
+    field: Field[_, _]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.Field,
     label = field.label,
     insertText = InsertText.JustString(s"${field.label}: "),
-    schema = field.instance,
+    schema = field.schema,
   )
 
   def fromAlt(
-    alt: Alt[Schema, _, _]
+    alt: Alt[_, _]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
     // needs proper completions for the inner schema
     // https://github.com/kubukoz/smithy-playground/pull/120
     insertText =
-      if (describeSchema(alt.instance).apply().startsWith("structure "))
+      if (describeSchema(alt.schema).apply().startsWith("structure "))
         InsertText.SnippetString(s"""${alt.label}: {
                                     |  $$0
                                     |},""".stripMargin)
       else
         InsertText.JustString(s"${alt.label}: "),
-    alt.instance,
+    alt.schema,
   )
 
   def fromHints(
@@ -277,7 +275,7 @@ object CompletionItem {
 
       case UnionSchema(shapeId, _, _, _) => now(s"union ${shapeId.name}")
 
-      case NullableSchema(underlying) =>
+      case OptionSchema(underlying) =>
         // ignore the fact that it's nullable, just describe the underlying schema
         describeSchema(underlying)
 
@@ -529,7 +527,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     )
   }
 
-  override def nullable[A](
+  override def option[A](
     schema: Schema[A]
   ): CompletionResolver[Option[A]] = {
     val underlying = schema.compile(this)
@@ -573,50 +571,50 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   override def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fields: Vector[SchemaField[S, _]],
+    fields: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
-  ): CompletionResolver[S] = {
-    val compiledFields = fields.map(field => (field.mapK(this), field.instance))
+  ): CompletionResolver[S] =
+    // val compiledFields = fields.map(field => (field.mapK(this), field.instance))
 
-    structLike(
-      inBody =
-        fields
-          // todo: filter out present fields
-          .sortBy(field => (field.isRequired, field.label))
-          .map(CompletionItem.fromField)
-          .toList,
-      inValue =
-        (
-          h,
-          rest,
-        ) =>
-          compiledFields
-            .collectFirst {
-              case (field, _) if field.label === h => field
-            }
-            .foldMap(_.instance.getCompletions(rest)),
-    )
-  }
+    // structLike(
+    //   inBody =
+    //     fields
+    //       // todo: filter out present fields
+    //       .sortBy(field => (field.isRequired, field.label))
+    //       .map(CompletionItem.fromField)
+    //       .toList,
+    //   inValue =
+    //     (
+    //       h,
+    //       rest,
+    //     ) =>
+    //       compiledFields
+    //         .collectFirst {
+    //           case (field, _) if field.label === h => field
+    //         }
+    //         .foldMap(_.instance.getCompletions(rest)),
+    // )
+    ???
 
   override def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[SchemaAlt[U, _]],
-    dispatcher: Alt.Dispatcher[Schema, U],
-  ): CompletionResolver[U] = {
-    val allWithIds = alternatives.map { alt =>
-      (alt.mapK(this), alt.instance)
-    }
+    alternatives: Vector[Alt[U, _]],
+    dispatcher: Alt.Dispatcher[U],
+  ): CompletionResolver[U] =
+    // val allWithIds = alternatives.map { alt =>
+    //   (alt.mapK(this), alt.instance)
+    // }
 
-    structLike(
-      inBody = alternatives.map(CompletionItem.fromAlt).toList,
-      inValue =
-        (
-          head,
-          tail,
-        ) => allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
-    )
-  }
+    // structLike(
+    //   inBody = alternatives.map(CompletionItem.fromAlt).toList,
+    //   inValue =
+    //     (
+    //       head,
+    //       tail,
+    //     ) => allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
+    // )
+    ???
 
   override def biject[A, B](
     schema: Schema[A],
