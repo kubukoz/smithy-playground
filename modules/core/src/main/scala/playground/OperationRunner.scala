@@ -296,7 +296,7 @@ object OperationRunner {
         )
 
       val getInternal: IorNel[Issue, OperationRunner[F]] = runners.reduce(
-        IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]]
+        IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]](_, _)
       )
 
       def get(
