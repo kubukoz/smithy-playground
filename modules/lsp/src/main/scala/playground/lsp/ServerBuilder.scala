@@ -21,6 +21,8 @@ import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.kernel.AwsRegion
 
+import scala.concurrent.duration._
+
 trait ServerBuilder[F[_]] {
 
   def build(
@@ -58,7 +60,12 @@ object ServerBuilder {
 
     for {
       client <- makeClient
-      awsEnv <- AwsEnvironment.default(client, AwsRegion.US_EAST_1).memoize
+      awsEnv <-
+        AwsEnvironment
+          .default(client, AwsRegion.US_EAST_1)
+          // workaround for https://github.com/disneystreaming/smithy4s/issues/1075
+          .timeout(1.second)
+          .memoize
       tdm <- TextDocumentManager.instance[F].toResource
     } yield new ServerBuilder[F] {
       private implicit val textManager: TextDocumentManager[F] = tdm
