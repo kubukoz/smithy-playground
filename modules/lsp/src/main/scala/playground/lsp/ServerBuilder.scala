@@ -63,7 +63,7 @@ object ServerBuilder {
       awsEnv <-
         AwsEnvironment
           .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
-          // workaround for https://github.com/disneystreaming/smithy4s/issues/1075
+          // workaround for https://github.com/disneystreaming/smithy4s/issues/1075... which doesn't actually work
           .timeout(1.second)
           .memoize
       tdm <- TextDocumentManager.instance[F].toResource
