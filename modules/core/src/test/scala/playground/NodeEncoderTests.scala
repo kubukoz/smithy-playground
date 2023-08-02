@@ -13,7 +13,7 @@ import playground.smithyql.Listed
 import playground.smithyql.NullLiteral
 import playground.smithyql.StringLiteral
 import smithy.api.TimestampFormat
-import smithy4s.ByteArray
+import smithy4s.Blob
 import smithy4s.Document
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
@@ -88,7 +88,7 @@ object NodeEncoderTests extends FunSuite {
   test("blob") {
     assertEncodes(
       Schema.bytes,
-      ByteArray("foo".getBytes()),
+      Blob("foo"),
       StringLiteral("Zm9v"),
     )
   }

@@ -13,7 +13,6 @@ import playground.smithyql.NullLiteral
 import playground.smithyql.StringLiteral
 import playground.smithyql.Struct
 import smithy4s.Bijection
-import smithy4s.ByteArray
 import smithy4s.Document
 import smithy4s.Document.DArray
 import smithy4s.Document.DBoolean
@@ -111,7 +110,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case PBigInt     => bigint
       case PBoolean    => boolean
       case PBigDecimal => bigdecimal
-      case PBlob       => string.contramap((_: ByteArray).toString)
+      case PBlob       => string.contramap(_.toBase64String)
       case PDouble     => double
       case PDocument   => document
       case PFloat      => float

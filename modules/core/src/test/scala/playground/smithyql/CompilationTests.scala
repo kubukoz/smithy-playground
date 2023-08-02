@@ -48,7 +48,7 @@ import playground.std.ClockGen
 import playground.std.RandomGen
 import playground.types.IorThrow
 import smithy.api.TimestampFormat
-import smithy4s.ByteArray
+import smithy4s.Blob
 import smithy4s.Document
 import smithy4s.Refinement
 import smithy4s.Service
@@ -405,7 +405,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId("dGVzdA==".mapK(WithSource.liftId))
       }(Schema.bytes),
-      Ior.right(ByteArray("test".getBytes())),
+      Ior.right(Blob("test".getBytes())),
     )
   }
 

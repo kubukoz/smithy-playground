@@ -70,6 +70,7 @@ object CompletionProvider {
             insertBodyStruct = insertBodyStruct,
           )
         }
+        .toList
     }
 
     def completeRootOperationName(

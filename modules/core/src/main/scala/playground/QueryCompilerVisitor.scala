@@ -11,7 +11,7 @@ import playground.smithyutil._
 import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.Bijection
-import smithy4s.ByteArray
+import smithy4s.Blob
 import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Lazy
@@ -95,7 +95,8 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         (string, QueryCompiler.pos).tupled.emap { case (s, range) =>
           Either
             .catchNonFatal(Base64.getDecoder().decode(s))
-            .map(ByteArray(_))
+            // todo anything better?
+            .map(Blob(_))
             .leftMap(_ => CompilationError.error(CompilationErrorDetails.InvalidBlob, range))
             .toIor
             .toIorNec

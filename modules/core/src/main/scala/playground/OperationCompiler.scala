@@ -177,6 +177,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
   // map of endpoint names to (endpoint, input compiler)
   private val endpoints = service
     .endpoints
+    .toList
     .groupByNel(_.name)
     .map(_.map(_.head).map(e => (e, compileEndpoint(e))))
 
