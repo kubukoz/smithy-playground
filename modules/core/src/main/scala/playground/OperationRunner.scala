@@ -3,6 +3,7 @@ package playground
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 import aws.protocols.AwsQuery
+import aws.protocols.Ec2Query
 import aws.protocols.RestJson1
 import aws.protocols.RestXml
 import cats.Defer
@@ -267,7 +268,7 @@ object OperationRunner {
         .toIor
         .leftMap(_ =>
           NonEmptyList
-            .of(AwsJson1_0.id, AwsJson1_1.id, RestJson1.id, AwsQuery.id, RestXml.id)
+            .of(AwsJson1_0.id, AwsJson1_1.id, RestJson1.id, AwsQuery.id, RestXml.id, Ec2Query.id)
             .map(Issue.InvalidProtocol(_, serviceProtocols))
         )
 

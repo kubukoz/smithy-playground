@@ -4,6 +4,7 @@ import alloy.SimpleRestJson
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
 import aws.protocols.AwsQuery
+import aws.protocols.Ec2Query
 import aws.protocols.RestJson1
 import aws.protocols.RestXml
 import cats.data.NonEmptyList
@@ -66,6 +67,7 @@ object DiagnosticProviderTests extends SimpleIOSuite {
       RestJson1,
       AwsQuery,
       RestXml,
+      Ec2Query,
       Stdlib,
     )
     .map(_.id)
