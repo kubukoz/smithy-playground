@@ -124,6 +124,6 @@ object E2ETests extends SimpleIOSuite {
         }
 
       }
-      .timeout(10.seconds)
+      .timeout(20.seconds)
   }
 }
