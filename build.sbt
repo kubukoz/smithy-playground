@@ -43,7 +43,7 @@ ThisBuild / dynverSeparator := "-"
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.9.0",
+    "org.typelevel" %% "cats-core" % "2.10.0",
     "org.typelevel" %% "cats-mtl" % "1.3.1",
     "com.disneystreaming" %% "weaver-cats" % "0.8.3" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.8.3" % Test,
@@ -130,7 +130,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.2.3" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.2.6" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.34.0" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
