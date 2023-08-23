@@ -169,7 +169,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
-    tag: EnumTag,
+    tag: EnumTag[E],
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): NodeEncoder[E] = string.contramap(total(_).name)

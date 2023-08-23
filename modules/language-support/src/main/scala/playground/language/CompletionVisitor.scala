@@ -33,7 +33,6 @@ import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
 import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumTag.IntEnum
-import smithy4s.schema.EnumTag.StringEnum
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -261,8 +260,8 @@ object CompletionItem {
 
       case e @ EnumerationSchema(_, _, _, _, _) =>
         e.tag match {
-          case IntEnum    => now(s"intEnum ${e.shapeId.name}")
-          case StringEnum => now(s"enum ${e.shapeId.name}")
+          case IntEnum() => now(s"intEnum ${e.shapeId.name}")
+          case _         => now(s"enum ${e.shapeId.name}")
         }
 
       case MapSchema(shapeId, _, key, value) =>
@@ -541,7 +540,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   override def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
-    tag: EnumTag,
+    tag: EnumTag[E],
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): CompletionResolver[E] = quoteAware { transformString =>
