@@ -222,22 +222,24 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   private trait FieldCompiler[A] {
     def compiler: QueryCompiler[A]
     def default: Option[A]
+    def label: String
   }
 
-  private val compileField: Schema ~> FieldCompiler =
-    new (Schema ~> FieldCompiler) {
+  private object FieldCompiler {
 
-      def apply[A](
-        schema: Schema[A]
-      ): FieldCompiler[A] =
-        new FieldCompiler[A] {
-          val compiler: QueryCompiler[A] = schema.compile(QueryCompilerVisitorInternal)
+    def compile[A](
+      field: Field[_, A]
+    ): FieldCompiler[A] =
+      new FieldCompiler[A] {
+        override val compiler: QueryCompiler[A] = field.schema.compile(QueryCompilerVisitorInternal)
 
-          val default: Option[A] = schema.getDefaultValue
+        override val default: Option[A] = field.schema.getDefaultValue
 
-        }
+        override val label: String = field.label
 
-    }
+      }
+
+  }
 
   def struct[S](
     shapeId: ShapeId,
@@ -245,7 +247,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     fieldsRaw: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
   ): QueryCompiler[S] = {
-    val fields = fieldsRaw.map(FieldCompilerField.fromField(_))
+    val fields = fieldsRaw.map(FieldCompiler.compile(_))
 
     val validFields = fields.map(_.label)
     val deprecatedFields =
@@ -292,7 +294,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
           .combine(Ior.right(()))
 
         def handleField[T](
-          field: FieldCompilerField[S, T]
+          field: FieldCompiler[T]
         ): QueryCompiler.Result[T] = {
           val fieldByName =
             struct
@@ -306,8 +308,8 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
           // The server shall provide the default value on its own.
           // This `orElse` fallback will arguably never be hit in practice, but it's here for completeness - just in case the compiler ends up being used with static
           fieldByName
-            .parTraverse(field.instance.compiler.compile)
-            .map(_.orElse(field.instance.default))
+            .parTraverse(field.compiler.compile)
+            .map(_.orElse(field.default))
             .flatMap {
               _.toRightIor(
                 CompilationError.error(
@@ -348,32 +350,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         override val instance: QueryCompiler[A] = alt
           .schema
           .compile(QueryCompilerVisitorInternal.this)
-
-      }
-
-  }
-
-  private trait FieldCompilerField[S, A] {
-    def instance: FieldCompiler[A]
-    def field: Field[S, A]
-    def label = field.label
-
-    def get(
-      s: S
-    ): A = field.get(s)
-
-  }
-
-  private object FieldCompilerField {
-
-    def fromField[S, A](
-      _field: Field[S, A]
-    ): FieldCompilerField[S, A] =
-      new FieldCompilerField[S, A] {
-
-        override val field: Field[S, A] = _field
-
-        override val instance: FieldCompiler[A] = compileField(_field.schema)
 
       }
 
