@@ -48,8 +48,8 @@ val commonSettings = Seq(
     "com.disneystreaming" %% "weaver-cats" % "0.8.3" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.8.3" % Test,
     "com.disneystreaming" %% "weaver-scalacheck" % "0.8.3" % Test,
-    "com.softwaremill.diffx" %% "diffx-core" % "0.8.3" % Test,
-    "com.softwaremill.diffx" %% "diffx-cats" % "0.8.3" % Test,
+    "com.softwaremill.diffx" %% "diffx-core" % "0.9.0" % Test,
+    "com.softwaremill.diffx" %% "diffx-cats" % "0.9.0" % Test,
   ),
   compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
@@ -96,9 +96,9 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "0.3.10",
-      "io.circe" %% "circe-generic" % "0.14.5" % Test,
-      "io.circe" %% "circe-parser" % "0.14.5" % Test,
-      "co.fs2" %% "fs2-io" % "3.8.0" % Test,
+      "io.circe" %% "circe-generic" % "0.14.6" % Test,
+      "io.circe" %% "circe-parser" % "0.14.6" % Test,
+      "co.fs2" %% "fs2-io" % "3.9.2" % Test,
     )
   )
   .dependsOn(
@@ -125,12 +125,12 @@ lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.5.1",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.23.2",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.23.4",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.2.6" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.2.7" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.34.0" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
@@ -152,11 +152,11 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.21.0",
-      "io.circe" %% "circe-core" % "0.14.5",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.21.1",
+      "io.circe" %% "circe-core" % "0.14.6",
       "org.http4s" %% "http4s-ember-client" % "0.23.23",
       "org.http4s" %% "http4s-ember-server" % "0.23.23" % Test,
-      "io.get-coursier" %% "coursier" % "2.1.5",
+      "io.get-coursier" %% "coursier" % "2.1.7",
       "org.typelevel" %% "cats-tagless-macros" % "0.15.0",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
