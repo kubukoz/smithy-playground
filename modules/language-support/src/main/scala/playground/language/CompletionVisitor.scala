@@ -2,6 +2,7 @@ package playground.language
 
 import cats.Id
 import cats.implicits._
+import cats.kernel.Eq
 import playground.ServiceNameExtractor
 import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
@@ -157,7 +158,7 @@ object CompletionItem {
     insertText: InsertText,
     schema: Schema[_],
   ): CompletionItem = {
-    val isField = kind == CompletionItemKind.Field
+    val isField = kind === CompletionItemKind.Field
 
     val sortText =
       isField match {
@@ -436,6 +437,8 @@ object CompletionItemKind {
   case object Constant extends CompletionItemKind
   case object UnionMember extends CompletionItemKind
   case object Function extends CompletionItemKind
+
+  implicit val eq: Eq[CompletionItemKind] = Eq.fromUniversalEquals
 }
 
 object CompletionVisitor extends SchemaVisitor[CompletionResolver] {

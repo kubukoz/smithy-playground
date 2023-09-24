@@ -51,7 +51,7 @@ object CompletionProvider {
       presentServiceIdentifiers: List[QualifiedIdentifier],
       insertBodyStruct: CompletionItem.InsertBodyStruct,
     ): List[CompletionItem] = {
-      val needsUseClause = !presentServiceIdentifiers.contains(serviceId)
+      val needsUseClause = !presentServiceIdentifiers.contains_(serviceId)
 
       val insertUseClause =
         if (needsUseClause)

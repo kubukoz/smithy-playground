@@ -72,12 +72,12 @@ case class ParsingFailure(
     e: Parser.Expectation,
   ): String =
     e match {
-      case OneOfStr(_, List(str))             => prep(str)
-      case OneOfStr(_, strs)                  => strs.map(prep).mkString_(" OR ")
-      case InRange(_, 'A', 'Z')               => "an uppercase letter"
-      case InRange(_, 'a', 'z')               => "a lowercase letter"
-      case InRange(_, '0', '9')               => "digit"
-      case InRange(_, from, to) if from == to => prep(from.toString)
+      case OneOfStr(_, List(str))              => prep(str)
+      case OneOfStr(_, strs)                   => strs.map(prep).mkString_(" OR ")
+      case InRange(_, 'A', 'Z')                => "an uppercase letter"
+      case InRange(_, 'a', 'z')                => "a lowercase letter"
+      case InRange(_, '0', '9')                => "digit"
+      case InRange(_, from, to) if from === to => prep(from.toString)
       case InRange(_, from, to) => s"one of ${prep(from.toString)} - ${prep(to.toString)}"
       case EndOfString(_, _)    => "end of string"
       case WithContext(contextStr, underlying) if verbose =>
