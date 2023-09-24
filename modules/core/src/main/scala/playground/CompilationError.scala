@@ -4,6 +4,7 @@ import cats.Id
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.implicits._
+import cats.kernel.Eq
 import playground.CompilationErrorDetails._
 import playground.smithyql._
 import playground.smithyql.format.Formatter
@@ -19,8 +20,8 @@ final case class CompilationError(
 ) {
   def deprecated: CompilationError = copy(tags = tags + DiagnosticTag.Deprecated)
 
-  def isError: Boolean = severity == DiagnosticSeverity.Error
-  def isWarning: Boolean = severity == DiagnosticSeverity.Warning
+  def isError: Boolean = severity === DiagnosticSeverity.Error
+  def isWarning: Boolean = severity === DiagnosticSeverity.Warning
 }
 
 object CompilationError {
@@ -69,6 +70,8 @@ object DiagnosticSeverity {
   case object Warning extends DiagnosticSeverity
   case object Error extends DiagnosticSeverity
   case object Information extends DiagnosticSeverity
+
+  implicit val eq: Eq[DiagnosticSeverity] = Eq.fromUniversalEquals
 }
 
 sealed trait DiagnosticTag extends Product with Serializable
@@ -145,7 +148,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
         val expectedRemainingString =
           if (remainingFields.isEmpty)
             ""
-          else if (remainingFields.size == 1)
+          else if (remainingFields.sizeIs == 1)
             s" Expected: ${remainingFields.head}."
           else
             s" Expected: one of ${remainingFields.mkString(", ")}."
