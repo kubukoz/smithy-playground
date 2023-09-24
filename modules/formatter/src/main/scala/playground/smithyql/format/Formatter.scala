@@ -68,16 +68,6 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
       internal +
       commentsRHSSep +
       commentsRHS
-    /*
-       case CommentPosition.After if lines.lengthIs == 1 =>
-        // one line: we add a space before the comment
-        Doc.lineOrSpace + internalString
-
-      case CommentPosition.After =>
-        // more lines: we force a hardline before the comments
-        Doc.hardLine + internalString
-    }
-     */
   }
 
   private def printGeneric(

@@ -271,7 +271,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         val presentKeys = struct.value.fields.value.keys
 
         val extraFieldErrors: QueryCompiler.Result[Unit] = presentKeys
-          .filterNot(field => validFields.contains(field.value.text))
+          .filterNot(field => validFields.contains_(field.value.text))
           .map { unexpectedKey =>
             CompilationError.error(
               UnexpectedField(remainingValidFields),
@@ -342,7 +342,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       // todo: should say it's a union
       .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
       .emap {
-        case s if s.value.fields.value.size == 1 =>
+        case s if s.value.fields.value.size === 1 =>
           val definition = s.value.fields.value.head
           val key = definition.identifier
 
@@ -462,10 +462,10 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     total: E => EnumValue[E],
   ): QueryCompiler[E] = (string, QueryCompiler.pos).tupled.emap { case (name, range) =>
     val byValue = values
-      .find(_.stringValue == name)
+      .find(_.stringValue === name)
 
     val byName = values
-      .find(_.name == name)
+      .find(_.name === name)
 
     (byName, byValue) match {
       case (Some(v), _) => v.value.pure[QueryCompiler.Result]
