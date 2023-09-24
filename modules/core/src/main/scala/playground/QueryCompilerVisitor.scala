@@ -264,7 +264,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         val remainingValidFields = validFields -- presentKeys.map(_.value.text).toSet
 
         val extraFieldErrors: QueryCompiler.Result[Unit] = presentKeys
-          .filterNot(field => validFields.contains_(field.value.text))
+          .filterNot(field => validFields.keySet.contains_(field.value.text))
           .map { unexpectedKey =>
             CompilationError.error(
               UnexpectedField(remainingValidFields.keys.toList),

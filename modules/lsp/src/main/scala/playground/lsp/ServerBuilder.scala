@@ -21,8 +21,6 @@ import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.kernel.AwsRegion
 
-import scala.concurrent.duration._
-
 trait ServerBuilder[F[_]] {
 
   def build(
