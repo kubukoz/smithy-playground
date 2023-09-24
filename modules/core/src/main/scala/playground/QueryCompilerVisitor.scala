@@ -50,6 +50,7 @@ import util.chaining._
 
 import java.util.Base64
 import java.util.UUID
+import scala.collection.immutable.ListMap
 
 object QueryCompilerVisitor {
   val full: Schema ~> QueryCompiler =
@@ -222,7 +223,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   private trait FieldCompiler[A] {
     def compiler: QueryCompiler[A]
     def default: Option[A]
-    def label: String
   }
 
   private object FieldCompiler {
@@ -235,8 +235,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
 
         override val default: Option[A] = field.schema.getDefaultValue
 
-        override val label: String = field.label
-
       }
 
   }
@@ -247,9 +245,11 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     fieldsRaw: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
   ): QueryCompiler[S] = {
-    val fields = fieldsRaw.map(FieldCompiler.compile(_))
+    val fields = fieldsRaw
+      .map(f => f.label -> FieldCompiler.compile(f))
+      .to(ListMap)
 
-    val validFields = fields.map(_.label)
+    val validFields = fields
     val deprecatedFields =
       fieldsRaw.flatMap { f =>
         f.hints.get(api.Deprecated).tupleLeft(f.label)
@@ -261,18 +261,13 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         val presentKeys = struct.value.fields.value.keys
 
         // this is a list to keep the original type's ordering
-        val remainingValidFields =
-          validFields
-            .filterNot(
-              presentKeys.map(_.value.text).toSet
-            )
-            .toList
+        val remainingValidFields = validFields -- presentKeys.map(_.value.text).toSet
 
         val extraFieldErrors: QueryCompiler.Result[Unit] = presentKeys
           .filterNot(field => validFields.contains(field.value.text))
           .map { unexpectedKey =>
             CompilationError.error(
-              UnexpectedField(remainingValidFields),
+              UnexpectedField(remainingValidFields.keys.toList),
               unexpectedKey.range,
             )
           }
@@ -294,14 +289,15 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
           .combine(Ior.right(()))
 
         def handleField[T](
-          field: FieldCompiler[T]
+          label: String,
+          field: FieldCompiler[T],
         ): QueryCompiler.Result[T] = {
           val fieldByName =
             struct
               .value
               .fields
               .value
-              .byName(field.label)(_.value)
+              .byName(label)(_.value)
 
           // Note: defaults get no special handling in dynamic schemas (in which a field with a default is considered optional).
           // There's no real need to provide the default value in a dynamic client, as it can just omit the field in the request being sent.
@@ -313,7 +309,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
             .flatMap {
               _.toRightIor(
                 CompilationError.error(
-                  MissingField(field.label),
+                  MissingField(label),
                   struct.value.fields.range,
                 )
               ).toIorNec
@@ -321,38 +317,11 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         }
 
         val buildStruct = fields
-          .parTraverse(handleField(_))
+          .toVector
+          .parTraverse { case (label, instance) => handleField(label, instance) }
 
         buildStruct.map(make) <& extraFieldErrors <& deprecatedFieldWarnings
       }
-  }
-
-  // todo: get rid of these
-  private trait QueryCompilerAlt[U, A] {
-    def instance: QueryCompiler[A]
-    def alt: Alt[U, A]
-    def label = alt.label
-
-    def inject(
-      a: A
-    ): U = alt.inject(a)
-
-  }
-
-  private object QueryCompilerAlt {
-
-    def fromAlt[U, A](
-      _alt: Alt[U, A]
-    ): QueryCompilerAlt[U, A] =
-      new QueryCompilerAlt[U, A] {
-        override val alt: Alt[U, A] = _alt
-
-        override val instance: QueryCompiler[A] = alt
-          .schema
-          .compile(QueryCompilerVisitorInternal.this)
-
-      }
-
   }
 
   def union[U](
@@ -361,10 +330,17 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     alternatives: Vector[Alt[U, _]],
     dispatcher: Alt.Dispatcher[U],
   ): QueryCompiler[U] = {
+    def handleAlt[A](
+      alt: Alt[U, A]
+    ): QueryCompiler[U] = alt
+      .schema
+      .compile(QueryCompilerVisitorInternal.this)
+      .map(alt.inject)
+
     val alternativesCompiled = alternatives
-      .map(QueryCompilerAlt.fromAlt(_))
-      .groupBy(_.label)
-      .map(_.map(_.head))
+      .groupByNev(_.label)
+      .fmap(_.head)
+      .fmap(handleAlt(_))
 
     val deprecatedAlternativeLabels =
       alternatives.flatMap(alt => alt.hints.get(api.Deprecated).tupleLeft(alt.label)).toMap
@@ -378,10 +354,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         case s if s.value.fields.value.size == 1 =>
           val definition = s.value.fields.value.head
           val key = definition.identifier
-
-          def go[A](
-            alt: QueryCompilerAlt[U, A]
-          ): QueryCompiler[U] = alt.instance.map(alt.inject)
 
           val op =
             alternativesCompiled
@@ -406,7 +378,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
             .toBothLeft(())
             .combine(Ior.right(()))
 
-          op.flatMap(go(_).compile(definition.value)) <& deprecationWarning
+          op.flatMap(_.compile(definition.value)) <& deprecationWarning
 
         case s if s.value.fields.value.isEmpty =>
           CompilationError

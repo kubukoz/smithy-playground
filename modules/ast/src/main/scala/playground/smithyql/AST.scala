@@ -270,7 +270,7 @@ object Struct {
     )(
       getValue: F[Identifier] => Identifier
     ): Option[F[InputNode[F]]] = value
-      .find(pair => getValue(pair.identifier).text == name)
+      .find(pair => getValue(pair.identifier).text === name)
       .map(_.value)
 
   }
