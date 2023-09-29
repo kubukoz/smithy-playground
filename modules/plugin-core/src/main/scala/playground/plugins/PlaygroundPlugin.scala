@@ -51,7 +51,7 @@ object SimpleHttpBuilder {
         service: Service[Alg],
         backend: Client[F],
       ): Either[UnsupportedProtocolError, FunctorAlgebra[Alg, F]] =
-        builder(service).client(backend).use
+        builder(service).client(backend).make
 
     }
 

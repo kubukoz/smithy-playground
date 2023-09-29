@@ -16,6 +16,8 @@ import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
 import playground.smithyql.syntax._
+import smithy.api.Examples
+import smithy4s.Hints
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait CompletionProvider {
@@ -103,7 +105,12 @@ object CompletionProvider {
           .service
           .endpoints
           .map { endpoint =>
-            OperationName[Id](endpoint.name) -> endpoint.input.compile(CompletionVisitor)
+            OperationName[Id](endpoint.name) -> endpoint
+              .input
+              .addHints(
+                endpoint.hints.get(Examples).map(Hints(_)).getOrElse(Hints.empty)
+              )
+              .compile(CompletionVisitor)
           }
           .toMap
       }

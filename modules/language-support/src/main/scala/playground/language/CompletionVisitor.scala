@@ -3,10 +3,12 @@ package playground.language
 import cats.Id
 import cats.implicits._
 import cats.kernel.Eq
+import playground.NodeEncoder
 import playground.ServiceNameExtractor
 import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
 import playground.language.CompletionItem.InsertUseClause.Required
+import playground.smithyql.InputNode
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.EmptyPath
 import playground.smithyql.NodeContext.PathEntry
@@ -23,6 +25,7 @@ import playground.smithyql.WithSource
 import playground.smithyql.format.Formatter
 import smithy.api
 import smithy4s.Bijection
+import smithy4s.Document
 import smithy4s.Endpoint
 import smithy4s.Hints
 import smithy4s.Lazy
@@ -145,15 +148,17 @@ object CompletionItem {
     label: String,
     insertText: InsertText,
     schema: Schema[_],
+    sortTextOverride: Option[String] = None,
   ): CompletionItem = {
     val isField = kind === CompletionItemKind.Field
 
-    val sortText =
+    val sortText = sortTextOverride.orElse {
       isField match {
         case true if isRequiredField(schema) => Some(s"1_$label")
         case true                            => Some(s"2_$label")
         case false                           => None
       }
+    }
 
     CompletionItem(
       kind = kind,
@@ -530,15 +535,55 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     fields: Vector[SchemaField[S, _]],
     make: IndexedSeq[Any] => S,
   ): CompletionResolver[S] = {
+    // Artificial schema resembling this one. Should be pretty much equivalent.
+    val schema = Schema.struct(fields)(make).addHints(hints).withId(shapeId)
+    val documentDecoder = Document.Decoder.fromSchema(schema)
+
+    val nodeEncoder = NodeEncoder.derive(schema)
+
     val compiledFields = fields.map(field => (field.mapK(this), field.instance))
+
+    /* todo: pass this outside of Hints? (visitor context?) */
+    val examples = hints
+      .get(api.Examples)
+      .foldMap(_.value)
+      .zipWithIndex
+      .map { case (example, index) =>
+        val name = example.title
+        val doc = example.documentation
+
+        val text = Formatter[InputNode]
+          .format(
+            nodeEncoder
+              .toNode(documentDecoder.decode(example.input.get).toTry.get /* todo: be graceful */ )
+              .mapK(WithSource.liftId),
+            Int.MaxValue,
+          )
+          .trim()
+          .tail
+          .init /* HACK: trim opening/closing braces */
+          .trim()
+
+        CompletionItem.fromHints(
+          kind = CompletionItemKind.Constant /* todo */,
+          label = s"Example: $name",
+          insertText = InsertText.JustString(text),
+          // issue: this doesn't work if the schema already has a Documentation hint. We should remove it first, or do something else.
+          schema = schema.addHints(
+            doc.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
+          ),
+          sortTextOverride = Some(s"0_$index"),
+        )
+      }
 
     structLike(
       inBody =
-        fields
-          // todo: filter out present fields
-          .sortBy(field => (field.isRequired, field.label))
-          .map(CompletionItem.fromField)
-          .toList,
+        examples ++
+          fields
+            // todo: filter out present fields
+            .sortBy(field => (field.isRequired, field.label))
+            .map(CompletionItem.fromField)
+            .toList,
       inValue =
         (
           h,
