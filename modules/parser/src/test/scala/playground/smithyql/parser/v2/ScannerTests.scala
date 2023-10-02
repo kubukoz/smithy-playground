@@ -342,4 +342,12 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     )
   )
 
+  scanTest(
+    explicitName = "String literal, multi-line (parity test)",
+    input = "\"hello\nworld\"",
+  )(
+    List(
+      TokenKind.LIT_STRING("\"hello\nworld\"")
+    )
+  )
 }
