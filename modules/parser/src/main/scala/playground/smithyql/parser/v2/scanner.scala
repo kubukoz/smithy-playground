@@ -31,6 +31,7 @@ object TokenKind {
   case object RB extends TokenKind
   case object LBR extends TokenKind
   case object RBR extends TokenKind
+  case object COLON extends TokenKind
   case object EQ extends TokenKind
   case object SPACE extends TokenKind
   case object NEWLINE extends TokenKind
@@ -81,6 +82,7 @@ object Scanner {
       ']' -> TokenKind.RB,
       '{' -> TokenKind.LBR,
       '}' -> TokenKind.RBR,
+      ':' -> TokenKind.COLON,
       '=' -> TokenKind.EQ,
     ).orElse {
       case letter if letter.isLetter =>

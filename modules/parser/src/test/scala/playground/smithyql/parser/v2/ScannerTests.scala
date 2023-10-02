@@ -75,6 +75,7 @@ object ScannerTests extends SimpleIOSuite with Checkers {
   scanTest(".")(List(TokenKind.DOT(".")))
   scanTest(",")(List(TokenKind.COMMA(",")))
   scanTest("#")(List(TokenKind.HASH("#")))
+  scanTest(":")(List(TokenKind.COLON(":")))
   scanTest("=")(List(TokenKind.EQ("=")))
   scanTest("a")(List(TokenKind.IDENT("a")))
 
