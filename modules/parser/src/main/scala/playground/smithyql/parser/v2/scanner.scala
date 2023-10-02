@@ -64,37 +64,58 @@ object Scanner {
     ) = tokens ::= tok
 
     def readSimple(
-      token: Char,
+      token: String,
       tok: TokenKind,
     ): PartialFunction[Unit, Unit] = {
-      case _ if remaining.startsWith(token.toString()) =>
+      case _ if remaining.startsWith(token) =>
         add(tok(token.toString))
-        remaining = remaining.drop(token.toString().length())
+        remaining = remaining.drop(token.length())
     }
 
     def simpleTokens(
       pairings: (
-        Char,
+        String,
         TokenKind,
       )*
     ): PartialFunction[Unit, Unit] = pairings.map(readSimple.tupled).reduce(_.orElse(_))
 
-    def readOne: PartialFunction[Unit, Unit] = simpleTokens(
-      '.' -> TokenKind.DOT,
-      ',' -> TokenKind.COMMA,
-      '#' -> TokenKind.HASH,
-      '[' -> TokenKind.LB,
-      ']' -> TokenKind.RB,
-      '{' -> TokenKind.LBR,
-      '}' -> TokenKind.RBR,
-      ':' -> TokenKind.COLON,
-      '=' -> TokenKind.EQ,
-    ).orElse {
+    val keywords = Map(
+      "use" -> TokenKind.KW_USE,
+      "service" -> TokenKind.KW_SERVICE,
+      "null" -> TokenKind.KW_NULL,
+      "true" -> TokenKind.KW_BOOLEAN,
+      "false" -> TokenKind.KW_BOOLEAN,
+    )
+
+    def readIdent: PartialFunction[Unit, Unit] = {
       case _ if remaining.head.isLetter =>
         val (letters, rest) = remaining.span(ch => ch.isLetterOrDigit || ch == '_')
-        add(TokenKind.IDENT(letters))
+
+        keywords.get(letters) match {
+          case Some(kind) =>
+            // we matched a keyword, return it.
+            add(kind(letters))
+          case None =>
+            // normal ident
+            add(TokenKind.IDENT(letters))
+        }
+
         remaining = rest
     }
+
+    def readPunctuation: PartialFunction[Unit, Unit] = simpleTokens(
+      "." -> TokenKind.DOT,
+      "," -> TokenKind.COMMA,
+      "#" -> TokenKind.HASH,
+      "[" -> TokenKind.LB,
+      "]" -> TokenKind.RB,
+      "{" -> TokenKind.LBR,
+      "}" -> TokenKind.RBR,
+      ":" -> TokenKind.COLON,
+      "=" -> TokenKind.EQ,
+    )
+
+    def readOne: PartialFunction[Unit, Unit] = readIdent.orElse(readPunctuation)
 
     // split "whitespace" string into chains of contiguous newlines OR whitespace characters.
     def whitespaceChains(

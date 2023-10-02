@@ -97,6 +97,12 @@ object ScannerTests extends SimpleIOSuite with Checkers {
   scanTest(":")(List(TokenKind.COLON(":")))
   scanTest("=")(List(TokenKind.EQ("=")))
   scanTest("a")(List(TokenKind.IDENT("a")))
+  scanTest("use")(List(TokenKind.KW_USE("use")))
+  scanTest("service")(List(TokenKind.KW_SERVICE("service")))
+  scanTest("null")(List(TokenKind.KW_NULL("null")))
+  scanTest("true")(List(TokenKind.KW_BOOLEAN("true")))
+  scanTest("false")(List(TokenKind.KW_BOOLEAN("false")))
+  // todo: number, string
 
   // idents
   scanTest("abcdef")(List(TokenKind.IDENT("abcdef")))
@@ -114,6 +120,18 @@ object ScannerTests extends SimpleIOSuite with Checkers {
   )(
     List(
       TokenKind.IDENT("helloworld123")
+    )
+  )
+
+  scanTest(explicitName = "Identifier similar to a keyword - prefix", input = "notfalse")(
+    List(
+      TokenKind.IDENT("notfalse")
+    )
+  )
+
+  scanTest(explicitName = "Identifier similar to a keyword - suffix", input = "falsely")(
+    List(
+      TokenKind.IDENT("falsely")
     )
   )
 
@@ -196,6 +214,13 @@ object ScannerTests extends SimpleIOSuite with Checkers {
       TokenKind.IDENT("an"),
       TokenKind.Error("<"),
       TokenKind.IDENT("example"),
+    )
+  )
+
+  scanTest(explicitName = "Error tokens before a multi-char keyword", input = "--false")(
+    List(
+      TokenKind.Error("--"),
+      TokenKind.KW_BOOLEAN("false"),
     )
   )
 
