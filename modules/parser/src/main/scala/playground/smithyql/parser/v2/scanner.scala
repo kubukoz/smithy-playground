@@ -87,7 +87,7 @@ object Scanner {
       "false" -> TokenKind.KW_BOOLEAN,
     )
 
-    def readIdent: PartialFunction[Unit, Unit] = {
+    val readIdent: PartialFunction[Unit, Unit] = {
       case _ if remaining.head.isLetter =>
         val (letters, rest) = remaining.span(ch => ch.isLetterOrDigit || ch == '_')
 
@@ -95,6 +95,7 @@ object Scanner {
           case Some(kind) =>
             // we matched a keyword, return it.
             add(kind(letters))
+
           case None =>
             // normal ident
             add(TokenKind.IDENT(letters))
@@ -103,7 +104,7 @@ object Scanner {
         remaining = rest
     }
 
-    def readPunctuation: PartialFunction[Unit, Unit] = simpleTokens(
+    val readPunctuation: PartialFunction[Unit, Unit] = simpleTokens(
       "." -> TokenKind.DOT,
       "," -> TokenKind.COMMA,
       "#" -> TokenKind.HASH,
@@ -115,7 +116,7 @@ object Scanner {
       "=" -> TokenKind.EQ,
     )
 
-    def readOne: PartialFunction[Unit, Unit] = readIdent.orElse(readPunctuation)
+    val readOne: PartialFunction[Unit, Unit] = readIdent.orElse(readPunctuation)
 
     // split "whitespace" string into chains of contiguous newlines OR whitespace characters.
     def whitespaceChains(
