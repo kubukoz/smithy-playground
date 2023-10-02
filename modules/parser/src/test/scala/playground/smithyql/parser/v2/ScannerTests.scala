@@ -2,8 +2,10 @@ package playground.smithyql.parser.v2
 
 import cats.effect.IO
 import cats.implicits._
+import com.softwaremill.diffx.Diff
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
+import playground.Assertions
 import playground.smithyql.parser.v2.scanner.Scanner
 import playground.smithyql.parser.v2.scanner.Token
 import playground.smithyql.parser.v2.scanner.TokenKind
@@ -13,6 +15,9 @@ import weaver.scalacheck.Checkers
 import Scanner.scan
 
 object ScannerTests extends SimpleIOSuite with Checkers {
+
+  implicit val tokenKindDiff: Diff[TokenKind] = Diff.derived
+  implicit val tokenDiff: Diff[Token] = Diff.derived
 
   def arbTests(
     name: TestName
@@ -51,17 +56,19 @@ object ScannerTests extends SimpleIOSuite with Checkers {
 
   private def scanTest(
     input: String,
-    explicitName: String = "",
+    explicitName: TestName = "",
   )(
     expected: List[Token]
+  )(
+    implicit loc: SourceLocation
   ): Unit =
     pureTest(
-      if (explicitName.nonEmpty)
+      if (explicitName.name.nonEmpty)
         explicitName
       else
         "Scan string: " + sanitize(input)
     ) {
-      assert.eql(expected, scan(input))
+      Assertions.assertNoDiff(scan(input), expected)
     }
 
   // Runs scanTest by first rendering the expected tokens to a string, then scanning it to get them back.
@@ -72,6 +79,8 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     explicitName: String
   )(
     expected: List[Token]
+  )(
+    implicit loc: SourceLocation
   ): Unit = scanTest(expected.foldMap(_.text), explicitName)(expected)
 
   private def sanitize(
@@ -162,6 +171,17 @@ object ScannerTests extends SimpleIOSuite with Checkers {
 
   scanTest(
     explicitName = "Error tokens mixed between other tokens",
+    input = "hello@world",
+  )(
+    List(
+      TokenKind.IDENT("hello"),
+      TokenKind.Error("@"),
+      TokenKind.IDENT("world"),
+    )
+  )
+
+  scanTest(
+    explicitName = "Error tokens mixed between other tokens - complex",
     input = "hello@world-this?is=an<example",
   )(
     List(

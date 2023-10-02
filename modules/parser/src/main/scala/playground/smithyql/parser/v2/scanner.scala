@@ -66,9 +66,10 @@ object Scanner {
     def readSimple(
       token: Char,
       tok: TokenKind,
-    ): PartialFunction[Char, Unit] = { case `token` =>
-      add(tok(token.toString))
-      remaining = remaining.tail
+    ): PartialFunction[Unit, Unit] = {
+      case _ if remaining.startsWith(token.toString()) =>
+        add(tok(token.toString))
+        remaining = remaining.drop(token.toString().length())
     }
 
     def simpleTokens(
@@ -76,11 +77,9 @@ object Scanner {
         Char,
         TokenKind,
       )*
-    ): PartialFunction[Char, Unit] = pairings
-      .map(readSimple.tupled)
-      .reduce(_ orElse _)
+    ): PartialFunction[Unit, Unit] = pairings.map(readSimple.tupled).reduce(_.orElse(_))
 
-    val readOne: PartialFunction[Char, Unit] = simpleTokens(
+    def readOne: PartialFunction[Unit, Unit] = simpleTokens(
       '.' -> TokenKind.DOT,
       ',' -> TokenKind.COMMA,
       '#' -> TokenKind.HASH,
@@ -91,7 +90,7 @@ object Scanner {
       ':' -> TokenKind.COLON,
       '=' -> TokenKind.EQ,
     ).orElse {
-      case letter if letter.isLetter =>
+      case _ if remaining.head.isLetter =>
         val (letters, rest) = remaining.span(ch => ch.isLetterOrDigit || ch == '_')
         add(TokenKind.IDENT(letters))
         remaining = rest
@@ -145,8 +144,17 @@ object Scanner {
     ) = {
       // todo: bug: even if the next character starts a multi-char token, this will consider it an error.
       // instead, we should rework "readOne" to consume arbitrary constant-length tokens, and also include the possibility that `rest` has comments or whitespace.
-      val (failures, rest) = remaining.span(!readOne.isDefinedAt(_))
-      remaining = rest
+      val (failures, _) = remaining.span { _ =>
+        if (readOne.isDefinedAt(()))
+          // this will match. stop!
+          false
+        else {
+          // didn't match. We need to move the cursor manually here
+          remaining = remaining.tail
+          true
+        }
+      }
+
       if (failures.nonEmpty) {
         add(TokenKind.Error(failures))
         true
@@ -157,13 +165,18 @@ object Scanner {
     while (remaining.nonEmpty) {
       val last = remaining
 
-      readOne.applyOrElse[Char, Any](
-        remaining.head,
-        (_: Char) =>
-          // nothing matched. Eat whitespace and see if the rest is an error
-          eatWhitespace() || eatComments() || eatErrors(),
-      )
+      {
+        val matched = readOne.isDefinedAt(())
+        if (matched)
+          readOne(())
 
+        matched
+      } ||
+        eatWhitespace() ||
+        eatComments() ||
+        eatErrors(): Unit
+
+      // last-effort sanity check
       if (remaining == last)
         sys.error(s"no progress in the last run! remaining string: $remaining")
     }
