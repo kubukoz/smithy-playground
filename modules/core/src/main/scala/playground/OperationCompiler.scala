@@ -83,7 +83,7 @@ object OperationCompiler {
 
   def fromSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): OperationCompiler[Eff] = fromServices(dsi.allServices)
+  ): OperationCompiler[Eff] = fromServices(dsi.allServices.toList)
 
   def fromServices(
     services: List[DynamicSchemaIndex.ServiceWrapper]
@@ -154,7 +154,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
   ): QueryCompiler[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
     val outputEncoder = NodeEncoder.derive(e.output)
-    val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
+    val errorEncoder = e.error.map(e => NodeEncoder.derive(e.schema))
 
     ast =>
       inputCompiler

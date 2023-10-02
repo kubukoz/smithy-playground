@@ -100,7 +100,7 @@ object BuildLoader {
         for {
           specs <- filterImports(rawImportPaths)
           model <- loadModel(specs, loaded.config)
-          dsi <- DynamicSchemaIndex.loadModel(model).liftTo[F]
+          dsi = DynamicSchemaIndex.loadModel(model)
         } yield dsi
       }
 

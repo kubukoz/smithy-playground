@@ -133,7 +133,7 @@ object LanguageServer {
 
       // see if we can pass this everywhere
       // https://github.com/kubukoz/smithy-playground/issues/164
-      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices)
+      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
 
       val compiler: FileCompiler[IorThrow] = FileCompiler
         .instance(

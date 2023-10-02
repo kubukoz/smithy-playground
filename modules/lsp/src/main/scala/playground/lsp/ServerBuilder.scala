@@ -84,7 +84,7 @@ object ServerBuilder {
               plugins = plugins,
             )
 
-          val serviceIndex = ServiceIndex.fromServices(dsi.allServices)
+          val serviceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
 
           implicit val sl: ServerLoader[F] = loader
 

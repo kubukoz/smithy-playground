@@ -147,7 +147,7 @@ object OperationRunner {
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
   ): Map[QualifiedIdentifier, Resolver[F]] = forServices(
-    services = dsi.allServices,
+    services = dsi.allServices.toList,
     getSchema = dsi.getSchema,
     client = client,
     baseUri = baseUri,

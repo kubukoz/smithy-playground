@@ -50,11 +50,11 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
           val mapOutput = makeProxy(endpointStatic.output, endpoint.output)
 
           def errorMapper[A]: Throwable => F[A] =
-            endpointStatic.errorable match {
+            endpointStatic.error match {
               case None => _.raiseError[F, A]
               case Some(errorableStatic) =>
-                val errorable = endpoint.errorable.get // should be there at this point
-                val mapError = makeProxy(errorableStatic.error, errorable.error)
+                val errorable = endpoint.error.get // should be there at this point
+                val mapError = makeProxy(errorableStatic.schema, errorable.schema)
 
                 e =>
                   errorableStatic.liftError(e) match {
