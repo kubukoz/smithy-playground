@@ -255,4 +255,36 @@ object ScannerTests extends SimpleIOSuite with Checkers {
       TokenKind.NEWLINE("\n"),
     )
   )
+
+  scanTest(
+    explicitName = "whitespace and comments around keyword",
+    input =
+      """hello use service foo //bar
+        | true //one
+        |//two
+        |null """.stripMargin,
+  )(
+    List(
+      TokenKind.IDENT("hello"),
+      TokenKind.SPACE(" "),
+      TokenKind.KW_USE("use"),
+      TokenKind.SPACE(" "),
+      TokenKind.KW_SERVICE("service"),
+      TokenKind.SPACE(" "),
+      TokenKind.IDENT("foo"),
+      TokenKind.SPACE(" "),
+      TokenKind.COMMENT("//bar"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE(" "),
+      TokenKind.KW_BOOLEAN("true"),
+      TokenKind.SPACE(" "),
+      TokenKind.COMMENT("//one"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.COMMENT("//two"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.KW_NULL("null"),
+      TokenKind.SPACE(" "),
+    )
+  )
+
 }
