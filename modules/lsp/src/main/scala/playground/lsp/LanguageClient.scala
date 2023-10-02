@@ -3,16 +3,12 @@ package playground.lsp
 import cats.FlatMap
 import cats.effect.kernel.Async
 import cats.implicits._
-import cats.tagless.Derive
-import cats.tagless.FunctorK
-import cats.tagless.implicits._
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ConfigurationItem
 import org.eclipse.lsp4j.ConfigurationParams
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import playground.language.Feedback
-import playground.lsp.util.KleisliOps
 
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters._
@@ -51,8 +47,6 @@ object LanguageClient {
   def apply[F[_]](
     implicit F: LanguageClient[F]
   ): LanguageClient[F] = F
-
-  implicit val functorK: FunctorK[LanguageClient] = Derive.functorK
 
   def adapt[F[_]: Async](
     client: PlaygroundLanguageClient
@@ -107,9 +101,33 @@ object LanguageClient {
       def refreshDiagnostics: F[Unit] = withClientF(_.refreshDiagnostics()).void
     }
 
+  // courtesy of github copilot
+  // workaround for https://github.com/typelevel/cats-tagless/pull/401
   def defer[F[_]: FlatMap](
     fa: F[LanguageClient[F]]
-  ): LanguageClient[F] = Derive.readerT[LanguageClient, F].mapK(KleisliOps.applyEffectK(fa))
+  ): LanguageClient[F] =
+    new LanguageClient[F] {
+
+      override def configuration[A](
+        v: ConfigurationValue[A]
+      ): F[A] = fa.flatMap(_.configuration(v))
+
+      override def showMessage(
+        tpe: MessageType,
+        msg: String,
+      ): F[Unit] = fa.flatMap(_.showMessage(tpe, msg))
+
+      override def refreshDiagnostics: F[Unit] = fa.flatMap(_.refreshDiagnostics)
+
+      override def refreshCodeLenses: F[Unit] = fa.flatMap(_.refreshCodeLenses)
+
+      override def showOutputPanel: F[Unit] = fa.flatMap(_.showOutputPanel)
+
+      override def logOutput(
+        msg: String
+      ): F[Unit] = fa.flatMap(_.logOutput(msg))
+
+    }
 
   val NoChangeDetected: String = "No change detected, not rebuilding server"
 }
