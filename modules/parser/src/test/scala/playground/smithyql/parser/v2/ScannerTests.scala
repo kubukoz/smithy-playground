@@ -88,31 +88,31 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     text: String
   ) = text.replace(" ", "·").replace("\n", "↵")
 
-  scanTest("{")(List(TokenKind.LBR("{")))
-  scanTest("}")(List(TokenKind.RBR("}")))
-  scanTest("[")(List(TokenKind.LB("[")))
-  scanTest("]")(List(TokenKind.RB("]")))
-  scanTest(".")(List(TokenKind.DOT(".")))
-  scanTest(",")(List(TokenKind.COMMA(",")))
-  scanTest("#")(List(TokenKind.HASH("#")))
-  scanTest(":")(List(TokenKind.COLON(":")))
-  scanTest("=")(List(TokenKind.EQ("=")))
-  scanTest("a")(List(TokenKind.IDENT("a")))
-  scanTest("use")(List(TokenKind.KW_USE("use")))
-  scanTest("service")(List(TokenKind.KW_SERVICE("service")))
-  scanTest("null")(List(TokenKind.KW_NULL("null")))
-  scanTest("true")(List(TokenKind.KW_BOOLEAN("true")))
-  scanTest("false")(List(TokenKind.KW_BOOLEAN("false")))
+  scanTest("{")(List(LBR("{")))
+  scanTest("}")(List(RBR("}")))
+  scanTest("[")(List(LB("[")))
+  scanTest("]")(List(RB("]")))
+  scanTest(".")(List(DOT(".")))
+  scanTest(",")(List(COMMA(",")))
+  scanTest("#")(List(HASH("#")))
+  scanTest(":")(List(COLON(":")))
+  scanTest("=")(List(EQ("=")))
+  scanTest("a")(List(IDENT("a")))
+  scanTest("use")(List(KW_USE("use")))
+  scanTest("service")(List(KW_SERVICE("service")))
+  scanTest("null")(List(KW_NULL("null")))
+  scanTest("true")(List(KW_BOOLEAN("true")))
+  scanTest("false")(List(KW_BOOLEAN("false")))
   // todo: number, string
 
   // idents
-  scanTest("abcdef")(List(TokenKind.IDENT("abcdef")))
+  scanTest("abcdef")(List(IDENT("abcdef")))
 
   scanTest(
     "hello_world"
   )(
     List(
-      TokenKind.IDENT("hello_world")
+      IDENT("hello_world")
     )
   )
 
@@ -120,41 +120,41 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     "helloworld123"
   )(
     List(
-      TokenKind.IDENT("helloworld123")
+      IDENT("helloworld123")
     )
   )
 
   scanTest(explicitName = "Identifier similar to a keyword - prefix", input = "notfalse")(
     List(
-      TokenKind.IDENT("notfalse")
+      IDENT("notfalse")
     )
   )
 
   scanTest(explicitName = "Identifier similar to a keyword - suffix", input = "falsely")(
     List(
-      TokenKind.IDENT("falsely")
+      IDENT("falsely")
     )
   )
 
   // whitespace
-  scanTest(" ")(List(TokenKind.SPACE(" ")))
-  scanTest("\n")(List(TokenKind.NEWLINE("\n")))
+  scanTest(" ")(List(SPACE(" ")))
+  scanTest("\n")(List(NEWLINE("\n")))
 
   // contiguous whitespace of all kinds
   // notably newlines are grouped together separately from other whitespace
-  scanTest("  \r \r \n\n")(List(TokenKind.SPACE("  \r \r "), TokenKind.NEWLINE("\n\n")))
+  scanTest("  \r \r \n\n")(List(SPACE("  \r \r "), NEWLINE("\n\n")))
   scanTest("  \n\n  \n ")(
     List(
-      TokenKind.SPACE("  "),
-      TokenKind.NEWLINE("\n\n"),
-      TokenKind.SPACE("  "),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE(" "),
+      SPACE("  "),
+      NEWLINE("\n\n"),
+      SPACE("  "),
+      NEWLINE("\n"),
+      SPACE(" "),
     )
   )
 
   // comments
-  scanTest("// hello 123 foo bar --")(List(TokenKind.COMMENT("// hello 123 foo bar --")))
+  scanTest("// hello 123 foo bar --")(List(COMMENT("// hello 123 foo bar --")))
 
   scanTest(
     explicitName = "Scan multiple line-comments",
@@ -163,9 +163,9 @@ object ScannerTests extends SimpleIOSuite with Checkers {
         |//world""".stripMargin,
   )(
     List(
-      TokenKind.COMMENT("//hello"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("//world"),
+      COMMENT("//hello"),
+      NEWLINE("\n"),
+      COMMENT("//world"),
     )
   )
 
@@ -173,11 +173,11 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     "hello world //this is a comment"
   )(
     List(
-      TokenKind.IDENT("hello"),
-      TokenKind.SPACE(" "),
-      TokenKind.IDENT("world"),
-      TokenKind.SPACE(" "),
-      TokenKind.COMMENT("//this is a comment"),
+      IDENT("hello"),
+      SPACE(" "),
+      IDENT("world"),
+      SPACE(" "),
+      COMMENT("//this is a comment"),
     )
   )
 
@@ -186,16 +186,16 @@ object ScannerTests extends SimpleIOSuite with Checkers {
   scanTest(
     explicitName = "Error tokens for input that doesn't match any other token",
     input = "🤷*%$^@-+?",
-  )(List(TokenKind.Error("🤷*%$^@-+?")))
+  )(List(Error("🤷*%$^@-+?")))
 
   scanTest(
     explicitName = "Error tokens mixed between other tokens",
     input = "hello@world",
   )(
     List(
-      TokenKind.IDENT("hello"),
-      TokenKind.Error("@"),
-      TokenKind.IDENT("world"),
+      IDENT("hello"),
+      Error("@"),
+      IDENT("world"),
     )
   )
 
@@ -204,24 +204,24 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     input = "hello@world-this?is=an<example",
   )(
     List(
-      TokenKind.IDENT("hello"),
-      TokenKind.Error("@"),
-      TokenKind.IDENT("world"),
-      TokenKind.Error("-"),
-      TokenKind.IDENT("this"),
-      TokenKind.Error("?"),
-      TokenKind.IDENT("is"),
-      TokenKind.EQ("="),
-      TokenKind.IDENT("an"),
-      TokenKind.Error("<"),
-      TokenKind.IDENT("example"),
+      IDENT("hello"),
+      Error("@"),
+      IDENT("world"),
+      Error("-"),
+      IDENT("this"),
+      Error("?"),
+      IDENT("is"),
+      EQ("="),
+      IDENT("an"),
+      Error("<"),
+      IDENT("example"),
     )
   )
 
   scanTest(explicitName = "Error tokens before a multi-char keyword", input = "--false")(
     List(
-      TokenKind.Error("--"),
-      TokenKind.KW_BOOLEAN("false"),
+      Error("--"),
+      KW_BOOLEAN("false"),
     )
   )
 
@@ -231,29 +231,29 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     "many tokens of punctuation and idents mixed with error nodes and comments"
   )(
     List(
-      TokenKind.LBR("{"),
-      TokenKind.IDENT("foo"),
-      TokenKind.RBR("}"),
-      TokenKind.LB("["),
-      TokenKind.IDENT("bar"),
-      TokenKind.RB("]"),
-      TokenKind.DOT("."),
-      TokenKind.IDENT("baz"),
-      TokenKind.COMMA(","),
-      TokenKind.IDENT("xx"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.HASH("#"),
-      TokenKind.COLON(":"),
-      TokenKind.EQ("="),
-      TokenKind.IDENT("abc123def"),
-      TokenKind.SPACE(" "),
-      TokenKind.IDENT("ghe"),
-      TokenKind.Error("--"),
-      TokenKind.IDENT("eef"),
-      TokenKind.SPACE(" "),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("//hello"),
-      TokenKind.NEWLINE("\n"),
+      LBR("{"),
+      IDENT("foo"),
+      RBR("}"),
+      LB("["),
+      IDENT("bar"),
+      RB("]"),
+      DOT("."),
+      IDENT("baz"),
+      COMMA(","),
+      IDENT("xx"),
+      NEWLINE("\n"),
+      HASH("#"),
+      COLON(":"),
+      EQ("="),
+      IDENT("abc123def"),
+      SPACE(" "),
+      IDENT("ghe"),
+      Error("--"),
+      IDENT("eef"),
+      SPACE(" "),
+      NEWLINE("\n"),
+      COMMENT("//hello"),
+      NEWLINE("\n"),
     )
   )
 
@@ -266,25 +266,25 @@ object ScannerTests extends SimpleIOSuite with Checkers {
         |null """.stripMargin,
   )(
     List(
-      TokenKind.IDENT("hello"),
-      TokenKind.SPACE(" "),
-      TokenKind.KW_USE("use"),
-      TokenKind.SPACE(" "),
-      TokenKind.KW_SERVICE("service"),
-      TokenKind.SPACE(" "),
-      TokenKind.IDENT("foo"),
-      TokenKind.SPACE(" "),
-      TokenKind.COMMENT("//bar"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE(" "),
-      TokenKind.KW_BOOLEAN("true"),
-      TokenKind.SPACE(" "),
-      TokenKind.COMMENT("//one"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("//two"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.KW_NULL("null"),
-      TokenKind.SPACE(" "),
+      IDENT("hello"),
+      SPACE(" "),
+      KW_USE("use"),
+      SPACE(" "),
+      KW_SERVICE("service"),
+      SPACE(" "),
+      IDENT("foo"),
+      SPACE(" "),
+      COMMENT("//bar"),
+      NEWLINE("\n"),
+      SPACE(" "),
+      KW_BOOLEAN("true"),
+      SPACE(" "),
+      COMMENT("//one"),
+      NEWLINE("\n"),
+      COMMENT("//two"),
+      NEWLINE("\n"),
+      KW_NULL("null"),
+      SPACE(" "),
     )
   )
 
@@ -293,7 +293,7 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     "\"hello world\""
   )(
     List(
-      TokenKind.LIT_STRING("\"hello world\"")
+      LIT_STRING("\"hello world\"")
     )
   )
 
@@ -302,7 +302,7 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     input = "\"hello world",
   )(
     List(
-      TokenKind.LIT_STRING("\"hello world")
+      LIT_STRING("\"hello world")
     )
   )
 
@@ -311,10 +311,10 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     input = "\"hello world\", \"foo bar\"",
   )(
     List(
-      TokenKind.LIT_STRING("\"hello world\""),
-      TokenKind.COMMA(","),
-      TokenKind.SPACE(" "),
-      TokenKind.LIT_STRING("\"foo bar\""),
+      LIT_STRING("\"hello world\""),
+      COMMA(","),
+      SPACE(" "),
+      LIT_STRING("\"foo bar\""),
     )
   )
 
@@ -323,10 +323,10 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     input = "\"hello world\", \"foo bar",
   )(
     List(
-      TokenKind.LIT_STRING("\"hello world\""),
-      TokenKind.COMMA(","),
-      TokenKind.SPACE(" "),
-      TokenKind.LIT_STRING("\"foo bar"),
+      LIT_STRING("\"hello world\""),
+      COMMA(","),
+      SPACE(" "),
+      LIT_STRING("\"foo bar"),
     )
   )
 
@@ -335,11 +335,11 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     input = "\"hello world, \"foo bar\"",
   )(
     List(
-      TokenKind.LIT_STRING("\"hello world, \""),
-      TokenKind.IDENT("foo"),
-      TokenKind.SPACE(" "),
-      TokenKind.IDENT("bar"),
-      TokenKind.LIT_STRING("\""),
+      LIT_STRING("\"hello world, \""),
+      IDENT("foo"),
+      SPACE(" "),
+      IDENT("bar"),
+      LIT_STRING("\""),
     )
   )
 
@@ -348,7 +348,7 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     input = "\"hello\nworld\"",
   )(
     List(
-      TokenKind.LIT_STRING("\"hello\nworld\"")
+      LIT_STRING("\"hello\nworld\"")
     )
   )
 
@@ -382,92 +382,92 @@ object ScannerTests extends SimpleIOSuite with Checkers {
         |""".stripMargin,
   )(
     List(
-      TokenKind.KW_USE("use"),
-      TokenKind.SPACE(" "),
-      TokenKind.KW_SERVICE("service"),
-      TokenKind.SPACE(" "),
-      TokenKind.IDENT("demo"),
-      TokenKind.DOT("."),
-      TokenKind.IDENT("smithy"),
-      TokenKind.HASH("#"),
-      TokenKind.IDENT("DemoService"),
-      TokenKind.NEWLINE("\n\n"),
-      TokenKind.COMMENT("// CreateSubscription {"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("//   subscription: {"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("//     id: \"subscription_id\","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("//     name: \"name\","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("//     createdAt: \"2020-04-01T00:00:00Z\","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("//   },"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.COMMENT("// }"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.IDENT("CreateHero"),
-      TokenKind.SPACE(" "),
-      TokenKind.LBR("{"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("  "),
-      TokenKind.IDENT("hero"),
-      TokenKind.COLON(":"),
-      TokenKind.SPACE(" "),
-      TokenKind.LBR("{"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("    "),
-      TokenKind.IDENT("good"),
-      TokenKind.COLON(":"),
-      TokenKind.SPACE(" "),
-      TokenKind.COMMENT("// bgasdfasldf"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("      "),
-      TokenKind.LBR("{"),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("        "),
-      TokenKind.IDENT("howGood"),
-      TokenKind.COLON(":"),
-      TokenKind.SPACE(" "),
+      KW_USE("use"),
+      SPACE(" "),
+      KW_SERVICE("service"),
+      SPACE(" "),
+      IDENT("demo"),
+      DOT("."),
+      IDENT("smithy"),
+      HASH("#"),
+      IDENT("DemoService"),
+      NEWLINE("\n\n"),
+      COMMENT("// CreateSubscription {"),
+      NEWLINE("\n"),
+      COMMENT("//   subscription: {"),
+      NEWLINE("\n"),
+      COMMENT("//     id: \"subscription_id\","),
+      NEWLINE("\n"),
+      COMMENT("//     name: \"name\","),
+      NEWLINE("\n"),
+      COMMENT("//     createdAt: \"2020-04-01T00:00:00Z\","),
+      NEWLINE("\n"),
+      COMMENT("//   },"),
+      NEWLINE("\n"),
+      COMMENT("// }"),
+      NEWLINE("\n"),
+      IDENT("CreateHero"),
+      SPACE(" "),
+      LBR("{"),
+      NEWLINE("\n"),
+      SPACE("  "),
+      IDENT("hero"),
+      COLON(":"),
+      SPACE(" "),
+      LBR("{"),
+      NEWLINE("\n"),
+      SPACE("    "),
+      IDENT("good"),
+      COLON(":"),
+      SPACE(" "),
+      COMMENT("// bgasdfasldf"),
+      NEWLINE("\n"),
+      SPACE("      "),
+      LBR("{"),
+      NEWLINE("\n"),
+      SPACE("        "),
+      IDENT("howGood"),
+      COLON(":"),
+      SPACE(" "),
       // bug: should be number
-      TokenKind.Error("10"),
-      TokenKind.COMMA(","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("      "),
-      TokenKind.RBR("}"),
-      TokenKind.COMMA(","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("  "),
-      TokenKind.RBR("}"),
-      TokenKind.COMMA(","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("  "),
-      TokenKind.IDENT("intSet"),
-      TokenKind.COLON(":"),
-      TokenKind.SPACE(" "),
-      TokenKind.LB("["),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("    "),
+      Error("10"),
+      COMMA(","),
+      NEWLINE("\n"),
+      SPACE("      "),
+      RBR("}"),
+      COMMA(","),
+      NEWLINE("\n"),
+      SPACE("  "),
+      RBR("}"),
+      COMMA(","),
+      NEWLINE("\n"),
+      SPACE("  "),
+      IDENT("intSet"),
+      COLON(":"),
+      SPACE(" "),
+      LB("["),
+      NEWLINE("\n"),
+      SPACE("    "),
       // bug: should be a number
-      TokenKind.Error("1"),
-      TokenKind.COMMA(","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("    "),
+      Error("1"),
+      COMMA(","),
+      NEWLINE("\n"),
+      SPACE("    "),
       // bug: should be a number
-      TokenKind.Error("2"),
-      TokenKind.COMMA(","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("    "),
+      Error("2"),
+      COMMA(","),
+      NEWLINE("\n"),
+      SPACE("    "),
       // bug: should be a number
-      TokenKind.Error("1"),
-      TokenKind.COMMA(","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.SPACE("  "),
-      TokenKind.RB("]"),
-      TokenKind.COMMA(","),
-      TokenKind.NEWLINE("\n"),
-      TokenKind.RBR("}"),
-      TokenKind.NEWLINE("\n"),
+      Error("1"),
+      COMMA(","),
+      NEWLINE("\n"),
+      SPACE("  "),
+      RB("]"),
+      COMMA(","),
+      NEWLINE("\n"),
+      RBR("}"),
+      NEWLINE("\n"),
     )
   )
 }
