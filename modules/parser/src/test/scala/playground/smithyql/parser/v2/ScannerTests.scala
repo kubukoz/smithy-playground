@@ -64,6 +64,16 @@ object ScannerTests extends SimpleIOSuite with Checkers {
       assert.eql(expected, scan(input))
     }
 
+  // Runs scanTest by first rendering the expected tokens to a string, then scanning it to get them back.
+  // If the output is not the same as the input, the test fails.
+  // While it's guaranteed that rendering tokens to text produces scannable code (everything is scannable),
+  // due to ambiguities in the scanner it's not guaranteed that the output will be the same as the input - hence the need to test.
+  private def scanTestReverse(
+    explicitName: String
+  )(
+    expected: List[Token]
+  ): Unit = scanTest(expected.foldMap(_.text), explicitName)(expected)
+
   private def sanitize(
     text: String
   ) = text.replace(" ", "·").replace("\n", "↵")
@@ -171,11 +181,8 @@ object ScannerTests extends SimpleIOSuite with Checkers {
 
   // complex cases
 
-  scanTest(
-    explicitName = "many tokens of punctuation and idents mixed with error nodes and comments",
-    input =
-      """{foo}[bar].baz,xx#:=abc123def ghe--eef //hello
-        |""".stripMargin,
+  scanTestReverse(
+    "many tokens of punctuation and idents mixed with error nodes and comments"
   )(
     List(
       TokenKind.LBR("{"),
@@ -188,6 +195,7 @@ object ScannerTests extends SimpleIOSuite with Checkers {
       TokenKind.IDENT("baz"),
       TokenKind.COMMA(","),
       TokenKind.IDENT("xx"),
+      TokenKind.NEWLINE("\n"),
       TokenKind.HASH("#"),
       TokenKind.COLON(":"),
       TokenKind.EQ("="),
@@ -197,6 +205,7 @@ object ScannerTests extends SimpleIOSuite with Checkers {
       TokenKind.Error("--"),
       TokenKind.IDENT("eef"),
       TokenKind.SPACE(" "),
+      TokenKind.NEWLINE("\n"),
       TokenKind.COMMENT("//hello"),
       TokenKind.NEWLINE("\n"),
     )
