@@ -287,4 +287,59 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     )
   )
 
+  // string literals
+  scanTest(
+    "\"hello world\""
+  )(
+    List(
+      TokenKind.LIT_STRING("\"hello world\"")
+    )
+  )
+
+  scanTest(
+    explicitName = "String literal that never ends",
+    input = "\"hello world",
+  )(
+    List(
+      TokenKind.LIT_STRING("\"hello world")
+    )
+  )
+
+  scanTest(
+    explicitName = "Multiple string literals",
+    input = "\"hello world\", \"foo bar\"",
+  )(
+    List(
+      TokenKind.LIT_STRING("\"hello world\""),
+      TokenKind.COMMA(","),
+      TokenKind.SPACE(" "),
+      TokenKind.LIT_STRING("\"foo bar\""),
+    )
+  )
+
+  scanTest(
+    explicitName = "Multiple string literals, second one not closed",
+    input = "\"hello world\", \"foo bar",
+  )(
+    List(
+      TokenKind.LIT_STRING("\"hello world\""),
+      TokenKind.COMMA(","),
+      TokenKind.SPACE(" "),
+      TokenKind.LIT_STRING("\"foo bar"),
+    )
+  )
+
+  scanTest(
+    explicitName = "Multiple string literals, first one not closed",
+    input = "\"hello world, \"foo bar\"",
+  )(
+    List(
+      TokenKind.LIT_STRING("\"hello world, \""),
+      TokenKind.IDENT("foo"),
+      TokenKind.SPACE(" "),
+      TokenKind.IDENT("bar"),
+      TokenKind.LIT_STRING("\""),
+    )
+  )
+
 }

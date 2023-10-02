@@ -26,8 +26,8 @@ object TokenKind {
   case object KW_USE extends TokenKind
   case object KW_SERVICE extends TokenKind
   case object KW_BOOLEAN extends TokenKind
-  case object KW_NUMBER extends TokenKind
-  case object KW_STRING extends TokenKind
+  case object LIT_NUMBER extends TokenKind
+  case object LIT_STRING extends TokenKind
   case object KW_NULL extends TokenKind
 
   case object DOT extends TokenKind
@@ -116,7 +116,21 @@ object Scanner {
       "=" -> TokenKind.EQ,
     )
 
-    val readOne: PartialFunction[Unit, Unit] = readIdent.orElse(readPunctuation)
+    val readStringLiteral: PartialFunction[Unit, Unit] = {
+      case _ if remaining.startsWith("\"") =>
+        val (str, rest) = remaining.tail.span(_ != '\"')
+        if (rest.isEmpty) { // hit EOF
+          add(TokenKind.LIT_STRING("\"" + str))
+          remaining = rest
+        } else {
+          add(TokenKind.LIT_STRING("\"" + str + "\""))
+          remaining = rest.tail
+        }
+    }
+
+    val readOne: PartialFunction[Unit, Unit] = readIdent
+      .orElse(readPunctuation)
+      .orElse(readStringLiteral)
 
     // split "whitespace" string into chains of contiguous newlines OR whitespace characters.
     def whitespaceChains(
