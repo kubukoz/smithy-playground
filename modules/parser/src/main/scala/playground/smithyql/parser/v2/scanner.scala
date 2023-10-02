@@ -23,7 +23,13 @@ sealed trait TokenKind extends Product with Serializable {
 }
 
 object TokenKind {
-  // case object KW_IMPORT extends TokenKind
+  case object KW_USE extends TokenKind
+  case object KW_SERVICE extends TokenKind
+  case object KW_BOOLEAN extends TokenKind
+  case object KW_NUMBER extends TokenKind
+  case object KW_STRING extends TokenKind
+  case object KW_NULL extends TokenKind
+
   case object DOT extends TokenKind
   case object COMMA extends TokenKind
   case object HASH extends TokenKind
