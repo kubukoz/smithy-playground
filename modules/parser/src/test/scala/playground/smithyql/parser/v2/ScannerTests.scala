@@ -169,4 +169,36 @@ object ScannerTests extends SimpleIOSuite with Checkers {
     )
   )
 
+  // complex cases
+
+  scanTest(
+    explicitName = "many tokens of punctuation and idents mixed with error nodes and comments",
+    input =
+      """{foo}[bar].baz,xx#:=abc123def ghe--eef //hello
+        |""".stripMargin,
+  )(
+    List(
+      TokenKind.LBR("{"),
+      TokenKind.IDENT("foo"),
+      TokenKind.RBR("}"),
+      TokenKind.LB("["),
+      TokenKind.IDENT("bar"),
+      TokenKind.RB("]"),
+      TokenKind.DOT("."),
+      TokenKind.IDENT("baz"),
+      TokenKind.COMMA(","),
+      TokenKind.IDENT("xx"),
+      TokenKind.HASH("#"),
+      TokenKind.COLON(":"),
+      TokenKind.EQ("="),
+      TokenKind.IDENT("abc123def"),
+      TokenKind.SPACE(" "),
+      TokenKind.IDENT("ghe"),
+      TokenKind.Error("--"),
+      TokenKind.IDENT("eef"),
+      TokenKind.SPACE(" "),
+      TokenKind.COMMENT("//hello"),
+      TokenKind.NEWLINE("\n"),
+    )
+  )
 }
