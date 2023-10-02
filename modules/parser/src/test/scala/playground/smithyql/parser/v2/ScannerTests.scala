@@ -9,6 +9,7 @@ import playground.Assertions
 import playground.smithyql.parser.v2.scanner.Scanner
 import playground.smithyql.parser.v2.scanner.Token
 import playground.smithyql.parser.v2.scanner.TokenKind
+import playground.smithyql.parser.v2.scanner.TokenKind._
 import weaver._
 import weaver.scalacheck.Checkers
 
@@ -348,6 +349,125 @@ object ScannerTests extends SimpleIOSuite with Checkers {
   )(
     List(
       TokenKind.LIT_STRING("\"hello\nworld\"")
+    )
+  )
+
+  // real files
+
+  scanTest(
+    explicitName = "Real file 1",
+    input =
+      """use service demo.smithy#DemoService
+        |
+        |// CreateSubscription {
+        |//   subscription: {
+        |//     id: "subscription_id",
+        |//     name: "name",
+        |//     createdAt: "2020-04-01T00:00:00Z",
+        |//   },
+        |// }
+        |CreateHero {
+        |  hero: {
+        |    good: // bgasdfasldf
+        |      {
+        |        howGood: 10,
+        |      },
+        |  },
+        |  intSet: [
+        |    1,
+        |    2,
+        |    1,
+        |  ],
+        |}
+        |""".stripMargin,
+  )(
+    List(
+      TokenKind.KW_USE("use"),
+      TokenKind.SPACE(" "),
+      TokenKind.KW_SERVICE("service"),
+      TokenKind.SPACE(" "),
+      TokenKind.IDENT("demo"),
+      TokenKind.DOT("."),
+      TokenKind.IDENT("smithy"),
+      TokenKind.HASH("#"),
+      TokenKind.IDENT("DemoService"),
+      TokenKind.NEWLINE("\n\n"),
+      TokenKind.COMMENT("// CreateSubscription {"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.COMMENT("//   subscription: {"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.COMMENT("//     id: \"subscription_id\","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.COMMENT("//     name: \"name\","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.COMMENT("//     createdAt: \"2020-04-01T00:00:00Z\","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.COMMENT("//   },"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.COMMENT("// }"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.IDENT("CreateHero"),
+      TokenKind.SPACE(" "),
+      TokenKind.LBR("{"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("  "),
+      TokenKind.IDENT("hero"),
+      TokenKind.COLON(":"),
+      TokenKind.SPACE(" "),
+      TokenKind.LBR("{"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("    "),
+      TokenKind.IDENT("good"),
+      TokenKind.COLON(":"),
+      TokenKind.SPACE(" "),
+      TokenKind.COMMENT("// bgasdfasldf"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("      "),
+      TokenKind.LBR("{"),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("        "),
+      TokenKind.IDENT("howGood"),
+      TokenKind.COLON(":"),
+      TokenKind.SPACE(" "),
+      // bug: should be number
+      TokenKind.Error("10"),
+      TokenKind.COMMA(","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("      "),
+      TokenKind.RBR("}"),
+      TokenKind.COMMA(","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("  "),
+      TokenKind.RBR("}"),
+      TokenKind.COMMA(","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("  "),
+      TokenKind.IDENT("intSet"),
+      TokenKind.COLON(":"),
+      TokenKind.SPACE(" "),
+      TokenKind.LB("["),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("    "),
+      // bug: should be a number
+      TokenKind.Error("1"),
+      TokenKind.COMMA(","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("    "),
+      // bug: should be a number
+      TokenKind.Error("2"),
+      TokenKind.COMMA(","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("    "),
+      // bug: should be a number
+      TokenKind.Error("1"),
+      TokenKind.COMMA(","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.SPACE("  "),
+      TokenKind.RB("]"),
+      TokenKind.COMMA(","),
+      TokenKind.NEWLINE("\n"),
+      TokenKind.RBR("}"),
+      TokenKind.NEWLINE("\n"),
     )
   )
 }
