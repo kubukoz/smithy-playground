@@ -55,6 +55,13 @@ trait ParserSuite extends SimpleIOSuite {
       }
     }
 
+    validTokensTest(testCase, trimWhitespace)
+  }
+
+  private def validTokensTest(
+    testCase: TestCase,
+    trimWhitespace: Boolean,
+  ) =
     test(testCase.name + " (v2 scanner)") {
       testCase.readInput(trimWhitespace).map { input =>
         val scanned = Scanner.scan(input)
@@ -65,11 +72,12 @@ trait ParserSuite extends SimpleIOSuite {
         assert(errors.isEmpty)
       }
     }
-  }
 
+  // invalidTokens: a flag that tells the suite whether the file should contain invalid tokens.
   def loadNegativeParserTests[Alg[_[_]]: SourceParser](
     prefix: String,
     trimWhitespace: Boolean = false,
+    invalidTokens: Boolean,
   ): Unit = loadTestCases("", List("negative", prefix)).foreach { testCase =>
     test(testCase.name) {
       testCase.readInput(trimWhitespace).map { input =>
@@ -79,6 +87,10 @@ trait ParserSuite extends SimpleIOSuite {
         }
       }
     }
+
+    if (!invalidTokens)
+      validTokensTest(testCase, trimWhitespace)
+
   }
 
   private def readText(
