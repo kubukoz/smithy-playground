@@ -5,7 +5,6 @@ import org.http4s.client.Client
 import smithy4s.Service
 import smithy4s.UnsupportedProtocolError
 import smithy4s.http4s.SimpleProtocolBuilder
-import smithy4s.kinds._
 
 import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._
@@ -36,7 +35,7 @@ trait SimpleHttpBuilder {
   def client[Alg[_[_, _, _, _, _]], F[_]: Concurrent](
     service: Service[Alg],
     backend: Client[F],
-  ): Either[UnsupportedProtocolError, FunctorAlgebra[Alg, F]]
+  ): Either[UnsupportedProtocolError, service.Impl[F]]
 
 }
 
@@ -50,8 +49,7 @@ object SimpleHttpBuilder {
       def client[Alg[_[_, _, _, _, _]], F[_]: Concurrent](
         service: Service[Alg],
         backend: Client[F],
-      ): Either[UnsupportedProtocolError, FunctorAlgebra[Alg, F]] =
-        builder(service).client(backend).use
+      ): Either[UnsupportedProtocolError, service.Impl[F]] = builder(service).client(backend).make
 
     }
 
