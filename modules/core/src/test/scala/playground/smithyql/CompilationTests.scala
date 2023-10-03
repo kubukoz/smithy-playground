@@ -265,6 +265,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("int with exponential syntax - in range") {
+    assertNoDiff(
+      compile {
+        WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
+      }(Schema.int),
+      Ior.right(100),
+    )
+  }
+
   pureTest("short") {
     assertNoDiff(
       compile {
@@ -279,6 +288,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId((Short.MaxValue + 1).mapK(WithSource.liftId))
       }(Schema.short).isLeft
+    )
+  }
+
+  pureTest("short with exponential syntax - in range") {
+    assertNoDiff(
+      compile {
+        WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
+      }(Schema.short),
+      Ior.right(100.toShort),
     )
   }
 
@@ -299,8 +317,17 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
-  pureTest("float") {
+  pureTest("byte with exponential syntax - in range") {
     assertNoDiff(
+      compile {
+        WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
+      }(Schema.byte),
+      Ior.right(100.toByte),
+    )
+  }
+
+  pureTest("float") {
+    assert.same(
       compile {
         WithSource.liftId(Float.MaxValue.mapK(WithSource.liftId))
       }(Schema.float),
@@ -313,6 +340,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId(Double.MaxValue.toString.mapK(WithSource.liftId))
       }(Schema.float).isLeft
+    )
+  }
+
+  pureTest("float - exponential syntax") {
+    assertNoDiff(
+      compile {
+        WithSource.liftId(IntLiteral("0.1e0").mapK(WithSource.liftId))
+      }(Schema.float),
+      Ior.right(0.1f),
     )
   }
 
@@ -331,6 +367,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         WithSource.liftId((BigDecimal(Double.MaxValue) + 1).mapK(WithSource.liftId))
       }(Schema.double),
       Ior.right(Double.MaxValue),
+    )
+  }
+
+  pureTest("double - exponential syntax") {
+    assertNoDiff(
+      compile {
+        WithSource.liftId(IntLiteral("0.1e0").mapK(WithSource.liftId))
+      }(Schema.double),
+      Ior.right(0.1),
     )
   }
 
@@ -353,6 +398,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("bigint - exponential syntax") {
+    assertNoDiff(
+      compile {
+        WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
+      }(Schema.bigint),
+      Ior.right(BigInt(100)),
+    )
+  }
+
   test("bigdecimal - OK") {
     forall { (bd: BigDecimal) =>
       assertNoDiff(
@@ -369,6 +423,15 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId("AAAA".mapK(WithSource.liftId))
       }(Schema.bigdecimal).isLeft
+    )
+  }
+
+  pureTest("bigdecimal - exponential syntax") {
+    assertNoDiff(
+      compile {
+        WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
+      }(Schema.bigdecimal),
+      Ior.right(BigDecimal(100)),
     )
   }
 
