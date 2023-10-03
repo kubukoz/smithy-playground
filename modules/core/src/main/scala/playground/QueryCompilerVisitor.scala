@@ -58,18 +58,22 @@ object QueryCompilerVisitor {
 
 object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
 
-  private def checkRange[A, B](
-    pc: QueryCompiler[A]
+  private def checkRange[B](
+    pc: QueryCompiler[BigDecimal]
   )(
     tag: String
   )(
-    matchToRange: A => Option[B]
+    matchToRange: PartialFunction[BigDecimal, B]
   ) = (pc, QueryCompiler.pos).tupled.emap { case (i, range) =>
-    matchToRange(i)
-      .toRightIor(
+    Either
+      .catchOnly[ArithmeticException](matchToRange.lift(i).toRight(()))
+      .leftWiden[Any]
+      .flatten
+      .leftMap(_ =>
         CompilationError
           .error(NumberOutOfRange(i.toString, tag), range)
       )
+      .toIor
       .toIorNec
   }
 
@@ -85,12 +89,12 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
           .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
           .map(_.value.value)
       case PUnit     => struct(shapeId, hints, Vector.empty, _ => ())
-      case PLong     => checkRange(integer)("int")(_.toLongOption)
-      case PInt      => checkRange(integer)("int")(_.toIntOption)
-      case PShort    => checkRange(integer)("short")(_.toShortOption)
-      case PByte     => checkRange(integer)("byte")(_.toByteOption)
-      case PFloat    => checkRange(integer)("float")(_.toFloatOption)
-      case PDouble   => checkRange(integer)("double")(_.toDoubleOption)
+      case PLong     => checkRange(number)("int")(_.toLongExact)
+      case PInt      => checkRange(number)("int")(_.toIntExact)
+      case PShort    => checkRange(number)("short")(_.toShortExact)
+      case PByte     => checkRange(number)("byte")(_.toByteExact)
+      case PFloat    => checkRange(number)("float") { case i if i.isDecimalFloat => i.toFloat }
+      case PDouble   => checkRange(number)("double") { case i if i.isDecimalDouble => i.toDouble }
       case PDocument => document
       case PBlob =>
         (string, QueryCompiler.pos).tupled.emap { case (s, range) =>
@@ -101,14 +105,8 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
             .toIor
             .toIorNec
         }
-      case PBigDecimal =>
-        checkRange(integer)("bigdecimal") { s =>
-          Either.catchNonFatal(BigDecimal(s)).toOption
-        }
-      case PBigInt =>
-        checkRange(integer)("bigint") { s =>
-          Either.catchNonFatal(BigInt(s)).toOption
-        }
+      case PBigDecimal => number
+      case PBigInt     => checkRange(number)("bigint")(_.toBigIntExact.get)
       case PUUID =>
         stringLiteral.emap { s =>
           Either
@@ -137,9 +135,10 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         }
     }
 
-  private val integer: QueryCompiler[String] = QueryCompiler
+  private val number: QueryCompiler[BigDecimal] = QueryCompiler
     .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
     .map(_.value.value)
+    .map(BigDecimal(_))
 
   def collection[C[_], A](
     shapeId: ShapeId,
