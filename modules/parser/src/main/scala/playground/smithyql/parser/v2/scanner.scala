@@ -155,6 +155,8 @@ object Scanner {
       }
     }
 
+    // readOne and friends are all partial functions: this is the current implementation of lookahead.
+    // it's not great, but it kinda works.
     val readOne: PartialFunction[Unit, Unit] = readIdent
       .orElse(readPunctuation)
       .orElse(readStringLiteral)
@@ -229,13 +231,7 @@ object Scanner {
     while (remaining.nonEmpty) {
       val last = remaining
 
-      {
-        val matched = readOne.isDefinedAt(())
-        if (matched)
-          readOne(())
-
-        matched
-      } ||
+      readOne.lift(()).isDefined ||
         eatWhitespace() ||
         eatComments() ||
         eatErrors(): Unit
