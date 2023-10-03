@@ -1,7 +1,10 @@
 package playground.smithyql.parser.v2.scanner
 
 import cats.kernel.Eq
+import cats.parse.Numbers
 import cats.syntax.all.*
+
+import scala.annotation.nowarn
 
 case class Token(
   kind: TokenKind,
@@ -128,9 +131,34 @@ object Scanner {
         }
     }
 
+    val readNumberLiteral: PartialFunction[Unit, Unit] = {
+      // I love this language
+      object jsonNumber {
+        def unapply(
+          @nowarn("cat=unused")
+          unused: Unit
+        ): Option[
+          (
+            String,
+            String,
+          )
+        ] =
+          // For now, we're using the cats-parse implementation simply because it's consistent with the current implementation
+          // and we can rewrite this later on when we drop support for the other parser
+          // and no longer need cats-parse.
+          Numbers.jsonNumber.parse(remaining).toOption
+      }
+
+      { case jsonNumber(rest, num) =>
+        add(TokenKind.LIT_NUMBER(num.toString))
+        remaining = rest
+      }
+    }
+
     val readOne: PartialFunction[Unit, Unit] = readIdent
       .orElse(readPunctuation)
       .orElse(readStringLiteral)
+      .orElse(readNumberLiteral)
 
     // split "whitespace" string into chains of contiguous newlines OR whitespace characters.
     def whitespaceChains(

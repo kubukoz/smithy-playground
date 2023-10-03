@@ -1,7 +1,9 @@
 package playground.smithyql.parser.v2
 
+import cats.Show
 import cats.effect.IO
 import cats.implicits._
+import cats.parse.Numbers
 import com.softwaremill.diffx.Diff
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
@@ -103,7 +105,51 @@ object ScannerTests extends SimpleIOSuite with Checkers {
   scanTest("null")(List(KW_NULL("null")))
   scanTest("true")(List(KW_BOOLEAN("true")))
   scanTest("false")(List(KW_BOOLEAN("false")))
-  // todo: number, string
+
+  scanTest("5")(List(LIT_NUMBER("5")))
+  scanTest("50")(List(LIT_NUMBER("50")))
+
+  // todo: this would be nice to parse as a single error token.
+  // might be possible to achieve by catching epsilon failures in the number parser, so that if any progress is seen we'd skip N characters before another token is attempted.
+  // need to test this for interactions with other following tokens (as well as error tokens before numbers, which are using readOne).
+  scanTest("05")(List(LIT_NUMBER("0"), LIT_NUMBER("5")))
+  scanTest("0")(List(LIT_NUMBER("0")))
+  scanTest("0.0")(List(LIT_NUMBER("0.0")))
+  scanTest("0.5")(List(LIT_NUMBER("0.5")))
+  // tbh: this might work better as a single error token.
+  // see above comment about epsilon failures.
+  scanTest("0.")(List(Error("0"), DOT(".")))
+
+  scanTest("1e10")(List(LIT_NUMBER("1e10")))
+
+  private def numberTest[A: Arbitrary: Show](
+    name: String
+  ) =
+    test(s"Any $name can be parsed as a number") {
+      forall { (a: A) =>
+        Assertions.assertNoDiff(scan(a.toString()), List(LIT_NUMBER(a.toString())))
+      }
+    }
+
+  numberTest[Byte]("byte")
+  numberTest[Short]("short")
+  numberTest[Int]("int")
+  numberTest[Long]("long")
+  numberTest[Float]("float")
+  numberTest[Double]("double")
+  numberTest[BigInt]("bigint")
+  // deliberately not testing BigDecimal this way - these are wider than json numbers so we can't test the full range
+
+  test("If cats-parse can parse a JSON number, so can we") {
+    forall { (s: String) =>
+      Numbers.jsonNumber.parseAll(s).toOption match {
+        case None => success
+        case Some(succ) =>
+          println("woop woop!")
+          Assertions.assertNoDiff(scan(succ), List(LIT_NUMBER(succ)))
+      }
+    }
+  }
 
   // idents
   scanTest("abcdef")(List(IDENT("abcdef")))
@@ -429,8 +475,7 @@ object ScannerTests extends SimpleIOSuite with Checkers {
       IDENT("howGood"),
       COLON(":"),
       SPACE(" "),
-      // bug: should be number
-      Error("10"),
+      LIT_NUMBER("10"),
       COMMA(","),
       NEWLINE("\n"),
       SPACE("      "),
@@ -448,18 +493,15 @@ object ScannerTests extends SimpleIOSuite with Checkers {
       LB("["),
       NEWLINE("\n"),
       SPACE("    "),
-      // bug: should be a number
-      Error("1"),
+      LIT_NUMBER("1"),
       COMMA(","),
       NEWLINE("\n"),
       SPACE("    "),
-      // bug: should be a number
-      Error("2"),
+      LIT_NUMBER("2"),
       COMMA(","),
       NEWLINE("\n"),
       SPACE("    "),
-      // bug: should be a number
-      Error("1"),
+      LIT_NUMBER("1"),
       COMMA(","),
       NEWLINE("\n"),
       SPACE("  "),
