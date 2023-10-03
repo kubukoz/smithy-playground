@@ -1,48 +1,19 @@
 package playground.smithyql.parser.v2
 
 import cats.Show
-import cats.effect.IO
 import cats.implicits._
 import cats.parse.Numbers
-import com.softwaremill.diffx.Diff
 import org.scalacheck.Arbitrary
-import org.scalacheck.Gen
 import playground.Assertions
 import playground.smithyql.parser.v2.scanner.Scanner
-import playground.smithyql.parser.v2.scanner.Token
-import playground.smithyql.parser.v2.scanner.TokenKind
 import playground.smithyql.parser.v2.scanner.TokenKind._
 import weaver._
 import weaver.scalacheck.Checkers
 
+import Diffs._
 import Scanner.scan
 
-object ScannerTests extends SimpleIOSuite with Checkers {
-
-  implicit val tokenKindDiff: Diff[TokenKind] = Diff.derived
-  implicit val tokenDiff: Diff[Token] = Diff.derived
-
-  def arbTests(
-    name: TestName
-  )(
-    withArb: Arbitrary[String] => IO[Expectations]
-  ): Unit = {
-
-    val sampleStringGen = Gen.oneOf(
-      Gen.alphaStr,
-      Gen.alphaNumStr,
-      Gen.asciiPrintableStr,
-      Gen.identifier,
-      Gen.oneOf(List(' ', '\n', '\t', '\r', '\f', '\b')).map(_.toString),
-    )
-
-    val arbString: Arbitrary[String] = Arbitrary {
-      Gen.listOf(sampleStringGen).map(_.mkString)
-    }
-
-    test(name)(withArb(Arbitrary.arbString))
-    test(name.copy(name = name.name + " (prepared input)"))(withArb(arbString))
-  }
+object ScannerTests extends SimpleIOSuite with Checkers with ScannerSuite {
 
   arbTests("Any string input scans successfully") { implicit arbString =>
     forall { (s: String) =>
@@ -56,40 +27,6 @@ object ScannerTests extends SimpleIOSuite with Checkers {
       assert.eql(scan(s).foldMap(_.text), s)
     }
   }
-
-  private def scanTest(
-    input: String,
-    explicitName: TestName = "",
-  )(
-    expected: List[Token]
-  )(
-    implicit loc: SourceLocation
-  ): Unit =
-    pureTest(
-      if (explicitName.name.nonEmpty)
-        explicitName
-      else
-        "Scan string: " + sanitize(input)
-    ) {
-      Assertions.assertNoDiff(scan(input), expected)
-    }
-
-  // Runs scanTest by first rendering the expected tokens to a string, then scanning it to get them back.
-  // If the output is not the same as the input, the test fails.
-  // While it's guaranteed that rendering tokens to text produces scannable code (everything is scannable),
-  // due to ambiguities in the scanner it's not guaranteed that the output will be the same as the input - hence the need to test.
-  private def scanTestReverse(
-    explicitName: String
-  )(
-    expected: List[Token]
-  )(
-    implicit loc: SourceLocation
-  ): Unit = scanTest(expected.foldMap(_.text), explicitName)(expected)
-
-  private def sanitize(
-    text: String
-  ) = text.replace(" ", "·").replace("\n", "↵")
-
   scanTest("{")(List(LBR("{")))
   scanTest("}")(List(RBR("}")))
   scanTest("[")(List(LB("[")))
@@ -395,121 +332,6 @@ object ScannerTests extends SimpleIOSuite with Checkers {
   )(
     List(
       LIT_STRING("\"hello\nworld\"")
-    )
-  )
-
-  // real files
-
-  scanTest(
-    explicitName = "Real file 1",
-    input =
-      """use service demo.smithy#DemoService
-        |
-        |// CreateSubscription {
-        |//   subscription: {
-        |//     id: "subscription_id",
-        |//     name: "name",
-        |//     createdAt: "2020-04-01T00:00:00Z",
-        |//   },
-        |// }
-        |CreateHero {
-        |  hero: {
-        |    good: // bgasdfasldf
-        |      {
-        |        howGood: 10,
-        |      },
-        |  },
-        |  intSet: [
-        |    1,
-        |    2,
-        |    1,
-        |  ],
-        |}
-        |""".stripMargin,
-  )(
-    List(
-      KW_USE("use"),
-      SPACE(" "),
-      KW_SERVICE("service"),
-      SPACE(" "),
-      IDENT("demo"),
-      DOT("."),
-      IDENT("smithy"),
-      HASH("#"),
-      IDENT("DemoService"),
-      NEWLINE("\n\n"),
-      COMMENT("// CreateSubscription {"),
-      NEWLINE("\n"),
-      COMMENT("//   subscription: {"),
-      NEWLINE("\n"),
-      COMMENT("//     id: \"subscription_id\","),
-      NEWLINE("\n"),
-      COMMENT("//     name: \"name\","),
-      NEWLINE("\n"),
-      COMMENT("//     createdAt: \"2020-04-01T00:00:00Z\","),
-      NEWLINE("\n"),
-      COMMENT("//   },"),
-      NEWLINE("\n"),
-      COMMENT("// }"),
-      NEWLINE("\n"),
-      IDENT("CreateHero"),
-      SPACE(" "),
-      LBR("{"),
-      NEWLINE("\n"),
-      SPACE("  "),
-      IDENT("hero"),
-      COLON(":"),
-      SPACE(" "),
-      LBR("{"),
-      NEWLINE("\n"),
-      SPACE("    "),
-      IDENT("good"),
-      COLON(":"),
-      SPACE(" "),
-      COMMENT("// bgasdfasldf"),
-      NEWLINE("\n"),
-      SPACE("      "),
-      LBR("{"),
-      NEWLINE("\n"),
-      SPACE("        "),
-      IDENT("howGood"),
-      COLON(":"),
-      SPACE(" "),
-      LIT_NUMBER("10"),
-      COMMA(","),
-      NEWLINE("\n"),
-      SPACE("      "),
-      RBR("}"),
-      COMMA(","),
-      NEWLINE("\n"),
-      SPACE("  "),
-      RBR("}"),
-      COMMA(","),
-      NEWLINE("\n"),
-      SPACE("  "),
-      IDENT("intSet"),
-      COLON(":"),
-      SPACE(" "),
-      LB("["),
-      NEWLINE("\n"),
-      SPACE("    "),
-      LIT_NUMBER("1"),
-      COMMA(","),
-      NEWLINE("\n"),
-      SPACE("    "),
-      LIT_NUMBER("2"),
-      COMMA(","),
-      NEWLINE("\n"),
-      SPACE("    "),
-      LIT_NUMBER("1"),
-      COMMA(","),
-      NEWLINE("\n"),
-      SPACE("  "),
-      RB("]"),
-      COMMA(","),
-      NEWLINE("\n"),
-      RBR("}"),
-      NEWLINE("\n"),
     )
   )
 }
