@@ -274,6 +274,14 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("int with exponential syntax - in range, but not an integer") {
+    assert(
+      compile {
+        WithSource.liftId(IntLiteral("10.1e0").mapK(WithSource.liftId))
+      }(Schema.int).isLeft
+    )
+  }
+
   pureTest("short") {
     assertNoDiff(
       compile {
