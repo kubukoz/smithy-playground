@@ -50,8 +50,8 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
 
   def apply[A](
     schema: Schema[A]
-  ): Schema[A] =
-    schema match {
+  ): Schema[A] = ???
+  /* schema match {
       case PrimitiveSchema(_, _, tag) =>
         tag match {
           case PString     => schema.reifyHint[api.Length].reifyHint[api.Pattern]
@@ -76,6 +76,6 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
       case s: StructSchema[_]        => s
       case l: LazySchema[_]          => l
       case u: UnionSchema[_]         => u
-    }
+    } */
 
 }

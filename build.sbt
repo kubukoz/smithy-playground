@@ -34,8 +34,8 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "2.13.11"
-ThisBuild / crossScalaVersions := Seq("2.13.11")
+ThisBuild / scalaVersion := "3.3.1"
+ThisBuild / crossScalaVersions := Seq("3.3.1")
 
 // For coursier's "latest.integration"
 ThisBuild / dynverSeparator := "-"
@@ -156,7 +156,10 @@ lazy val lsp = module("lsp")
       "io.circe" %% "circe-core" % "0.14.6",
       "org.http4s" %% "http4s-ember-client" % "0.23.23",
       "org.http4s" %% "http4s-ember-server" % "0.23.23" % Test,
-      "io.get-coursier" %% "coursier" % "2.1.7",
+      ("io.get-coursier" % "coursier" % "2.1.7")
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13")
+        .exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_2.13"),
       "org.typelevel" %% "cats-tagless-core" % "0.15.0",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",

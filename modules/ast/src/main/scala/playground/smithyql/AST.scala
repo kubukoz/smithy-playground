@@ -166,7 +166,8 @@ object QualifiedIdentifier {
 
   implicit val show: Show[QualifiedIdentifier] = Show.fromToString
 
-  implicit val ord: Order[QualifiedIdentifier] = Order.by(unapply(_).get)
+  // todo: dotty claims infinite loop
+  implicit val ord: Order[QualifiedIdentifier] = Order.by(unapply(_))
 
 }
 

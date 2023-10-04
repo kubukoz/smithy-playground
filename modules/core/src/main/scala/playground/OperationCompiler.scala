@@ -150,7 +150,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
 ) extends OperationCompiler[IorNel[CompilationError, *]] {
 
   private def compileEndpoint[In, Err, Out](
-    e: Endpoint[service.Operation, In, Err, Out, _, _]
+    e: Endpoint[service.Operation, In, Err, Out, SE, _]
   ): QueryCompiler[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
     val outputEncoder = NodeEncoder.derive(e.output)
@@ -165,7 +165,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
             type E = Err
             type O = Out
 
-            val op: _Op[_, Err, Out, _, _] = e.wrap(compiled)
+            val op: _Op[_I, E, O, SE, SO] = e.wrap(compiled)
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
             val catchError: Throwable => Option[Err] = e.Error.unapply(_).map(_._2)

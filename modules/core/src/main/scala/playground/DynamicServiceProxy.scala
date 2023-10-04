@@ -26,8 +26,6 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   ): FunctorInterpreter[Op, F] = {
     val grp = serviceStatic.endpoints.groupBy(_.id).fmap(_.head)
 
-    type Proxy[I, E, O, SE, EO] = I => F[O]
-
     def makeProxy[A, B](
       schemaIn: Schema[A],
       schemaOut: Schema[B],
@@ -39,7 +37,7 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     }
 
     val endpointMapping =
-      new smithy4s.kinds.PolyFunction5[Endpoint[Op, *, *, *, *, *], Proxy] {
+      new service.FunctorEndpointCompiler[F] {
         private val trans = serviceStatic.toPolyFunction(interp)
 
         private def applyWithStatic[I, E, O, SI, SO, STI, STE, STO, STSI, STSO](
@@ -77,16 +75,8 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
           endpoint: Endpoint[Op, I, E, O, SI, SO]
         ): I => F[O] = applyWithStatic(endpoint, grp(endpoint.id))
       }
-        .precomputeBy(service.endpoints, _.name)
 
-    new FunctorInterpreter[Op, F] {
-      def apply[I, E, O, SI, SO](
-        op: Op[I, E, O, SI, SO]
-      ): F[O] = {
-        val (input, endpoint) = service.endpoint(op)
-        endpointMapping(endpoint)(input)
-      }
-    }
+    service.functorInterpreter(endpointMapping)
   }
 
   private final implicit class PolyFunction5Ops[F[_, _, _, _, _], G[_, _, _, _, _]](
