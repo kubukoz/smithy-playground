@@ -179,39 +179,45 @@ object Scanner {
       }
     }
 
-    def eatWhitespace(
-    ) = {
-      val (wsp, rest) = remaining.span(ch => ch.isWhitespace)
-      if (wsp.isEmpty())
-        false
-      else {
+    val eatWhitespace: PartialFunction[Unit, Unit] = {
+      object matches {
+        def unapply(
+          @nowarn("cat=unused") u: Unit
+        ): Option[
+          (
+            String,
+            String,
+          )
+        ] = {
+          val (wsp, rest) = remaining.span(ch => ch.isWhitespace)
+          if (wsp.isEmpty())
+            None
+          else
+            Some((wsp, rest))
+        }
+      }
+
+      { case matches(wsp, rest) =>
         whitespaceChains(wsp).foreach(add)
         remaining = rest
-
-        true
       }
     }
 
-    def eatComments(
-    ) =
-      if (!remaining.startsWith("//"))
-        false
-      else {
+    val eatComments: PartialFunction[Unit, Unit] = {
+      case _ if remaining.startsWith("//") =>
         while (remaining.startsWith("//")) {
           val (comment, rest) = remaining.span(_ != '\n')
           add(TokenKind.COMMENT(comment))
           remaining = rest
         }
+    }
 
-        true
-      }
+    val readAny = readOne.orElse(eatWhitespace).orElse(eatComments)
 
     def eatErrors(
     ) = {
-      // todo: bug: even if the next character starts a multi-char token, this will consider it an error.
-      // instead, we should rework "readOne" to consume arbitrary constant-length tokens, and also include the possibility that `rest` has comments or whitespace.
       val (failures, _) = remaining.span { _ =>
-        if (readOne.isDefinedAt(()))
+        if (readAny.isDefinedAt(()))
           // this will match. stop!
           false
         else {
@@ -231,9 +237,9 @@ object Scanner {
     while (remaining.nonEmpty) {
       val last = remaining
 
-      readOne.lift(()).isDefined ||
-        eatWhitespace() ||
-        eatComments() ||
+      readAny
+        .lift(())
+        .isDefined ||
         eatErrors(): Unit
 
       // last-effort sanity check
