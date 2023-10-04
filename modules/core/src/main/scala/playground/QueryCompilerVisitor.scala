@@ -100,7 +100,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         (string, QueryCompiler.pos).tupled.emap { case (s, range) =>
           Either
             .catchNonFatal(Base64.getDecoder().decode(s))
-            // todo anything better?
             .map(Blob(_))
             .leftMap(_ => CompilationError.error(CompilationErrorDetails.InvalidBlob, range))
             .toIor
