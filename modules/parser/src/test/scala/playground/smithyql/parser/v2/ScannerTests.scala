@@ -208,6 +208,19 @@ object ScannerTests extends SimpleIOSuite with Checkers with ScannerSuite {
     )
   )
 
+  scanTest(explicitName = "Error tokens before a comment", input = "--//hello")(
+    List(
+      Error("--"),
+      COMMENT("//hello"),
+    )
+  )
+
+  scanTest(explicitName = "Error tokens before whitespace", input = "--  ")(
+    List(
+      Error("--"),
+      SPACE("  "),
+    )
+  )
   // complex cases
 
   scanTestReverse(
