@@ -83,9 +83,9 @@ case class SyntaxNode(
   green: Either[GreenNode, Token],
 ) {
 
-  def cast[A](
-    implicit mirror: AstNodeMirror[A]
-  ): Option[A] = mirror.cast(this)
+//   // def cast[A](
+//   //   implicit mirror: AstNodeMirror[A]
+//   // ): Option[A] = mirror.cast(this)
 
   def width = green.fold(_.width, _.width)
 
@@ -163,100 +163,108 @@ object SyntaxNode {
 sealed trait SyntaxKind extends Product with Serializable
 
 object SyntaxKind {
-  case object File extends SyntaxKind
+  case object SourceFile extends SyntaxKind
+  case object Decl extends SyntaxKind
+  case object UseDecl extends SyntaxKind
   case object FQN extends SyntaxKind
   case object Namespace extends SyntaxKind
   case object Identifier extends SyntaxKind
   case object ERROR extends SyntaxKind
 }
 
-trait AstNode[Self] { self: Product =>
-  def syntax: SyntaxNode
+// trait AstNode[Self] { self: Product =>
+//   def syntax: SyntaxNode
 
-  def firstChildToken(
-    kind: TokenKind
-  ): Option[Token] = syntax.children.collectFirst {
-    case SyntaxNode(_, _, Right(tok @ Token(`kind`, _))) => tok
-  }
+// def firstChildToken(
+//   kind: TokenKind
+// ): Option[Token] = syntax.children.collectFirst {
+//   case SyntaxNode(_, _, Right(tok @ Token(`kind`, _))) => tok
+// }
 
-  def allChildNodes[N: AstNodeMirror]: List[N] = syntax.children.mapFilter(_.cast[N])
+// def allChildNodes[N: AstNodeMirror]: List[N] = syntax.children.mapFilter(_.cast[N])
 
-  def firstChildNode[N: AstNodeMirror]: Option[N] = syntax.children.collectFirstSome(_.cast[N])
+// def firstChildNode[N: AstNodeMirror]: Option[N] = syntax.children.collectFirstSome(_.cast[N])
 
-}
+// }
 
-trait AstNodeMirror[Self] {
+// trait AstNodeMirror[Self] {
 
-  def cast(
-    node: SyntaxNode
-  ): Option[Self]
+//   def cast(
+//     node: SyntaxNode
+//   ): Option[Self]
 
-}
+// }
 
-object AstNodeMirror {
+// object AstNodeMirror {
 
-  def instance[T](
-    matchingSyntaxKind: SyntaxKind
-  )(
-    make: SyntaxNode => T
-  ): AstNodeMirror[T] =
-    node =>
-      node.green.left.map(_.kind) match {
-        case Left(`matchingSyntaxKind`) => Some(make(node))
-        case _                          => None
-      }
+//   def instance[T](
+//     matchingSyntaxKind: SyntaxKind
+//   )(
+//     make: SyntaxNode => T
+//   ): AstNodeMirror[T] =
+//     node =>
+//       node.green.left.map(_.kind) match {
+//         case Left(`matchingSyntaxKind`) => Some(make(node))
+//         case _                          => None
+//       }
 
-}
+// }
 
 // concrete
 
-case class Identifier(
-  syntax: SyntaxNode
-) extends AstNode[Identifier] {
-  def value: Option[Token] = firstChildToken(TokenKind.IDENT)
-}
+// case class Identifier(
+//   syntax: SyntaxNode
+// ) extends AstNode[Identifier] {
+//   def value: Option[Token] = firstChildToken(TokenKind.IDENT)
+// }
 
-object Identifier {
+// object Identifier {
 
-  implicit val node: AstNodeMirror[Identifier] =
-    AstNodeMirror.instance(SyntaxKind.Identifier)(apply)
+//   implicit val node: AstNodeMirror[Identifier] =
+//     AstNodeMirror.instance(SyntaxKind.Identifier)(apply)
 
-}
+// }
 
-case class Namespace(
-  syntax: SyntaxNode
-) extends AstNode[Namespace] {
-  def parts: List[Identifier] = allChildNodes[Identifier]
-}
+// case class Namespace(
+//   syntax: SyntaxNode
+// ) extends AstNode[Namespace] {
+//   def parts: List[Identifier] = allChildNodes[Identifier]
+// }
 
-object Namespace {
+// object Namespace {
 
-  implicit val node: AstNodeMirror[Namespace] = AstNodeMirror.instance(SyntaxKind.Namespace)(apply)
+//   implicit val node: AstNodeMirror[Namespace] = AstNodeMirror.instance(SyntaxKind.Namespace)(apply)
 
-}
+// }
 
-case class FQN(
-  syntax: SyntaxNode
-) extends AstNode[FQN] {
-  def namespace: Option[Namespace] = firstChildNode[Namespace]
-  def name: Option[Identifier] = firstChildNode[Identifier]
-}
+// case class FQN(
+//   syntax: SyntaxNode
+// ) extends AstNode[FQN] {
+//   def namespace: Option[Namespace] = firstChildNode[Namespace]
+//   def name: Option[Identifier] = firstChildNode[Identifier]
+// }
 
-object FQN {
+// object FQN {
 
-  implicit val node: AstNodeMirror[FQN] = AstNodeMirror.instance(SyntaxKind.FQN)(apply)
+//   implicit val node: AstNodeMirror[FQN] = AstNodeMirror.instance(SyntaxKind.FQN)(apply)
 
-}
+// }
 
 case class Tokens(
   private var all: List[Token],
   private var cursor: Int,
 ) {
+  def id: Int = cursor
 
   def eof: Boolean = cursor >= all.length
+  def eofOrNewline: Boolean = cursor >= all.length || peek().kind == TokenKind.NEWLINE
 
   def peek(
-  ): Token = all(cursor)
+  ): Token =
+    try all(cursor)
+    catch {
+      case _: IndexOutOfBoundsException => sys.error("peeked into EOF!")
+    }
 
   def bump(
   ): Token = {
@@ -264,6 +272,28 @@ case class Tokens(
     cursor += 1
     result
   }
+
+  // def eatUntilNewlineOr(
+  //   tok: TokenKind
+  // ): List[Token] = {
+  //   val result = all.takeWhile(t => t.kind != TokenKind.NEWLINE && t.kind != tok)
+  //   all = all.drop(result.length)
+  //   result
+  // }
+
+  def eatErrorsUntilNewlineOr(
+    tok: TokenKind,
+    err: Token => Unit,
+  ): Unit = eatErrorsUntilNewlineOr0(List(tok), err)
+
+  def eatErrorsUntilNewlineOr0(
+    toks: List[TokenKind],
+    err: Token => Unit,
+  ): Unit =
+    while (!eof && peek().kind != TokenKind.NEWLINE && !toks.contains(peek().kind)) {
+      val next = bump()
+      err(next)
+    }
 
 }
 
@@ -291,8 +321,14 @@ object Error {
 
 case class Parser(
   tokens: Tokens,
-  errors: List[Error],
-)
+  var errors: List[Error],
+) {
+
+  def addError(
+    error: Error
+  ): Unit = errors ::= error
+
+}
 
 object Parser {
 
