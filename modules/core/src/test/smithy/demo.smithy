@@ -28,9 +28,25 @@ service DemoService {
     operations: [
         CreateHero
         GetPowers
-        CreateSubscription
+        CreateSubscription,
+        CreateList
     ]
     errors: [GenericServerError]
+}
+
+@http(uri: "/list", method: "POST")
+operation CreateList {
+  input := {
+    items: Items,
+    lists: Lists
+  }
+}
+
+list Lists { member: Items }
+list Items { member: Item }
+
+structure Item {
+  @required name: String
 }
 
 @simpleRestJson

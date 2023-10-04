@@ -177,7 +177,6 @@ object CompletionProvider {
           val matchingNode = RangeIndex
             .build(sf)
             .findAtPosition(pos)
-
           // System.err.println("matchingNode: " + matchingNode.render)
 
           matchingNode match {

@@ -1,6 +1,7 @@
 package playground.language
 
 import cats.implicits._
+import demo.smithy.Friends
 import demo.smithy.Good
 import demo.smithy.HasDeprecations
 import demo.smithy.HasNewtypes
@@ -12,6 +13,8 @@ import demo.smithy.MyInt
 import demo.smithy.MyString
 import demo.smithy.Power
 import demo.smithy.PowerMap
+import playground.Assertions._
+import playground.language.Diffs._
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.PathEntry._
 import smithy.api.TimestampFormat
@@ -28,6 +31,13 @@ object CompletionTests extends FunSuite {
     schema: Schema[_],
     ctx: NodeContext,
   ): List[CompletionItem] = schema.compile(CompletionVisitor).getCompletions(ctx)
+
+  test("completions on list items that are structs") {
+
+    val completions = getCompletions(Friends.schema, NodeContext.EmptyPath)
+
+    assertNoDiff(completions, Nil)
+  }
 
   test("completions on struct are empty without StructBody") {
 
