@@ -4,5 +4,5 @@ import playground.smithyql.Prelude
 import playground.smithyql.parser.ParserSuite
 
 object PreludeParserNegativeTests extends ParserSuite {
-  loadNegativeParserTests[Prelude]("prelude", trimWhitespace = true)
+  loadNegativeParserTests[Prelude]("prelude", trimWhitespace = true, invalidTokens = false)
 }
