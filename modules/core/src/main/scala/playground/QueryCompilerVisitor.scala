@@ -25,6 +25,8 @@ import smithy4s.schema.CollectionTag.ListTag
 import smithy4s.schema.CollectionTag.SetTag
 import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumTag
+import smithy4s.schema.EnumTag.OpenIntEnum
+import smithy4s.schema.EnumTag.OpenStringEnum
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -490,7 +492,20 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         Ior.bothNec(CompilationError.warning(EnumFallback(v.name), range).deprecated, v.value)
 
       case (None, None) =>
-        Ior.leftNec(CompilationError.error(UnknownEnumValue(name, values.map(_.name)), range))
+        tag match {
+          // todo: test
+          case OpenIntEnum(unknown) =>
+            name
+              .toIntOption
+              .toRightIor(CompilationError.error(InvalidIntEnumValue(name), range))
+              .toIorNec
+              .map(unknown)
+
+          // todo: test
+          case OpenStringEnum(unknown) => unknown(name).pure[QueryCompiler.Result]
+          case _ =>
+            Ior.leftNec(CompilationError.error(UnknownEnumValue(name, values.map(_.name)), range))
+        }
     }
 
   }

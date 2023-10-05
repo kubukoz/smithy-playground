@@ -3,6 +3,7 @@ $version: "2"
 namespace demo.smithy
 
 use alloy#UUID
+use alloy#openEnum
 use alloy#simpleRestJson
 use smithy4s.meta#indexedSeq
 use smithy4s.meta#refinement
@@ -67,9 +68,10 @@ structure CreateHeroInput {
     friendSet: FriendSet
     hasNewtypes: HasNewtypes
     hasDeprecations: HasDeprecations
-    doc: Document,
-    sparse: SampleSparseList,
+    doc: Document
+    sparse: SampleSparseList
     sparseMap: SampleSparseMap
+    tier: PrivacyTier
 }
 
 @uniqueItems
@@ -141,6 +143,7 @@ map PowerMap {
     value: Hero
 }
 
+@openEnum
 enum Power {
     ICE = "Ice"
     FIRE = "Fire"
@@ -148,6 +151,7 @@ enum Power {
     WIND = "Wind"
 }
 
+@openEnum
 intEnum PrivacyTier {
     PUBLIC = 0
     PRIVATE = 1
@@ -264,7 +268,6 @@ structure HasMixin with [SampleMixin] {
     @required
     name: String
 }
-
 
 @sparse
 list SampleSparseList {
