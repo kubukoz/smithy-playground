@@ -83,7 +83,8 @@ lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
+  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
+  mimaPreviousArtifacts := Set.empty,
 )
 
 lazy val pluginSample = module("plugin-sample")
