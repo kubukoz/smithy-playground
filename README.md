@@ -131,8 +131,9 @@ We have:
 - booleans: `true`, `false`
 - lists: `[ true, false, ]`
 - structures: `{ k: "value", k2: true, k3: [ 10, 20, ], }` - note that keys aren't quoted, unlike in JSON
-- null, but it's not what you think: the `null` literal only typechecks as a Smithy `Document`,
-  and corresponds to the [Null document](https://awslabs.github.io/smithy/2.0/spec/simple-types.html?highlight=null#document).
+- null, but it's not what you think: the `null` literal only typechecks as two things:
+  - a Smithy `Document`: corresponds to the [Null document](https://awslabs.github.io/smithy/2.0/spec/simple-types.html?highlight=null#document)
+  - an element of a sparse collection.
 
 ### Type representation
 

@@ -89,7 +89,9 @@ structure CreateHeroInput {
     friendSet: FriendSet
     hasNewtypes: HasNewtypes
     hasDeprecations: HasDeprecations
-    doc: Document
+    doc: Document,
+    sparse: SampleSparseList,
+    sparseMap: SampleSparseMap
 }
 
 @uniqueItems
@@ -166,6 +168,11 @@ enum Power {
     FIRE = "Fire"
     LIGHTNING = "Lightning"
     WIND = "Wind"
+}
+
+intEnum PrivacyTier {
+    PUBLIC = 0
+    PRIVATE = 1
 }
 
 @http(method: "PUT", uri: "/subscriptions")
@@ -278,4 +285,16 @@ structure SampleMixin {
 structure HasMixin with [SampleMixin] {
     @required
     name: String
+}
+
+
+@sparse
+list SampleSparseList {
+    member: Integer
+}
+
+@sparse
+map SampleSparseMap {
+    key: String
+    value: Integer
 }

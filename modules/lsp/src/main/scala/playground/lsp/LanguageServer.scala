@@ -7,9 +7,6 @@ import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.implicits._
 import cats.parse.LocationMap
-import cats.tagless.Derive
-import cats.tagless.FunctorK
-import cats.tagless.implicits._
 import cats.~>
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
@@ -35,7 +32,6 @@ import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
-import playground.lsp.util.KleisliOps
 import playground.types._
 import smithy4s.dynamic.DynamicSchemaIndex
 
@@ -108,8 +104,6 @@ trait LanguageServer[F[_]] {
 
 object LanguageServer {
 
-  implicit val functorK: FunctorK[LanguageServer] = Derive.functorK
-
   def notAvailable[F[_]: MonadThrow]: LanguageServer[F] = defer(
     new Throwable("Server not available").raiseError[F, LanguageServer[F]]
   )
@@ -133,7 +127,7 @@ object LanguageServer {
 
       // see if we can pass this everywhere
       // https://github.com/kubukoz/smithy-playground/issues/164
-      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices)
+      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
 
       val compiler: FileCompiler[IorThrow] = FileCompiler
         .instance(
@@ -358,8 +352,72 @@ object LanguageServer {
       def exit: F[Unit] = Applicative[F].unit
     }
 
+  // courtesy of github copilot
+  // workaround for https://github.com/typelevel/cats-tagless/pull/401
   def defer[F[_]: FlatMap](
     fa: F[LanguageServer[F]]
-  ): LanguageServer[F] = Derive.readerT[LanguageServer, F].mapK(KleisliOps.applyEffectK(fa))
+  ): LanguageServer[F] =
+    new LanguageServer[F] {
+
+      override def initialize(
+        params: InitializeParams
+      ): F[InitializeResult] = fa.flatMap(_.initialize(params));
+
+      override def initialized(
+        params: InitializedParams
+      ): F[Unit] = fa.flatMap(_.initialized(params));
+
+      override def didChange(
+        params: DidChangeTextDocumentParams
+      ): F[Unit] = fa.flatMap(_.didChange(params));
+
+      override def didOpen(
+        params: DidOpenTextDocumentParams
+      ): F[Unit] = fa.flatMap(_.didOpen(params));
+
+      override def didSave(
+        params: DidSaveTextDocumentParams
+      ): F[Unit] = fa.flatMap(_.didSave(params));
+
+      override def didClose(
+        params: DidCloseTextDocumentParams
+      ): F[Unit] = fa.flatMap(_.didClose(params));
+
+      override def formatting(
+        params: DocumentFormattingParams
+      ): F[List[TextEdit]] = fa.flatMap(_.formatting(params));
+
+      override def completion(
+        position: CompletionParams
+      ): F[Either[List[CompletionItem], CompletionList]] = fa.flatMap(_.completion(position));
+
+      override def diagnostic(
+        params: DocumentDiagnosticParams
+      ): F[DocumentDiagnosticReport] = fa.flatMap(_.diagnostic(params));
+
+      override def codeLens(
+        params: CodeLensParams
+      ): F[List[CodeLens]] = fa.flatMap(_.codeLens(params));
+
+      override def documentSymbol(
+        params: DocumentSymbolParams
+      ): F[List[DocumentSymbol]] = fa.flatMap(_.documentSymbol(params));
+
+      override def didChangeWatchedFiles(
+        params: DidChangeWatchedFilesParams
+      ): F[Unit] = fa.flatMap(_.didChangeWatchedFiles(params));
+
+      override def executeCommand(
+        params: ExecuteCommandParams
+      ): F[Unit] = fa.flatMap(_.executeCommand(params));
+
+      override def runFile(
+        params: RunFileParams
+      ): F[Unit] = fa.flatMap(_.runFile(params));
+
+      override def shutdown: F[Unit] = fa.flatMap(_.shutdown);
+
+      override def exit: F[Unit] = fa.flatMap(_.exit)
+    }
 
 }

@@ -33,7 +33,7 @@ object CompletionProvider {
 
   def forSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): CompletionProvider = forServices(dsi.allServices)
+  ): CompletionProvider = forServices(dsi.allServices.toList)
 
   def forServices(
     allServices: List[DynamicSchemaIndex.ServiceWrapper]
@@ -72,6 +72,7 @@ object CompletionProvider {
             insertBodyStruct = insertBodyStruct,
           )
         }
+        .toList
     }
 
     def completeRootOperationName(

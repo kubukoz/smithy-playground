@@ -124,14 +124,14 @@ lazy val formatter = module("formatter")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.5.1",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.23.4",
+      "org.typelevel" %% "cats-effect" % "3.5.2",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.24.1",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.2.7" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.34.0" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.2.8" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.39.1" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
@@ -157,7 +157,7 @@ lazy val lsp = module("lsp")
       "org.http4s" %% "http4s-ember-client" % "0.23.23",
       "org.http4s" %% "http4s-ember-server" % "0.23.23" % Test,
       "io.get-coursier" %% "coursier" % "2.1.7",
-      "org.typelevel" %% "cats-tagless-macros" % "0.15.0",
+      "org.typelevel" %% "cats-tagless-core" % "0.15.0",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),

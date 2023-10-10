@@ -11,7 +11,7 @@ import playground.smithyutil._
 import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.Bijection
-import smithy4s.ByteArray
+import smithy4s.Blob
 import smithy4s.Document
 import smithy4s.Hints
 import smithy4s.Lazy
@@ -24,7 +24,9 @@ import smithy4s.schema.CollectionTag.IndexedSeqTag
 import smithy4s.schema.CollectionTag.ListTag
 import smithy4s.schema.CollectionTag.SetTag
 import smithy4s.schema.CollectionTag.VectorTag
+import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumValue
+import smithy4s.schema.Field
 import smithy4s.schema.Primitive
 import smithy4s.schema.Primitive.PBigDecimal
 import smithy4s.schema.Primitive.PBigInt
@@ -40,9 +42,7 @@ import smithy4s.schema.Primitive.PShort
 import smithy4s.schema.Primitive.PString
 import smithy4s.schema.Primitive.PTimestamp
 import smithy4s.schema.Primitive.PUUID
-import smithy4s.schema.Primitive.PUnit
 import smithy4s.schema.Schema
-import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 import smithy4s.~>
 import types._
@@ -50,6 +50,7 @@ import util.chaining._
 
 import java.util.Base64
 import java.util.UUID
+import scala.collection.immutable.ListMap
 
 object QueryCompilerVisitor {
   val full: Schema ~> QueryCompiler =
@@ -58,18 +59,22 @@ object QueryCompilerVisitor {
 
 object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
 
-  private def checkRange[A, B](
-    pc: QueryCompiler[A]
+  private def checkRange[B](
+    pc: QueryCompiler[BigDecimal]
   )(
     tag: String
   )(
-    matchToRange: A => Option[B]
+    matchToRange: PartialFunction[BigDecimal, B]
   ) = (pc, QueryCompiler.pos).tupled.emap { case (i, range) =>
-    matchToRange(i)
-      .toRightIor(
+    Either
+      .catchOnly[ArithmeticException](matchToRange.lift(i).toRight(()))
+      .leftWiden[Any]
+      .flatten
+      .leftMap(_ =>
         CompilationError
           .error(NumberOutOfRange(i.toString, tag), range)
       )
+      .toIor
       .toIorNec
   }
 
@@ -84,31 +89,24 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         QueryCompiler
           .typeCheck(NodeKind.Bool) { case b @ BooleanLiteral(_) => b }
           .map(_.value.value)
-      case PUnit     => struct(shapeId, hints, Vector.empty, _ => ())
-      case PLong     => checkRange(integer)("int")(_.toLongOption)
-      case PInt      => checkRange(integer)("int")(_.toIntOption)
-      case PShort    => checkRange(integer)("short")(_.toShortOption)
-      case PByte     => checkRange(integer)("byte")(_.toByteOption)
-      case PFloat    => checkRange(integer)("float")(_.toFloatOption)
-      case PDouble   => checkRange(integer)("double")(_.toDoubleOption)
+      case PLong     => checkRange(number)("int")(_.toLongExact)
+      case PInt      => checkRange(number)("int")(_.toIntExact)
+      case PShort    => checkRange(number)("short")(_.toShortExact)
+      case PByte     => checkRange(number)("byte")(_.toByteExact)
+      case PFloat    => checkRange(number)("float") { case i if i.isDecimalFloat => i.toFloat }
+      case PDouble   => checkRange(number)("double") { case i if i.isDecimalDouble => i.toDouble }
       case PDocument => document
       case PBlob =>
         (string, QueryCompiler.pos).tupled.emap { case (s, range) =>
           Either
             .catchNonFatal(Base64.getDecoder().decode(s))
-            .map(ByteArray(_))
+            .map(Blob(_))
             .leftMap(_ => CompilationError.error(CompilationErrorDetails.InvalidBlob, range))
             .toIor
             .toIorNec
         }
-      case PBigDecimal =>
-        checkRange(integer)("bigdecimal") { s =>
-          Either.catchNonFatal(BigDecimal(s)).toOption
-        }
-      case PBigInt =>
-        checkRange(integer)("bigint") { s =>
-          Either.catchNonFatal(BigInt(s)).toOption
-        }
+      case PBigDecimal => number
+      case PBigInt     => checkRange(number)("bigint")(_.toBigIntExact.get)
       case PUUID =>
         stringLiteral.emap { s =>
           Either
@@ -137,9 +135,10 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         }
     }
 
-  private val integer: QueryCompiler[String] = QueryCompiler
+  private val number: QueryCompiler[BigDecimal] = QueryCompiler
     .typeCheck(NodeKind.IntLiteral) { case i @ IntLiteral(_) => i }
     .map(_.value.value)
+    .map(BigDecimal(_))
 
   def collection[C[_], A](
     shapeId: ShapeId,
@@ -224,34 +223,31 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     def default: Option[A]
   }
 
-  private val compileField: Schema ~> FieldCompiler =
-    new (Schema ~> FieldCompiler) {
+  private object FieldCompiler {
 
-      def apply[A](
-        schema: Schema[A]
-      ): FieldCompiler[A] =
-        new FieldCompiler[A] {
-          def compiler: QueryCompiler[A] = schema.compile(QueryCompilerVisitorInternal)
+    def compile[A](
+      field: Field[_, A]
+    ): FieldCompiler[A] =
+      new FieldCompiler[A] {
+        override val compiler: QueryCompiler[A] = field.schema.compile(QueryCompilerVisitorInternal)
 
-          def default: Option[A] = schema
-            .hints
-            .get(api.Default)
-            // Ignoring precise error, as this should generally be a Right _always_ due to smithy-level validation
-            .flatMap(v => Document.Decoder.fromSchema(schema).decode(v.value).toOption)
+        override val default: Option[A] = field.schema.getDefaultValue
 
-        }
+      }
 
-    }
+  }
 
   def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fieldsRaw: Vector[SchemaField[S, _]],
+    fieldsRaw: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
   ): QueryCompiler[S] = {
-    val fields = fieldsRaw.map(_.mapK(compileField))
+    val fields = fieldsRaw
+      .map(f => f.label -> FieldCompiler.compile(f))
+      .to(ListMap)
 
-    val validFields = fields.map(_.label)
+    val validFields = fields
     val deprecatedFields =
       fieldsRaw.flatMap { f =>
         f.hints.get(api.Deprecated).tupleLeft(f.label)
@@ -260,21 +256,16 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
     QueryCompiler
       .typeCheck(NodeKind.Struct) { case s @ Struct(_) => s }
       .emap { struct =>
-        // this is a list to keep the original type's ordering
-        val remainingValidFields =
-          validFields
-            .filterNot(
-              struct.value.fields.value.keys.map(_.value.text).toSet
-            )
-            .toList
-
         val presentKeys = struct.value.fields.value.keys
 
+        // this is a list to keep the original type's ordering
+        val remainingValidFields = validFields -- presentKeys.map(_.value.text).toSet
+
         val extraFieldErrors: QueryCompiler.Result[Unit] = presentKeys
-          .filterNot(field => validFields.contains_(field.value.text))
+          .filterNot(field => validFields.keySet.contains_(field.value.text))
           .map { unexpectedKey =>
             CompilationError.error(
-              UnexpectedField(remainingValidFields),
+              UnexpectedField(remainingValidFields.keys.toList),
               unexpectedKey.range,
             )
           }
@@ -295,44 +286,60 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
           .toBothLeft(())
           .combine(Ior.right(()))
 
-        val buildStruct = fields
-          .parTraverse { field =>
-            val fieldOpt = struct
+        def handleField[T](
+          label: String,
+          field: FieldCompiler[T],
+        ): QueryCompiler.Result[T] = {
+          val fieldByName =
+            struct
               .value
               .fields
               .value
-              .byName(field.label)(_.value)
-              .parTraverse(field.instance.compiler.compile)
+              .byName(label)(_.value)
 
-            if (field.isOptional)
-              fieldOpt
-            else
-              // Note: defaults get no special handling in dynamic schemas (in which a field with a default is considered optional).
-              // There's no real need to provide the default value in a dynamic client, as it can just omit the field in the request being sent.
-              // The server shall provide the default value on its own.
-              // This `orElse` fallback will arguably never be hit in practice, but it's here for completeness - just in case the compiler ends up being used with static services.
-              fieldOpt.map(_.orElse(field.instance.default)).flatMap {
-                _.toRightIor(
-                  CompilationError.error(
-                    MissingField(field.label),
-                    struct.value.fields.range,
-                  )
-                ).toIorNec
-              }
-          }
+          // Note: defaults get no special handling in dynamic schemas (in which a field with a default is considered optional).
+          // There's no real need to provide the default value in a dynamic client, as it can just omit the field in the request being sent.
+          // The server shall provide the default value on its own.
+          // This `orElse` fallback will arguably never be hit in practice, but it's here for completeness - just in case the compiler ends up being used with static
+          fieldByName
+            .parTraverse(field.compiler.compile)
+            .map(_.orElse(field.default))
+            .flatMap {
+              _.toRightIor(
+                CompilationError.error(
+                  MissingField(label),
+                  struct.value.fields.range,
+                )
+              ).toIorNec
+            }
+        }
+
+        val buildStruct = fields
+          .toVector
+          .parTraverse { case (label, instance) => handleField(label, instance) }
 
         buildStruct.map(make) <& extraFieldErrors <& deprecatedFieldWarnings
       }
-
   }
 
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[Alt[Schema, U, _]],
-    dispatcher: Alt.Dispatcher[Schema, U],
+    alternatives: Vector[Alt[U, _]],
+    dispatcher: Alt.Dispatcher[U],
   ): QueryCompiler[U] = {
-    val alternativesCompiled = alternatives.map(_.mapK(this)).groupBy(_.label).map(_.map(_.head))
+    def handleAlt[A](
+      alt: Alt[U, A]
+    ): QueryCompiler[U] = alt
+      .schema
+      .compile(QueryCompilerVisitorInternal.this)
+      .map(alt.inject)
+
+    val alternativesCompiled = alternatives
+      .groupByNev(_.label)
+      .fmap(_.head)
+      .fmap(handleAlt(_))
+
     val deprecatedAlternativeLabels =
       alternatives.flatMap(alt => alt.hints.get(api.Deprecated).tupleLeft(alt.label)).toMap
 
@@ -345,10 +352,6 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
         case s if s.value.fields.value.size === 1 =>
           val definition = s.value.fields.value.head
           val key = definition.identifier
-
-          def go[A](
-            alt: Alt[QueryCompiler, U, A]
-          ): QueryCompiler[U] = alt.instance.map(alt.inject)
 
           val op =
             alternativesCompiled
@@ -373,7 +376,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
             .toBothLeft(())
             .combine(Ior.right(()))
 
-          op.flatMap(go(_).compile(definition.value)) <& deprecationWarning
+          op.flatMap(_.compile(definition.value)) <& deprecationWarning
 
         case s if s.value.fields.value.isEmpty =>
           CompilationError
@@ -455,9 +458,22 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
 
   val string: QueryCompiler[String] = stringLiteral.map(_.value)
 
-  def enumeration[E](
+  def option[A](
+    schema: Schema[A]
+  ): QueryCompiler[Option[A]] = {
+    val underlying = schema.compile(this)
+
+    in =>
+      in.value match {
+        case NullLiteral() => None.rightIor
+        case _             => underlying.compile(in).map(Some(_))
+      }
+  }
+
+  override def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
+    tag: EnumTag[E],
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): QueryCompiler[E] = (string, QueryCompiler.pos).tupled.emap { case (name, range) =>
