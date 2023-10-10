@@ -64,7 +64,7 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
           case PBigInt     => schema.reifyHint[api.Range]
           case PBigDecimal => schema.reifyHint[api.Range]
           case PBlob       => schema.reifyHint[api.Length]
-          case PUnit | PTimestamp | PDocument | PBoolean | PUUID => schema
+          case PTimestamp | PDocument | PBoolean | PUUID => schema
         }
 
       case c: CollectionSchema[_, _] => collection(c)
@@ -76,6 +76,7 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
       case s: StructSchema[_]        => s
       case l: LazySchema[_]          => l
       case u: UnionSchema[_]         => u
+      case n: OptionSchema[_]        => n
     } */
 
 }

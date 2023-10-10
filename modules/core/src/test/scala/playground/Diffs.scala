@@ -3,7 +3,7 @@ package playground
 import cats.data.Ior
 import playground.smithyql.ContextRange
 import playground.smithyql.NodeContext
-import smithy4s.ByteArray
+import smithy4s.Blob
 
 import scala.annotation.nowarn
 
@@ -27,7 +27,7 @@ object Diffs {
   @nowarn("cat=unused")
   implicit def diffForIor[E: Diff, A: Diff]: Diff[Ior[E, A]] = Diff.derivedDiff
 
-  implicit val diffByteArray: Diff[ByteArray] = Diff[String].contramap(_.toString())
+  implicit val diffByteArray: Diff[Blob] = Diff[String].contramap(_.toString())
   implicit val diffDocument: Diff[smithy4s.Document] = Diff.derivedDiff
   implicit val diffTimestamp: Diff[smithy4s.Timestamp] = Diff[String].contramap(_.toString())
 }

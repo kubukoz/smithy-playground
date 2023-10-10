@@ -32,13 +32,13 @@ import smithy4s.Timestamp
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
+import smithy4s.schema.EnumTag
+import smithy4s.schema.EnumTag.IntEnum
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
 import smithy4s.schema.Schema
 import smithy4s.schema.Schema._
-import smithy4s.schema.SchemaAlt
-import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
@@ -102,6 +102,18 @@ object InsertText {
 
 object CompletionItem {
 
+  def forNull: CompletionItem = CompletionItem(
+    kind = CompletionItemKind.Constant,
+    label = "null",
+    insertText = InsertText.JustString("null"),
+    detail = ": null",
+    description = None,
+    deprecated = false,
+    docs = None,
+    extraTextEdits = Nil,
+    sortText = None,
+  )
+
   def useServiceClause(
     ident: QualifiedIdentifier,
     service: DynamicSchemaIndex.ServiceWrapper,
@@ -115,29 +127,29 @@ object CompletionItem {
   ).copy(detail = describeService(service))
 
   def fromField(
-    field: Field[Schema, _, _]
+    field: Field[_, _]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.Field,
     label = field.label,
     insertText = InsertText.JustString(s"${field.label}: "),
-    schema = field.instance,
+    schema = field.schema,
   )
 
   def fromAlt(
-    alt: Alt[Schema, _, _]
+    alt: Alt[_, _]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
     // needs proper completions for the inner schema
     // https://github.com/kubukoz/smithy-playground/pull/120
     insertText =
-      if (describeSchema(alt.instance).apply().startsWith("structure "))
+      if (describeSchema(alt.schema).apply().startsWith("structure "))
         InsertText.SnippetString(s"""${alt.label}: {
                                     |  $$0
                                     |},""".stripMargin)
       else
         InsertText.JustString(s"${alt.label}: "),
-    alt.instance,
+    alt.schema,
   )
 
   def fromHints(
@@ -200,7 +212,6 @@ object CompletionItem {
       case PByte       => "byte"
       case PDouble     => "double"
       case PShort      => "short"
-      case PUnit       => "unit"
       case PBigInt     => "bigInteger"
       case PInt        => "integer"
       case PUUID       => "uuid"
@@ -214,15 +225,21 @@ object CompletionItem {
     }
   }
 
-  private def describeCollection[C[_]]: CollectionTag[C] => String = {
+  private def describeCollection[C[_]](
+    tag: CollectionTag[C],
+    hints: Hints,
+  ): String = {
     import smithy4s.schema.CollectionTag._
 
-    {
-      case ListTag       => "list"
-      case SetTag        => "set"
-      case IndexedSeqTag => "@indexedSeq list"
-      case VectorTag     => "@vector list"
-    }
+    val base =
+      tag match {
+        case ListTag       => "list"
+        case SetTag        => "set"
+        case IndexedSeqTag => "@indexedSeq list"
+        case VectorTag     => "@vector list"
+      }
+
+    sparseTraitDescription(hints).foldMap(_ + " ") + base
   }
 
   def describeService(
@@ -237,17 +254,30 @@ object CompletionItem {
     schema match {
       case PrimitiveSchema(shapeId, _, tag) => now(s"${describePrimitive(tag)} ${shapeId.name}")
 
-      case Schema.CollectionSchema(shapeId, _, tag, member) =>
-        now(s"${describeCollection(tag)} ${shapeId.name} { member: ${describeSchema(member)()} }")
+      case Schema.CollectionSchema(shapeId, hints, tag, member) =>
+        now(
+          s"${describeCollection(tag, hints)} ${shapeId.name} { member: ${describeSchema(member)()} }"
+        )
 
-      case EnumerationSchema(shapeId, _, _, _) => now(s"enum ${shapeId.name}")
+      case e @ EnumerationSchema(_, _, _, _, _) =>
+        e.tag match {
+          case IntEnum() => now(s"intEnum ${e.shapeId.name}")
+          case _         => now(s"enum ${e.shapeId.name}")
+        }
 
       case MapSchema(shapeId, _, key, value) =>
-        now(s"map ${shapeId.name} { key: ${key.shapeId.name}, value: ${value.shapeId.name} }")
+        now(
+          sparseTraitDescription(schema.hints).foldMap(_ + " ") +
+            s"map ${shapeId.name} { key: ${describeSchema(key)()}, value: ${describeSchema(value)()} }"
+        )
 
       case StructSchema(shapeId, _, _, _) => now(s"structure ${shapeId.name}")
 
       case UnionSchema(shapeId, _, _, _) => now(s"union ${shapeId.name}")
+
+      case OptionSchema(underlying) =>
+        // ignore the fact that it's nullable, just describe the underlying schema
+        describeSchema(underlying)
 
       case LazySchema(suspend) =>
         // we don't look at fields or whatnot,
@@ -258,6 +288,10 @@ object CompletionItem {
 
       case BijectionSchema(underlying, _) => describeSchema(underlying)
     }
+
+  private def sparseTraitDescription(
+    hints: Hints
+  ): Option[String] = hints.get(api.Sparse).as("@sparse")
 
   private def now(
     s: String
@@ -495,9 +529,21 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     )
   }
 
+  override def option[A](
+    schema: Schema[A]
+  ): CompletionResolver[Option[A]] = {
+    val underlying = schema.compile(this)
+
+    {
+      case p @ EmptyPath => underlying.getCompletions(p).appended(CompletionItem.forNull)
+      case more          => underlying.getCompletions(more)
+    }
+  }
+
   override def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
+    tag: EnumTag[E],
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): CompletionResolver[E] = quoteAware { transformString =>
@@ -507,7 +553,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
           CompletionItemKind.EnumMember,
           enumValue.name,
           InsertText.JustString(transformString(enumValue.name)),
-          Schema.enumeration(total, values).addHints(hints).withId(shapeId),
+          Schema.enumeration(total, tag, values).addHints(hints).withId(shapeId),
         )
       }
   }
@@ -527,16 +573,16 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   override def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fields: Vector[SchemaField[S, _]],
+    fields: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
   ): CompletionResolver[S] = {
-    val compiledFields = fields.map(field => (field.mapK(this), field.instance))
+    val compiledFields = fields.map(field => (field, field.schema.compile(this)))
 
     structLike(
       inBody =
         fields
           // todo: filter out present fields
-          .sortBy(field => (field.isRequired, field.label))
+          .sortBy(field => (field.isStrictlyRequired, field.label))
           .map(CompletionItem.fromField)
           .toList,
       inValue =
@@ -546,20 +592,20 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
         ) =>
           compiledFields
             .collectFirst {
-              case (field, _) if field.label === h => field
+              case (field, instance) if field.label === h => instance
             }
-            .foldMap(_.instance.getCompletions(rest)),
+            .foldMap(_.getCompletions(rest)),
     )
   }
 
   override def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[SchemaAlt[U, _]],
-    dispatcher: Alt.Dispatcher[Schema, U],
+    alternatives: Vector[Alt[U, _]],
+    dispatcher: Alt.Dispatcher[U],
   ): CompletionResolver[U] = {
-    val allWithIds = alternatives.map { alt =>
-      (alt.mapK(this), alt.instance)
+    val compiledAlts = alternatives.map { alt =>
+      (alt, alt.schema.compile(this))
     }
 
     structLike(
@@ -568,7 +614,12 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
         (
           head,
           tail,
-        ) => allWithIds.find(_._1.label === head).toList.flatMap(_._1.instance.getCompletions(tail)),
+        ) =>
+          compiledAlts
+            .collect {
+              case (alt, instance) if alt.label === head => instance
+            }
+            .foldMap(_.getCompletions(tail)),
     )
   }
 

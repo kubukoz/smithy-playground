@@ -26,16 +26,18 @@ object CompletionProviderTests extends SimpleIOSuite {
       Position(0),
     )
 
-    val expected = RandomGen
-      .endpoints
-      .map(endpoint =>
-        CompletionItem.forOperation(
-          insertUseClause = CompletionItem.InsertUseClause.Required,
-          endpoint,
-          QualifiedIdentifier.forService(RandomGen),
-          CompletionItem.InsertBodyStruct.Yes,
-        )
-      )
+    val expected =
+      RandomGen
+        .endpoints
+        .map { endpoint =>
+          CompletionItem.forOperation(
+            insertUseClause = CompletionItem.InsertUseClause.Required,
+            endpoint,
+            QualifiedIdentifier.forService(RandomGen),
+            CompletionItem.InsertBodyStruct.Yes,
+          )
+        }
+        .toList
 
     assertNoDiff(result, expected)
   }

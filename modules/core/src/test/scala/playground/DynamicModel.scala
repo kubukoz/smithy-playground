@@ -13,7 +13,7 @@ object DynamicModel {
       .assemble()
       .unwrap()
 
-    DynamicSchemaIndex.loadModel(model).toTry.get
+    DynamicSchemaIndex.loadModel(model)
   }
 
 }

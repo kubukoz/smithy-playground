@@ -3,14 +3,17 @@ package playground
 import cats.Id
 import demo.smithy.Good
 import demo.smithy.Hero
+import demo.smithy.Person
 import demo.smithy.Power
+import demo.smithy.SampleSparseList
 import playground.NodeEncoder
 import playground.smithyql.AST
 import playground.smithyql.DSL._
+import playground.smithyql.Listed
 import playground.smithyql.NullLiteral
 import playground.smithyql.StringLiteral
 import smithy.api.TimestampFormat
-import smithy4s.ByteArray
+import smithy4s.Blob
 import smithy4s.Document
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
@@ -50,6 +53,22 @@ object NodeEncoderTests extends FunSuite {
     assertEncodes(Good.schema, Good(42), struct("howGood" -> 42))
   }
 
+  test("struct with optionals: defined") {
+    assertEncodes(
+      Person.schema,
+      Person("My name", age = Some(42)),
+      struct("name" -> "My name", "age" -> 42),
+    )
+  }
+
+  test("struct with optionals: empty") {
+    assertEncodes(
+      Person.schema,
+      Person("My name", age = None),
+      struct("name" -> "My name"),
+    )
+  }
+
   test("enum") {
     assertEncodes(Power.schema, Power.ICE, "ICE")
   }
@@ -69,7 +88,7 @@ object NodeEncoderTests extends FunSuite {
   test("blob") {
     assertEncodes(
       Schema.bytes,
-      ByteArray("foo".getBytes()),
+      Blob("foo"),
       StringLiteral("Zm9v"),
     )
   }
@@ -79,6 +98,14 @@ object NodeEncoderTests extends FunSuite {
       Schema.document,
       Document.nullDoc,
       NullLiteral(),
+    )
+  }
+
+  test("sparse list") {
+    assertEncodes(
+      SampleSparseList.schema,
+      SampleSparseList(List(Some(1), None, Some(3))),
+      Listed[Id](List(1, NullLiteral(), 3)),
     )
   }
 }

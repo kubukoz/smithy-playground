@@ -1,5 +1,6 @@
 package playground.smithyql
 
+import cats.Id
 import cats.Show
 import cats.data.Chain
 import cats.data.Ior
@@ -22,6 +23,7 @@ import demo.smithy.Ints
 import demo.smithy.MyInstant
 import demo.smithy.Person
 import demo.smithy.Power
+import demo.smithy.SampleSparseList
 import demo.smithy.StringWithLength
 import org.scalacheck.Arbitrary
 import playground.Assertions._
@@ -46,7 +48,7 @@ import playground.std.ClockGen
 import playground.std.RandomGen
 import playground.types.IorThrow
 import smithy.api.TimestampFormat
-import smithy4s.ByteArray
+import smithy4s.Blob
 import smithy4s.Document
 import smithy4s.Refinement
 import smithy4s.Service
@@ -474,7 +476,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile {
         WithSource.liftId("dGVzdA==".mapK(WithSource.liftId))
       }(Schema.bytes),
-      Ior.right(ByteArray("test".getBytes())),
+      Ior.right(Blob("test".getBytes())),
     )
   }
 
@@ -777,6 +779,36 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile[Ints](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
         Ints(IndexedSeq(1, 2, 3))
       )
+    )
+  }
+
+  pureTest("sparse list of ints") {
+    implicit val diffSSL: Diff[SampleSparseList] = Diff[List[Option[Int]]].contramap(_.value)
+
+    assertNoDiff(
+      compile[SampleSparseList](
+        WithSource.liftId(List[InputNode[Id]](1, NullLiteral(), 3).mapK(WithSource.liftId))
+      ).leftMap(_.map(_.err)),
+      Ior.right(
+        SampleSparseList(List(Some(1), None, Some(3)))
+      ),
+    )
+  }
+
+  pureTest("sparse list of ints - dynamic") {
+    assert.same(
+      compile(
+        WithSource.liftId(List[InputNode[Id]](1, NullLiteral(), 3).mapK(WithSource.liftId))
+      )(dynamicSchemaFor[SampleSparseList]).leftMap(_.map(_.err)),
+      Ior.right(
+        Document.array(
+          List(
+            Document.fromInt(1),
+            Document.nullDoc,
+            Document.fromInt(3),
+          )
+        )
+      ),
     )
   }
 

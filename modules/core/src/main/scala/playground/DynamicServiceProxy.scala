@@ -48,11 +48,11 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
           val mapOutput = makeProxy(endpointStatic.output, endpoint.output)
 
           def errorMapper[A]: Throwable => F[A] =
-            endpointStatic.errorable match {
+            endpointStatic.error match {
               case None => _.raiseError[F, A]
               case Some(errorableStatic) =>
-                val errorable = endpoint.errorable.get // should be there at this point
-                val mapError = makeProxy(errorableStatic.error, errorable.error)
+                val errorable = endpoint.error.get // should be there at this point
+                val mapError = makeProxy(errorableStatic.schema, errorable.schema)
 
                 e =>
                   errorableStatic.liftError(e) match {
@@ -77,37 +77,6 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
       }
 
     service.functorInterpreter(endpointMapping)
-  }
-
-  private final implicit class PolyFunction5Ops[F[_, _, _, _, _], G[_, _, _, _, _]](
-    self: PolyFunction5[F, G]
-  ) {
-
-    // copied from smithy4s PolyFunction5's unsafeCacheBy
-    final def precomputeBy[K](
-      allPossibleInputs: Seq[Kind5.Existential[F]],
-      getKey: Kind5.Existential[F] => K,
-    ): PolyFunction5[F, G] =
-      new PolyFunction5[F, G] {
-
-        private val map: Map[K, Any] = {
-          val builder = Map.newBuilder[K, Any]
-          allPossibleInputs.foreach(input =>
-            builder += getKey(input) -> self
-              .apply(input.asInstanceOf[F[Any, Any, Any, Any, Any]])
-              .asInstanceOf[Any]
-          )
-          builder.result()
-        }
-
-        def apply[A0, A1, A2, A3, A4](
-          input: F[A0, A1, A2, A3, A4]
-        ): G[A0, A1, A2, A3, A4] = map(
-          getKey(Kind5.existential(input))
-        ).asInstanceOf[G[A0, A1, A2, A3, A4]]
-
-      }
-
   }
 
 }
