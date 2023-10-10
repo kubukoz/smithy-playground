@@ -262,8 +262,8 @@ object CompletionItem {
       case e @ EnumerationSchema(_, _, _, _, _) =>
         e.tag match {
           case ClosedIntEnum     => now(s"intEnum ${e.shapeId.name}")
-          case OpenIntEnum(_)    => now(s"intEnum(open) ${e.shapeId.name}")
-          case OpenStringEnum(_) => now(s"enum(open) ${e.shapeId.name}")
+          case OpenIntEnum(_)    => now(s"@openEnum intEnum ${e.shapeId.name}")
+          case OpenStringEnum(_) => now(s"@openEnum enum ${e.shapeId.name}")
           case ClosedStringEnum  => now(s"enum ${e.shapeId.name}")
         }
 

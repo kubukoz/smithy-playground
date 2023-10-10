@@ -143,7 +143,6 @@ map PowerMap {
     value: Hero
 }
 
-@openEnum
 enum Power {
     ICE = "Ice"
     FIRE = "Fire"
@@ -151,7 +150,6 @@ enum Power {
     WIND = "Wind"
 }
 
-@openEnum
 intEnum PrivacyTier {
     PUBLIC = 0
     PRIVATE = 1
@@ -278,4 +276,16 @@ list SampleSparseList {
 map SampleSparseMap {
     key: String
     value: Integer
+}
+
+@openEnum
+enum OpenStringEnum {
+    ICE
+    FIRE
+}
+
+@openEnum
+intEnum OpenIntEnum {
+    ICE = 1
+    FIRE = 2
 }
