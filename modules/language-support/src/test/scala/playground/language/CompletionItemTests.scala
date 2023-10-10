@@ -11,7 +11,7 @@ import playground.std.ClockOperation
 import smithy4s.schema.Schema
 import weaver._
 
-import Diffs._
+import Diffs.given
 
 object CompletionItemTests extends FunSuite {
   test("CompletionItem.fromField: required field") {

@@ -34,7 +34,7 @@ import playground.CompiledInput
 import playground.DeprecatedInfo
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
-import playground.Diffs._
+import playground.Diffs.given
 import playground.DynamicModel
 import playground.OperationCompiler
 import playground.PreludeCompiler

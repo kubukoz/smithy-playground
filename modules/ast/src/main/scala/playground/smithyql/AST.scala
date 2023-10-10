@@ -166,9 +166,7 @@ object QualifiedIdentifier {
 
   implicit val show: Show[QualifiedIdentifier] = Show.fromToString
 
-  // todo: dotty claims infinite loop
-  implicit val ord: Order[QualifiedIdentifier] = Order.by(unapply(_))
-
+  implicit val ord: Order[QualifiedIdentifier] = Order.by(Tuple.fromProductTyped)
 }
 
 // the keywords of the clause are captured in the Prelude's useClauses list.
@@ -241,7 +239,7 @@ final case class Binding[F[_]](
 
 final case class Identifier(
   text: String
-) extends AnyVal
+)
 
 object Struct {
 

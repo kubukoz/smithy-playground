@@ -240,7 +240,7 @@ object Scanner {
       readAny
         .lift(())
         .isDefined ||
-        eatErrors(): Unit
+      eatErrors()
 
       // last-effort sanity check
       if (remaining == last)

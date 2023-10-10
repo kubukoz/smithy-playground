@@ -54,7 +54,17 @@ val commonSettings = Seq(
   compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
+  scalacOptions -= "-language:existentials",
+  // https://github.com/lampepfl/dotty/issues/18674
+  Test / scalacOptions -= "-Wunused:implicits",
+  Test / scalacOptions -= "-Wunused:explicits",
+  Test / scalacOptions -= "-Wunused:imports",
+  Test / scalacOptions -= "-Wunused:locals",
+  Test / scalacOptions -= "-Wunused:params",
+  Test / scalacOptions -= "-Wunused:privates",
+  //
   scalacOptions += "-Wnonunit-statement",
+  scalacOptions += "-no-indent",
   scalacOptions ++= Seq("-Xsource:3.0"),
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions ++= Seq("-release", "11"),
@@ -73,8 +83,7 @@ lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
-  mimaPreviousArtifacts := Set.empty,
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
 )
 
 lazy val pluginSample = module("plugin-sample")

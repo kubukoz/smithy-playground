@@ -4,7 +4,7 @@ import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions._
 import playground.ServiceUtils._
-import playground.language.Diffs._
+import playground.language.Diffs.given
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.StringRangeUtils._

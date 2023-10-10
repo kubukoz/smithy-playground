@@ -3,8 +3,8 @@ package playground
 import cats.Id
 import cats.implicits._
 import com.softwaremill.diffx.cats._
-import playground.Diffs._
-import playground.smithyql.Diffs._
+import playground.Diffs.given
+import playground.smithyql.Diffs.given
 import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
