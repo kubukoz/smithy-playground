@@ -1,28 +1,40 @@
 package playground.smithyql.parser
 
 import io.circe.Codec
+import playground.smithyql.Binding
+import playground.smithyql.Comment
+import playground.smithyql.InputNode
 import playground.smithyql.Listed
 import playground.smithyql.Prelude
+import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.SourceFile
+import playground.smithyql.SourceRange
+import playground.smithyql.Statement
 import playground.smithyql.Struct
 import playground.smithyql.UseClause
 import playground.smithyql.WithSource
 
 object Codecs {
 
-  import io.circe.generic.auto._
-  import io.circe.generic.semiauto._
+  given Codec[QualifiedIdentifier] = Codec.AsObject.derived
+  given Codec[Comment] = Codec.AsObject.derived
+  given Codec[SourceRange] = Codec.AsObject.derived
+  given [A: Codec]: Codec[WithSource[A]] = Codec.AsObject.derived
 
-  implicit val useClauseWithSourceCodec: Codec[UseClause[WithSource]] = deriveCodec
+  given Codec[UseClause[WithSource]] = Codec.AsObject.derived
 
-  implicit val listedWithSourceCodec: Codec[Listed[WithSource]] = deriveCodec
+  given Codec[InputNode[WithSource]] = Codec.AsObject.derived
+  given Codec[Listed[WithSource]] = Codec.AsObject.derived
 
-  implicit val structWithSourceCodec: Codec[Struct[WithSource]] = deriveCodec
+  given Codec[Binding[WithSource]] = Codec.AsObject.derived
+  given Codec[Struct.Fields[WithSource]] = Codec.AsObject.derived
+  given Codec[Struct[WithSource]] = Codec.AsObject.derived
 
-  implicit val queryWithSourceCodec: Codec[Query[WithSource]] = deriveCodec
+  given Codec[Query[WithSource]] = Codec.AsObject.derived
 
-  implicit val preludeWithSourceCodec: Codec[Prelude[WithSource]] = deriveCodec
+  given Codec[Prelude[WithSource]] = Codec.AsObject.derived
 
-  implicit val sourceFileWithSourceCodec: Codec[SourceFile[WithSource]] = deriveCodec
+  given Codec[Statement[WithSource]] = Codec.AsObject.derived
+  given Codec[SourceFile[WithSource]] = Codec.AsObject.derived
 }

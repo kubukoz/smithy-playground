@@ -1,7 +1,6 @@
 package playground
 
 import cats.Parallel
-import cats.effect.implicits._
 import cats.implicits._
 import cats.~>
 import playground._

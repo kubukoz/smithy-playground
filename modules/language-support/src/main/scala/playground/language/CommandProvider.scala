@@ -1,5 +1,6 @@
 package playground.language
 
+import cats.Applicative
 import cats.Id
 import cats.MonadThrow
 import cats.data.NonEmptyList
@@ -28,33 +29,13 @@ trait CommandProvider[F[_]] {
 
 object CommandProvider {
 
-  def instance[F[_]: MonadThrow: TextDocumentProvider: CommandResultReporter](
+  def instance[F[_]: MonadThrow: TextDocumentProvider](
     compiler: FileCompiler[F],
     runner: FileRunner.Resolver[F],
+  )(
+    using reporter: CommandResultReporter[F]
   ): CommandProvider[F] =
     new CommandProvider[F] {
-      private val reporter = CommandResultReporter[F]
-
-      private case class RunnerBuildErrors(
-        issues: NonEmptyList[OperationRunner.Issue.Squashed]
-      ) extends Exception {
-
-        def report: F[Unit] = {
-          val (protocolIssues, otherIssues) = issues.toList.partitionMap {
-            case p: OperationRunner.Issue.Squashed.ProtocolIssues => p.asLeft
-
-            case p: OperationRunner.Issue.Squashed.OtherIssues => p.asRight
-          }
-
-          CommandResultReporter[F]
-            .onUnsupportedProtocol
-            .whenA(protocolIssues.nonEmpty) *>
-            otherIssues.traverse_ { case OperationRunner.Issue.Squashed.OtherIssues(others) =>
-              CommandResultReporter[F].onIssues(others)
-            }
-        }
-
-      }
 
       private case class QueryError(
         e: Throwable,
@@ -133,5 +114,26 @@ object CommandProvider {
         .flatMap(_.apply(args))
 
     }
+
+  private case class RunnerBuildErrors(
+    issues: NonEmptyList[OperationRunner.Issue.Squashed]
+  ) extends Exception {
+
+    def report[F[_]: CommandResultReporter: Applicative]: F[Unit] = {
+      val (protocolIssues, otherIssues) = issues.toList.partitionMap {
+        case p: OperationRunner.Issue.Squashed.ProtocolIssues => p.asLeft
+
+        case p: OperationRunner.Issue.Squashed.OtherIssues => p.asRight
+      }
+
+      CommandResultReporter[F]
+        .onUnsupportedProtocol
+        .whenA(protocolIssues.nonEmpty) *>
+        otherIssues.traverse_ { case OperationRunner.Issue.Squashed.OtherIssues(others) =>
+          CommandResultReporter[F].onIssues(others)
+        }
+    }
+
+  }
 
 }

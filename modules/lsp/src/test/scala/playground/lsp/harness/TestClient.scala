@@ -12,6 +12,7 @@ import playground.lsp.LanguageClient
 
 trait TestClient[F[_]] extends LanguageClient[F] {
   def getEvents: F[List[TestClient.Event]]
+
   def scoped: F ~> F
 
   def withConfiguration(

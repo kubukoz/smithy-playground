@@ -10,7 +10,7 @@ import playground.smithyql.parser.v2.scanner.TokenKind._
 import weaver._
 import weaver.scalacheck.Checkers
 
-import Diffs._
+import Diffs.given
 import Scanner.scan
 
 object ScannerTests extends SimpleIOSuite with Checkers with ScannerSuite {

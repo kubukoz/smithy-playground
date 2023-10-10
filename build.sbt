@@ -34,8 +34,8 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "2.13.11"
-ThisBuild / crossScalaVersions := Seq("2.13.11")
+ThisBuild / scalaVersion := "3.3.1"
+ThisBuild / crossScalaVersions := Seq("3.3.1")
 
 // For coursier's "latest.integration"
 ThisBuild / dynverSeparator := "-"
@@ -54,7 +54,17 @@ val commonSettings = Seq(
   compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
+  scalacOptions -= "-language:existentials",
+  // https://github.com/lampepfl/dotty/issues/18674
+  Test / scalacOptions -= "-Wunused:implicits",
+  Test / scalacOptions -= "-Wunused:explicits",
+  Test / scalacOptions -= "-Wunused:imports",
+  Test / scalacOptions -= "-Wunused:locals",
+  Test / scalacOptions -= "-Wunused:params",
+  Test / scalacOptions -= "-Wunused:privates",
+  //
   scalacOptions += "-Wnonunit-statement",
+  scalacOptions += "-no-indent",
   scalacOptions ++= Seq("-Xsource:3.0"),
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions ++= Seq("-release", "11"),
@@ -73,7 +83,7 @@ lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
+  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
   mimaPreviousArtifacts := Set.empty,
 )
 
@@ -156,7 +166,10 @@ lazy val lsp = module("lsp")
       "io.circe" %% "circe-core" % "0.14.6",
       "org.http4s" %% "http4s-ember-client" % "0.23.23",
       "org.http4s" %% "http4s-ember-server" % "0.23.23" % Test,
-      "io.get-coursier" %% "coursier" % "2.1.7",
+      ("io.get-coursier" % "coursier" % "2.1.7")
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13")
+        .exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_2.13"),
       "org.typelevel" %% "cats-tagless-core" % "0.15.0",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",

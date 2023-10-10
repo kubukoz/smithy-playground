@@ -3,7 +3,6 @@ package playground
 import cats.Applicative
 import cats.Parallel
 import cats.data.NonEmptyList
-import cats.effect.implicits._
 import cats.implicits._
 import cats.mtl.Chronicle
 import cats.mtl.implicits._

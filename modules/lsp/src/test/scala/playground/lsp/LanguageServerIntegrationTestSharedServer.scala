@@ -29,33 +29,13 @@ object LanguageServerIntegrationTestSharedServer
   extends IOSuite
   with LanguageServerIntegrationTests {
 
+  override protected def checkStartupLogs: Boolean = true
+
   type Res = Fixture
 
   def sharedResource: Resource[IO, Res] = makeServer(testWorkspacesBase / "default")
 
-  test("server init produces logs consistent with the workspace folder") { f =>
-    val initLogs = List(
-      TestClient
-        .MessageLog(
-          MessageType.Info,
-          s"Hello from Smithy Playground v${BuildInfo.version}",
-        ),
-      TestClient.MessageLog(
-        MessageType.Info,
-        "Loaded Smithy Playground server with 2 imports, 2 dependencies and 0 plugins",
-      ),
-    )
-
-    // logs produced during an implicit initialization in the resource setup
-    f.client.getEvents.map { events =>
-      assert.same(
-        events,
-        initLogs,
-      )
-    }
-  }
-
-  test("completions").apply { f =>
+  test("completions") { f =>
     f.server
       .completion(
         new CompletionParams(
@@ -94,7 +74,7 @@ object LanguageServerIntegrationTestSharedServer
           report.getRelatedFullDocumentDiagnosticReport().getItems().asScala.toList
 
         assert(diagnosticItems.size == 1) &&
-        assert(diagnosticItems.head.getSeverity() == DiagnosticSeverity.Error) &&
+        assert.same(diagnosticItems.head.getSeverity(), DiagnosticSeverity.Error) &&
         assert(diagnosticItems.head.getMessage.contains("Parsing failure"))
       }
   }
@@ -312,7 +292,9 @@ object LanguageServerIntegrationTestSharedServer
       .map { events =>
         assert.eql(events.length, 4) &&
         assert.same(events(0), TestClient.OutputPanelShow) &&
-        assert(events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")) &&
+        assert(
+          events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")
+        ) &&
         assert(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
         assert(
           events(3)
