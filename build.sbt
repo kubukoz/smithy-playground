@@ -125,13 +125,13 @@ lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.5.2",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.23.4",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.24.1",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.2.7" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.34.0" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.2.8" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.39.1" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )

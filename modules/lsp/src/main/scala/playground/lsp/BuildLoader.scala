@@ -7,7 +7,6 @@ import fs2.io.file.Path
 import playground.PlaygroundConfig
 import playground.language.TextDocumentProvider
 import playground.language.Uri
-import playground.lsp.util.SerializedSmithyModel
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
@@ -101,7 +100,7 @@ object BuildLoader {
         for {
           specs <- filterImports(rawImportPaths)
           model <- loadModel(specs, loaded.config)
-          dsi <- DynamicSchemaIndex.loadModel(model).liftTo[F]
+          dsi = DynamicSchemaIndex.loadModel(model)
         } yield dsi
       }
 
@@ -123,24 +122,8 @@ object BuildLoader {
         .emits(specs.toSeq)
         .flatMap(Files[F].walk(_))
         .evalFilterNot(Files[F].isDirectory)
-        .evalFilter { file =>
-          val isSmithyFile = file.extName === ".smithy"
-
-          if (isSmithyFile)
-            true.pure[F]
-          else
-            isSerializedSmithyModelF(file)
-        }
         .compile
         .to(Set)
-
-      private def isSerializedSmithyModelF(
-        file: Path
-      ): F[Boolean] = Files[F]
-        .readAll(file)
-        .compile
-        .to(Array)
-        .map(SerializedSmithyModel.decode(_).isRight)
 
     }
 
