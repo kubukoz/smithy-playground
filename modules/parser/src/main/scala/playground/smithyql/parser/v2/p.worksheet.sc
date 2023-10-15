@@ -1,8 +1,8 @@
+import cats.implicits._
 import playground.smithyql.parser.v2._
 import playground.smithyql.parser.v2.scanner.TokenKind.KW_SERVICE
 import playground.smithyql.parser.v2.scanner.TokenKind.KW_USE
 import playground.smithyql.parser.v2.scanner._
-
 // sourceFile = decl*
 // decl = useDecl | statement
 // useDecl = "use" "service" fqn
@@ -26,28 +26,31 @@ def parseUseDecl(
   import state.tokens
 
   val builder = GreenNode.builder(SyntaxKind.UseDecl)
+  state.setBuilder(builder)
 
-  tokens.eatErrorsUntilNewlineOr(KW_USE, e => builder.addChild(GreenNode.error(e)))
+  tokens.eatErrorsUntilNewlineOr(KW_USE)
 
-  tokens.peek().kind match {
-    case KW_USE =>
-      // all good, continue
-      builder.addChild(tokens.bump())
-    case _ =>
-      // USE was missing.
-      state.addError(Error.MisingToken(TokenKind.KW_USE))
-  }
+  if (!tokens.eof)
+    tokens.peek().kind match {
+      case KW_USE =>
+        // all good, continue
+        builder.addChild(tokens.bump())
+      case _ =>
+        // USE was missing.
+        state.addError(Error.MisingToken(TokenKind.KW_USE))
+    }
 
-  tokens.eatErrorsUntilNewlineOr(TokenKind.KW_SERVICE, e => builder.addChild(GreenNode.error(e)))
+  tokens.eatErrorsUntilNewlineOr(TokenKind.KW_SERVICE)
 
-  tokens.peek().kind match {
-    case KW_SERVICE =>
-      // all good, continue
-      builder.addChild(tokens.bump())
-    case _ =>
-      // SERVICE was missing.
-      state.addError(Error.MisingToken(TokenKind.KW_SERVICE))
-  }
+  if (!tokens.eof)
+    tokens.peek().kind match {
+      case KW_SERVICE =>
+        // all good, continue
+        builder.addChild(tokens.bump())
+      case _ =>
+        // SERVICE was missing.
+        state.addError(Error.MisingToken(TokenKind.KW_SERVICE))
+    }
 
   // we've gone past the need for keywords, time to eat a FQN
   builder.addChild(parseFQN(state))
@@ -60,8 +63,13 @@ def parseDecl(
 ): GreenNode = {
   import state.tokens
   val builder = GreenNode.builder(SyntaxKind.Decl)
+  state.setBuilder(builder)
   tokens.peek().kind match {
-    case TokenKind.KW_USE => builder.addChild(parseUseDecl(state))
+    case TokenKind.KW_USE
+        // unhappy path, but still needs to be taken
+        | TokenKind.KW_SERVICE =>
+      builder.addChild(parseUseDecl(state))
+    case _ => tokens.eatErrorsUntilNewlineOr0(Nil)
     // case _                => builder.addChild(parseStatement(state))
   }
   builder.build()
@@ -71,6 +79,7 @@ def parseSourceFile(
   state: Parser
 ): GreenNode = {
   val builder = GreenNode.builder(SyntaxKind.SourceFile)
+  state.setBuilder(builder)
   while (!state.tokens.eof)
     builder.addChild(parseDecl(state))
   builder.build()
@@ -80,11 +89,17 @@ def parseIdent(
   state: Parser
 ): GreenNode = {
   val builder = GreenNode.builder(SyntaxKind.Identifier)
-  val next = state.tokens.bump()
-  next.kind match {
-    case TokenKind.IDENT => builder.addChild(next)
-    case _               => builder.addChild(GreenNode.error(next))
+  state.setBuilder(builder)
+  state.tokens.eatErrorsUntilNewlineOr(TokenKind.IDENT)
+
+  if (!state.tokens.eof) {
+    val next = state.tokens.bump()
+    next.kind match {
+      case TokenKind.IDENT => builder.addChild(next)
+      case _               => builder.addChild(GreenNode.error(next))
+    }
   }
+
   builder.build()
 }
 
@@ -93,6 +108,7 @@ def parseNamespace(
 ): GreenNode = {
   import state.tokens
   val builder = GreenNode.builder(SyntaxKind.Namespace)
+  state.setBuilder(builder)
 
   var done = false
 
@@ -115,8 +131,7 @@ def parseNamespace(
         builder.addChild(parseIdent(state))
         // look for a dot... or hash
         tokens.eatErrorsUntilNewlineOr0(
-          List(TokenKind.DOT, TokenKind.HASH),
-          e => builder.addChild(GreenNode.error(e)),
+          List(TokenKind.DOT, TokenKind.HASH)
         )
 
         if (!tokens.eof) {
@@ -156,12 +171,13 @@ def parseFQN(
 ): GreenNode = {
   import state.tokens
   val builder = GreenNode.builder(SyntaxKind.FQN)
+  state.setBuilder(builder)
 
   builder.addChild(parseNamespace(state))
 
-  tokens.eatErrorsUntilNewlineOr(TokenKind.HASH, e => builder.addChild(GreenNode.error(e)))
+  tokens.eatErrorsUntilNewlineOr(TokenKind.HASH)
 
-  if (tokens.peek().kind == TokenKind.HASH) {
+  if (!tokens.eof && tokens.peek().kind == TokenKind.HASH) {
     builder.addChild(tokens.bump())
   } else {
     state.addError(Error.MisingToken(TokenKind.HASH))
@@ -173,9 +189,392 @@ def parseFQN(
   builder.build()
 }
 
-// val p = Parser.fromString("use service foo.bar#baz")
-val p = Parser.fromString("foo.bar#baz")
-SyntaxNode.newRoot(parseFQN(p)).print
+def test(
+  s: String,
+  f: Parser => GreenNode,
+) = {
+  val sn = SyntaxNode.newRoot(f(Parser.fromString(s)))
 
-p.tokens.eof
-p.errors
+  // println(sn.print)
+  val isTrippable = sn.green.fold(gn => gn.allTokens, List(_)).map(_.text).mkString == s
+  def errors(
+    gn: Either[GreenNode, Token]
+  ): List[String] = gn.fold(
+    g =>
+      (if (g.kind == SyntaxKind.ERROR)
+         Some(g.allTokens.map(_.kind.toString()).mkString(","))
+       else
+         None).toList ++ g.children.flatMap(errors),
+    tok =>
+      if (tok.kind == TokenKind.Error)
+        List(tok.kind.toString())
+      else
+        Nil,
+  )
+
+  require(isTrippable, s"input not trippable! $s")
+  val errs = errors(sn.green)
+  if (errs.size > 0)
+    s"ERRORS: ${errs}"
+  else
+    ()
+}
+
+test("foo.barbaz", parseFQN)
+test("foo.bar#baz", parseFQN)
+test("a", parseIdent)
+test("42", parseIdent)
+test("a.42", parseNamespace)
+test("a.42#b", parseNamespace)
+test("use service a.42#baz", parseSourceFile)
+test("use a.42#baz", parseSourceFile)
+test("a.42#baz", parseSourceFile)
+
+// val p = Parser.fromString("use service foo.bar#baz")
+// val p = Parser.fromString("foo.42#baz")
+// val rt = SyntaxNode.newRoot(parseFQN(p))
+
+// rt.print
+
+// p.tokens.eof
+// p.errors
+
+sealed trait SyntaxPart[A] {
+  type Tpe = A
+
+  def map[B](
+    f: A => B
+  ): SyntaxPart[B] = MapPart(this, f)
+
+  def ofLeft[B]: SyntaxPart[Either[A, B]] = map(Left(_))
+  def ofRight[B]: SyntaxPart[Either[B, A]] = map(Right(_))
+
+  def print: String = {
+    def go[A](
+      depth: Int,
+      self: SyntaxPart[A],
+    ): String = {
+      val prefix = "  " * depth
+
+      self match {
+        case LoopPart(part)         => prefix + s"Loop:\n" + go(depth + 1, part)
+        case MapPart(part, _)       => go(depth, part)
+        case SyntaxRule(kind, part) => prefix + s"Rule($kind):\n" + go(depth + 1, part)
+        case TokenPart(token)       => prefix + s"Token($token)\n"
+        case GroupPart(parts)       => parts.map(go(depth, _)).mkString
+      }
+    }
+
+    go(0, this)
+  }
+
+}
+
+case class MapPart[A, B](
+  part: SyntaxPart[A],
+  f: A => B,
+) extends SyntaxPart[B]
+
+case class TokenPart(
+  token: TokenKind
+) extends SyntaxPart[List[Token]]
+
+case class LoopPart[A](
+  part: SyntaxPart[A]
+) extends SyntaxPart[List[A]]
+
+case class GroupPart[A](
+  parts: List[SyntaxPart[A]]
+) extends SyntaxPart[List[A]]
+
+case class SyntaxRule(
+  kind: SyntaxKind,
+  part: SyntaxPart[List[Either[GreenNode, Token]]],
+) extends SyntaxPart[GreenNode]
+
+def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
+
+  case class State(
+    tokens: List[Token],
+    errors: List[Error],
+  )
+  type S[A] = cats.data.State[State, A]
+  object S {
+    // get errors and clear them in state
+    val capture: S[List[Error]] =
+      cats.data.State.inspect((_: State).errors) <*
+        setErrors(Nil)
+
+    val get: S[List[Token]] = cats.data.State.inspect(_.tokens)
+    private val getAll: S[State] = cats.data.State.get
+    private def setAll(
+      s: State
+    ): S[Unit] = cats.data.State.set(s)
+    def error(
+      t: Error
+    ): S[Unit] = S.getAll.map(_.errors).map(_.appended(t)).flatMap(setErrors)
+    private def setErrors(
+      errors: List[Error]
+    ): S[Unit] = cats.data.State.modify(s => s.copy(errors = errors))
+    def set(
+      tokens: List[Token]
+    ): S[Unit] = cats.data.State.modify(s => s.copy(tokens = tokens))
+    private val consumeTrivia: S[List[Token]] = cats.data.State { state =>
+      val (triviaTokens, rest) = state.tokens.span { tok =>
+        Set(TokenKind.NEWLINE, TokenKind.SPACE, TokenKind.COMMENT).contains(tok.kind)
+      }
+
+      (state.copy(tokens = rest), triviaTokens)
+    }
+    // private def dryRun[A](
+    //   sa: S[A]
+    // ): S[A] = cats.data.State { s =>
+    //   val result = sa.runA(s).value
+
+    //   (s, result)
+    // }
+
+    val consumeOne: S[
+      (
+        Token,
+        List[Token],
+      )
+    ] =
+      (
+        consumeTrivia,
+        get.flatMap {
+          case Nil          => Token(TokenKind.EOF, "").pure[S]
+          case head :: tail => set(tail).as(head)
+        },
+      ).tupled.map(_.swap)
+
+    // val peekOne = dryRun(consumeOne)
+
+    def modify(
+      f: List[Token] => List[Token]
+    ): S[Unit] = get.map(f).flatMap(set)
+    def apply[A](
+      f: List[Token] => (
+        List[Token],
+        A,
+      )
+    ): S[A] =
+      (get.map(f), getAll).mapN { case ((tokens, a), s) =>
+        setAll(s.copy(tokens = tokens)).as(a)
+      }.flatten
+
+    val unit: S[Unit] = cats.data.State.pure(())
+  }
+
+  def nextToken[A](
+    part: SyntaxPart[A]
+  ): Option[TokenKind] =
+    part match {
+      case GroupPart(parts)    => parts.headOption.flatMap(nextToken(_))
+      case MapPart(part, _)    => nextToken(part)
+      case SyntaxRule(_, part) => nextToken(part)
+      case LoopPart(part)      => nextToken(part)
+      case TokenPart(token)    => token.some
+    }
+
+  def loop[A](
+    current: SyntaxPart[A]
+  ): S[A] = {
+    def debug(
+      s: => String
+    ): S[Unit] = S { tokens =>
+      println(s"""DEBUG: $s
+                 |TOKENS=${tokens.map(_.kind).mkString(", ")}
+                 |""".stripMargin)
+      (tokens, ())
+    }
+
+    current match {
+      case MapPart(self, f) => loop(self).map(f)
+      case GroupPart(parts) =>
+        if (parts.isEmpty)
+          S.unit.as(Nil)
+        else
+          /** Token parts are sync points. Before we try to parse the first part (and each
+            * subsequent part actually), we need to determine if that part is immediately followed
+            * by a sync point. If so, we have to find the sync point in the list of tokens and
+            * perform a split. The initial part will then be used to parse this part. Afterwards,
+            * any leftover tokens will be restored to the token buffer, and parsing will continue
+            * with the next part.
+            *
+            * If we're at the last part, we don't need to do this.
+            */
+          parts.zipWithIndex.traverse { case (part, i) =>
+            val nextTokenPart = parts.lift(i + 1).map(nextToken(_))
+
+            nextTokenPart match {
+              case None =>
+                // no parts afterwards - we consume normally
+                loop(part)
+              case Some(None) => sys.error("illegal state: can't find sync point...")
+              case Some(Some(token)) =>
+                debug(s"looking for $token") *>
+                  S.get.flatMap { tokens =>
+                    tokens.indexWhere(_.kind == token) match {
+                      case -1 =>
+                        debug("next part token not found, proceeding normally") *>
+                          loop(part)
+                      case idx =>
+                        debug(s"found at $idx, scoping...") *> {
+                          val (before, after) = tokens.splitAt(idx)
+                          S.set(before) *>
+                            loop(part) <*
+                            S.modify(_ ++ after)
+                        }
+                    }
+                  }
+            }
+          }
+
+      case SyntaxRule(kind, part) =>
+        debug(s"starting rule $kind") *>
+          (loop(part), S.capture).mapN {
+            (
+              children,
+              childErrors,
+            ) =>
+              println("STOLEN: " + childErrors)
+              val builder = GreenNode.builder(kind)
+              builder.addAll(children)
+              childErrors.foreach(builder.addError(_))
+              builder.build()
+          }
+
+      case lp: LoopPart[a] =>
+        debug(s"starting loop of ${lp.part}") *>
+          S.get.flatMap {
+            case Nil => S.unit.as(Nil)
+            case _   => (loop(lp.part), loop(current)).mapN(_ :: _)
+          }
+      case TokenPart(token) =>
+        debug(s"starting token $token") *>
+          S.consumeOne.flatMap {
+            case (tok, trivia) if tok.isEof => S.unit.as(trivia)
+            case (tok, trivia) =>
+              if (tok.kind == token)
+                trivia.appended(tok).pure[S]
+              else
+                S.error(Error.MisingToken(token)).as(trivia.appended(tok))
+          }
+
+    }
+  }
+  part =>
+    tokens =>
+      loop(part)
+        .run(State(tokens = tokens, errors = Nil))
+        .map { case (state, result) =>
+          println(s"RESULT(raw): $result")
+          println(s"LEFTOVER TOKENS: ${state.tokens}")
+          require(state.errors.isEmpty, s"found uncaptured errors! ${state.errors.mkString(", ")}")
+          result.toBuilder.addAll(state.tokens.map(GreenNode.error(_).asLeft)).build()
+        }
+        .value
+}
+
+def loop[A](
+  parts: SyntaxPart[A]*
+): SyntaxPart[List[A]] = LoopPart(GroupPart(parts.toList)).map(_.flatten)
+
+def syntax(
+  kind: SyntaxKind
+)(
+  parts: SyntaxPart[List[Either[GreenNode, Token]]]*
+): SyntaxPart[GreenNode] = SyntaxRule(kind, GroupPart(parts.toList).map(_.flatten))
+
+def tok(
+  token: TokenKind
+): SyntaxPart[List[Either[GreenNode, Token]]] = TokenPart(token).map(_.toList.map(_.asRight))
+
+def green(
+  green: SyntaxPart[GreenNode]
+): SyntaxPart[List[Either[GreenNode, Token]]] = green.map(v => List(v.asLeft))
+
+val parseIdent2 = syntax(SyntaxKind.Identifier)(tok(TokenKind.IDENT))
+
+val parseNamespace2 =
+  syntax(SyntaxKind.Namespace)(
+    green(parseIdent2),
+    loop(
+      tok(TokenKind.DOT),
+      green(parseIdent2),
+    ).map(_.flatten),
+  )
+
+val parseFQN2 =
+  syntax(SyntaxKind.FQN)(
+    green(parseNamespace2),
+    tok(TokenKind.HASH),
+    green(parseIdent2),
+  )
+
+val parseUseDecl2 =
+  syntax(SyntaxKind.UseDecl)(
+    tok(TokenKind.KW_USE),
+    tok(TokenKind.KW_SERVICE),
+    green(parseFQN2),
+  )
+
+def test2(
+  s: String,
+  f: List[Token] => GreenNode,
+) = {
+  val sn = SyntaxNode.newRoot(f(Scanner.scan(s)))
+
+  val rendered = sn.green.fold(gn => gn.allTokens, List(_)).map(_.text).mkString
+  val isTrippable = rendered == s
+  def errors(
+    gn: Either[GreenNode, Token]
+  ): List[String] = gn.fold(
+    g =>
+      (if (g.kind == SyntaxKind.ERROR)
+         Some(g.allTokens.map(_.kind.toString()).mkString(","))
+       else
+         None).toList ++ g.children.flatMap(errors),
+    tok =>
+      if (tok.kind == TokenKind.Error)
+        List(tok.kind.toString())
+      else
+        Nil,
+  )
+
+  require(isTrippable, s"input not trippable! $s != $rendered")
+  val errs = errors(sn.green)
+  if (errs.size > 0)
+    s"ERRORS: ${errs}"
+  else
+    ()
+}
+
+test2("foo.bar.baz#baz", interpret(parseFQN2))
+test2("foo.bar.bazb#a.z", interpret(parseFQN2))
+
+test2("#", interpret(parseIdent2))
+test2("###", interpret(parseIdent2))
+test2("hello world\nlmao // elo elo 320\nfoo", interpret(parseIdent2))
+test2("hello world\nlmao // elo elo 320\nfoo", interpret(parseNamespace2))
+test2("hello world\nlmao // elo elo 320\nfoo", interpret(parseFQN2))
+
+SyntaxNode.newRoot(interpret(parseFQN2)(Scanner.scan("hello world"))).print(true)
+SyntaxNode
+  .newRoot(interpret(parseFQN2)(Scanner.scan("hello world")))
+  .findAt(10)
+  .get
+  .pathTo
+// .pathTo
+
+test2("use foo.bar#baz", interpret(parseUseDecl2))
+test2("use service foo.bar#baz", interpret(parseUseDecl2))
+test2("service foo.bar#baz", interpret(parseUseDecl2))
+test2("use //aaservice foo.bar#baz", interpret(parseUseDecl2))
+
+SyntaxNode
+  .newRoot(interpret(parseUseDecl2)(Scanner.scan("use //service\nservice foo.bar#baz")))
+  .findAt(22)
+  .get
+  .pathTo

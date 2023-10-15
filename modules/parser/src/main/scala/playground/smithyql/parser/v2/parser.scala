@@ -9,7 +9,9 @@ import playground.smithyql.parser.v2.scanner.TokenKind
 case class GreenNode(
   kind: SyntaxKind,
   children: List[Either[GreenNode, Token]],
+  errors: List[Error],
 ) {
+  def toBuilder: GreenNode.GreenNodeBuilder = GreenNode.builder(kind).addAll(children)
 
   def allTokens: List[Token] = children.flatMap {
     _.fold(_.allTokens, _.some)
@@ -51,6 +53,7 @@ object GreenNode {
     kind: SyntaxKind
   ) {
     private var _children: Vector[Either[GreenNode, Token]] = Vector.empty
+    private var _errors: List[Error] = Nil
 
     def addChild(
       child: GreenNode
@@ -67,10 +70,29 @@ object GreenNode {
       this
     }
 
+    def addAll(
+      children: List[Either[GreenNode, Token]]
+    ): this.type = {
+      children.foreach(addChild)
+      this
+    }
+
+    def addErrorToken(
+      e: Token
+    ): this.type = addChild(error(e))
+
+    def addError(
+      e: Error
+    ): this.type = {
+      this._errors ::= e
+      this
+    }
+
     def build(
     ): GreenNode = GreenNode(
       kind = kind,
       children = _children.toList,
+      errors = _errors,
     )
 
   }
@@ -132,12 +154,22 @@ case class SyntaxNode(
     }
   }
 
-  def print: String = {
+  def print(
+    showNodeTexts: Boolean = false
+  ): String = {
     def go(
       depth: Int,
       self: SyntaxNode,
     ): String = {
-      val content = self.green.fold(_ => "", t => s" \"${t.text}\"")
+      val content = self
+        .green
+        .fold(
+          if (showNodeTexts)
+            gn => ": \"" + sanitize(gn.allTokens.map(_.text).mkString) + "\""
+          else
+            _ => "",
+          t => s" \"${t.text}\"",
+        )
       "  " * depth +
         s"""${self.green.fold(_.kind, _.kind)}@${self.range._1}..${self.range._2}$content
            |""".stripMargin +
@@ -149,6 +181,10 @@ case class SyntaxNode(
 
     go(0, this)
   }
+
+  private def sanitize(
+    text: String
+  ) = text.replace(" ", "·").replace("\n", "↵")
 
 }
 
@@ -254,6 +290,8 @@ case class Tokens(
   private var all: List[Token],
   private var cursor: Int,
 ) {
+  private var builder: GreenNode.GreenNodeBuilder = null
+
   def id: Int = cursor
 
   def eof: Boolean = cursor >= all.length
@@ -273,26 +311,23 @@ case class Tokens(
     result
   }
 
-  // def eatUntilNewlineOr(
-  //   tok: TokenKind
-  // ): List[Token] = {
-  //   val result = all.takeWhile(t => t.kind != TokenKind.NEWLINE && t.kind != tok)
-  //   all = all.drop(result.length)
-  //   result
-  // }
+  def setBuilder(
+    builder: GreenNode.GreenNodeBuilder
+  ) = this.builder = builder
 
   def eatErrorsUntilNewlineOr(
-    tok: TokenKind,
-    err: Token => Unit,
-  ): Unit = eatErrorsUntilNewlineOr0(List(tok), err)
+    tok: TokenKind
+  ): Unit = eatErrorsUntilNewlineOr0(List(tok))
 
   def eatErrorsUntilNewlineOr0(
-    toks: List[TokenKind],
-    err: Token => Unit,
+    toks: List[TokenKind]
   ): Unit =
     while (!eof && peek().kind != TokenKind.NEWLINE && !toks.contains(peek().kind)) {
       val next = bump()
-      err(next)
+      if (this.builder ne null)
+        this.builder.addErrorToken(next)
+      else
+        sys.error("Fatal: no active builder while consuming errors")
     }
 
 }
@@ -323,6 +358,10 @@ case class Parser(
   tokens: Tokens,
   var errors: List[Error],
 ) {
+
+  def setBuilder(
+    builder: GreenNode.GreenNodeBuilder
+  ): Unit = tokens.setBuilder(builder)
 
   def addError(
     error: Error

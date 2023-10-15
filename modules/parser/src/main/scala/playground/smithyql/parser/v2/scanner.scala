@@ -11,6 +11,7 @@ case class Token(
   text: String,
 ) {
   def width: Int = text.length
+  def isEof = kind == TokenKind.EOF
 }
 
 object Token {
@@ -26,6 +27,8 @@ sealed trait TokenKind extends Product with Serializable {
 }
 
 object TokenKind {
+  case object EOF extends TokenKind
+
   case object KW_USE extends TokenKind
   case object KW_SERVICE extends TokenKind
   case object KW_BOOLEAN extends TokenKind
