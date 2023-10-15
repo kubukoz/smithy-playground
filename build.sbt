@@ -55,13 +55,8 @@ val commonSettings = Seq(
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
   scalacOptions -= "-language:existentials",
-  // https://github.com/lampepfl/dotty/issues/18674
+  //
   Test / scalacOptions -= "-Wunused:implicits",
-  Test / scalacOptions -= "-Wunused:explicits",
-  Test / scalacOptions -= "-Wunused:imports",
-  Test / scalacOptions -= "-Wunused:locals",
-  Test / scalacOptions -= "-Wunused:params",
-  Test / scalacOptions -= "-Wunused:privates",
   //
   scalacOptions += "-Wnonunit-statement",
   scalacOptions += "-no-indent",
