@@ -1,6 +1,7 @@
 package playground.smithyql.parser.v2
 
 import cats.Eval
+import cats.data.NonEmptyList
 import cats.implicits._
 import playground.smithyql.parser.v2.scanner.Scanner
 import playground.smithyql.parser.v2.scanner.Token
@@ -205,6 +206,9 @@ object SyntaxKind {
   case object FQN extends SyntaxKind
   case object Namespace extends SyntaxKind
   case object Identifier extends SyntaxKind
+  case object ArrayLiteral extends SyntaxKind
+  case object ObjectLiteral extends SyntaxKind
+  case object Expression extends SyntaxKind
   case object ERROR extends SyntaxKind
 }
 
@@ -348,8 +352,8 @@ object Error {
     token: Token
   ) extends Error
 
-  case class MisingToken(
-    kind: TokenKind
+  case class MissingToken(
+    kinds: NonEmptyList[TokenKind]
   ) extends Error
 
 }

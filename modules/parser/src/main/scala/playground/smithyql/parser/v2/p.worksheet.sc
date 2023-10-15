@@ -1,3 +1,4 @@
+import cats.data.NonEmptyList
 import cats.implicits._
 import playground.smithyql.parser.v2._
 import playground.smithyql.parser.v2.scanner.TokenKind.KW_SERVICE
@@ -37,7 +38,7 @@ def parseUseDecl(
         builder.addChild(tokens.bump())
       case _ =>
         // USE was missing.
-        state.addError(Error.MisingToken(TokenKind.KW_USE))
+        state.addError(Error.MissingToken(TokenKind.KW_USE.pure[NonEmptyList]))
     }
 
   tokens.eatErrorsUntilNewlineOr(TokenKind.KW_SERVICE)
@@ -49,7 +50,7 @@ def parseUseDecl(
         builder.addChild(tokens.bump())
       case _ =>
         // SERVICE was missing.
-        state.addError(Error.MisingToken(TokenKind.KW_SERVICE))
+        state.addError(Error.MissingToken(TokenKind.KW_SERVICE.pure[NonEmptyList]))
     }
 
   // we've gone past the need for keywords, time to eat a FQN
@@ -141,13 +142,13 @@ def parseNamespace(
             builder.addChild(tokens.bump())
           } else {
             // no dot, report an error but continue (maybe there's a hash ahead, for the next iteration)
-            state.addError(Error.MisingToken(TokenKind.DOT))
+            state.addError(Error.MissingToken(TokenKind.DOT.pure[NonEmptyList]))
           }
         }
 
       } else {
         // we don't have an ident, so report an error
-        state.addError(Error.MisingToken(TokenKind.IDENT))
+        state.addError(Error.MissingToken(TokenKind.IDENT.pure[NonEmptyList]))
       }
     }
 
@@ -180,7 +181,7 @@ def parseFQN(
   if (!tokens.eof && tokens.peek().kind == TokenKind.HASH) {
     builder.addChild(tokens.bump())
   } else {
-    state.addError(Error.MisingToken(TokenKind.HASH))
+    state.addError(Error.MissingToken(TokenKind.HASH.pure[NonEmptyList]))
   }
 
   // the rest of the line should be an ident
@@ -261,7 +262,8 @@ sealed trait SyntaxPart[A] {
         case MapPart(part, _)       => go(depth, part)
         case SyntaxRule(kind, part) => prefix + s"Rule($kind):\n" + go(depth + 1, part)
         case TokenPart(token)       => prefix + s"Token($token)\n"
-        case GroupPart(parts)       => parts.map(go(depth, _)).mkString
+        case GroupPart(parts)       => parts.map(go(depth, _)).mkString_("")
+        case OneOfPart(parts) => prefix + s"OneOf:\n" + parts.map(go(depth + 1, _)).mkString_("")
       }
     }
 
@@ -284,8 +286,12 @@ case class LoopPart[A](
 ) extends SyntaxPart[List[A]]
 
 case class GroupPart[A](
-  parts: List[SyntaxPart[A]]
-) extends SyntaxPart[List[A]]
+  parts: NonEmptyList[SyntaxPart[A]]
+) extends SyntaxPart[NonEmptyList[A]]
+
+case class OneOfPart(
+  parts: NonEmptyList[SyntaxPart[GreenNode]]
+) extends SyntaxPart[GreenNode]
 
 case class SyntaxRule(
   kind: SyntaxKind,
@@ -326,13 +332,13 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
 
       (state.copy(tokens = rest), triviaTokens)
     }
-    // private def dryRun[A](
-    //   sa: S[A]
-    // ): S[A] = cats.data.State { s =>
-    //   val result = sa.runA(s).value
+    private def dryRun[A](
+      sa: S[A]
+    ): S[A] = cats.data.State { s =>
+      val result = sa.runA(s).value
 
-    //   (s, result)
-    // }
+      (s, result)
+    }
 
     val consumeOne: S[
       (
@@ -348,7 +354,7 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
         },
       ).tupled.map(_.swap)
 
-    // val peekOne = dryRun(consumeOne)
+    val peekOne = dryRun(consumeOne)
 
     def modify(
       f: List[Token] => List[Token]
@@ -368,13 +374,15 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
 
   def nextToken[A](
     part: SyntaxPart[A]
-  ): Option[TokenKind] =
+  ): NonEmptyList[TokenKind] =
     part match {
-      case GroupPart(parts)    => parts.headOption.flatMap(nextToken(_))
+      case GroupPart(parts)    => nextToken(parts.head)
       case MapPart(part, _)    => nextToken(part)
       case SyntaxRule(_, part) => nextToken(part)
       case LoopPart(part)      => nextToken(part)
-      case TokenPart(token)    => token.some
+
+      case TokenPart(token) => NonEmptyList.one(token)
+      case OneOfPart(parts) => parts.flatMap(nextToken)
     }
 
   def loop[A](
@@ -391,45 +399,65 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
 
     current match {
       case MapPart(self, f) => loop(self).map(f)
-      case GroupPart(parts) =>
-        if (parts.isEmpty)
-          S.unit.as(Nil)
-        else
-          /** Token parts are sync points. Before we try to parse the first part (and each
-            * subsequent part actually), we need to determine if that part is immediately followed
-            * by a sync point. If so, we have to find the sync point in the list of tokens and
-            * perform a split. The initial part will then be used to parse this part. Afterwards,
-            * any leftover tokens will be restored to the token buffer, and parsing will continue
-            * with the next part.
-            *
-            * If we're at the last part, we don't need to do this.
-            */
-          parts.zipWithIndex.traverse { case (part, i) =>
-            val nextTokenPart = parts.lift(i + 1).map(nextToken(_))
-
-            nextTokenPart match {
-              case None =>
-                // no parts afterwards - we consume normally
-                loop(part)
-              case Some(None) => sys.error("illegal state: can't find sync point...")
-              case Some(Some(token)) =>
-                debug(s"looking for $token") *>
-                  S.get.flatMap { tokens =>
-                    tokens.indexWhere(_.kind == token) match {
-                      case -1 =>
-                        debug("next part token not found, proceeding normally") *>
-                          loop(part)
-                      case idx =>
-                        debug(s"found at $idx, scoping...") *> {
-                          val (before, after) = tokens.splitAt(idx)
-                          S.set(before) *>
-                            loop(part) <*
-                            S.modify(_ ++ after)
-                        }
-                    }
-                  }
-            }
+      case OneOfPart(parts) =>
+        /** ok, so the general idea is:
+          *
+          * in this design, the first token is enough to determine which branch to take. We will
+          * assume that all parts begin (unwrapped) with a token. We'll take that token for each
+          * branch, skip trivia and see which branch matches such a token. Then we rewind and run
+          * the branch normally through the loop.
+          */
+        parts
+          .findM[S] { part =>
+            val possibleTokens = nextToken(part)
+            S.peekOne.map { case (tok, _) => possibleTokens.contains_(tok.kind) }
           }
+          .flatMap {
+            // found a part, go with it!
+            case Some(part) => loop(part)
+            case None =>
+              val allPossibleParts = parts.flatMap(nextToken).distinct
+
+              GreenNode
+                .builder(SyntaxKind.ERROR)
+                .addError(Error.MissingToken(allPossibleParts))
+                .build()
+                .pure[S]
+          }
+      case GroupPart(parts) =>
+        /** Token parts are sync points. Before we try to parse the first part (and each subsequent
+          * part actually), we need to determine if that part is immediately followed by a sync
+          * point. If so, we have to find the sync point in the list of tokens and perform a split.
+          * The initial part will then be used to parse this part. Afterwards, any leftover tokens
+          * will be restored to the token buffer, and parsing will continue with the next part.
+          *
+          * If we're at the last part, we don't need to do this.
+          */
+        parts.zipWithIndex.traverse { case (part, i) =>
+          val expectedTokensOpt = parts.toList.lift(i + 1).map(nextToken(_))
+
+          expectedTokensOpt match {
+            case None =>
+              // no parts afterwards - we consume normally
+              loop(part)
+            case Some(possibleTokens) =>
+              debug(s"looking for one of ${possibleTokens.mkString_(", ")}") *>
+                S.get.flatMap { tokens =>
+                  tokens.indexWhere(tok => possibleTokens.contains_(tok.kind)) match {
+                    case -1 =>
+                      debug("next part token not found, proceeding normally") *>
+                        loop(part)
+                    case idx =>
+                      debug(s"found at $idx, scoping...") *> {
+                        val (before, after) = tokens.splitAt(idx)
+                        S.set(before) *>
+                          loop(part) <*
+                          S.modify(_ ++ after)
+                      }
+                  }
+                }
+          }
+        }
 
       case SyntaxRule(kind, part) =>
         debug(s"starting rule $kind") *>
@@ -456,10 +484,10 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
           S.consumeOne.flatMap {
             case (tok, trivia) if tok.isEof => S.unit.as(trivia)
             case (tok, trivia) =>
-              if (tok.kind == token)
+              if (tok.kind === token)
                 trivia.appended(tok).pure[S]
               else
-                S.error(Error.MisingToken(token)).as(trivia.appended(tok))
+                S.error(Error.MissingToken(token.pure[NonEmptyList])).as(trivia.appended(tok))
           }
 
     }
@@ -478,14 +506,25 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
 }
 
 def loop[A](
-  parts: SyntaxPart[A]*
-): SyntaxPart[List[A]] = LoopPart(GroupPart(parts.toList)).map(_.flatten)
+  part1: SyntaxPart[A],
+  rest: SyntaxPart[A]*
+): SyntaxPart[List[A]] = LoopPart(GroupPart(NonEmptyList(part1, rest.toList)))
+  .map(_.flatMap(_.toList))
 
 def syntax(
   kind: SyntaxKind
 )(
-  parts: SyntaxPart[List[Either[GreenNode, Token]]]*
-): SyntaxPart[GreenNode] = SyntaxRule(kind, GroupPart(parts.toList).map(_.flatten))
+  part1: SyntaxPart[List[Either[GreenNode, Token]]],
+  rest: SyntaxPart[List[Either[GreenNode, Token]]]*
+): SyntaxPart[GreenNode] = SyntaxRule(
+  kind,
+  GroupPart(NonEmptyList(part1, rest.toList)).map(_.toList.flatten),
+)
+
+def oneOf(
+  part1: SyntaxPart[GreenNode],
+  rest: SyntaxPart[GreenNode]*
+): SyntaxPart[GreenNode] = OneOfPart(NonEmptyList(part1, rest.toList))
 
 def tok(
   token: TokenKind
@@ -518,6 +557,28 @@ val parseUseDecl2 =
     tok(TokenKind.KW_USE),
     tok(TokenKind.KW_SERVICE),
     green(parseFQN2),
+  )
+
+val parseArrayFAKE =
+  syntax(SyntaxKind.ArrayLiteral)(
+    tok(TokenKind.LB),
+    tok(TokenKind.RB),
+  )
+
+val parseObjectFAKE =
+  syntax(SyntaxKind.ObjectLiteral)(
+    tok(TokenKind.LBR),
+    tok(TokenKind.RBR),
+  )
+
+val parseExprFAKE =
+  syntax(SyntaxKind.Expression)(
+    green(
+      oneOf(
+        parseArrayFAKE,
+        parseObjectFAKE,
+      )
+    )
   )
 
 def test2(
@@ -581,6 +642,15 @@ SyntaxNode
 
 SyntaxNode
   .newRoot(interpret(parseFQN2)(Scanner.scan("foo.[].dupa#baz")))
-  .findAt("foo.[].d".length)
-  .map(_.pathTo.mkString(" > "))
-  .get
+  .print(showNodeTexts = true)
+
+parseExprFAKE.print
+
+test2("{}", interpret(parseExprFAKE))
+test2("[]", interpret(parseExprFAKE))
+
+SyntaxNode.newRoot(interpret(parseExprFAKE)(Scanner.scan("{}"))).print(true)
+SyntaxNode.newRoot(interpret(parseExprFAKE)(Scanner.scan("[]"))).print(true)
+
+test2("-", interpret(parseExprFAKE))
+SyntaxNode.newRoot(interpret(parseExprFAKE)(Scanner.scan("-"))).print(true)

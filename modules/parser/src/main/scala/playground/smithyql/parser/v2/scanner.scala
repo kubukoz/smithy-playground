@@ -1,6 +1,8 @@
 package playground.smithyql.parser.v2.scanner
 
+import cats.Show
 import cats.kernel.Eq
+import cats.kernel.Order
 import cats.parse.Numbers
 import cats.syntax.all.*
 
@@ -51,7 +53,8 @@ object TokenKind {
   case object COMMENT extends TokenKind
   case object Error extends TokenKind
 
-  implicit val eq: Eq[TokenKind] = Eq.fromUniversalEquals
+  implicit val ord: Order[TokenKind] = Order.by(_.toString())
+  implicit val show: Show[TokenKind] = Show.fromToString
 }
 
 object Scanner {
