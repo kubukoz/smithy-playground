@@ -578,3 +578,9 @@ SyntaxNode
   .findAt(22)
   .get
   .pathTo
+
+SyntaxNode
+  .newRoot(interpret(parseFQN2)(Scanner.scan("foo.[].dupa#baz")))
+  .findAt("foo.[].d".length)
+  .map(_.pathTo.mkString(" > "))
+  .get
