@@ -243,6 +243,8 @@ test("a.42#baz", parseSourceFile)
 sealed trait SyntaxPart[A] {
   type Tpe = A
 
+  def ? : SyntaxPart[Option[A]] = OptionalPart(this)
+
   def map[B](
     f: A => B
   ): SyntaxPart[B] = MapPart(this, f)
@@ -250,27 +252,47 @@ sealed trait SyntaxPart[A] {
   def ofLeft[B]: SyntaxPart[Either[A, B]] = map(Left(_))
   def ofRight[B]: SyntaxPart[Either[B, A]] = map(Right(_))
 
-  def print: String = {
-    def go[A](
-      depth: Int,
-      self: SyntaxPart[A],
-    ): String = {
-      val prefix = "  " * depth
+  def print: String = SyntaxPart.printRec(0, this, Set.empty)
 
-      self match {
-        case LoopPart(part)         => prefix + s"Loop:\n" + go(depth + 1, part)
-        case MapPart(part, _)       => go(depth, part)
-        case SyntaxRule(kind, part) => prefix + s"Rule($kind):\n" + go(depth + 1, part)
-        case TokenPart(token)       => prefix + s"Token($token)\n"
-        case GroupPart(parts)       => parts.map(go(depth, _)).mkString_("")
-        case OneOfPart(parts) => prefix + s"OneOf:\n" + parts.map(go(depth + 1, _)).mkString_("")
-      }
+}
+
+object SyntaxPart {
+
+  private def printRec[A](
+    depth: Int,
+    self: SyntaxPart[A],
+    seenDefers: Set[SyntaxPart[_]],
+  ): String = {
+    val prefix = "  " * depth
+
+    self match {
+      case DeferPart(_) => sys.error("printing defers is currently broken and illegal")
+      // if (seenDefers.contains(self))
+      //   prefix + s"Defer(rec)\n"
+      // else
+      //   prefix + s"Defer:\n" + printRec(depth + 1, part(), seenDefers + self)
+      case OptionalPart(part) => prefix + s"Optional:\n" + printRec(depth + 1, part, seenDefers)
+      case LoopPart(part)     => prefix + s"Loop:\n" + printRec(depth + 1, part, seenDefers)
+      case MapPart(part, _)   => printRec(depth, part, seenDefers)
+      case SyntaxRule(kind, part) =>
+        prefix + s"Rule($kind):\n" + printRec(depth + 1, part, seenDefers)
+      case TokenPart(token) => prefix + s"Token($token)\n"
+      case GroupPart(parts) => parts.map(printRec(depth, _, seenDefers)).mkString_("")
+      case OneOfPart(parts) =>
+        prefix + s"OneOf:\n" + parts.map(printRec(depth + 1, _, seenDefers)).mkString_("")
     }
-
-    go(0, this)
   }
 
 }
+
+case class DeferPart[A](
+  part: (
+  ) => SyntaxPart[A]
+) extends SyntaxPart[A]
+
+case class OptionalPart[A](
+  part: SyntaxPart[A]
+) extends SyntaxPart[Option[A]]
 
 case class MapPart[A, B](
   part: SyntaxPart[A],
@@ -278,7 +300,7 @@ case class MapPart[A, B](
 ) extends SyntaxPart[B]
 
 case class TokenPart(
-  token: TokenKind
+  token: NonEmptyList[TokenKind]
 ) extends SyntaxPart[List[Token]]
 
 case class LoopPart[A](
@@ -376,12 +398,17 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
     part: SyntaxPart[A]
   ): NonEmptyList[TokenKind] =
     part match {
+      case DeferPart(part) =>
+        // this is only possible because L-recursion is illegal...
+        // in theory. Nobody's checking.
+        nextToken(part())
+      case OptionalPart(part)  => nextToken(part)
       case GroupPart(parts)    => nextToken(parts.head)
       case MapPart(part, _)    => nextToken(part)
       case SyntaxRule(_, part) => nextToken(part)
       case LoopPart(part)      => nextToken(part)
 
-      case TokenPart(token) => NonEmptyList.one(token)
+      case TokenPart(token) => token
       case OneOfPart(parts) => parts.flatMap(nextToken)
     }
 
@@ -398,6 +425,13 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
     }
 
     current match {
+      case OptionalPart(part) =>
+        S.consumeOne.flatMap {
+          case (tok, _) if tok.isEof => S.unit.as(None)
+          case _                     => loop(part).map(_.some)
+        }
+
+      case DeferPart(part)  => loop(part())
       case MapPart(self, f) => loop(self).map(f)
       case OneOfPart(parts) =>
         /** ok, so the general idea is:
@@ -475,19 +509,20 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
 
       case lp: LoopPart[a] =>
         debug(s"starting loop of ${lp.part}") *>
-          S.get.flatMap {
-            case Nil => S.unit.as(Nil)
-            case _   => (loop(lp.part), loop(current)).mapN(_ :: _)
+          S.peekOne.flatMap {
+            case (tok, _) if tok.isEof => S.unit.as(Nil)
+            case _                     => (loop(lp.part), loop(current)).mapN(_ :: _)
           }
-      case TokenPart(token) =>
-        debug(s"starting token $token") *>
+
+      case TokenPart(expectedTokens) =>
+        debug(s"starting token $expectedTokens") *>
           S.consumeOne.flatMap {
             case (tok, trivia) if tok.isEof => S.unit.as(trivia)
             case (tok, trivia) =>
-              if (tok.kind === token)
+              if (expectedTokens.contains_(tok.kind))
                 trivia.appended(tok).pure[S]
               else
-                S.error(Error.MissingToken(token.pure[NonEmptyList])).as(trivia.appended(tok))
+                S.error(Error.MissingToken(expectedTokens)).as(trivia.appended(tok))
           }
 
     }
@@ -508,8 +543,15 @@ def interpret: SyntaxPart[GreenNode] => List[Token] => GreenNode = {
 def loop[A](
   part1: SyntaxPart[A],
   rest: SyntaxPart[A]*
-): SyntaxPart[List[A]] = LoopPart(GroupPart(NonEmptyList(part1, rest.toList)))
+): SyntaxPart[List[A]] = LoopPart(group(part1, rest: _*))
   .map(_.flatMap(_.toList))
+
+def deferred[A](
+  part: => SyntaxPart[A]
+): SyntaxPart[A] = DeferPart(
+  (
+  ) => part
+)
 
 def syntax(
   kind: SyntaxKind
@@ -518,7 +560,7 @@ def syntax(
   rest: SyntaxPart[List[Either[GreenNode, Token]]]*
 ): SyntaxPart[GreenNode] = SyntaxRule(
   kind,
-  GroupPart(NonEmptyList(part1, rest.toList)).map(_.toList.flatten),
+  group(part1, rest: _*).map(_.toList.flatten),
 )
 
 def oneOf(
@@ -527,12 +569,19 @@ def oneOf(
 ): SyntaxPart[GreenNode] = OneOfPart(NonEmptyList(part1, rest.toList))
 
 def tok(
-  token: TokenKind
-): SyntaxPart[List[Either[GreenNode, Token]]] = TokenPart(token).map(_.toList.map(_.asRight))
+  first: TokenKind,
+  more: TokenKind*
+): SyntaxPart[List[Either[GreenNode, Token]]] = TokenPart(NonEmptyList(first, more.toList))
+  .map(_.toList.map(_.asRight))
 
 def green(
   green: SyntaxPart[GreenNode]
 ): SyntaxPart[List[Either[GreenNode, Token]]] = green.map(v => List(v.asLeft))
+
+def group[A](
+  part1: SyntaxPart[A],
+  rest: SyntaxPart[A]*
+): SyntaxPart[NonEmptyList[A]] = GroupPart(NonEmptyList(part1, rest.toList))
 
 val parseIdent2 = syntax(SyntaxKind.Identifier)(tok(TokenKind.IDENT))
 
@@ -559,27 +608,81 @@ val parseUseDecl2 =
     green(parseFQN2),
   )
 
-val parseArrayFAKE =
-  syntax(SyntaxKind.ArrayLiteral)(
-    tok(TokenKind.LB),
-    tok(TokenKind.RB),
+val parseStringLiteral =
+  syntax(SyntaxKind.StringLiteral)(
+    tok(TokenKind.LIT_STRING)
   )
 
-val parseObjectFAKE =
-  syntax(SyntaxKind.ObjectLiteral)(
-    tok(TokenKind.LBR),
-    tok(TokenKind.RBR),
+val parseNumericLiteral =
+  syntax(SyntaxKind.NumericLiteral)(
+    tok(TokenKind.LIT_NUMBER)
   )
 
-val parseExprFAKE =
+val parseBooleanLiteral =
+  syntax(SyntaxKind.BooleanLiteral)(
+    tok(TokenKind.KW_BOOLEAN)
+  )
+
+val parseNullLiteral =
+  syntax(SyntaxKind.NullLiteral)(
+    tok(TokenKind.KW_NULL)
+  )
+
+val parseExpr: SyntaxPart[GreenNode] =
   syntax(SyntaxKind.Expression)(
     green(
       oneOf(
-        parseArrayFAKE,
-        parseObjectFAKE,
+        deferred(parseArray),
+        deferred(parseObject),
+        parseStringLiteral,
+        parseNumericLiteral,
+        parseBooleanLiteral,
+        parseNullLiteral,
       )
     )
   )
+
+// comma-separated entries of "rule", with optional trailing comma
+def commaSeparatedWithTrailing[A](
+  rule: SyntaxPart[GreenNode]
+): SyntaxPart[List[Either[GreenNode, Token]]] = group(
+  green(rule),
+  group(
+    tok(TokenKind.COMMA),
+    deferred(commaSeparatedWithTrailing(rule)),
+  ).?.map(_.foldMap(_.toList.flatten)),
+).?.map(_.foldMap(_.toList.flatten))
+
+// listed: '[' (node (',' node)* (',')?)? ']';
+val parseArray =
+  syntax(SyntaxKind.ArrayLiteral)(
+    tok(TokenKind.LB),
+    commaSeparatedWithTrailing(parseExpr),
+    tok(TokenKind.RB),
+  )
+
+val parseField =
+  syntax(SyntaxKind.ObjectElem)(
+    green(parseIdent2),
+    tok(TokenKind.COLON, TokenKind.EQ),
+    green(parseExpr),
+  )
+
+// struct: '{' (field (',' field)* (',')?)? '}';
+val parseObject =
+  syntax(SyntaxKind.ObjectLiteral)(
+    tok(TokenKind.LBR),
+    commaSeparatedWithTrailing(parseField),
+    tok(TokenKind.RBR),
+  )
+
+interpret(parseField)(Scanner.scan("hello: 40")).syntax.print()
+test2("hello: 40", interpret(parseField))
+interpret(parseBooleanLiteral)(Scanner.scan("true")).syntax.print()
+test2("true", interpret(parseBooleanLiteral))
+
+interpret(parseObject)(Scanner.scan("{hello: 40}")).syntax.print()
+test2("{hello: 40}", interpret(parseObject))
 
 def test2(
   s: String,
@@ -593,12 +696,12 @@ def test2(
     gn: Either[GreenNode, Token]
   ): List[String] = gn.fold(
     g =>
-      (if (g.kind == SyntaxKind.ERROR)
+      (if (g.kind === SyntaxKind.ERROR)
          Some(g.allTokens.map(_.kind.toString()).mkString(","))
        else
          None).toList ++ g.children.flatMap(errors),
     tok =>
-      if (tok.kind == TokenKind.Error)
+      if (tok.kind === TokenKind.Error)
         List(tok.kind.toString())
       else
         Nil,
@@ -644,13 +747,34 @@ SyntaxNode
   .newRoot(interpret(parseFQN2)(Scanner.scan("foo.[].dupa#baz")))
   .print(showNodeTexts = true)
 
-parseExprFAKE.print
+// parseExpr.print
 
-test2("{}", interpret(parseExprFAKE))
-test2("[]", interpret(parseExprFAKE))
+test2("{}", interpret(parseExpr))
 
-SyntaxNode.newRoot(interpret(parseExprFAKE)(Scanner.scan("{}"))).print(true)
-SyntaxNode.newRoot(interpret(parseExprFAKE)(Scanner.scan("[]"))).print(true)
+interpret(
+  syntax(SyntaxKind.ObjectLiteral)(
+    loop(
+      tok(TokenKind.IDENT),
+      tok(TokenKind.COMMA).?.map(_.orEmpty),
+    ).map(_.toList.flatten)
+  )
+).apply(Scanner.scan("aha,baha,caha,")).syntax.print()
 
-test2("-", interpret(parseExprFAKE))
-SyntaxNode.newRoot(interpret(parseExprFAKE)(Scanner.scan("-"))).print(true)
+interpret(
+  parseObject
+).apply(Scanner.scan("{aha: 42,baha: 43,caha: 45}")).syntax.print()
+
+test2("{ foo : 42 }", interpret(parseExpr))
+test2("{ foo : 42, bar : \"boo\", }", interpret(parseExpr))
+
+// SyntaxNode
+//   .newRoot(interpret(parseExpr)(Scanner.scan("{ foo : 42, bar : \"boo\", }")))
+//   .print(true)
+
+// test2("[]", interpret(parseExpr))
+
+// SyntaxNode.newRoot(interpret(parseExpr)(Scanner.scan("{}"))).print(true)
+// SyntaxNode.newRoot(interpret(parseExpr)(Scanner.scan("[]"))).print(true)
+
+// test2("-", interpret(parseExpr))
+// SyntaxNode.newRoot(interpret(parseExpr)(Scanner.scan("-"))).print(true)

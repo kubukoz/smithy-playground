@@ -3,6 +3,7 @@ package playground.smithyql.parser.v2
 import cats.Eval
 import cats.data.NonEmptyList
 import cats.implicits._
+import cats.kernel.Order
 import playground.smithyql.parser.v2.scanner.Scanner
 import playground.smithyql.parser.v2.scanner.Token
 import playground.smithyql.parser.v2.scanner.TokenKind
@@ -37,6 +38,8 @@ case class GreenNode(
 
     go(0, this)
   }
+
+  def syntax: SyntaxNode = SyntaxNode.newRoot(this)
 
 }
 
@@ -206,10 +209,17 @@ object SyntaxKind {
   case object FQN extends SyntaxKind
   case object Namespace extends SyntaxKind
   case object Identifier extends SyntaxKind
+  case object ObjectElem extends SyntaxKind
   case object ArrayLiteral extends SyntaxKind
   case object ObjectLiteral extends SyntaxKind
+  case object StringLiteral extends SyntaxKind
+  case object NumericLiteral extends SyntaxKind
+  case object BooleanLiteral extends SyntaxKind
+  case object NullLiteral extends SyntaxKind
   case object Expression extends SyntaxKind
   case object ERROR extends SyntaxKind
+
+  implicit val order: Order[SyntaxKind] = Order.by(_.toString())
 }
 
 // trait AstNode[Self] { self: Product =>
