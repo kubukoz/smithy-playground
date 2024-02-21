@@ -48,11 +48,11 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
         schema.reifyHint(RefinementProvider.iterableLengthConstraint[IndexedSeq, A])
     }
 
-  private def enumSchema(
-    schema: Schema.EnumerationSchema[Int]
-  ): Schema[Int] = schema
+  private def enumSchema[A](
+    schema: Schema.EnumerationSchema[A]
+  ): Schema[A] = schema
     .reifyHint(RefinementProvider.lengthConstraint(schema.total(_).stringValue.size))
-    .reifyHint(RefinementProvider.rangeConstraint[Int, Int](schema.total(_).intValue))
+    .reifyHint(RefinementProvider.rangeConstraint[A, Int](schema.total(_).intValue))
     .reifyHint(RefinementProvider.patternConstraint(schema.total(_).stringValue))
 
   def apply[A](
@@ -76,9 +76,7 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
 
       case c: CollectionSchema[_, _] => collection(c)
       case m: MapSchema[_, _]        => m.reifyHint[api.Length]
-      case e: EnumerationSchema[_] =>
-        enumSchema(e.asInstanceOf[EnumerationSchema[Int]])
-          .asInstanceOf[Schema[A]]
+      case e: EnumerationSchema[_]   => enumSchema(e)
       // explicitly handling each remaining case, in order to get a "missing match" warning if the schema model changes
       case b: BijectionSchema[_, _]  => b
       case r: RefinementSchema[_, _] => r
