@@ -11,6 +11,7 @@ import com.softwaremill.diffx.Diff
 import com.softwaremill.diffx.cats._
 import demo.smithy.Bad
 import demo.smithy.DeprecatedServiceGen
+import demo.smithy.EnumStruct
 import demo.smithy.FriendSet
 import demo.smithy.Good
 import demo.smithy.HasConstraintFields
@@ -729,6 +730,57 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     assert(
       result == Ior.right(Power.WIND)
+    )
+  }
+
+  pureTest("enum - length validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("enumWithLength" -> Document.fromString("AB"))),
+      compile(
+        WithSource.liftId(struct("enumWithLength" -> "AB").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]),
+    )
+  }
+
+  pureTest("enum - length validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("enumWithLength" -> "ABC").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]).isLeft
+    )
+  }
+
+  pureTest("enum - range validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("intEnumWithRange" -> Document.fromInt(2))),
+      compile(
+        WithSource.liftId(struct("intEnumWithRange" -> "QUEEN").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]),
+    )
+  }
+
+  pureTest("enum - range validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("intEnumWithRange" -> "KING").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]).isLeft
+    )
+  }
+
+  pureTest("enum - pattern validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("enumWithPattern" -> Document.fromString("AB"))),
+      compile(
+        WithSource.liftId(struct("enumWithPattern" -> "AB").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]),
+    )
+  }
+
+  pureTest("enum - pattern validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("enumWithPattern" -> "ABC").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]).isLeft
     )
   }
 

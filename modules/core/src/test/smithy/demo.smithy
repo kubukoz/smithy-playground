@@ -228,6 +228,31 @@ string MyString
 @length(min: 1)
 string StringWithLength
 
+structure EnumStruct {
+    @length(max: 2)
+    enumWithLength: EnumABC
+
+    @pattern("^.{0,2}$")
+    enumWithPattern: EnumABC
+
+    @range(max: 2)
+    intEnumWithRange: FaceCard
+}
+
+enum EnumABC {
+    A,
+    AB,
+    ABC
+}
+
+intEnum FaceCard {
+    JACK = 1
+    QUEEN = 2
+    KING = 3
+    ACE = 4
+    JOKER = 5
+}
+
 structure HasConstraintFields {
     @required
     minLength: StringWithLength
