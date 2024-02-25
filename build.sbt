@@ -27,7 +27,7 @@ val compilerPlugins =
           Nil
         else
           List(
-            crossPlugin("org.typelevel" % "kind-projector" % "0.13.2")
+            crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
           ))
 
 ThisBuild / versionScheme := Some("early-semver")
