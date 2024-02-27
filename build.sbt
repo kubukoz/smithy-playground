@@ -152,7 +152,7 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.21.2",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.22.0",
       "io.circe" %% "circe-core" % "0.14.6",
       "org.http4s" %% "http4s-ember-client" % "0.23.25",
       "org.http4s" %% "http4s-ember-server" % "0.23.25" % Test,
