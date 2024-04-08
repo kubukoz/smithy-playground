@@ -1,7 +1,7 @@
 {
   "imports": ["modules/core/src/test/smithy"],
   "mavenDependencies": [
-    "com.disneystreaming.alloy:alloy-core:0.3.5",
+    "com.disneystreaming.alloy:alloy-core:0.3.6",
     "com.disneystreaming.smithy4s:smithy4s-protocol:0.18.9",
     "software.amazon.smithy:smithy-aws-traits:1.45.0"
   ]
