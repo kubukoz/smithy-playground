@@ -3,7 +3,7 @@ package playground
 import aws.api
 import playground.smithyql.QualifiedIdentifier
 import smithy4s.Service
-import smithyql.syntax._
+import smithyql.syntax.*
 
 object ServiceNameExtractor {
 

@@ -5,7 +5,7 @@ import demo.fake_aws.MyThing
 import demo.smithy.DemoServiceGen
 import playground.smithyql.QualifiedIdentifier
 import smithy4s.ShapeId
-import weaver._
+import weaver.*
 
 object ServiceNameExtractorTests extends FunSuite {
   test("extract name of service with an AWS hint") {

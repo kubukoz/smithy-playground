@@ -1,7 +1,7 @@
 package playground
 
-import cats.implicits._
 import cats.kernel.Eq
+import cats.syntax.all.*
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 
@@ -73,7 +73,7 @@ object PlaygroundConfig {
 
   }
 
-  import com.github.plokhotnyuk.jsoniter_scala.core._
+  import com.github.plokhotnyuk.jsoniter_scala.core.*
 
   val decode: Array[Byte] => Either[Throwable, PlaygroundConfig] =
     bytes =>

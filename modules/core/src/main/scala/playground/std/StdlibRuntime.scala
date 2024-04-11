@@ -2,7 +2,7 @@ package playground.std
 
 import cats.Functor
 import cats.effect.std.UUIDGen
-import cats.implicits._
+import cats.syntax.all.*
 import smithy4s.Timestamp
 
 trait StdlibRuntime[F[_]] {

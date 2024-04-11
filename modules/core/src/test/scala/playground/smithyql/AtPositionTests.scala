@@ -1,9 +1,9 @@
 package playground.smithyql
 
-import playground.Assertions._
-import playground.Diffs._
+import playground.Assertions.*
+import playground.Diffs.*
 import playground.smithyql.parser.SourceParser
-import weaver._
+import weaver.*
 
 object AtPositionTests extends FunSuite {
 

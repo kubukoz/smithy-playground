@@ -1,8 +1,8 @@
 package playground.language
 
 import cats.Id
-import cats.implicits._
 import cats.kernel.Eq
+import cats.syntax.all.*
 import playground.ServiceNameExtractor
 import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
@@ -38,7 +38,7 @@ import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema._
+import smithy4s.schema.Schema.*
 import smithy4s.schema.SchemaVisitor
 
 import java.util.UUID
@@ -205,7 +205,7 @@ object CompletionItem {
   ): Boolean = schema.hints.has(smithy.api.Required)
 
   private val describePrimitive: Primitive[_] => String = {
-    import smithy4s.schema.Primitive._
+    import smithy4s.schema.Primitive.*
 
     {
       case PString     => "string"
@@ -229,7 +229,7 @@ object CompletionItem {
     tag: CollectionTag[C],
     hints: Hints,
   ): String = {
-    import smithy4s.schema.CollectionTag._
+    import smithy4s.schema.CollectionTag.*
 
     val base =
       tag match {

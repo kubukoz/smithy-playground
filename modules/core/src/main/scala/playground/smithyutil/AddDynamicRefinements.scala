@@ -1,14 +1,14 @@
 package playground.smithyutil
 
-import cats.implicits._
+import cats.syntax.all.*
 import smithy.api
 import smithy4s.Refinement
 import smithy4s.RefinementProvider
 import smithy4s.Surjection
-import smithy4s.schema.CollectionTag._
-import smithy4s.schema.Primitive._
+import smithy4s.schema.CollectionTag.*
+import smithy4s.schema.Primitive.*
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema._
+import smithy4s.schema.Schema.*
 import smithy4s.~>
 
 /** Reifies refinement hints into the schema.

@@ -4,14 +4,14 @@ import cats.Applicative
 import cats.FlatMap
 import cats.MonadThrow
 import cats.effect.kernel.Async
-import cats.implicits._
 import cats.parse.LocationMap
+import cats.syntax.all.*
 import cats.~>
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
-import org.eclipse.lsp4j._
 import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
@@ -31,13 +31,13 @@ import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
-import playground.types._
+import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
-import ToUriOps._
+import ToUriOps.*
 
 trait LanguageServer[F[_]] {
 

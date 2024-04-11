@@ -1,19 +1,19 @@
 package playground.smithyql.parser
 
 import cats.Defer
-import cats.implicits._
 import cats.parse.Numbers
 import cats.parse.Parser
 import cats.parse.Parser0
 import cats.parse.Rfc5234
-import playground.smithyql._
+import cats.syntax.all.*
+import playground.smithyql.*
 
 object Parsers {
 
   type T[+A] = WithSource[A]
 
   object tokens {
-    import Parser._
+    import Parser.*
     val newline: Parser[Unit] = Rfc5234.lf
 
     val comment: Parser[Comment] =
@@ -155,7 +155,7 @@ object Parsers {
 
   object parsers {
 
-    import Parser._
+    import Parser.*
 
     val rawIdent: Parser[String] = tokens.identifier
     val ident: Parser[T[String]] = tokens.withComments(tokens.identifier)

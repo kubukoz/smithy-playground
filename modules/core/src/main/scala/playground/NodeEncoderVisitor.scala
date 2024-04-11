@@ -2,7 +2,7 @@ package playground
 
 import cats.Contravariant
 import cats.Id
-import cats.implicits._
+import cats.syntax.all.*
 import playground.smithyql.Binding
 import playground.smithyql.BooleanLiteral
 import playground.smithyql.Identifier
@@ -35,7 +35,7 @@ import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
-import smithy4s.schema.Primitive._
+import smithy4s.schema.Primitive.*
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaVisitor
 

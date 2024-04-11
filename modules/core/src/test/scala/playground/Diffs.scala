@@ -8,9 +8,9 @@ import smithy4s.Blob
 import scala.annotation.nowarn
 
 object Diffs {
-  import com.softwaremill.diffx._
-  import com.softwaremill.diffx.cats._
-  import com.softwaremill.diffx.generic.auto._
+  import com.softwaremill.diffx.*
+  import com.softwaremill.diffx.cats.*
+  import com.softwaremill.diffx.generic.auto.*
 
   implicit val diffNodeContext: Diff[NodeContext] = Diff.derivedDiff
   implicit val diffContextRange: Diff[ContextRange] = Diff.derivedDiff

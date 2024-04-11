@@ -1,10 +1,10 @@
 package playground
 
 import cats.Id
-import cats.implicits._
+import cats.syntax.all.*
 import com.softwaremill.diffx.Diff
 import com.softwaremill.diffx.ShowConfig
-import playground.smithyql._
+import playground.smithyql.*
 import weaver.Expectations
 import weaver.SourceLocation
 

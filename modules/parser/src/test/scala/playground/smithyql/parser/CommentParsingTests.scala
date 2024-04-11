@@ -3,7 +3,7 @@ package playground.smithyql.parser
 import playground.smithyql.Comment
 import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
-import weaver._
+import weaver.*
 
 object CommentParsingTests extends SimpleIOSuite {
 

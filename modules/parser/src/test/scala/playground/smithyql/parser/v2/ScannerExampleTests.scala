@@ -1,7 +1,7 @@
 package playground.smithyql.parser.v2
 
-import playground.smithyql.parser.v2.scanner.TokenKind._
-import weaver._
+import playground.smithyql.parser.v2.scanner.TokenKind.*
+import weaver.*
 
 object ScannerExampleTests extends SimpleIOSuite with ScannerSuite {
   scanTest(

@@ -3,7 +3,7 @@ package playground.lsp.harness
 import cats.data.Chain
 import cats.effect.IO
 import cats.effect.IOLocal
-import cats.implicits._
+import cats.syntax.all.*
 import cats.~>
 import io.circe.Json
 import org.eclipse.lsp4j.MessageType

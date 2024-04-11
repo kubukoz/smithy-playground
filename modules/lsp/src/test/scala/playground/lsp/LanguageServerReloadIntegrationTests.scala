@@ -1,7 +1,7 @@
 package playground.lsp
 
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
 import org.eclipse.lsp4j.CodeLensParams
@@ -13,9 +13,9 @@ import playground.PlaygroundConfig
 import playground.language.Uri
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient.MessageLog
-import weaver._
+import weaver.*
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 object LanguageServerReloadIntegrationTests
   extends SimpleIOSuite

@@ -8,7 +8,7 @@ import demo.smithy.Power
 import demo.smithy.SampleSparseList
 import playground.NodeEncoder
 import playground.smithyql.AST
-import playground.smithyql.DSL._
+import playground.smithyql.DSL.*
 import playground.smithyql.Listed
 import playground.smithyql.NullLiteral
 import playground.smithyql.StringLiteral
@@ -17,7 +17,7 @@ import smithy4s.Blob
 import smithy4s.Document
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
-import weaver._
+import weaver.*
 
 object NodeEncoderTests extends FunSuite {
 

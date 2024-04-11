@@ -2,7 +2,7 @@ package playground.lsp
 
 import cats.FlatMap
 import cats.effect.kernel.Async
-import cats.implicits._
+import cats.syntax.all.*
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ConfigurationItem
 import org.eclipse.lsp4j.ConfigurationParams
@@ -11,8 +11,8 @@ import org.eclipse.lsp4j.MessageType
 import playground.language.Feedback
 
 import java.util.concurrent.CompletableFuture
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
 trait LanguageClient[F[_]] extends Feedback[F] {
 

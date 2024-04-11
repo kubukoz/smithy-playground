@@ -1,8 +1,8 @@
 package playground.language
 
 import cats.effect.IO
-import cats.implicits._
-import playground.Assertions._
+import cats.syntax.all.*
+import playground.Assertions.*
 import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
@@ -11,11 +11,11 @@ import playground.OperationCompiler
 import playground.OperationRunner
 import playground.PreludeCompiler
 import playground.ServiceIndex
-import playground.ServiceUtils._
-import playground.language.Diffs._
-import playground.smithyql.StringRangeUtils._
+import playground.ServiceUtils.*
+import playground.language.Diffs.*
+import playground.smithyql.StringRangeUtils.*
 import playground.std.RandomGen
-import weaver._
+import weaver.*
 
 object CodeLensProviderTests extends FunSuite {
 

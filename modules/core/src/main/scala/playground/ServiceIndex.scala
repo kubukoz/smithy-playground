@@ -1,12 +1,12 @@
 package playground
 
 import cats.Id
-import cats.implicits._
+import cats.syntax.all.*
 import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
 import smithy.api
 import smithy4s.dynamic.DynamicSchemaIndex
-import smithyql.syntax._
+import smithyql.syntax.*
 
 // Abstraction for service metadata. Can be used by multi-service compilers/runners/completion providers etc.
 trait ServiceIndex {

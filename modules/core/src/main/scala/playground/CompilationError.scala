@@ -3,10 +3,11 @@ package playground
 import cats.Id
 import cats.data.IorNel
 import cats.data.NonEmptyList
-import cats.implicits._
 import cats.kernel.Eq
-import playground.CompilationErrorDetails._
-import playground.smithyql._
+import cats.kernel.Order.catsKernelOrderingForOrder
+import cats.syntax.all.*
+import playground.CompilationErrorDetails.*
+import playground.smithyql.*
 import playground.smithyql.format.Formatter
 import smithy.api.TimestampFormat
 import smithy4s.ShapeId

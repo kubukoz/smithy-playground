@@ -4,8 +4,8 @@ import cats.data.Ior
 import cats.data.Ior.Both
 import cats.data.Ior.Left
 import cats.data.Ior.Right
-import cats.implicits._
 import cats.kernel.Semigroup
+import cats.syntax.all.*
 
 object IorUtils {
 

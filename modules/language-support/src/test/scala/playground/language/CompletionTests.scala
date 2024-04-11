@@ -1,6 +1,6 @@
 package playground.language
 
-import cats.implicits._
+import cats.syntax.all.*
 import demo.smithy.Good
 import demo.smithy.HasDeprecations
 import demo.smithy.HasNewtypes
@@ -15,15 +15,15 @@ import demo.smithy.PowerMap
 import demo.smithy.PrivacyTier
 import demo.smithy.SampleSparseList
 import demo.smithy.SampleSparseMap
-import playground.Assertions._
-import playground.language.Diffs._
+import playground.Assertions.*
+import playground.language.Diffs.*
 import playground.smithyql.NodeContext
-import playground.smithyql.NodeContext.PathEntry._
+import playground.smithyql.NodeContext.PathEntry.*
 import smithy.api.TimestampFormat
 import smithy4s.Hints
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
-import weaver._
+import weaver.*
 
 import java.util.UUID
 

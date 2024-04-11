@@ -1,11 +1,10 @@
 package playground.language
 
 import cats.Id
-import cats.implicits._
 import fs2.io.file.Path
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
-import weaver._
+import weaver.*
 
 object FormattingProviderTests extends FunSuite {
   private val anyUri = Uri.fromPath(Path("file.smithyql"))

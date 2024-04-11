@@ -1,6 +1,6 @@
 package playground.smithyql
 
-import cats.implicits._
+import cats.syntax.all.*
 
 trait RangeIndex {
 

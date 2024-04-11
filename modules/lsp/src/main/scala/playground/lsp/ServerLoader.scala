@@ -2,7 +2,7 @@ package playground.lsp
 
 import cats.MonadThrow
 import cats.effect.kernel.Ref
-import cats.implicits._
+import cats.syntax.all.*
 import playground.PlaygroundConfig
 import playground.language.Uri
 
