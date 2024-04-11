@@ -24,7 +24,7 @@ trait LanguageServerIntegrationTests {
   ): InitializeParams = new InitializeParams().tap(
     _.setWorkspaceFolders(
       List(
-        new WorkspaceFolder(workspaceDir.value)
+        new WorkspaceFolder(workspaceDir.value, "test-workspace")
       ).asJava
     )
   )
