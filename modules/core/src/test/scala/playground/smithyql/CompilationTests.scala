@@ -817,7 +817,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           CompilationError.error(
             CompilationErrorDetails.UnknownEnumValue(
               "POISON",
-              List("FIRE", "LIGHTNING", "WIND", "ICE"),
+              List("ICE", "FIRE", "LIGHTNING", "WIND"),
             ),
             SourceRange(Position(0), Position(0)),
           )
