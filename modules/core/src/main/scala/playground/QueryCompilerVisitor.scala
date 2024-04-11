@@ -4,10 +4,10 @@ import cats.Id
 import cats.data.Ior
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
-import cats.implicits._
-import playground.CompilationErrorDetails._
-import playground.smithyql._
-import playground.smithyutil._
+import cats.syntax.all.*
+import playground.CompilationErrorDetails.*
+import playground.smithyql.*
+import playground.smithyutil.*
 import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.Bijection
@@ -45,8 +45,8 @@ import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaVisitor
 import smithy4s.~>
-import types._
-import util.chaining._
+import types.*
+import util.chaining.*
 
 import java.util.Base64
 import java.util.UUID

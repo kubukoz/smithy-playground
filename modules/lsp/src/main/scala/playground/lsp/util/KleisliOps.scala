@@ -2,7 +2,7 @@ package playground.lsp.util
 
 import cats.FlatMap
 import cats.data.Kleisli
-import cats.implicits._
+import cats.syntax.all.*
 import cats.~>
 
 object KleisliOps {

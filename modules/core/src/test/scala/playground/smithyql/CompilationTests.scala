@@ -6,11 +6,12 @@ import cats.data.Chain
 import cats.data.Ior
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all.*
 import com.softwaremill.diffx.Diff
-import com.softwaremill.diffx.cats._
+import com.softwaremill.diffx.cats.*
 import demo.smithy.Bad
 import demo.smithy.DeprecatedServiceGen
+import demo.smithy.EnumStruct
 import demo.smithy.FriendSet
 import demo.smithy.Good
 import demo.smithy.HasConstraintFields
@@ -26,7 +27,7 @@ import demo.smithy.Power
 import demo.smithy.SampleSparseList
 import demo.smithy.StringWithLength
 import org.scalacheck.Arbitrary
-import playground.Assertions._
+import playground.Assertions.*
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
@@ -34,16 +35,16 @@ import playground.CompiledInput
 import playground.DeprecatedInfo
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
-import playground.Diffs._
+import playground.Diffs.*
 import playground.DynamicModel
 import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.QueryCompiler
 import playground.QueryCompilerVisitor
 import playground.ServiceIndex
-import playground.ServiceUtils._
+import playground.ServiceUtils.*
 import playground.smithyql.parser.SourceParser
-import playground.smithyql.syntax._
+import playground.smithyql.syntax.*
 import playground.std.ClockGen
 import playground.std.RandomGen
 import playground.types.IorThrow
@@ -57,18 +58,18 @@ import smithy4s.ShapeTag
 import smithy4s.Timestamp
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Schema
-import weaver._
+import weaver.*
 import weaver.scalacheck.Checkers
 
 import java.time
 import java.util.UUID
 
-import Arbitraries._
-import StringRangeUtils._
+import Arbitraries.*
+import StringRangeUtils.*
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
-  import DSL._
+  import DSL.*
 
   private def compile[A: smithy4s.Schema](
     in: QueryCompiler.WAST
@@ -732,6 +733,57 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
 
+  pureTest("enum - length validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("enumWithLength" -> Document.fromString("AB"))),
+      compile(
+        WithSource.liftId(struct("enumWithLength" -> "AB").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]),
+    )
+  }
+
+  pureTest("enum - length validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("enumWithLength" -> "ABC").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]).isLeft
+    )
+  }
+
+  pureTest("enum - range validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("intEnumWithRange" -> Document.fromInt(2))),
+      compile(
+        WithSource.liftId(struct("intEnumWithRange" -> "QUEEN").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]),
+    )
+  }
+
+  pureTest("enum - range validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("intEnumWithRange" -> "KING").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]).isLeft
+    )
+  }
+
+  pureTest("enum - pattern validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("enumWithPattern" -> Document.fromString("AB"))),
+      compile(
+        WithSource.liftId(struct("enumWithPattern" -> "AB").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]),
+    )
+  }
+
+  pureTest("enum - pattern validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("enumWithPattern" -> "ABC").mapK(WithSource.liftId))
+      )(dynamicSchemaFor[EnumStruct]).isLeft
+    )
+  }
+
   pureTest("enum - fallback to string value") {
     implicit val diffPower: Diff[Power] = Diff.derived
 
@@ -765,7 +817,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           CompilationError.error(
             CompilationErrorDetails.UnknownEnumValue(
               "POISON",
-              List("FIRE", "LIGHTNING", "WIND", "ICE"),
+              List("ICE", "FIRE", "LIGHTNING", "WIND"),
             ),
             SourceRange(Position(0), Position(0)),
           )

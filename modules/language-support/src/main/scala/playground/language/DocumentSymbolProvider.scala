@@ -1,6 +1,6 @@
 package playground.language
 
-import cats.implicits._
+import cats.syntax.all.*
 import playground.smithyql.InputNode
 import playground.smithyql.Listed
 import playground.smithyql.Prelude

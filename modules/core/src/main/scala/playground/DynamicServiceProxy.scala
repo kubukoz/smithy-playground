@@ -1,11 +1,11 @@
 package playground
 
 import cats.MonadThrow
-import cats.implicits._
+import cats.syntax.all.*
 import smithy4s.Document
 import smithy4s.Endpoint
 import smithy4s.Service
-import smithy4s.kinds._
+import smithy4s.kinds.*
 import smithy4s.schema.Schema
 
 class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](

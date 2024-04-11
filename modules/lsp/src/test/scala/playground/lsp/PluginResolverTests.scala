@@ -2,7 +2,7 @@ package playground.lsp
 
 import cats.effect.IO
 import playground.PlaygroundConfig
-import weaver._
+import weaver.*
 
 object PluginResolverTests extends SimpleIOSuite {
   test("Empty plugin resolver finds no plugins") {

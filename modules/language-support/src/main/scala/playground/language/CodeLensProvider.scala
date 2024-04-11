@@ -1,13 +1,13 @@
 package playground.language
 
-import cats.implicits._
+import cats.syntax.all.*
 import playground.FileCompiler
 import playground.FileRunner
 import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
 import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
-import playground.types._
+import playground.types.*
 
 trait CodeLensProvider[F[_]] {
 

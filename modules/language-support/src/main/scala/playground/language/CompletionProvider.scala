@@ -1,7 +1,8 @@
 package playground.language
 
 import cats.Id
-import cats.implicits._
+import cats.kernel.Order.catsKernelOrderingForOrder
+import cats.syntax.all.*
 import playground.MultiServiceResolver
 import playground.ServiceIndex
 import playground.smithyql.NodeContext
@@ -15,7 +16,7 @@ import playground.smithyql.RangeIndex
 import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
-import playground.smithyql.syntax._
+import playground.smithyql.syntax.*
 import smithy.api.Examples
 import smithy4s.Hints
 import smithy4s.dynamic.DynamicSchemaIndex

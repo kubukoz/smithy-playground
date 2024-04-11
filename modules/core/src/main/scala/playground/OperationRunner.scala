@@ -13,13 +13,13 @@ import cats.data.NonEmptyList
 import cats.effect.Async
 import cats.effect.MonadCancelThrow
 import cats.effect.Resource
-import cats.effect.implicits._
+import cats.effect.implicits.*
 import cats.effect.std
-import cats.implicits._
+import cats.syntax.all.*
 import fs2.compression.Compression
 import org.http4s.Uri
 import org.http4s.client.Client
-import playground._
+import playground.*
 import playground.plugins.PlaygroundPlugin
 import playground.plugins.SimpleHttpBuilder
 import playground.smithyql.InputNode
@@ -36,9 +36,9 @@ import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleRestJsonBuilder
-import smithy4s.kinds._
+import smithy4s.kinds.*
 import smithy4s.schema.Schema
-import smithyql.syntax._
+import smithyql.syntax.*
 
 trait OperationRunner[F[_]] {
 

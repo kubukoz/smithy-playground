@@ -1,6 +1,6 @@
 package playground.language
 
-import cats.implicits._
+import cats.syntax.all.*
 import demo.smithy.Good
 import demo.smithy.HasDeprecations
 import demo.smithy.HasNewtypes
@@ -15,15 +15,15 @@ import demo.smithy.PowerMap
 import demo.smithy.PrivacyTier
 import demo.smithy.SampleSparseList
 import demo.smithy.SampleSparseMap
-import playground.Assertions._
-import playground.language.Diffs._
+import playground.Assertions.*
+import playground.language.Diffs.*
 import playground.smithyql.NodeContext
-import playground.smithyql.NodeContext.PathEntry._
+import playground.smithyql.NodeContext.PathEntry.*
 import smithy.api.TimestampFormat
 import smithy4s.Hints
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
-import weaver._
+import weaver.*
 
 import java.util.UUID
 
@@ -175,7 +175,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Power.schema, NodeContext.EmptyPath)
 
     val inserts = completions.map(_.insertText)
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(s => s"\"$s\"")
       .map(InsertText.JustString(_))
 
@@ -187,7 +187,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Power.schema, NodeContext.EmptyPath.inQuotes)
 
     val inserts = completions.map(_.insertText)
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(InsertText.JustString(_))
 
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
@@ -207,7 +207,7 @@ object CompletionTests extends FunSuite {
 
     val inserts = completions.map(_.insertText)
 
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(_ + " = ")
       .map(InsertText.JustString(_))
 

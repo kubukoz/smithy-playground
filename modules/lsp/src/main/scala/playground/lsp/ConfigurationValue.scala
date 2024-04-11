@@ -1,6 +1,6 @@
 package playground.lsp
 
-import cats.implicits._
+import cats.syntax.all.*
 import io.circe.Codec
 import io.circe.Decoder
 import io.circe.Encoder

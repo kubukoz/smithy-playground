@@ -3,9 +3,9 @@ package playground
 import cats.Apply
 import cats.data.IorNec
 import cats.data.NonEmptyChain
-import cats.implicits._
-import playground.CompilationErrorDetails._
-import playground.smithyql._
+import cats.syntax.all.*
+import playground.CompilationErrorDetails.*
+import playground.smithyql.*
 
 import QueryCompiler.WAST
 

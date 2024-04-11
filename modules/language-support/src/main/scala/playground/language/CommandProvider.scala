@@ -3,7 +3,7 @@ package playground.language
 import cats.Id
 import cats.MonadThrow
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all.*
 import playground.CompilationFailed
 import playground.CompiledInput
 import playground.FileCompiler

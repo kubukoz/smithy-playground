@@ -8,8 +8,8 @@ import playground.language.Uri
 import playground.lsp.LanguageServer
 import playground.lsp.MainServer
 
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
 trait LanguageServerIntegrationTests {
 
@@ -24,7 +24,7 @@ trait LanguageServerIntegrationTests {
   ): InitializeParams = new InitializeParams().tap(
     _.setWorkspaceFolders(
       List(
-        new WorkspaceFolder(workspaceDir.value)
+        new WorkspaceFolder(workspaceDir.value, "test-workspace")
       ).asJava
     )
   )

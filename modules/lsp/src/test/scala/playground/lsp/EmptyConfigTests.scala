@@ -6,7 +6,7 @@ import org.eclipse.lsp4j.DidChangeWatchedFilesParams
 import org.eclipse.lsp4j.MessageType
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient
-import weaver._
+import weaver.*
 
 object EmptyConfigTests extends IOSuite with LanguageServerIntegrationTests {
 

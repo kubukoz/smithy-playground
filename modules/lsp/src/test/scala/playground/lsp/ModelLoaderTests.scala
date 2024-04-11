@@ -2,11 +2,11 @@ package playground.lsp
 
 import playground.PlaygroundConfig
 import software.amazon.smithy.model.shapes.ShapeId
-import weaver._
+import weaver.*
 
 import java.util.stream.Collectors
-import scala.jdk.CollectionConverters._
-import scala.jdk.OptionConverters._
+import scala.jdk.CollectionConverters.*
+import scala.jdk.OptionConverters.*
 
 object ModelLoaderTests extends FunSuite {
 

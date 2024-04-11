@@ -1,6 +1,6 @@
 package playground.smithyql
 
-import cats.implicits._
+import cats.syntax.all.*
 import playground.ServiceNameExtractor
 import smithy4s.Service
 import smithy4s.ShapeId

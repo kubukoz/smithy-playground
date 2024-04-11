@@ -1,6 +1,5 @@
 package playground.smithyql.parser
 
-import cats.implicits._
 import cats.kernel.Eq
 import cats.parse.Parser
 import cats.parse.Parser.Expectation.EndOfString
@@ -8,7 +7,8 @@ import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser.Expectation.OneOfStr
 import cats.parse.Parser.Expectation.WithContext
 import cats.parse.Parser0
-import playground.smithyql._
+import cats.syntax.all.*
+import playground.smithyql.*
 
 trait SourceParser[Alg[_[_]]] {
 

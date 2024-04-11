@@ -11,8 +11,8 @@ import playground.smithyql.WithSource
 
 object Codecs {
 
-  import io.circe.generic.auto._
-  import io.circe.generic.semiauto._
+  import io.circe.generic.auto.*
+  import io.circe.generic.semiauto.*
 
   implicit val useClauseWithSourceCodec: Codec[UseClause[WithSource]] = deriveCodec
 

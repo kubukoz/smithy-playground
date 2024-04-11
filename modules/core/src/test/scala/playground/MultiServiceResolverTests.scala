@@ -1,20 +1,20 @@
 package playground
 
 import cats.Id
-import cats.implicits._
-import com.softwaremill.diffx.cats._
-import playground.Diffs._
-import playground.smithyql.Diffs._
+import cats.syntax.all.*
+import com.softwaremill.diffx.cats.*
+import playground.Diffs.*
+import playground.smithyql.Diffs.*
 import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.QueryOperationName
 import playground.smithyql.SourceRange
-import playground.smithyql.StringRangeUtils._
+import playground.smithyql.StringRangeUtils.*
 import playground.smithyql.parser.SourceParser
-import weaver._
+import weaver.*
 
-import Assertions._
+import Assertions.*
 import ServiceIndex.ServiceMetadata
 
 object MultiServiceResolverTests extends FunSuite {

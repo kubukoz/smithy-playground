@@ -1,16 +1,16 @@
 package playground.smithyql.parser.v2
 
 import cats.Show
-import cats.implicits._
 import cats.parse.Numbers
+import cats.syntax.all.*
 import org.scalacheck.Arbitrary
 import playground.Assertions
 import playground.smithyql.parser.v2.scanner.Scanner
-import playground.smithyql.parser.v2.scanner.TokenKind._
-import weaver._
+import playground.smithyql.parser.v2.scanner.TokenKind.*
+import weaver.*
 import weaver.scalacheck.Checkers
 
-import Diffs._
+import Diffs.*
 import Scanner.scan
 
 object ScannerTests extends SimpleIOSuite with Checkers with ScannerSuite {

@@ -1,9 +1,10 @@
 package playground.smithyql.format
 
-import cats.implicits._
+import cats.kernel.Order.catsKernelOrderingForOrder
+import cats.syntax.all.*
 import org.typelevel.paiges.Doc
-import org.typelevel.paiges.instances._
-import playground.smithyql._
+import org.typelevel.paiges.instances.*
+import playground.smithyql.*
 
 trait Formatter[-Alg[_[_]]] {
 

@@ -2,7 +2,7 @@ package playground.smithyql
 
 import cats.data.Chain
 import cats.data.Chain.==:
-import cats.implicits._
+import cats.syntax.all.*
 
 // The path to a position in the parsed source
 sealed trait NodeContext extends Product with Serializable with NodeContext.PathEntry.TraversalOps {
@@ -10,7 +10,7 @@ sealed trait NodeContext extends Product with Serializable with NodeContext.Path
   def render: String =
     this match {
       case NodeContext.Impl(context) =>
-        import NodeContext.PathEntry._
+        import NodeContext.PathEntry.*
 
         context
           .map {

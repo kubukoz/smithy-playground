@@ -1,7 +1,7 @@
 package playground.lsp
 
 import cats.effect.kernel.Sync
-import cats.implicits._
+import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
 import playground.PlaygroundConfig
