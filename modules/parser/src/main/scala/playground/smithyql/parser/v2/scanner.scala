@@ -2,7 +2,6 @@ package playground.smithyql.parser.v2.scanner
 
 import cats.kernel.Eq
 import cats.parse.Numbers
-import cats.syntax.all.*
 
 import scala.annotation.nowarn
 

@@ -34,8 +34,8 @@ ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "2.13.11"
-ThisBuild / crossScalaVersions := Seq("2.13.11")
+ThisBuild / scalaVersion := "2.13.13"
+ThisBuild / crossScalaVersions := Seq("2.13.13")
 
 // For coursier's "latest.integration"
 ThisBuild / dynverSeparator := "-"
@@ -131,7 +131,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.6" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.45.0" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.47.0" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
@@ -152,7 +152,7 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.21.2",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.22.0",
       "io.circe" %% "circe-core" % "0.14.6",
       "org.http4s" %% "http4s-ember-client" % "0.23.26",
       "org.http4s" %% "http4s-ember-server" % "0.23.26" % Test,

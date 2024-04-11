@@ -3,7 +3,6 @@ package playground.lsp
 import cats.Applicative
 import cats.FlatMap
 import cats.MonadThrow
-import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.implicits._
 import cats.parse.LocationMap

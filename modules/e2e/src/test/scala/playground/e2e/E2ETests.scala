@@ -103,9 +103,12 @@ object E2ETests extends SimpleIOSuite {
   ): InitializeParams = new InitializeParams()
     .tap(
       _.setWorkspaceFolders(
-        workspaceFolders.map { path =>
-          new WorkspaceFolder(path.toNioPath.toUri().toString())
-        }.asJava
+        workspaceFolders
+          .zipWithIndex
+          .map { case (path, i) =>
+            new WorkspaceFolder(path.toNioPath.toUri().toString(), s"test-workspace-$i")
+          }
+          .asJava
       )
     )
 

@@ -582,7 +582,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       inBody =
         fields
           // todo: filter out present fields
-          .sortBy(field => (field.isStrictlyRequired, field.label))
+          .sortBy(field => (field.isRequired && !field.hasDefaultValue, field.label))
           .map(CompletionItem.fromField)
           .toList,
       inValue =

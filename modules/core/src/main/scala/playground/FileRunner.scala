@@ -1,7 +1,6 @@
 package playground
 
 import cats.data.NonEmptyList
-import cats.effect.implicits._
 import cats.implicits._
 import playground._
 import playground.smithyql.SourceFile
