@@ -402,37 +402,34 @@ object CompletionItem {
     val documentDecoder = Document.Decoder.fromSchema(schema)
     val nodeEncoder = NodeEncoder.derive(schema)
 
-    case class InputData(
+    case class Sample(
       name: String,
       documentation: Option[String],
       inputObject: Struct[Id],
     )
 
-    val samples: List[InputData] = schema
-      .hints
-      .get(api.Examples)
-      .foldMap(_.value)
-      .flatMap { example =>
-        val name = example.title
-        val doc = example.documentation
+    def decodeSample(
+      example: api.Example
+    ): Option[Sample] =
+      for {
+        input <- example.input
+        decoded <- documentDecoder.decode(input).toOption
+        // note: we could've transcoded from Document to Node directly, without the intermediate decoding
+        // but the examples we suggest should be valid, and this is the only way to ensure that.
+        encoded = nodeEncoder.toNode(decoded)
 
-        for {
-          input <- example.input
-          decoded <- documentDecoder.decode(input).toOption
-          // note: we could've transcoded from Document to Node directly, without the intermediate decoding
-          // but the examples we suggest should be valid, and this is the only way to ensure that.
-          encoded = nodeEncoder.toNode(decoded)
+        // we're only covering inputs, and operation inputs must be structures.
+        asObject <- encoded.asStruct
+      } yield Sample(
+        name = example.title,
+        documentation = example.documentation,
+        inputObject = asObject,
+      )
 
-          // we're only covering inputs, and operation inputs must be structures.
-          asObject <- encoded.asStruct
-        } yield InputData(
-          name = name,
-          documentation = doc,
-          inputObject = asObject,
-        )
-      }
-
-    samples.zipWithIndex.map { case (sample, index) =>
+    def completionForSample(
+      sample: Sample,
+      index: Int,
+    ): CompletionItem = {
       val text = Formatter[Struct.Fields]
         .format(
           sample
@@ -453,6 +450,14 @@ object CompletionItem {
         sortTextOverride = Some(s"0_$index"),
       )
     }
+
+    schema
+      .hints
+      .get(api.Examples)
+      .foldMap(_.value)
+      .flatMap(decodeSample)
+      .zipWithIndex
+      .map(completionForSample.tupled)
   }
 
   def deprecationString(
