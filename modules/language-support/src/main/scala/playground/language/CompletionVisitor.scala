@@ -8,7 +8,6 @@ import playground.ServiceNameExtractor
 import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
 import playground.language.CompletionItem.InsertUseClause.Required
-import playground.smithyql.InputNode
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.EmptyPath
 import playground.smithyql.NodeContext.PathEntry
@@ -594,32 +593,40 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
       .get(api.Examples)
       .foldMap(_.value)
       .zipWithIndex
-      .map { case (example, index) =>
+      .flatMap { case (example, index) =>
         val name = example.title
         val doc = example.documentation
 
-        val text = Formatter[InputNode]
-          .format(
-            nodeEncoder
-              .toNode(documentDecoder.decode(example.input.get).toTry.get /* todo: be graceful */ )
-              .mapK(WithSource.liftId),
-            Int.MaxValue,
-          )
-          .trim()
-          .tail
-          .init /* HACK: trim opening/closing braces */
-          .trim()
+        for {
+          input <- example.input
+          decoded <- documentDecoder.decode(input).toOption
+          // note: we could've transcoded from Document to Node directly, without the intermediate decoding
+          // but the examples we suggest should be valid, and this is the only way to ensure that.
+          encoded = nodeEncoder.toNode(decoded)
 
-        CompletionItem.fromHints(
-          kind = CompletionItemKind.Constant /* todo */,
-          label = s"Example: $name",
-          insertText = InsertText.JustString(text),
-          // issue: this doesn't work if the schema already has a Documentation hint. We should remove it first, or do something else.
-          schema = schema.addHints(
-            doc.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
-          ),
-          sortTextOverride = Some(s"0_$index"),
-        )
+          // we're only covering inputs, and operation inputs must be structures.
+          asObject <- encoded.asStruct
+        } yield {
+          val text = Formatter[Struct.Fields]
+            .format(
+              asObject
+                .fields
+                .mapK(WithSource.liftId),
+              Int.MaxValue,
+            )
+
+          CompletionItem.fromHints(
+            kind = CompletionItemKind.Constant /* todo */,
+            label = s"Example: $name",
+            insertText = InsertText.JustString(text),
+            // issue: this doesn't work if the schema already has a Documentation hint. We should remove it first, or do something else.
+            schema = schema.addHints(
+              doc.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
+            ),
+            sortTextOverride = Some(s"0_$index"),
+          )
+
+        }
       }
 
     structLike(
