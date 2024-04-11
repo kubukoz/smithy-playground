@@ -393,6 +393,68 @@ object CompletionItem {
     )
   }
 
+  // Examples for operation inputs.
+  // TODO: currently only works inside the struct (and assumes that by rendering only fields, no braces).
+  // If/when we ever have graceful parsing in completions, we should handle other contexts, such as being outside of the struct.
+  def forInputExamples[S](
+    schema: Schema[S]
+  ): List[CompletionItem] = {
+    val documentDecoder = Document.Decoder.fromSchema(schema)
+    val nodeEncoder = NodeEncoder.derive(schema)
+
+    case class InputData(
+      name: String,
+      documentation: Option[String],
+      inputObject: Struct[Id],
+    )
+
+    val samples: List[InputData] = schema
+      .hints
+      .get(api.Examples)
+      .foldMap(_.value)
+      .flatMap { example =>
+        val name = example.title
+        val doc = example.documentation
+
+        for {
+          input <- example.input
+          decoded <- documentDecoder.decode(input).toOption
+          // note: we could've transcoded from Document to Node directly, without the intermediate decoding
+          // but the examples we suggest should be valid, and this is the only way to ensure that.
+          encoded = nodeEncoder.toNode(decoded)
+
+          // we're only covering inputs, and operation inputs must be structures.
+          asObject <- encoded.asStruct
+        } yield InputData(
+          name = name,
+          documentation = doc,
+          inputObject = asObject,
+        )
+      }
+
+    samples.zipWithIndex.map { case (sample, index) =>
+      val text = Formatter[Struct.Fields]
+        .format(
+          sample
+            .inputObject
+            .fields
+            .mapK(WithSource.liftId),
+          Int.MaxValue,
+        )
+
+      CompletionItem.fromHints(
+        kind = CompletionItemKind.Constant /* todo */,
+        label = s"Example: ${sample.name}",
+        insertText = InsertText.JustString(text),
+        // issue: this doesn't work if the schema already has a Documentation hint. We should remove it first, or do something else.
+        schema = schema.addHints(
+          sample.documentation.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
+        ),
+        sortTextOverride = Some(s"0_$index"),
+      )
+    }
+  }
+
   def deprecationString(
     info: api.Deprecated
   ): String = {
@@ -582,52 +644,10 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   ): CompletionResolver[S] = {
     // Artificial schema resembling this one. Should be pretty much equivalent.
     val schema = Schema.struct(fields)(make).addHints(hints).withId(shapeId)
-    val documentDecoder = Document.Decoder.fromSchema(schema)
-
-    val nodeEncoder = NodeEncoder.derive(schema)
 
     val compiledFields = fields.map(field => (field, field.schema.compile(this)))
 
-    /* todo: pass this outside of Hints? (visitor context?) */
-    val examples = hints
-      .get(api.Examples)
-      .foldMap(_.value)
-      .zipWithIndex
-      .flatMap { case (example, index) =>
-        val name = example.title
-        val doc = example.documentation
-
-        for {
-          input <- example.input
-          decoded <- documentDecoder.decode(input).toOption
-          // note: we could've transcoded from Document to Node directly, without the intermediate decoding
-          // but the examples we suggest should be valid, and this is the only way to ensure that.
-          encoded = nodeEncoder.toNode(decoded)
-
-          // we're only covering inputs, and operation inputs must be structures.
-          asObject <- encoded.asStruct
-        } yield {
-          val text = Formatter[Struct.Fields]
-            .format(
-              asObject
-                .fields
-                .mapK(WithSource.liftId),
-              Int.MaxValue,
-            )
-
-          CompletionItem.fromHints(
-            kind = CompletionItemKind.Constant /* todo */,
-            label = s"Example: $name",
-            insertText = InsertText.JustString(text),
-            // issue: this doesn't work if the schema already has a Documentation hint. We should remove it first, or do something else.
-            schema = schema.addHints(
-              doc.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
-            ),
-            sortTextOverride = Some(s"0_$index"),
-          )
-
-        }
-      }
+    val examples = CompletionItem.forInputExamples(schema)
 
     structLike(
       inBody =
