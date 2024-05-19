@@ -7,6 +7,7 @@ import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 
 final case class PlaygroundConfig(
   imports: List[String],
+  sources: List[String],
   dependencies: List[String],
   repositories: List[String],
   extensions: List[String],
@@ -18,6 +19,7 @@ object PlaygroundConfig {
 
   val empty: PlaygroundConfig = PlaygroundConfig(
     imports = Nil,
+    sources = Nil,
     dependencies = Nil,
     repositories = Nil,
     extensions = Nil,
@@ -29,12 +31,14 @@ object PlaygroundConfig {
       mavenDependencies: List[String] = Nil,
       mavenRepositories: List[String] = Nil,
       imports: List[String] = Nil,
+      sources: List[String] = Nil,
       maven: Option[MavenConfig] = None,
       smithyPlayground: Option[SmithyPlaygroundPluginConfig] = None,
     ) {
 
       def toPlaygroundConfig: PlaygroundConfig = PlaygroundConfig(
         imports = imports,
+        sources = sources,
         dependencies = mavenDependencies ++ maven.foldMap(_.dependencies),
         repositories = mavenRepositories ++ maven.foldMap(_.repositories).map(_.url),
         extensions = smithyPlayground.foldMap(_.extensions),
@@ -51,6 +55,7 @@ object PlaygroundConfig {
         mavenDependencies = c.dependencies,
         mavenRepositories = c.repositories,
         imports = c.imports,
+        sources = c.sources,
         smithyPlayground = c.extensions.toNel.map { e =>
           SmithyPlaygroundPluginConfig(extensions = e.toList)
         },
