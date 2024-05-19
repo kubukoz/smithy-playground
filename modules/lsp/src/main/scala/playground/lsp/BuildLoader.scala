@@ -95,7 +95,11 @@ object BuildLoader {
           .getOrElse(sys.error("impossible - no parent for " + loaded.configFilePath))
 
         // "raw" means these can be directories etc., just like in the config file.
-        val rawImportPaths = loaded.config.imports.map(workspaceBase.resolve).toSet
+        val rawImportPaths =
+          (
+            loaded.config.imports ++
+              loaded.config.sources
+          ).map(workspaceBase.resolve).toSet
 
         for {
           specs <- filterImports(rawImportPaths)
