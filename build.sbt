@@ -43,7 +43,7 @@ ThisBuild / dynverSeparator := "-"
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.10.0",
+    "org.typelevel" %% "cats-core" % "2.12.0",
     "org.typelevel" %% "cats-mtl" % "1.4.0",
     "com.disneystreaming" %% "weaver-cats" % "0.8.4" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.8.4" % Test,
