@@ -110,7 +110,7 @@ lazy val parser = module("parser")
 lazy val formatter = module("formatter")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "paiges-cats" % "0.4.3"
+      "org.typelevel" %% "paiges-cats" % "0.4.4"
     )
   )
   .dependsOn(
