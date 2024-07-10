@@ -1,7 +1,7 @@
 {
   "sources": ["./weather.smithy", "./no-runner.smithy"],
   "mavenDependencies": [
-    "com.disneystreaming.alloy:alloy-core:0.3.9",
+    "com.disneystreaming.alloy:alloy-core:0.3.10",
     "com.disneystreaming.smithy4s:smithy4s-protocol:0.18.20"
   ]
 }
