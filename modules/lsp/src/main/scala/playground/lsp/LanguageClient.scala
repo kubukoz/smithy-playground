@@ -1,8 +1,14 @@
 package playground.lsp
 
 import cats.FlatMap
+import cats.data.Kleisli
 import cats.effect.kernel.Async
 import cats.syntax.all.*
+import cats.tagless.Derive
+import cats.tagless.FunctorK
+import cats.tagless.catsTaglessApplyKForIdK
+import cats.tagless.implicits.*
+import cats.~>
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ConfigurationItem
 import org.eclipse.lsp4j.ConfigurationParams
@@ -101,33 +107,19 @@ object LanguageClient {
       def refreshDiagnostics: F[Unit] = withClientF(_.refreshDiagnostics()).void
     }
 
-  // courtesy of github copilot
-  // workaround for https://github.com/typelevel/cats-tagless/pull/401
+  implicit val functorK: FunctorK[LanguageClient] = Derive.functorK[LanguageClient]
+
   def defer[F[_]: FlatMap](
     fa: F[LanguageClient[F]]
-  ): LanguageClient[F] =
-    new LanguageClient[F] {
+  ): LanguageClient[F] = Derive
+    .readerT[LanguageClient, F]
+    .mapK(new (Kleisli[F, LanguageClient[F], *] ~> F) {
 
-      override def configuration[A](
-        v: ConfigurationValue[A]
-      ): F[A] = fa.flatMap(_.configuration(v))
+      def apply[A](
+        k: Kleisli[F, LanguageClient[F], A]
+      ): F[A] = fa.flatMap(k.run)
 
-      override def showMessage(
-        tpe: MessageType,
-        msg: String,
-      ): F[Unit] = fa.flatMap(_.showMessage(tpe, msg))
-
-      override def refreshDiagnostics: F[Unit] = fa.flatMap(_.refreshDiagnostics)
-
-      override def refreshCodeLenses: F[Unit] = fa.flatMap(_.refreshCodeLenses)
-
-      override def showOutputPanel: F[Unit] = fa.flatMap(_.showOutputPanel)
-
-      override def logOutput(
-        msg: String
-      ): F[Unit] = fa.flatMap(_.logOutput(msg))
-
-    }
+    })
 
   val NoChangeDetected: String = "No change detected, not rebuilding server"
 }
