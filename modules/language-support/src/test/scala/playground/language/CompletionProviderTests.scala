@@ -150,11 +150,9 @@ object CompletionProviderTests extends SimpleIOSuite {
   }
 
   locally {
-    // for some reason, this can't be defined within the test body.
-    // https://github.com/disneystreaming/smithy4s/issues/537
-    val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
-
     pureTest("completing empty file - one (deprecated) service exists") {
+      val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
+
       val result = provider
         .provide(
           "",
@@ -166,6 +164,8 @@ object CompletionProviderTests extends SimpleIOSuite {
     }
 
     pureTest("completing use clause - one (deprecated) service exists") {
+      val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
+
       val result = provider
         .provide(
           "use service a#B\nhello {}",
