@@ -157,7 +157,7 @@ lazy val lsp = module("lsp")
       "org.http4s" %% "http4s-ember-client" % "0.23.27",
       "org.http4s" %% "http4s-ember-server" % "0.23.27" % Test,
       "io.get-coursier" %% "coursier" % "2.1.10",
-      "org.typelevel" %% "cats-tagless-macros" % "0.16.1",
+      "org.typelevel" %% "cats-tagless-macros" % "0.16.2",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),
