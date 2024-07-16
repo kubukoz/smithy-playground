@@ -14,7 +14,7 @@ import smithy4s.~>
 /** Reifies refinement hints into the schema.
   *
   * Notably, this does NOT recurse! In order to traverse an entire schema recursively, this has to
-  * be wrapped in TransitiveCompiler. This is done for separation of concerns.
+  * be wrapped in transformTransitivelyK. This is done for separation of concerns.
   */
 object AddDynamicRefinements extends (Schema ~> Schema) {
 

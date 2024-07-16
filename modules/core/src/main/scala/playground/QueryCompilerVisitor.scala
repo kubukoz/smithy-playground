@@ -54,7 +54,7 @@ import scala.collection.immutable.ListMap
 
 object QueryCompilerVisitor {
   val full: Schema ~> QueryCompiler =
-    new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerVisitorInternal
+    Schema.transformTransitivelyK(AddDynamicRefinements) andThen QueryCompilerVisitorInternal
 }
 
 object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
