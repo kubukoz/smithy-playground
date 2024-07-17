@@ -1,9 +1,10 @@
 package playground.smithyql.format
 
-import cats.implicits._
+import cats.kernel.Order.catsKernelOrderingForOrder
+import cats.syntax.all.*
 import org.typelevel.paiges.Doc
-import org.typelevel.paiges.instances._
-import playground.smithyql._
+import org.typelevel.paiges.instances.*
+import playground.smithyql.*
 
 trait Formatter[-Alg[_[_]]] {
 
@@ -68,16 +69,6 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
       internal +
       commentsRHSSep +
       commentsRHS
-    /*
-       case CommentPosition.After if lines.lengthIs == 1 =>
-        // one line: we add a space before the comment
-        Doc.lineOrSpace + internalString
-
-      case CommentPosition.After =>
-        // more lines: we force a hardline before the comments
-        Doc.hardLine + internalString
-    }
-     */
   }
 
   private def printGeneric(

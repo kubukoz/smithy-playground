@@ -1,10 +1,9 @@
 package playground
 
 import cats.Parallel
-import cats.effect.implicits._
-import cats.implicits._
+import cats.syntax.all.*
 import cats.~>
-import playground._
+import playground.*
 import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
 

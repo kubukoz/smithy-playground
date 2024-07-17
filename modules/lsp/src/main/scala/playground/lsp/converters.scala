@@ -1,7 +1,7 @@
 package playground.lsp
 
-import cats.implicits._
 import cats.parse.LocationMap
+import cats.syntax.all.*
 import com.google.gson.JsonElement
 import io.circe.Json
 import io.circe.JsonNumber
@@ -19,8 +19,8 @@ import playground.language.TextEdit
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
 
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
 object converters {
 

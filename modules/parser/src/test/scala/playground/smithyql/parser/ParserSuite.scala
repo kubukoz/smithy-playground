@@ -1,16 +1,18 @@
 package playground.smithyql.parser
 
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all.*
 import com.softwaremill.diffx.Diff
 import fs2.io.file.Files
 import fs2.io.file.Path
 import io.circe.Codec
 import io.circe.Decoder
-import io.circe.syntax._
-import playground.Assertions._
-import playground.smithyql._
-import weaver._
+import io.circe.syntax.*
+import playground.Assertions.*
+import playground.smithyql.*
+import playground.smithyql.parser.v2.scanner.Scanner
+import playground.smithyql.parser.v2.scanner.TokenKind
+import weaver.*
 
 import java.nio.file
 import java.nio.file.NoSuchFileException
@@ -52,11 +54,30 @@ trait ParserSuite extends SimpleIOSuite {
         }
       }
     }
+
+    validTokensTest(testCase, trimWhitespace)
   }
 
+  private def validTokensTest(
+    testCase: TestCase,
+    trimWhitespace: Boolean,
+  ) =
+    test(testCase.name + " (v2 scanner)") {
+      testCase.readInput(trimWhitespace).map { input =>
+        val scanned = Scanner.scan(input)
+
+        val errors = scanned.filter(_.kind == TokenKind.Error)
+        // non-empty inputs should parse to non-empty outputs
+        assert(input.isEmpty || scanned.nonEmpty) &&
+        assert(errors.isEmpty)
+      }
+    }
+
+  // invalidTokens: a flag that tells the suite whether the file should contain invalid tokens.
   def loadNegativeParserTests[Alg[_[_]]: SourceParser](
     prefix: String,
     trimWhitespace: Boolean = false,
+    invalidTokens: Boolean,
   ): Unit = loadTestCases("", List("negative", prefix)).foreach { testCase =>
     test(testCase.name) {
       testCase.readInput(trimWhitespace).map { input =>
@@ -66,6 +87,10 @@ trait ParserSuite extends SimpleIOSuite {
         }
       }
     }
+
+    if (!invalidTokens)
+      validTokensTest(testCase, trimWhitespace)
+
   }
 
   private def readText(

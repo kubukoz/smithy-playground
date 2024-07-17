@@ -1,6 +1,5 @@
 package playground.smithyql.parser
 
-import cats.implicits._
 import cats.kernel.Eq
 import cats.parse.Parser
 import cats.parse.Parser.Expectation.EndOfString
@@ -8,7 +7,8 @@ import cats.parse.Parser.Expectation.InRange
 import cats.parse.Parser.Expectation.OneOfStr
 import cats.parse.Parser.Expectation.WithContext
 import cats.parse.Parser0
-import playground.smithyql._
+import cats.syntax.all.*
+import playground.smithyql.*
 
 trait SourceParser[Alg[_[_]]] {
 
@@ -72,12 +72,12 @@ case class ParsingFailure(
     e: Parser.Expectation,
   ): String =
     e match {
-      case OneOfStr(_, List(str))             => prep(str)
-      case OneOfStr(_, strs)                  => strs.map(prep).mkString_(" OR ")
-      case InRange(_, 'A', 'Z')               => "an uppercase letter"
-      case InRange(_, 'a', 'z')               => "a lowercase letter"
-      case InRange(_, '0', '9')               => "digit"
-      case InRange(_, from, to) if from == to => prep(from.toString)
+      case OneOfStr(_, List(str))              => prep(str)
+      case OneOfStr(_, strs)                   => strs.map(prep).mkString_(" OR ")
+      case InRange(_, 'A', 'Z')                => "an uppercase letter"
+      case InRange(_, 'a', 'z')                => "a lowercase letter"
+      case InRange(_, '0', '9')                => "digit"
+      case InRange(_, from, to) if from === to => prep(from.toString)
       case InRange(_, from, to) => s"one of ${prep(from.toString)} - ${prep(to.toString)}"
       case EndOfString(_, _)    => "end of string"
       case WithContext(contextStr, underlying) if verbose =>

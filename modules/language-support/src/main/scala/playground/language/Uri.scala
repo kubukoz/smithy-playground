@@ -5,7 +5,10 @@ import fs2.io.file.Path
 import java.net.URI
 import java.nio.file.Paths
 
-final case class Uri private (
+// not making constructor private because
+// "access modifiers from `copy` method are copied from the case class constructor"
+// cannot nicely be silenced in scala 2
+final case class Uri /* private */ (
   value: String
 ) extends AnyVal {
   def toPath: Path = Path.fromNioPath(Paths.get(new URI(value)))

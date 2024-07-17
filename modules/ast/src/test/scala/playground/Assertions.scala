@@ -1,10 +1,10 @@
 package playground
 
 import cats.Id
-import cats.implicits._
+import cats.syntax.all.*
 import com.softwaremill.diffx.Diff
 import com.softwaremill.diffx.ShowConfig
-import playground.smithyql._
+import playground.smithyql.*
 import weaver.Expectations
 import weaver.SourceLocation
 
@@ -23,7 +23,7 @@ object Assertions extends Expectations.Helpers {
         val stringWithResets = d.show()(conf).linesWithSeparators.map(Console.RESET + _).mkString
 
         failure(
-          s"Diff failed:\n${Console.RESET}(${conf.right("expected")}, ${conf.left("actual")})\n\n" + stringWithResets
+          s"Diff failed:\n${Console.RESET}(${conf.left("expected")}, ${conf.right("actual")})\n\n" + stringWithResets
         )
     }
 

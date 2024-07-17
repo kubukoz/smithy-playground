@@ -2,19 +2,24 @@ package playground
 
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
+import aws.protocols.AwsQuery
+import aws.protocols.Ec2Query
+import aws.protocols.RestJson1
+import aws.protocols.RestXml
 import cats.Defer
 import cats.Id
 import cats.data.IorNel
 import cats.data.NonEmptyList
-import cats.effect.Concurrent
+import cats.effect.Async
 import cats.effect.MonadCancelThrow
 import cats.effect.Resource
-import cats.effect.implicits._
+import cats.effect.implicits.*
 import cats.effect.std
-import cats.implicits._
+import cats.syntax.all.*
+import fs2.compression.Compression
 import org.http4s.Uri
 import org.http4s.client.Client
-import playground._
+import playground.*
 import playground.plugins.PlaygroundPlugin
 import playground.plugins.SimpleHttpBuilder
 import playground.smithyql.InputNode
@@ -31,9 +36,9 @@ import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleRestJsonBuilder
-import smithy4s.kinds._
+import smithy4s.kinds.*
 import smithy4s.schema.Schema
-import smithyql.syntax._
+import smithyql.syntax.*
 
 trait OperationRunner[F[_]] {
 
@@ -135,14 +140,14 @@ object OperationRunner {
         }
       }
 
-  def forSchemaIndex[F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+  def forSchemaIndex[F[_]: StdlibRuntime: Async: Compression: std.Console](
     dsi: DynamicSchemaIndex,
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
   ): Map[QualifiedIdentifier, Resolver[F]] = forServices(
-    services = dsi.allServices,
+    services = dsi.allServices.toList,
     getSchema = dsi.getSchema,
     client = client,
     baseUri = baseUri,
@@ -150,7 +155,7 @@ object OperationRunner {
     plugins = plugins,
   )
 
-  def forServices[F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+  def forServices[F[_]: StdlibRuntime: Async: Compression: std.Console](
     services: List[DynamicSchemaIndex.ServiceWrapper],
     getSchema: ShapeId => Option[Schema[_]],
     client: Client[F],
@@ -194,7 +199,7 @@ object OperationRunner {
 
     }
 
-  def forService[Alg[_[_, _, _, _, _]], F[_]: StdlibRuntime: Concurrent: Defer: std.Console](
+  def forService[Alg[_[_, _, _, _, _]], F[_]: StdlibRuntime: Async: Compression: std.Console](
     service: Service[Alg],
     client: Client[F],
     baseUri: F[Uri],
@@ -256,14 +261,14 @@ object OperationRunner {
         .prepare(service)
         .map { builder =>
           awsEnv
-            .map(builder.buildSimple(_))
+            .map(builder.build(_))
             .map(service.toPolyFunction(_))
         }
         .map(liftFunctorInterpreterResource(_))
         .toIor
         .leftMap(_ =>
           NonEmptyList
-            .of(AwsJson1_0.id, AwsJson1_1.id)
+            .of(AwsJson1_0.id, AwsJson1_1.id, RestJson1.id, AwsQuery.id, RestXml.id, Ec2Query.id)
             .map(Issue.InvalidProtocol(_, serviceProtocols))
         )
 

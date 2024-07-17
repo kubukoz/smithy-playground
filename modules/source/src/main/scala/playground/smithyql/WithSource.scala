@@ -5,9 +5,9 @@ import cats.Eval
 import cats.Id
 import cats.NonEmptyTraverse
 import cats.Show
-import cats.implicits._
 import cats.kernel.Eq
 import cats.kernel.Order
+import cats.syntax.all.*
 import cats.~>
 import playground.smithyql.InputNode
 import playground.smithyql.Query

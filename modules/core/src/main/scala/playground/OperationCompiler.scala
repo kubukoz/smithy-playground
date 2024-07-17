@@ -5,9 +5,9 @@ import cats.data.Ior
 import cats.data.IorNel
 import cats.data.Kleisli
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all.*
 import cats.~>
-import playground._
+import playground.*
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
@@ -16,9 +16,9 @@ import smithy.api
 import smithy4s.Endpoint
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
-import smithyql.syntax._
-import types._
-import util.chaining._
+import smithyql.syntax.*
+import types.*
+import util.chaining.*
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
@@ -83,7 +83,7 @@ object OperationCompiler {
 
   def fromSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): OperationCompiler[Eff] = fromServices(dsi.allServices)
+  ): OperationCompiler[Eff] = fromServices(dsi.allServices.toList)
 
   def fromServices(
     services: List[DynamicSchemaIndex.ServiceWrapper]
@@ -154,7 +154,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
   ): QueryCompiler[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
     val outputEncoder = NodeEncoder.derive(e.output)
-    val errorEncoder = e.errorable.map(e => NodeEncoder.derive(e.error))
+    val errorEncoder = e.error.map(e => NodeEncoder.derive(e.schema))
 
     ast =>
       inputCompiler
@@ -177,6 +177,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
   // map of endpoint names to (endpoint, input compiler)
   private val endpoints = service
     .endpoints
+    .toList
     .groupByNel(_.name)
     .map(_.map(_.head).map(e => (e, compileEndpoint(e))))
 

@@ -1,7 +1,8 @@
 package playground.language
 
 import cats.Id
-import cats.implicits._
+import cats.kernel.Order.catsKernelOrderingForOrder
+import cats.syntax.all.*
 import playground.MultiServiceResolver
 import playground.ServiceIndex
 import playground.smithyql.NodeContext
@@ -15,7 +16,7 @@ import playground.smithyql.RangeIndex
 import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
-import playground.smithyql.syntax._
+import playground.smithyql.syntax.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait CompletionProvider {
@@ -31,7 +32,7 @@ object CompletionProvider {
 
   def forSchemaIndex(
     dsi: DynamicSchemaIndex
-  ): CompletionProvider = forServices(dsi.allServices)
+  ): CompletionProvider = forServices(dsi.allServices.toList)
 
   def forServices(
     allServices: List[DynamicSchemaIndex.ServiceWrapper]
@@ -51,7 +52,7 @@ object CompletionProvider {
       presentServiceIdentifiers: List[QualifiedIdentifier],
       insertBodyStruct: CompletionItem.InsertBodyStruct,
     ): List[CompletionItem] = {
-      val needsUseClause = !presentServiceIdentifiers.contains(serviceId)
+      val needsUseClause = !presentServiceIdentifiers.contains_(serviceId)
 
       val insertUseClause =
         if (needsUseClause)
@@ -70,6 +71,7 @@ object CompletionProvider {
             insertBodyStruct = insertBodyStruct,
           )
         }
+        .toList
     }
 
     def completeRootOperationName(

@@ -14,7 +14,7 @@ inThisBuild(
   )
 )
 
-import scala.sys.process._
+import scala.sys.process.*
 
 def crossPlugin(
   x: sbt.librarymanagement.ModuleID
@@ -27,15 +27,15 @@ val compilerPlugins =
           Nil
         else
           List(
-            crossPlugin("org.typelevel" % "kind-projector" % "0.13.2")
+            crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
           ))
 
 ThisBuild / versionScheme := Some("early-semver")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "2.13.11"
-ThisBuild / crossScalaVersions := Seq("2.13.11")
+ThisBuild / scalaVersion := "2.13.13"
+ThisBuild / crossScalaVersions := Seq("2.13.13")
 
 // For coursier's "latest.integration"
 ThisBuild / dynverSeparator := "-"
@@ -43,13 +43,13 @@ ThisBuild / dynverSeparator := "-"
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.9.0",
-    "org.typelevel" %% "cats-mtl" % "1.3.1",
-    "com.disneystreaming" %% "weaver-cats" % "0.8.3" % Test,
-    "com.disneystreaming" %% "weaver-discipline" % "0.8.3" % Test,
-    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.3" % Test,
-    "com.softwaremill.diffx" %% "diffx-core" % "0.8.3" % Test,
-    "com.softwaremill.diffx" %% "diffx-cats" % "0.8.3" % Test,
+    "org.typelevel" %% "cats-core" % "2.12.0",
+    "org.typelevel" %% "cats-mtl" % "1.4.0",
+    "com.disneystreaming" %% "weaver-cats" % "0.8.4" % Test,
+    "com.disneystreaming" %% "weaver-discipline" % "0.8.4" % Test,
+    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.4" % Test,
+    "com.softwaremill.diffx" %% "diffx-core" % "0.9.0" % Test,
+    "com.softwaremill.diffx" %% "diffx-cats" % "0.9.0" % Test,
   ),
   compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
@@ -95,10 +95,10 @@ lazy val source = module("source")
 lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-parse" % "0.3.10",
-      "io.circe" %% "circe-generic" % "0.14.5" % Test,
-      "io.circe" %% "circe-parser" % "0.14.5" % Test,
-      "co.fs2" %% "fs2-io" % "3.8.0" % Test,
+      "org.typelevel" %% "cats-parse" % "1.0.0",
+      "io.circe" %% "circe-generic" % "0.14.9" % Test,
+      "io.circe" %% "circe-parser" % "0.14.9" % Test,
+      "co.fs2" %% "fs2-io" % "3.10.2" % Test,
     )
   )
   .enablePlugins(Antlr4Plugin)
@@ -116,7 +116,7 @@ lazy val parser = module("parser")
 lazy val formatter = module("formatter")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "paiges-cats" % "0.4.3"
+      "org.typelevel" %% "paiges-cats" % "0.4.4"
     )
   )
   .dependsOn(
@@ -130,14 +130,14 @@ lazy val formatter = module("formatter")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.5.1",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.23.2",
+      "org.typelevel" %% "cats-effect" % "3.5.4",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.7",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.2.3" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.34.0" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.10" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.50.0" % Test,
     ),
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
@@ -158,12 +158,12 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.21.0",
-      "io.circe" %% "circe-core" % "0.14.5",
-      "org.http4s" %% "http4s-ember-client" % "0.23.23",
-      "org.http4s" %% "http4s-ember-server" % "0.23.23" % Test,
-      "io.get-coursier" %% "coursier" % "2.1.5",
-      "org.typelevel" %% "cats-tagless-macros" % "0.15.0",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.23.1",
+      "io.circe" %% "circe-core" % "0.14.9",
+      "org.http4s" %% "http4s-ember-client" % "0.23.27",
+      "org.http4s" %% "http4s-ember-server" % "0.23.27" % Test,
+      "io.get-coursier" %% "coursier" % "2.1.10",
+      "org.typelevel" %% "cats-tagless-macros" % "0.16.2",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),

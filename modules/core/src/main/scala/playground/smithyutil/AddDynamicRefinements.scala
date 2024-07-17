@@ -1,20 +1,19 @@
 package playground.smithyutil
 
-import cats.implicits._
+import cats.syntax.all.*
 import smithy.api
 import smithy4s.Refinement
 import smithy4s.RefinementProvider
 import smithy4s.Surjection
-import smithy4s.schema.CollectionTag._
-import smithy4s.schema.Primitive._
+import smithy4s.schema.Primitive.*
 import smithy4s.schema.Schema
-import smithy4s.schema.Schema._
+import smithy4s.schema.Schema.*
 import smithy4s.~>
 
 /** Reifies refinement hints into the schema.
   *
   * Notably, this does NOT recurse! In order to traverse an entire schema recursively, this has to
-  * be wrapped in TransitiveCompiler. This is done for separation of concerns.
+  * be wrapped in transformTransitivelyK. This is done for separation of concerns.
   */
 object AddDynamicRefinements extends (Schema ~> Schema) {
 
@@ -39,14 +38,16 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
 
   private def collection[C[_], A](
     schema: Schema.CollectionSchema[C, A]
-  ): Schema[C[A]] =
-    schema.tag match {
-      case ListTag   => schema.reifyHint(RefinementProvider.iterableLengthConstraint[List, A])
-      case VectorTag => schema.reifyHint(RefinementProvider.iterableLengthConstraint[Vector, A])
-      case SetTag    => schema.reifyHint(RefinementProvider.iterableLengthConstraint[Set, A])
-      case IndexedSeqTag =>
-        schema.reifyHint(RefinementProvider.iterableLengthConstraint[IndexedSeq, A])
-    }
+  ): Schema[C[A]] = schema.reifyHint(
+    RefinementProvider.lengthConstraint(schema.tag.iterator(_).size)
+  )
+
+  private def enumSchema[A](
+    schema: Schema.EnumerationSchema[A]
+  ): Schema[A] = schema
+    .reifyHint(RefinementProvider.lengthConstraint(schema.total(_).stringValue.size))
+    .reifyHint(RefinementProvider.rangeConstraint[A, Int](schema.total(_).intValue))
+    .reifyHint(RefinementProvider.patternConstraint(schema.total(_).stringValue))
 
   def apply[A](
     schema: Schema[A]
@@ -64,18 +65,19 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
           case PBigInt     => schema.reifyHint[api.Range]
           case PBigDecimal => schema.reifyHint[api.Range]
           case PBlob       => schema.reifyHint[api.Length]
-          case PUnit | PTimestamp | PDocument | PBoolean | PUUID => schema
+          case PTimestamp | PDocument | PBoolean | PUUID => schema
         }
 
       case c: CollectionSchema[_, _] => collection(c)
       case m: MapSchema[_, _]        => m.reifyHint[api.Length]
-      // explicitly handling each remaining case, in order to get a "mising match" warning if the schema model changes
+      case e: EnumerationSchema[_]   => enumSchema(e)
+      // explicitly handling each remaining case, in order to get a "missing match" warning if the schema model changes
       case b: BijectionSchema[_, _]  => b
       case r: RefinementSchema[_, _] => r
-      case e: EnumerationSchema[_]   => e
       case s: StructSchema[_]        => s
       case l: LazySchema[_]          => l
       case u: UnionSchema[_]         => u
+      case n: OptionSchema[_]        => n
     }
 
 }

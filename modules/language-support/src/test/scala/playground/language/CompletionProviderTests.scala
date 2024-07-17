@@ -2,18 +2,18 @@ package playground.language
 
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
-import playground.Assertions._
-import playground.ServiceUtils._
-import playground.language.Diffs._
+import playground.Assertions.*
+import playground.ServiceUtils.*
+import playground.language.Diffs.*
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.StringRangeUtils._
-import playground.smithyql.syntax._
+import playground.smithyql.StringRangeUtils.*
+import playground.smithyql.syntax.*
 import playground.std.ClockGen
 import playground.std.ClockOperation
 import playground.std.RandomGen
 import playground.std.RandomOperation
-import weaver._
+import weaver.*
 
 object CompletionProviderTests extends SimpleIOSuite {
 
@@ -26,16 +26,18 @@ object CompletionProviderTests extends SimpleIOSuite {
       Position(0),
     )
 
-    val expected = RandomGen
-      .endpoints
-      .map(endpoint =>
-        CompletionItem.forOperation(
-          insertUseClause = CompletionItem.InsertUseClause.Required,
-          endpoint,
-          QualifiedIdentifier.forService(RandomGen),
-          CompletionItem.InsertBodyStruct.Yes,
-        )
-      )
+    val expected =
+      RandomGen
+        .endpoints
+        .map { endpoint =>
+          CompletionItem.forOperation(
+            insertUseClause = CompletionItem.InsertUseClause.Required,
+            endpoint,
+            QualifiedIdentifier.forService(RandomGen),
+            CompletionItem.InsertBodyStruct.Yes,
+          )
+        }
+        .toList
 
     assertNoDiff(result, expected)
   }
@@ -148,11 +150,9 @@ object CompletionProviderTests extends SimpleIOSuite {
   }
 
   locally {
-    // for some reason, this can't be defined within the test body.
-    // https://github.com/disneystreaming/smithy4s/issues/537
-    val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
-
     pureTest("completing empty file - one (deprecated) service exists") {
+      val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
+
       val result = provider
         .provide(
           "",
@@ -164,6 +164,8 @@ object CompletionProviderTests extends SimpleIOSuite {
     }
 
     pureTest("completing use clause - one (deprecated) service exists") {
+      val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
+
       val result = provider
         .provide(
           "use service a#B\nhello {}",

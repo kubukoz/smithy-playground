@@ -3,8 +3,8 @@ package playground.e2e
 import buildinfo.BuildInfo
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.effect.unsafe.implicits._
-import cats.implicits._
+import cats.effect.unsafe.implicits.*
+import cats.syntax.all.*
 import fs2.io.file
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.InitializeResult
@@ -16,13 +16,14 @@ import org.eclipse.lsp4j.WorkspaceFolder
 import org.eclipse.lsp4j.launch.LSPLauncher
 import org.eclipse.lsp4j.services.LanguageServer
 import playground.lsp.PlaygroundLanguageClient
-import weaver._
+import weaver.*
 
 import java.io.PrintWriter
 import java.lang.ProcessBuilder.Redirect
 import java.util.concurrent.CompletableFuture
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.concurrent.duration.*
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
 object E2ETests extends SimpleIOSuite {
 
@@ -92,7 +93,7 @@ object E2ETests extends SimpleIOSuite {
           .create()
 
         Resource
-          .make(IO(launcher.startListening()))(f => IO(f.cancel(true): Unit))
+          .make(IO(launcher.startListening()).timeout(5.seconds))(f => IO(f.cancel(true): Unit))
           .as(new LanguageServerAdapter(launcher.getRemoteProxy()))
       }
   }
@@ -102,9 +103,12 @@ object E2ETests extends SimpleIOSuite {
   ): InitializeParams = new InitializeParams()
     .tap(
       _.setWorkspaceFolders(
-        workspaceFolders.map { path =>
-          new WorkspaceFolder(path.toNioPath.toUri().toString())
-        }.asJava
+        workspaceFolders
+          .zipWithIndex
+          .map { case (path, i) =>
+            new WorkspaceFolder(path.toNioPath.toUri().toString(), s"test-workspace-$i")
+          }
+          .asJava
       )
     )
 
@@ -123,5 +127,6 @@ object E2ETests extends SimpleIOSuite {
         }
 
       }
+      .timeout(20.seconds)
   }
 }

@@ -24,7 +24,7 @@
         devShell = pkgs.mkShell {
           buildInputs = [
             pkgs.yarn
-            pkgs.nodejs-14_x
+            pkgs.nodejs
             pkgs.sbt
             pkgs.jless
             pkgs.gnupg

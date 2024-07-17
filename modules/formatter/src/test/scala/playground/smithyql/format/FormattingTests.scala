@@ -1,17 +1,17 @@
 package playground.smithyql.format
 
-import cats.implicits._
-import playground.Assertions._
-import playground.smithyql._
+import cats.syntax.all.*
+import playground.Assertions.*
+import playground.smithyql.*
 import playground.smithyql.format.Formatter
 import playground.smithyql.parser.Examples
 import playground.smithyql.parser.ParserSuite
 import playground.smithyql.parser.SourceParser
-import util.chaining._
-import weaver._
+import util.chaining.*
+import weaver.*
 import weaver.scalacheck.Checkers
 
-import Diffs._
+import Diffs.*
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 

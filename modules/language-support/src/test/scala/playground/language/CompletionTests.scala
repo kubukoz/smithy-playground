@@ -1,6 +1,6 @@
 package playground.language
 
-import cats.implicits._
+import cats.syntax.all.*
 import demo.smithy.Good
 import demo.smithy.HasDeprecations
 import demo.smithy.HasNewtypes
@@ -12,13 +12,18 @@ import demo.smithy.MyInt
 import demo.smithy.MyString
 import demo.smithy.Power
 import demo.smithy.PowerMap
+import demo.smithy.PrivacyTier
+import demo.smithy.SampleSparseList
+import demo.smithy.SampleSparseMap
+import playground.Assertions.*
+import playground.language.Diffs.*
 import playground.smithyql.NodeContext
-import playground.smithyql.NodeContext.PathEntry._
+import playground.smithyql.NodeContext.PathEntry.*
 import smithy.api.TimestampFormat
 import smithy4s.Hints
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
-import weaver._
+import weaver.*
 
 import java.util.UUID
 
@@ -115,9 +120,48 @@ object CompletionTests extends FunSuite {
     assert(completions.isEmpty)
   }
 
+  test("completions in sparse collection root contain null") {
+    val completions = getCompletions(
+      Schema.list(Schema.int.option),
+      NodeContext.EmptyPath.inCollectionEntry(None),
+    )
+
+    assertNoDiff(
+      completions,
+      List(
+        CompletionItem.forNull
+      ),
+    )
+  }
+
+  test("completions in sparse map root contain null") {
+    val completions = getCompletions(
+      Schema.map(Schema.string, Schema.int.option),
+      NodeContext.EmptyPath.inStructBody.inStructValue("test"),
+    )
+
+    assertNoDiff(
+      completions,
+      List(
+        CompletionItem.forNull
+      ),
+    )
+  }
+
   test("completions on struct in list are available") {
     val completions = getCompletions(
       Schema.list(Good.schema),
+      NodeContext.EmptyPath.inCollectionEntry(0.some).inStructBody,
+    )
+
+    val fieldNames = completions.map(_.label)
+
+    assert.eql(fieldNames, List("howGood"))
+  }
+
+  test("completions on struct in sparse list are available") {
+    val completions = getCompletions(
+      Schema.list(Good.schema.option),
       NodeContext.EmptyPath.inCollectionEntry(0.some).inStructBody,
     )
 
@@ -131,7 +175,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Power.schema, NodeContext.EmptyPath)
 
     val inserts = completions.map(_.insertText)
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(s => s"\"$s\"")
       .map(InsertText.JustString(_))
 
@@ -143,7 +187,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Power.schema, NodeContext.EmptyPath.inQuotes)
 
     val inserts = completions.map(_.insertText)
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(InsertText.JustString(_))
 
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
@@ -163,7 +207,7 @@ object CompletionTests extends FunSuite {
 
     val inserts = completions.map(_.insertText)
 
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(_ + " = ")
       .map(InsertText.JustString(_))
 
@@ -256,14 +300,14 @@ object CompletionTests extends FunSuite {
   test("describe indexed seq") {
     assert.eql(
       CompletionItem.describeSchema(Ints.schema)(),
-      "@indexedSeq list Ints { member: integer Integer }",
+      "list Ints { member: integer Integer }",
     )
   }
 
   test("describe set of ints") {
     assert.eql(
       CompletionItem.describeSchema(IntSet.schema)(),
-      "set IntSet { member: integer Integer }",
+      "@uniqueItems list IntSet { member: integer Integer }",
     )
   }
 
@@ -288,10 +332,17 @@ object CompletionTests extends FunSuite {
     )
   }
 
+  test("describe int enum") {
+    assert.eql(
+      CompletionItem.describeSchema(PrivacyTier.schema)(),
+      "intEnum PrivacyTier",
+    )
+  }
+
   test("describe map") {
     assert.eql(
       CompletionItem.describeSchema(PowerMap.schema)(),
-      "map PowerMap { key: Power, value: Hero }",
+      "map PowerMap { key: enum Power, value: union Hero }",
     )
   }
 
@@ -327,6 +378,26 @@ object CompletionTests extends FunSuite {
     assert.eql(
       CompletionItem.describeType(isField = true, Schema.string),
       "?: string String",
+    )
+  }
+
+  test("describe sparse collection: sparse trait present") {
+    assert.eql(
+      CompletionItem.describeType(
+        isField = false,
+        SampleSparseList.schema,
+      ),
+      ": @sparse list SampleSparseList { member: integer Integer }",
+    )
+  }
+
+  test("describe sparse map: sparse trait present") {
+    assert.eql(
+      CompletionItem.describeType(
+        isField = false,
+        SampleSparseMap.schema,
+      ),
+      ": @sparse map SampleSparseMap { key: string String, value: integer Integer }",
     )
   }
 

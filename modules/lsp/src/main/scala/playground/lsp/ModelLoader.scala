@@ -1,6 +1,6 @@
 package playground.lsp
 
-import coursier._
+import coursier.*
 import coursier.cache.FileCache
 import coursier.parse.DependencyParser
 import coursier.parse.RepositoryParser
@@ -17,10 +17,10 @@ import java.net.URL
 import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Files
-import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
+import scala.concurrent.duration.*
+import scala.jdk.CollectionConverters.*
 import scala.util.Using
-import scala.util.chaining._
+import scala.util.chaining.*
 
 // NOTE: methods in this object are mostly side effecting and blocking.
 object ModelLoader {

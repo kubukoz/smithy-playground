@@ -2,7 +2,7 @@ package playground.lsp
 
 import cats.effect.IO
 import cats.effect.Resource
-import com.comcast.ip4s._
+import com.comcast.ip4s.*
 import org.eclipse.lsp4j.CodeLensParams
 import org.eclipse.lsp4j.Command
 import org.eclipse.lsp4j.CompletionParams
@@ -14,16 +14,16 @@ import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.http4s.HttpRoutes
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.implicits._
+import org.http4s.implicits.*
 import org.http4s.server.Server
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient
-import weaver._
+import weaver.*
 
-import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
+import scala.concurrent.duration.*
+import scala.jdk.CollectionConverters.*
 
 object LanguageServerIntegrationTestSharedServer
   extends IOSuite
@@ -42,7 +42,7 @@ object LanguageServerIntegrationTestSharedServer
         ),
       TestClient.MessageLog(
         MessageType.Info,
-        "Loaded Smithy Playground server with 2 imports, 2 dependencies and 0 plugins",
+        "Loaded Smithy Playground server with 2 sources, 0 imports, 2 dependencies and 0 plugins",
       ),
     )
 
@@ -250,7 +250,7 @@ object LanguageServerIntegrationTestSharedServer
       .withPort(port"0")
       .withShutdownTimeout(Duration.Zero)
       .withHttpApp {
-        import org.http4s.dsl.io._
+        import org.http4s.dsl.io.*
         HttpRoutes
           .of[IO] { case GET -> Root / "weather" / _ =>
             Ok(

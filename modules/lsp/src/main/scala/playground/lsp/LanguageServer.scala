@@ -3,19 +3,20 @@ package playground.lsp
 import cats.Applicative
 import cats.FlatMap
 import cats.MonadThrow
-import cats.effect.implicits._
+import cats.data.Kleisli
 import cats.effect.kernel.Async
-import cats.implicits._
 import cats.parse.LocationMap
+import cats.syntax.all.*
 import cats.tagless.Derive
 import cats.tagless.FunctorK
-import cats.tagless.implicits._
+import cats.tagless.catsTaglessApplyKForIdK
+import cats.tagless.implicits.*
 import cats.~>
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
-import org.eclipse.lsp4j._
 import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
@@ -35,14 +36,13 @@ import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
-import playground.lsp.util.KleisliOps
-import playground.types._
+import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
-import ToUriOps._
+import ToUriOps.*
 
 trait LanguageServer[F[_]] {
 
@@ -108,8 +108,6 @@ trait LanguageServer[F[_]] {
 
 object LanguageServer {
 
-  implicit val functorK: FunctorK[LanguageServer] = Derive.functorK
-
   def notAvailable[F[_]: MonadThrow]: LanguageServer[F] = defer(
     new Throwable("Server not available").raiseError[F, LanguageServer[F]]
   )
@@ -133,7 +131,7 @@ object LanguageServer {
 
       // see if we can pass this everywhere
       // https://github.com/kubukoz/smithy-playground/issues/164
-      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices)
+      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
 
       val compiler: FileCompiler[IorThrow] = FileCompiler
         .instance(
@@ -358,8 +356,18 @@ object LanguageServer {
       def exit: F[Unit] = Applicative[F].unit
     }
 
+  implicit val functorK: FunctorK[LanguageServer] = Derive.functorK[LanguageServer]
+
   def defer[F[_]: FlatMap](
     fa: F[LanguageServer[F]]
-  ): LanguageServer[F] = Derive.readerT[LanguageServer, F].mapK(KleisliOps.applyEffectK(fa))
+  ): LanguageServer[F] = Derive
+    .readerT[LanguageServer, F]
+    .mapK(new (Kleisli[F, LanguageServer[F], *] ~> F) {
+
+      def apply[A](
+        k: Kleisli[F, LanguageServer[F], A]
+      ): F[A] = fa.flatMap(k.run)
+
+    })
 
 }

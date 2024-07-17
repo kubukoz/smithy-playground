@@ -1,7 +1,7 @@
 package playground.language
 
 import cats.Applicative
-import cats.implicits._
+import cats.syntax.all.*
 
 trait TextDocumentProvider[F[_]] {
 

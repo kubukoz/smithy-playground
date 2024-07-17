@@ -67,7 +67,9 @@ structure CreateHeroInput {
     friendSet: FriendSet
     hasNewtypes: HasNewtypes
     hasDeprecations: HasDeprecations
-    doc: Document
+    doc: Document,
+    sparse: SampleSparseList,
+    sparseMap: SampleSparseMap
 }
 
 @uniqueItems
@@ -146,6 +148,11 @@ enum Power {
     WIND = "Wind"
 }
 
+intEnum PrivacyTier {
+    PUBLIC = 0
+    PRIVATE = 1
+}
+
 @http(method: "PUT", uri: "/subscriptions")
 @idempotent
 @documentation("""
@@ -221,6 +228,31 @@ string MyString
 @length(min: 1)
 string StringWithLength
 
+structure EnumStruct {
+    @length(max: 2)
+    enumWithLength: EnumABC
+
+    @pattern("^.{0,2}$")
+    enumWithPattern: EnumABC
+
+    @range(max: 2)
+    intEnumWithRange: FaceCard
+}
+
+enum EnumABC {
+    A,
+    AB,
+    ABC
+}
+
+intEnum FaceCard {
+    JACK = 1
+    QUEEN = 2
+    KING = 3
+    ACE = 4
+    JOKER = 5
+}
+
 structure HasConstraintFields {
     @required
     minLength: StringWithLength
@@ -256,4 +288,16 @@ structure SampleMixin {
 structure HasMixin with [SampleMixin] {
     @required
     name: String
+}
+
+
+@sparse
+list SampleSparseList {
+    member: Integer
+}
+
+@sparse
+map SampleSparseMap {
+    key: String
+    value: Integer
 }

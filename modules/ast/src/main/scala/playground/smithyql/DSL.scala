@@ -1,7 +1,7 @@
 package playground.smithyql
 
 import cats.Id
-import cats.implicits._
+import cats.syntax.all.*
 
 object DSL {
 

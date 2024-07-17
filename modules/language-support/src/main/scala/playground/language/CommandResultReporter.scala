@@ -4,7 +4,7 @@ import cats.Id
 import cats.Monad
 import cats.data.NonEmptyList
 import cats.effect.kernel.Ref
-import cats.implicits._
+import cats.syntax.all.*
 import playground.CompiledInput
 import playground.smithyql.InputNode
 import playground.smithyql.Query

@@ -2,7 +2,7 @@ package playground
 
 import cats.Contravariant
 import cats.Id
-import cats.implicits._
+import cats.syntax.all.*
 import playground.smithyql.Binding
 import playground.smithyql.BooleanLiteral
 import playground.smithyql.Identifier
@@ -13,7 +13,6 @@ import playground.smithyql.NullLiteral
 import playground.smithyql.StringLiteral
 import playground.smithyql.Struct
 import smithy4s.Bijection
-import smithy4s.ByteArray
 import smithy4s.Document
 import smithy4s.Document.DArray
 import smithy4s.Document.DBoolean
@@ -28,16 +27,12 @@ import smithy4s.ShapeId
 import smithy4s.capability.EncoderK
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
+import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
-import smithy4s.schema.Primitive._
+import smithy4s.schema.Primitive.*
 import smithy4s.schema.Schema
-import smithy4s.schema.SchemaField
 import smithy4s.schema.SchemaVisitor
 
 trait NodeEncoder[A] {
@@ -111,26 +106,30 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
       case PBigInt     => bigint
       case PBoolean    => boolean
       case PBigDecimal => bigdecimal
-      case PBlob       => string.contramap((_: ByteArray).toString)
+      case PBlob       => string.contramap(_.toBase64String)
       case PDouble     => double
       case PDocument   => document
       case PFloat      => float
-      case PUnit       => _ => obj(Nil)
       case PUUID       => string.contramap(_.toString())
       case PByte       => byte
       case PTimestamp  => string.contramap(_.toString)
     }
+
+  def option[A](
+    schema: Schema[A]
+  ): NodeEncoder[Option[A]] = {
+    val base = schema.compile(this)
+    val nullDoc = document.toNode(Document.nullDoc)
+
+    _.fold(nullDoc)(base.toNode)
+  }
 
   def collection[C[_], A](
     shapeId: ShapeId,
     hints: Hints,
     tag: CollectionTag[C],
     member: Schema[A],
-  ): NodeEncoder[C[A]] =
-    tag match {
-      case ListTag                            => listOf(member)
-      case IndexedSeqTag | SetTag | VectorTag => listOf(member).contramap(_.toList)
-    }
+  ): NodeEncoder[C[A]] = listOf(member).contramap(tag.iterator(_).toList)
 
   private def listOf[A](
     member: Schema[A]
@@ -162,6 +161,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def enumeration[E](
     shapeId: ShapeId,
     hints: Hints,
+    tag: EnumTag[E],
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
   ): NodeEncoder[E] = string.contramap(total(_).name)
@@ -169,39 +169,32 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fieldsRaw: Vector[SchemaField[S, _]],
+    fieldsRaw: Vector[Field[S, _]],
     make: IndexedSeq[Any] => S,
   ): NodeEncoder[S] = {
-    val fields = fieldsRaw.map(_.mapK(this))
 
     def go[A](
-      f: Field[NodeEncoder, S, A],
-      s: S,
-    ): Option[Binding[Id]] = f.fold(
-      new Field.Folder[NodeEncoder, S, Option[Binding[Id]]] {
-        def onRequired[F](
-          label: String,
-          instance: NodeEncoder[F],
-          get: S => F,
-        ): Option[Binding[Id]] = Binding[Id](Identifier(label), instance.toNode(get(s))).some
+      f: Field[S, A]
+    ): S => Option[Binding[Id]] = {
+      val instance = f.schema.compile(this)
 
-        def onOptional[F](
-          label: String,
-          instance: NodeEncoder[F],
-          get: S => Option[F],
-        ): Option[Binding[Id]] = get(s).map(f => Binding[Id](Identifier(label), instance.toNode(f)))
-      }
-    )
+      s =>
+        f.getUnlessDefault(s).map(instance.toNode(_)).map { v =>
+          Binding[Id](Identifier(f.label), v)
+        }
+    }
 
-    s => obj(fields.flatMap(go(_, s)).toList)
+    val fields = fieldsRaw.map(go(_))
+
+    s => obj(fields.mapFilter(_.apply(s)).toList)
   }
 
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[Alt[Schema, U, _]],
-    dispatcher: Alt.Dispatcher[Schema, U],
-  ): NodeEncoder[U] = dispatcher.compile(new Alt.Precompiler[Schema, NodeEncoder] {
+    alternatives: Vector[Alt[U, _]],
+    dispatcher: Alt.Dispatcher[U],
+  ): NodeEncoder[U] = dispatcher.compile(new Alt.Precompiler[NodeEncoder] {
 
     def apply[A](
       label: String,

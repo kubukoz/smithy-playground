@@ -1,7 +1,7 @@
 package playground
 
 import cats.data.EitherNel
-import cats.implicits._
+import cats.syntax.all.*
 import playground.smithyql.OperationName
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.QueryOperationName

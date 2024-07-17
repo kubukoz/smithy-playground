@@ -1,10 +1,11 @@
 package playground.lsp
 
-import cats.effect.implicits._
+import cats.effect.implicits.*
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.std
-import cats.implicits._
+import cats.syntax.all.*
+import fs2.compression.Compression
 import fs2.io.file.Files
 import fs2.io.net.Network
 import org.http4s.client.Client
@@ -18,10 +19,7 @@ import playground.TextDocumentManager
 import playground.language.CommandResultReporter
 import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
-import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
-
-import scala.concurrent.duration._
 
 trait ServerBuilder[F[_]] {
 
@@ -38,7 +36,7 @@ object ServerBuilder {
     implicit F: ServerBuilder[F]
   ): ServerBuilder[F] = F
 
-  def instance[F[_]: Async: LanguageClient: BuildLoader: Files: Network: std.Console]
+  def instance[F[_]: Async: LanguageClient: BuildLoader: Files: Network: Compression: std.Console]
     : Resource[F, ServerBuilder[F]] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
 
@@ -62,9 +60,7 @@ object ServerBuilder {
       client <- makeClient
       awsEnv <-
         AwsEnvironment
-          .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
-          // workaround for https://github.com/disneystreaming/smithy4s/issues/1075... which doesn't actually work
-          .timeout(1.second)
+          .default(client, AwsRegion.US_EAST_1)
           .memoize
       tdm <- TextDocumentManager.instance[F].toResource
     } yield new ServerBuilder[F] {
@@ -88,7 +84,7 @@ object ServerBuilder {
               plugins = plugins,
             )
 
-          val serviceIndex = ServiceIndex.fromServices(dsi.allServices)
+          val serviceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
 
           implicit val sl: ServerLoader[F] = loader
 

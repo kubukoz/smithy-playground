@@ -3,6 +3,10 @@ package playground.language
 import alloy.SimpleRestJson
 import aws.protocols.AwsJson1_0
 import aws.protocols.AwsJson1_1
+import aws.protocols.AwsQuery
+import aws.protocols.Ec2Query
+import aws.protocols.RestJson1
+import aws.protocols.RestXml
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.kernel.Resource
@@ -10,29 +14,29 @@ import demo.smithy.DemoServiceGen
 import noop.NoRunnerServiceGen
 import org.http4s.HttpApp
 import org.http4s.client.Client
-import playground.Assertions._
+import playground.Assertions.*
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
 import playground.DiagnosticSeverity
-import playground.Diffs._
+import playground.Diffs.*
 import playground.FileCompiler
 import playground.FileRunner
 import playground.OperationCompiler
 import playground.OperationRunner
 import playground.PreludeCompiler
 import playground.ServiceIndex
-import playground.ServiceUtils._
+import playground.ServiceUtils.*
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.SourceRange
-import playground.smithyql.StringRangeUtils._
+import playground.smithyql.StringRangeUtils.*
 import playground.std.ClockGen
 import playground.std.RandomGen
 import playground.std.Stdlib
 import playground.std.StdlibRuntime
 import smithy4s.HasId
 import smithy4s.aws.AwsEnvironment
-import weaver._
+import weaver.*
 
 object DiagnosticProviderTests extends SimpleIOSuite {
 
@@ -60,6 +64,10 @@ object DiagnosticProviderTests extends SimpleIOSuite {
       SimpleRestJson,
       AwsJson1_0,
       AwsJson1_1,
+      RestJson1,
+      AwsQuery,
+      RestXml,
+      Ec2Query,
       Stdlib,
     )
     .map(_.id)

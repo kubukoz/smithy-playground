@@ -1,22 +1,24 @@
 package playground.lsp
 
 import cats.FlatMap
+import cats.data.Kleisli
 import cats.effect.kernel.Async
-import cats.implicits._
+import cats.syntax.all.*
 import cats.tagless.Derive
 import cats.tagless.FunctorK
-import cats.tagless.implicits._
+import cats.tagless.catsTaglessApplyKForIdK
+import cats.tagless.implicits.*
+import cats.~>
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j.ConfigurationItem
 import org.eclipse.lsp4j.ConfigurationParams
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import playground.language.Feedback
-import playground.lsp.util.KleisliOps
 
 import java.util.concurrent.CompletableFuture
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
 trait LanguageClient[F[_]] extends Feedback[F] {
 
@@ -51,8 +53,6 @@ object LanguageClient {
   def apply[F[_]](
     implicit F: LanguageClient[F]
   ): LanguageClient[F] = F
-
-  implicit val functorK: FunctorK[LanguageClient] = Derive.functorK
 
   def adapt[F[_]: Async](
     client: PlaygroundLanguageClient
@@ -107,9 +107,19 @@ object LanguageClient {
       def refreshDiagnostics: F[Unit] = withClientF(_.refreshDiagnostics()).void
     }
 
+  implicit val functorK: FunctorK[LanguageClient] = Derive.functorK[LanguageClient]
+
   def defer[F[_]: FlatMap](
     fa: F[LanguageClient[F]]
-  ): LanguageClient[F] = Derive.readerT[LanguageClient, F].mapK(KleisliOps.applyEffectK(fa))
+  ): LanguageClient[F] = Derive
+    .readerT[LanguageClient, F]
+    .mapK(new (Kleisli[F, LanguageClient[F], *] ~> F) {
+
+      def apply[A](
+        k: Kleisli[F, LanguageClient[F], A]
+      ): F[A] = fa.flatMap(k.run)
+
+    })
 
   val NoChangeDetected: String = "No change detected, not rebuilding server"
 }
