@@ -42,7 +42,7 @@ trait SimpleHttpBuilder {
 object SimpleHttpBuilder {
 
   def fromSimpleProtocolBuilder(
-    builder: SimpleProtocolBuilder[_]
+    builder: SimpleProtocolBuilder[?]
   ): SimpleHttpBuilder =
     new SimpleHttpBuilder {
 
