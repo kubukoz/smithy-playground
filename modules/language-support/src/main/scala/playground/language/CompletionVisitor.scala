@@ -225,9 +225,8 @@ object CompletionItem {
     }
   }
 
-  private def describeCollection[C[_]](
-    tag: CollectionTag[C],
-    hints: Hints,
+  private def describeCollection(
+    hints: Hints
   ): String =
     sparseTraitDescription(hints).foldMap(_ + " ") +
       uniqueItemsTraitDescription(hints).foldMap(_ + " ") +
@@ -247,7 +246,7 @@ object CompletionItem {
 
       case Schema.CollectionSchema(shapeId, hints, tag, member) =>
         now(
-          s"${describeCollection(tag, hints)} ${shapeId.name} { member: ${describeSchema(member)()} }"
+          s"${describeCollection(hints)} ${shapeId.name} { member: ${describeSchema(member)()} }"
         )
 
       case e @ EnumerationSchema(_, _, _, _, _) =>
