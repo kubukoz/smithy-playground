@@ -228,19 +228,10 @@ object CompletionItem {
   private def describeCollection[C[_]](
     tag: CollectionTag[C],
     hints: Hints,
-  ): String = {
-    import smithy4s.schema.CollectionTag.*
-
-    val base =
-      tag match {
-        case ListTag       => "list"
-        case SetTag        => "set"
-        case IndexedSeqTag => "@indexedSeq list"
-        case VectorTag     => "@vector list"
-      }
-
-    sparseTraitDescription(hints).foldMap(_ + " ") + base
-  }
+  ): String =
+    sparseTraitDescription(hints).foldMap(_ + " ") +
+      uniqueItemsTraitDescription(hints).foldMap(_ + " ") +
+      "list"
 
   def describeService(
     service: DynamicSchemaIndex.ServiceWrapper
@@ -292,6 +283,10 @@ object CompletionItem {
   private def sparseTraitDescription(
     hints: Hints
   ): Option[String] = hints.get(api.Sparse).as("@sparse")
+
+  private def uniqueItemsTraitDescription(
+    hints: Hints
+  ): Option[String] = hints.get(api.UniqueItems).as("@uniqueItems")
 
   private def now(
     s: String

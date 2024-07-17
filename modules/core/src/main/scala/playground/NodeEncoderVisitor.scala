@@ -27,10 +27,6 @@ import smithy4s.ShapeId
 import smithy4s.capability.EncoderK
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
@@ -133,11 +129,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     hints: Hints,
     tag: CollectionTag[C],
     member: Schema[A],
-  ): NodeEncoder[C[A]] =
-    tag match {
-      case ListTag                            => listOf(member)
-      case IndexedSeqTag | SetTag | VectorTag => listOf(member).contramap(_.toList)
-    }
+  ): NodeEncoder[C[A]] = listOf(member).contramap(tag.iterator(_).toList)
 
   private def listOf[A](
     member: Schema[A]

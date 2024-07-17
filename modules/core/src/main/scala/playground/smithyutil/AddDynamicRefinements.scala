@@ -5,7 +5,6 @@ import smithy.api
 import smithy4s.Refinement
 import smithy4s.RefinementProvider
 import smithy4s.Surjection
-import smithy4s.schema.CollectionTag.*
 import smithy4s.schema.Primitive.*
 import smithy4s.schema.Schema
 import smithy4s.schema.Schema.*
@@ -39,14 +38,9 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
 
   private def collection[C[_], A](
     schema: Schema.CollectionSchema[C, A]
-  ): Schema[C[A]] =
-    schema.tag match {
-      case ListTag   => schema.reifyHint(RefinementProvider.iterableLengthConstraint[List, A])
-      case VectorTag => schema.reifyHint(RefinementProvider.iterableLengthConstraint[Vector, A])
-      case SetTag    => schema.reifyHint(RefinementProvider.iterableLengthConstraint[Set, A])
-      case IndexedSeqTag =>
-        schema.reifyHint(RefinementProvider.iterableLengthConstraint[IndexedSeq, A])
-    }
+  ): Schema[C[A]] = schema.reifyHint(
+    RefinementProvider.lengthConstraint(schema.tag.iterator(_).size)
+  )
 
   private def enumSchema[A](
     schema: Schema.EnumerationSchema[A]

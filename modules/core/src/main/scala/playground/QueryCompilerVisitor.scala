@@ -20,10 +20,6 @@ import smithy4s.ShapeId
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
@@ -152,12 +148,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       else
         listOf(member)
 
-    tag match {
-      case ListTag       => base
-      case SetTag        => base.map(_.toSet)
-      case IndexedSeqTag => base.map(_.toIndexedSeq)
-      case VectorTag     => base.map(_.toVector)
-    }
+    base
+      .map(_.iterator)
+      .map(tag.fromIterator(_))
   }
 
   private def uniqueListOf[A](

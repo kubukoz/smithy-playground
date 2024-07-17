@@ -300,14 +300,14 @@ object CompletionTests extends FunSuite {
   test("describe indexed seq") {
     assert.eql(
       CompletionItem.describeSchema(Ints.schema)(),
-      "@indexedSeq list Ints { member: integer Integer }",
+      "list Ints { member: integer Integer }",
     )
   }
 
   test("describe set of ints") {
     assert.eql(
       CompletionItem.describeSchema(IntSet.schema)(),
-      "set IntSet { member: integer Integer }",
+      "@uniqueItems list IntSet { member: integer Integer }",
     )
   }
 
