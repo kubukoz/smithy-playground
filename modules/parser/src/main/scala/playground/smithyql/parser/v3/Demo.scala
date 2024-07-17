@@ -1,4 +1,4 @@
-package playground.smithyql.parser.v2
+package playground.smithyql.parser.v3
 
 import cats.Monad
 import cats.Parallel
@@ -12,8 +12,8 @@ import org.antlr.v4.runtime.RecognitionException
 import org.antlr.v4.runtime.Recognizer
 import org.antlr.v4.runtime.tree.ErrorNode
 import org.antlr.v4.runtime.tree.TerminalNode
-import playground.smithyql.parser.v2.Yikes.Source_fileContext
-import playground.smithyql.parser.v2.Yikes.Use_clauseContext
+import playground.smithyql.parser.v3.Yikes.Source_fileContext
+import playground.smithyql.parser.v3.Yikes.Use_clauseContext
 
 import scala.jdk.CollectionConverters._
 

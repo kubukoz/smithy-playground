@@ -104,7 +104,7 @@ lazy val parser = module("parser")
   .enablePlugins(Antlr4Plugin)
   .settings(
     Antlr4 / antlr4Version := "4.13.0",
-    Antlr4 / antlr4PackageName := Some("playground.smithyql.parser.v2"),
+    Antlr4 / antlr4PackageName := Some("playground.smithyql.parser.v3"),
     Antlr4 / antlr4GenVisitor := true,
   )
   .dependsOn(
