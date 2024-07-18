@@ -23,14 +23,12 @@ object Demo {
     args: Array[String]
   ): Unit = {
     val input =
-      """
-      use
-      use service ..#
-      use service x#
-      use service a#oho
-      use service b
-      use service #foo
-      """.stripMargin
+      """|use
+         |use service ..#
+         |use service x#
+         |use service a#oho
+         |use service b
+         |use service #foo""".stripMargin
 
     val l = new Tokens(CharStreams.fromString(input))
 
@@ -163,6 +161,7 @@ object Demo {
     println("result: " + r.map(_.sequence))
 
     p.reset()
+    p.removeErrorListeners()
     val r2 =
       new YikesBaseVisitor[EitherNel[String, Any]] {
         override def visitSource_file(
