@@ -99,6 +99,8 @@ lazy val parser = module("parser")
       "io.circe" %% "circe-generic" % "0.14.9" % Test,
       "io.circe" %% "circe-parser" % "0.14.9" % Test,
       "co.fs2" %% "fs2-io" % "3.10.2" % Test,
+      // TODO: this is temp
+      "com.lihaoyi" %% "pprint" % "0.9.0",
     )
   )
   .enablePlugins(Antlr4Plugin)
