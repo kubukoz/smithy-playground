@@ -156,7 +156,7 @@ lazy val lsp = module("lsp")
       "io.circe" %% "circe-core" % "0.14.10",
       "org.http4s" %% "http4s-ember-client" % "0.23.27",
       "org.http4s" %% "http4s-ember-server" % "0.23.27" % Test,
-      "io.get-coursier" %% "coursier" % "2.1.10",
+      "io.get-coursier" %% "coursier" % "2.1.11",
       "org.typelevel" %% "cats-tagless-macros" % "0.16.2",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
