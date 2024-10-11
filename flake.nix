@@ -13,7 +13,7 @@
           overlays = [
             (final: prev:
               let
-                jre = final.openjdk11;
+                jre = final.openjdk17;
                 jdk = jre;
               in
               { inherit jdk jre; })
