@@ -28,6 +28,13 @@ object Formatter {
   implicit val useClauseFormatter: Formatter[UseClause] = writeDoc
   implicit val preludeFormatter: Formatter[Prelude] = writeDoc
   implicit val qonFormatter: Formatter[QueryOperationName] = writeDoc
+
+  implicit val fieldsFormatter: Formatter[Struct.Fields] =
+    (
+      f,
+      w,
+    ) => FormattingVisitor.writeStructFields(WithSource.liftId(f)).renderTrim(w)
+
   implicit val inputNodeFormatter: Formatter[InputNode] = writeDoc
   implicit val structFormatter: Formatter[Struct] = writeDoc
   implicit val listedFormatter: Formatter[Listed] = writeDoc
@@ -108,9 +115,14 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     query: WithSource[Query[WithSource]]
   ): Doc = printGeneric(query)
 
+  // no braces
+  def writeStructFields(
+    fields: WithSource[Struct.Fields[WithSource]]
+  ): Doc = writeCommaSeparated(fields.map(_.value))(writeField)
+
   override def struct(
     fields: WithSource[Struct.Fields[WithSource]]
-  ): Doc = writeBracketed(fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
+  ): Doc = Doc.char('{') + writeStructFields(fields) + Doc.char('}')
 
   private def forceLineAfterTrailingComments[A](
     printer: WithSource[A] => Doc
@@ -177,6 +189,16 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     // Force newlines between fields
     fields.map(renderField).intercalate(Doc.hardLine)
 
+  private def writeCommaSeparated[T](
+    items: WithSource[List[T]]
+  )(
+    renderItem: T => Doc
+  ): Doc =
+    Doc.hardLine +
+      printWithComments(items)(writeFields(_)(renderItem(_) + Doc.comma))
+        .indent(2) +
+      Doc.hardLine
+
   private def writeBracketed[T](
     items: WithSource[List[T]]
   )(
@@ -184,12 +206,7 @@ private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { v
     after: Doc,
   )(
     renderItem: T => Doc
-  ): Doc =
-    before + Doc.hardLine +
-      printWithComments(items)(writeFields(_)(renderItem(_) + Doc.comma))
-        .indent(2) +
-      Doc.hardLine +
-      after
+  ): Doc = before + writeCommaSeparated(items)(renderItem) + after
 
   def writeIdent(
     ident: QualifiedIdentifier
