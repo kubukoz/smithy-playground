@@ -154,8 +154,8 @@ lazy val lsp = module("lsp")
     libraryDependencies ++= Seq(
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.23.1",
       "io.circe" %% "circe-core" % "0.14.10",
-      "org.http4s" %% "http4s-ember-client" % "0.23.28",
-      "org.http4s" %% "http4s-ember-server" % "0.23.28" % Test,
+      "org.http4s" %% "http4s-ember-client" % "0.23.29",
+      "org.http4s" %% "http4s-ember-server" % "0.23.29" % Test,
       "io.get-coursier" %% "coursier" % "2.1.14",
       "org.typelevel" %% "cats-tagless-macros" % "0.16.2",
     ),
