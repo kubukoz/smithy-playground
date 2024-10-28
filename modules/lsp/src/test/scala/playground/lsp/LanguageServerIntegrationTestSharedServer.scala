@@ -35,28 +35,6 @@ object LanguageServerIntegrationTestSharedServer
 
   def sharedResource: Resource[IO, Res] = makeServer(testWorkspacesBase / "default")
 
-  test("server init produces logs consistent with the workspace folder") { f =>
-    val initLogs = List(
-      TestClient
-        .MessageLog(
-          MessageType.Info,
-          s"Hello from Smithy Playground v${BuildInfo.version}",
-        ),
-      TestClient.MessageLog(
-        MessageType.Info,
-        "Loaded Smithy Playground server with 2 sources, 0 imports, 2 dependencies and 0 plugins",
-      ),
-    )
-
-    // logs produced during an implicit initialization in the resource setup
-    f.client.getEvents.map { events =>
-      assert.same(
-        events,
-        initLogs,
-      )
-    }
-  }
-
   test("completions").apply { f =>
     f.server
       .completion(

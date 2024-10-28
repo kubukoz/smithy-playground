@@ -1,6 +1,8 @@
 package playground.smithyql.parser
 
 import io.circe.Codec
+import io.circe.Decoder
+import io.circe.Encoder
 import playground.smithyql.Binding
 import playground.smithyql.Comment
 import playground.smithyql.Diffs.given
@@ -31,9 +33,16 @@ object Codecs {
 
   given Codec[UseClause[WithSource]] = Codec.AsObject.derived
 
-  // why list though? recursion limit?
-  given Codec[List[WithSource[InputNode[WithSource]]]] = Codec.AsObject.derived
+  given Codec[WithSource[InputNode[WithSource]]] = Codec.AsObject.derived
+
   given Codec[InputNode[WithSource]] = Codec.AsObject.derived
+
+  // strange thing - somehow doesn't get picked up automatically.
+  given Codec[List[WithSource[InputNode[WithSource]]]] = Codec.from(
+    Decoder.decodeList,
+    Encoder.encodeList,
+  )
+
   given Codec[Listed[WithSource]] = Codec.AsObject.derived
 
   given Codec[Binding[WithSource]] = Codec.AsObject.derived
