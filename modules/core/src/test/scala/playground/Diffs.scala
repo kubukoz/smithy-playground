@@ -24,7 +24,6 @@ object Diffs {
       _,
     ) => IdenticalValue("unit")
 
-  @nowarn("cat=unused")
   implicit def diffForIor[E: Diff, A: Diff]: Diff[Ior[E, A]] = Diff.derivedDiff
 
   implicit val diffByteArray: Diff[Blob] = Diff[String].contramap(_.toString())
