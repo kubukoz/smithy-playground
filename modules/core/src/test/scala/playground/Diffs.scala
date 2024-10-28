@@ -5,8 +5,6 @@ import playground.smithyql.ContextRange
 import playground.smithyql.NodeContext
 import smithy4s.Blob
 
-import scala.annotation.nowarn
-
 object Diffs {
   import com.softwaremill.diffx.*
   import com.softwaremill.diffx.cats.*
