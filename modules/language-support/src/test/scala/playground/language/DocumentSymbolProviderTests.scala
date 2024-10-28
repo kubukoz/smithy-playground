@@ -4,7 +4,7 @@ import playground.Assertions._
 import playground.language.Diffs.given
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
-import weaver._
+import weaver.*
 
 object DocumentSymbolProviderTests extends FunSuite {
 

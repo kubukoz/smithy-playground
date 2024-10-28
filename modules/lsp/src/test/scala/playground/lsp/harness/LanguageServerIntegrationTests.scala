@@ -3,7 +3,7 @@ package playground.lsp.harness
 import cats.effect.IO
 import cats.effect.IOLocal
 import cats.effect.Resource
-import cats.implicits._
+import cats.syntax.all.*
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.WorkspaceFolder
@@ -12,8 +12,8 @@ import playground.lsp.LanguageServer
 import playground.lsp.MainServer
 import playground.lsp.buildinfo.BuildInfo
 
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
 trait LanguageServerIntegrationTests {
 
@@ -30,7 +30,7 @@ trait LanguageServerIntegrationTests {
   ): InitializeParams = new InitializeParams().tap(
     _.setWorkspaceFolders(
       List(
-        new WorkspaceFolder(workspaceDir.value)
+        new WorkspaceFolder(workspaceDir.value, "test-workspace")
       ).asJava
     )
   )

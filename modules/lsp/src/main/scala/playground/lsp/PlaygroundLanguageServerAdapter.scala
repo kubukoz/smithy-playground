@@ -2,8 +2,8 @@ package playground.lsp
 
 import cats.Functor
 import cats.effect.std.Dispatcher
-import cats.implicits._
-import org.eclipse.lsp4j._
+import cats.syntax.all.*
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter
 import org.eclipse.lsp4j.jsonrpc.messages
@@ -11,7 +11,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 
 import java.util.concurrent.CompletableFuture
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   impl: LanguageServer[F]
@@ -36,7 +36,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
 
   @JsonRequest("shutdown")
   def shutdown(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.shutdown.as(null: Object))
+  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(
+    impl.shutdown.as(null: Object): @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
+  )
 
   @JsonNotification("textDocument/didChange")
   def didChange(
@@ -101,7 +103,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
     .unsafeToCompletableFuture(
       impl
         .executeCommand(params)
-        .as(null: Object)
+        .as(null: Object): @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
     )
 
   @JsonNotification("workspace/didChangeWatchedFiles")
@@ -122,10 +124,14 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   def runQuery(
     params: RunFileParams
   ): CompletableFuture[Object] = d
-    .unsafeToCompletableFuture(impl.runFile(params).as(null: Object))
+    .unsafeToCompletableFuture(
+      impl.runFile(params).as(null: Object): @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
+    )
 
   @JsonRequest("exit")
   def exit(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))
+  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(
+    impl.exit.as(null: Object): @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
+  )
 
 }

@@ -7,7 +7,7 @@ import smithy4s.UnsupportedProtocolError
 import smithy4s.http4s.SimpleProtocolBuilder
 
 import java.util.ServiceLoader
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 trait PlaygroundPlugin {
   def simpleBuilders: List[SimpleHttpBuilder]
@@ -42,7 +42,7 @@ trait SimpleHttpBuilder {
 object SimpleHttpBuilder {
 
   def fromSimpleProtocolBuilder(
-    builder: SimpleProtocolBuilder[_]
+    builder: SimpleProtocolBuilder[?]
   ): SimpleHttpBuilder =
     new SimpleHttpBuilder {
 

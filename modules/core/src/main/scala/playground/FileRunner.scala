@@ -1,8 +1,7 @@
 package playground
 
 import cats.data.NonEmptyList
-import cats.implicits._
-import playground._
+import cats.syntax.all.*
 import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
 import playground.smithyql.WithSource

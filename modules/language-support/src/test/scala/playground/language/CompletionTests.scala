@@ -1,6 +1,6 @@
 package playground.language
 
-import cats.implicits._
+import cats.syntax.all.*
 import demo.smithy.Good
 import demo.smithy.HasDeprecations
 import demo.smithy.HasNewtypes
@@ -18,19 +18,19 @@ import demo.smithy.SampleSparseMap
 import playground.Assertions._
 import playground.language.Diffs.given
 import playground.smithyql.NodeContext
-import playground.smithyql.NodeContext.PathEntry._
+import playground.smithyql.NodeContext.PathEntry.*
 import smithy.api.TimestampFormat
 import smithy4s.Hints
 import smithy4s.Timestamp
 import smithy4s.schema.Schema
-import weaver._
+import weaver.*
 
 import java.util.UUID
 
 object CompletionTests extends FunSuite {
 
   def getCompletions(
-    schema: Schema[_],
+    schema: Schema[?],
     ctx: NodeContext,
   ): List[CompletionItem] = schema.compile(CompletionVisitor).getCompletions(ctx)
 
@@ -175,7 +175,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Power.schema, NodeContext.EmptyPath)
 
     val inserts = completions.map(_.insertText)
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(s => s"\"$s\"")
       .map(InsertText.JustString(_))
 
@@ -187,7 +187,7 @@ object CompletionTests extends FunSuite {
     val completions = getCompletions(Power.schema, NodeContext.EmptyPath.inQuotes)
 
     val inserts = completions.map(_.insertText)
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(InsertText.JustString(_))
 
     assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
@@ -207,7 +207,7 @@ object CompletionTests extends FunSuite {
 
     val inserts = completions.map(_.insertText)
 
-    val expectedInserts = List("FIRE", "LIGHTNING", "WIND", "ICE")
+    val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(_ + " = ")
       .map(InsertText.JustString(_))
 
@@ -300,14 +300,14 @@ object CompletionTests extends FunSuite {
   test("describe indexed seq") {
     assert.eql(
       CompletionItem.describeSchema(Ints.schema)(),
-      "@indexedSeq list Ints { member: integer Integer }",
+      "list Ints { member: integer Integer }",
     )
   }
 
   test("describe set of ints") {
     assert.eql(
       CompletionItem.describeSchema(IntSet.schema)(),
-      "set IntSet { member: integer Integer }",
+      "@uniqueItems list IntSet { member: integer Integer }",
     )
   }
 

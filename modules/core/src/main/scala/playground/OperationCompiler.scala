@@ -5,9 +5,9 @@ import cats.data.Ior
 import cats.data.IorNel
 import cats.data.Kleisli
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all.*
 import cats.~>
-import playground._
+import playground.*
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
@@ -17,9 +17,9 @@ import smithy4s.Endpoint
 import smithy4s.Hints
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
-import smithyql.syntax._
-import types._
-import util.chaining._
+import smithyql.syntax.*
+import types.*
+import util.chaining.*
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]

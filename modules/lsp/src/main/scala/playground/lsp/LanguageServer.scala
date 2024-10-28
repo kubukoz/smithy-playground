@@ -3,16 +3,20 @@ package playground.lsp
 import cats.Applicative
 import cats.FlatMap
 import cats.MonadThrow
-import cats.effect.implicits._
+import cats.data.Kleisli
 import cats.effect.kernel.Async
-import cats.implicits._
 import cats.parse.LocationMap
+import cats.syntax.all.*
+import cats.tagless.Derive
+import cats.tagless.FunctorK
+import cats.tagless.catsTaglessApplyKForIdK
+import cats.tagless.implicits.*
 import cats.~>
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
-import org.eclipse.lsp4j._
 import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
@@ -32,13 +36,13 @@ import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
-import playground.types._
+import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
 
-import ToUriOps._
+import ToUriOps.*
 
 trait LanguageServer[F[_]] {
 
@@ -352,72 +356,18 @@ object LanguageServer {
       def exit: F[Unit] = Applicative[F].unit
     }
 
-  // courtesy of github copilot
-  // workaround for https://github.com/typelevel/cats-tagless/pull/401
+  implicit val functorK: FunctorK[LanguageServer] = Derive.functorK[LanguageServer]
+
   def defer[F[_]: FlatMap](
     fa: F[LanguageServer[F]]
-  ): LanguageServer[F] =
-    new LanguageServer[F] {
+  ): LanguageServer[F] = Derive
+    .readerT[LanguageServer, F]
+    .mapK(new (Kleisli[F, LanguageServer[F], *] ~> F) {
 
-      override def initialize(
-        params: InitializeParams
-      ): F[InitializeResult] = fa.flatMap(_.initialize(params));
+      def apply[A](
+        k: Kleisli[F, LanguageServer[F], A]
+      ): F[A] = fa.flatMap(k.run)
 
-      override def initialized(
-        params: InitializedParams
-      ): F[Unit] = fa.flatMap(_.initialized(params));
-
-      override def didChange(
-        params: DidChangeTextDocumentParams
-      ): F[Unit] = fa.flatMap(_.didChange(params));
-
-      override def didOpen(
-        params: DidOpenTextDocumentParams
-      ): F[Unit] = fa.flatMap(_.didOpen(params));
-
-      override def didSave(
-        params: DidSaveTextDocumentParams
-      ): F[Unit] = fa.flatMap(_.didSave(params));
-
-      override def didClose(
-        params: DidCloseTextDocumentParams
-      ): F[Unit] = fa.flatMap(_.didClose(params));
-
-      override def formatting(
-        params: DocumentFormattingParams
-      ): F[List[TextEdit]] = fa.flatMap(_.formatting(params));
-
-      override def completion(
-        position: CompletionParams
-      ): F[Either[List[CompletionItem], CompletionList]] = fa.flatMap(_.completion(position));
-
-      override def diagnostic(
-        params: DocumentDiagnosticParams
-      ): F[DocumentDiagnosticReport] = fa.flatMap(_.diagnostic(params));
-
-      override def codeLens(
-        params: CodeLensParams
-      ): F[List[CodeLens]] = fa.flatMap(_.codeLens(params));
-
-      override def documentSymbol(
-        params: DocumentSymbolParams
-      ): F[List[DocumentSymbol]] = fa.flatMap(_.documentSymbol(params));
-
-      override def didChangeWatchedFiles(
-        params: DidChangeWatchedFilesParams
-      ): F[Unit] = fa.flatMap(_.didChangeWatchedFiles(params));
-
-      override def executeCommand(
-        params: ExecuteCommandParams
-      ): F[Unit] = fa.flatMap(_.executeCommand(params));
-
-      override def runFile(
-        params: RunFileParams
-      ): F[Unit] = fa.flatMap(_.runFile(params));
-
-      override def shutdown: F[Unit] = fa.flatMap(_.shutdown);
-
-      override def exit: F[Unit] = fa.flatMap(_.exit)
-    }
+    })
 
 }

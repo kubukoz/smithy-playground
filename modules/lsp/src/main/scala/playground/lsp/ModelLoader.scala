@@ -1,6 +1,6 @@
 package playground.lsp
 
-import coursier._
+import coursier.*
 import coursier.cache.FileCache
 import coursier.parse.DependencyParser
 import coursier.parse.RepositoryParser
@@ -17,10 +17,10 @@ import java.net.URL
 import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Files
-import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
+import scala.concurrent.duration.*
+import scala.jdk.CollectionConverters.*
 import scala.util.Using
-import scala.util.chaining._
+import scala.util.chaining.*
 
 // NOTE: methods in this object are mostly side effecting and blocking.
 object ModelLoader {
@@ -72,7 +72,10 @@ object ModelLoader {
   ): List[URL] =
     Using.resource(
       // Note: On JDK13+, the second parameter is redundant.
-      FileSystems.newFileSystem(file.toPath(), null: ClassLoader)
+      FileSystems.newFileSystem(
+        file.toPath(),
+        null: ClassLoader @SuppressWarnings(Array("scalafix:DisableSyntax.null")),
+      )
     ) { jarFS =>
       val manifestPath = jarFS.getPath("META-INF", "smithy", "manifest")
 
@@ -96,15 +99,16 @@ object ModelLoader {
 
   private def addFileImports(
     imports: Iterable[File]
-  ): ModelAssembler => ModelAssembler =
+  ): ModelAssembler => ModelAssembler = {
     assembler => {
       imports.foreach(f => assembler.addImport(f.toPath()))
       assembler
     }
+  }
 
   private def addPlaygroundModels(
     classLoader: ClassLoader
-  ): ModelAssembler => ModelAssembler =
+  ): ModelAssembler => ModelAssembler = {
     assembler => {
       List(
         "META-INF/smithy/std.smithy"
@@ -112,6 +116,7 @@ object ModelLoader {
 
       assembler
     }
+  }
 
   def resolveModelDependencies(
     config: PlaygroundConfig
@@ -150,8 +155,8 @@ object ModelLoader {
       }
 
     Fetch(FileCache[Task]().withTtl(1.hour))
-      .addRepositories(repos: _*)
-      .addDependencies(deps: _*)
+      .addRepositories(repos*)
+      .addDependencies(deps*)
       .run()
       .toList
   }

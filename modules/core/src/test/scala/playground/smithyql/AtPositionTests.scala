@@ -3,7 +3,7 @@ package playground.smithyql
 import playground.Assertions._
 import playground.Diffs.given
 import playground.smithyql.parser.SourceParser
-import weaver._
+import weaver.*
 
 object AtPositionTests extends FunSuite {
 

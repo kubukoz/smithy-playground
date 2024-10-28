@@ -2,7 +2,7 @@ package playground.lsp
 
 import cats.MonadThrow
 import cats.effect.kernel.Ref
-import cats.implicits._
+import cats.syntax.all.*
 import playground.PlaygroundConfig
 import playground.language.Uri
 
@@ -34,13 +34,14 @@ object ServerLoader {
   )
 
   case class WorkspaceStats(
+    sourceCount: Int,
     importCount: Int,
     dependencyCount: Int,
     pluginCount: Int,
   ) {
 
     def render: String =
-      s"$importCount imports, $dependencyCount dependencies and $pluginCount plugins"
+      s"$sourceCount sources, $importCount imports, $dependencyCount dependencies and $pluginCount plugins"
 
   }
 
@@ -49,6 +50,7 @@ object ServerLoader {
     def fromBuildConfig(
       bc: PlaygroundConfig
     ): WorkspaceStats = WorkspaceStats(
+      sourceCount = bc.sources.size,
       importCount = bc.imports.size,
       dependencyCount = bc.dependencies.size,
       pluginCount = bc.extensions.size,

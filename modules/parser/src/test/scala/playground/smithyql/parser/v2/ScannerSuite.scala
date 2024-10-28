@@ -1,13 +1,13 @@
 package playground.smithyql.parser.v2
 
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all.*
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 import playground.Assertions
 import playground.smithyql.parser.v2.scanner.Scanner
 import playground.smithyql.parser.v2.scanner.Token
-import weaver._
+import weaver.*
 
 import Diffs.given
 import Scanner.scan

@@ -3,10 +3,10 @@ package playground
 import cats.Applicative
 import cats.Parallel
 import cats.data.NonEmptyList
-import cats.implicits._
 import cats.mtl.Chronicle
-import cats.mtl.implicits._
-import playground._
+import cats.mtl.implicits.*
+import cats.syntax.all.*
+import playground.*
 import playground.smithyql.Prelude
 import playground.smithyql.WithSource
 

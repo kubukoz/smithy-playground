@@ -4,8 +4,8 @@ import cats.Id
 import com.softwaremill.diffx.Diff
 
 object Diffs {
-  import com.softwaremill.diffx.cats._
-  import com.softwaremill.diffx.generic.auto._
+  import com.softwaremill.diffx.cats.*
+  import com.softwaremill.diffx.generic.auto.*
 
   given Diff[Position] = Diff.derived
 

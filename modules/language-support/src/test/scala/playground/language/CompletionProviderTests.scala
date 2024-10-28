@@ -7,13 +7,13 @@ import playground.ServiceUtils._
 import playground.language.Diffs.given
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.StringRangeUtils._
-import playground.smithyql.syntax._
+import playground.smithyql.StringRangeUtils.*
+import playground.smithyql.syntax.*
 import playground.std.ClockGen
 import playground.std.ClockOperation
 import playground.std.RandomGen
 import playground.std.RandomOperation
-import weaver._
+import weaver.*
 
 object CompletionProviderTests extends SimpleIOSuite {
 
@@ -150,11 +150,9 @@ object CompletionProviderTests extends SimpleIOSuite {
   }
 
   locally {
-    // for some reason, this can't be defined within the test body.
-    // https://github.com/disneystreaming/smithy4s/issues/537
-    val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
-
     pureTest("completing empty file - one (deprecated) service exists") {
+      val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
+
       val result = provider
         .provide(
           "",
@@ -166,6 +164,8 @@ object CompletionProviderTests extends SimpleIOSuite {
     }
 
     pureTest("completing use clause - one (deprecated) service exists") {
+      val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
+
       val result = provider
         .provide(
           "use service a#B\nhello {}",

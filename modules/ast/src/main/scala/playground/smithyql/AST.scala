@@ -5,9 +5,9 @@ import cats.Functor
 import cats.Id
 import cats.Show
 import cats.data.NonEmptyList
-import cats.implicits._
 import cats.kernel.Eq
 import cats.kernel.Order
+import cats.syntax.all.*
 import cats.~>
 
 /** The main type for AST nodes of SmithyQL. The type parameter `F[_]` is a type constructor that

@@ -2,7 +2,6 @@ package playground.smithyql.parser.v2.scanner
 
 import cats.kernel.Eq
 import cats.parse.Numbers
-import cats.syntax.all.*
 
 import scala.annotation.nowarn
 
@@ -51,6 +50,12 @@ object TokenKind {
   implicit val eq: Eq[TokenKind] = Eq.fromUniversalEquals
 }
 
+@SuppressWarnings(
+  Array(
+    "scalafix:DisableSyntax.var",
+    "scalafix:DisableSyntax.while",
+  )
+)
 object Scanner {
 
   /** Entrypoint to scanning text into tokens.
@@ -135,7 +140,7 @@ object Scanner {
       // I love this language
       object jsonNumber {
         def unapply(
-          @nowarn("cat=unused")
+          @nowarn("msg=unused")
           unused: Unit
         ): Option[
           (
@@ -182,7 +187,7 @@ object Scanner {
     val eatWhitespace: PartialFunction[Unit, Unit] = {
       object matches {
         def unapply(
-          @nowarn("cat=unused") u: Unit
+          @nowarn("msg=unused") u: Unit
         ): Option[
           (
             String,

@@ -5,7 +5,7 @@ import cats.effect.IOApp
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
 import cats.effect.std.Dispatcher
-import cats.implicits._
+import cats.syntax.all.*
 import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.launch.LSPLauncher
 

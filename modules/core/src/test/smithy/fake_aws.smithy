@@ -10,3 +10,8 @@ service MyAwsService {
 operation MyAwsOp {
 
 }
+
+@aws.api#service(sdkId: "My Good Thing", endpointPrefix: "mygoodthing")
+service MyAwsService2 {
+    operations: [MyAwsOp]
+}

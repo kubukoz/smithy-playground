@@ -11,8 +11,8 @@ import smithy4s.ShapeId
 import scala.annotation.nowarn
 
 object Diffs {
-  import com.softwaremill.diffx._
-  import com.softwaremill.diffx.cats._
+  import com.softwaremill.diffx.*
+  import com.softwaremill.diffx.cats.*
 
   given Diff[ShapeId] = Diff.derived
 
@@ -33,7 +33,7 @@ object Diffs {
       _,
     ) => IdenticalValue("unit")
 
-  @nowarn("cat=unused")
+  @nowarn("msg=unused")
   given [E: Diff, A: Diff]: Diff[Ior[E, A]] = Diff.derived
 
   given Diff[Blob] = Diff[String].contramap(_.toUTF8String)
