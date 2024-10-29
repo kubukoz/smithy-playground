@@ -239,7 +239,7 @@ object Scanner {
       readAny
         .lift(())
         .isDefined ||
-      eatErrors()
+        eatErrors(): @nowarn("msg=unused value of type Boolean")
 
       // last-effort sanity check
       if (remaining == last)
