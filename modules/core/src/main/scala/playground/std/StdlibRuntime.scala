@@ -23,7 +23,11 @@ object StdlibRuntime {
         new playground.std.Random[F] {
 
           def nextUUID(
-          ): F[NextUUIDOutput] = UUIDGen[F].randomUUID.map(NextUUIDOutput(_))
+          ): F[NextUUIDOutput] = UUIDGen[F]
+            .randomUUID
+            .map(_.toString())
+            .map(UUID(_))
+            .map(NextUUIDOutput(_))
 
         }
 
