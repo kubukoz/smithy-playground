@@ -32,6 +32,7 @@ import playground.language.CommandResultReporter
 import playground.language.CompletionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbolProvider
+import playground.language.Feedback
 import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
 import playground.language.Uri
@@ -173,13 +174,15 @@ object LanguageServer {
           .toList
           .map(_.toUri)
 
-        LanguageClient[F]
-          .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
+        Feedback[F]
+          .showInfoMessage(
+            s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
+          ) *>
           ServerLoader[F]
             .prepare(wsf.some)
             .flatMap { prepped =>
               ServerLoader[F].perform(prepped.params).flatTap { stats =>
-                LanguageClient[F]
+                Feedback[F]
                   .showInfoMessage(
                     s"Loaded Smithy Playground server with ${stats.render}"
                   )
@@ -307,11 +310,11 @@ object LanguageServer {
         .prepare(workspaceFolders = None)
         .flatMap {
           case prepared if !prepared.isChanged =>
-            LanguageClient[F].showInfoMessage(
+            Feedback[F].showInfoMessage(
               LanguageClient.NoChangeDetected
             )
           case prepared =>
-            LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
+            Feedback[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
               ServerLoader[F]
                 .perform(prepared.params)
                 .onError { case e =>
@@ -322,7 +325,7 @@ object LanguageServer {
                 .flatMap { stats =>
                   LanguageClient[F].refreshDiagnostics *>
                     LanguageClient[F].refreshCodeLenses *>
-                    LanguageClient[F].showInfoMessage(
+                    Feedback[F].showInfoMessage(
                       s"Reloaded Smithy Playground server with ${stats.render}"
                     )
                 }

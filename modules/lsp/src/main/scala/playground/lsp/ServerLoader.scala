@@ -41,13 +41,13 @@ object ServerLoader {
   ) {
 
     def render: String =
-      s"$sourceCount sources, $importCount imports, $dependencyCount dependencies and $pluginCount plugins"
+      s"$sourceCount source entries, $importCount imports, $dependencyCount dependencies and $pluginCount plugins"
 
   }
 
   object WorkspaceStats {
 
-    def fromBuildConfig(
+    def fromPlaygroundConfig(
       bc: PlaygroundConfig
     ): WorkspaceStats = WorkspaceStats(
       sourceCount = bc.sources.size,
@@ -109,7 +109,7 @@ object ServerLoader {
               .build(params, this)
               .map(server => State(server, Some(params)))
               .flatMap(stateRef.set)
-              .as(WorkspaceStats.fromBuildConfig(params.config))
+              .as(WorkspaceStats.fromPlaygroundConfig(params.config))
 
             val server: LanguageServer[F] = LanguageServer.defer(stateRef.get.map(_.currentServer))
           }

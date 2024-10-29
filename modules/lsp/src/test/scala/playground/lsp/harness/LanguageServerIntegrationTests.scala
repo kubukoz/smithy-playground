@@ -71,17 +71,17 @@ trait LanguageServerIntegrationTests {
         TestClient
           .MessageLog(
             MessageType.Info,
-            s"Hello from Smithy Playground v${BuildInfo.version}",
+            s"Hello from Smithy Playground v${BuildInfo.version}! Loading project...",
           ),
         TestClient.MessageLog(
           MessageType.Info,
-          "Loaded Smithy Playground server with 2 sources, 0 imports, 2 dependencies and 0 plugins",
+          "Loaded Smithy Playground server with 2 source entries, 0 imports, 2 dependencies and 0 plugins",
         ),
       )
       IO {
         require(
-          events.size == 2,
-          "Events emitted at startup should've had size 2, it was " + events.size + " instead",
+          events.size == initLogs.size,
+          s"Events emitted at startup should've had size ${initLogs.size}, it was " + events.size + " instead",
         )
         require(
           events == initLogs,
