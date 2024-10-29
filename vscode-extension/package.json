@@ -77,7 +77,7 @@
         "smithyql.server.artifact": {
           "type": "string",
           "description": "The coordinates to the language server artifact",
-          "default": "com.kubukoz.playground:lsp_3"
+          "default": "com.kubukoz.playground::lsp"
         },
         "smithyql.server.version": {
           "type": "string",
