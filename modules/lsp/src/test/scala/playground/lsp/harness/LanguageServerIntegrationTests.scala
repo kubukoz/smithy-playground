@@ -75,7 +75,7 @@ trait LanguageServerIntegrationTests {
           ),
         TestClient.MessageLog(
           MessageType.Info,
-          "Loaded Smithy Playground server with 2 sources, 0 imports, 2 dependencies and 0 plugins",
+          "Loaded Smithy Playground server with 2 source entries, 0 imports, 2 dependencies and 0 plugins",
         ),
       )
       IO {
