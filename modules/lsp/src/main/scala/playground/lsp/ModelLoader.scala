@@ -127,7 +127,7 @@ object ModelLoader {
       DependencyParser
         .dependencies(
           dependencies,
-          defaultScalaVersion = BuildInfo.scalaVersion,
+          defaultScalaVersion = BuildInfo.scalaBinaryVersion,
         )
         .either
     val repos =
