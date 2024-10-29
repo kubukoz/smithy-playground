@@ -3,10 +3,11 @@ package playground
 import cats.Id
 import cats.data.IorNel
 import cats.data.NonEmptyList
-import cats.implicits._
 import cats.kernel.Eq
-import playground.CompilationErrorDetails._
-import playground.smithyql._
+import cats.kernel.Order.catsKernelOrderingForOrder
+import cats.syntax.all.*
+import playground.CompilationErrorDetails.*
+import playground.smithyql.*
 import playground.smithyql.format.Formatter
 import smithy.api.TimestampFormat
 import smithy4s.ShapeId
@@ -110,8 +111,8 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
         s"""Matching enums by value is deprecated and may be removed in the future. Use $enumName instead.""".stripMargin
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
       case AmbiguousService(workspaceServices) =>
-        s"""Couldn't determine service for this operation. Add a use clause, or use an explicit reference to specify the service you want to use.
-           |Available services:""".stripMargin + workspaceServices
+        """Couldn't determine service for this operation. Add a use clause, or use an explicit reference to specify the service you want to use.
+          |Available services:""".stripMargin + workspaceServices
           .sorted
           .map(UseClause[Id](_).mapK(WithSource.liftId))
           .map(Formatter.useClauseFormatter.format(_, Int.MaxValue))

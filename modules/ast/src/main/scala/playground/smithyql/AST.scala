@@ -5,9 +5,9 @@ import cats.Functor
 import cats.Id
 import cats.Show
 import cats.data.NonEmptyList
-import cats.implicits._
 import cats.kernel.Eq
 import cats.kernel.Order
+import cats.syntax.all.*
 import cats.~>
 
 /** The main type for AST nodes of SmithyQL. The type parameter `F[_]` is a type constructor that
@@ -166,8 +166,7 @@ object QualifiedIdentifier {
 
   implicit val show: Show[QualifiedIdentifier] = Show.fromToString
 
-  implicit val ord: Order[QualifiedIdentifier] = Order.by(unapply(_).get)
-
+  implicit val ord: Order[QualifiedIdentifier] = Order.by(Tuple.fromProductTyped)
 }
 
 // the keywords of the clause are captured in the Prelude's useClauses list.
@@ -240,7 +239,7 @@ final case class Binding[F[_]](
 
 final case class Identifier(
   text: String
-) extends AnyVal
+)
 
 object Struct {
 

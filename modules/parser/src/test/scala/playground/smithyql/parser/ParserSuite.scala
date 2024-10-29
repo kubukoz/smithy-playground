@@ -1,18 +1,18 @@
 package playground.smithyql.parser
 
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all.*
 import com.softwaremill.diffx.Diff
 import fs2.io.file.Files
 import fs2.io.file.Path
 import io.circe.Codec
 import io.circe.Decoder
-import io.circe.syntax._
-import playground.Assertions._
-import playground.smithyql._
+import io.circe.syntax.*
+import playground.Assertions.*
+import playground.smithyql.*
 import playground.smithyql.parser.v2.scanner.Scanner
 import playground.smithyql.parser.v2.scanner.TokenKind
-import weaver._
+import weaver.*
 
 import java.nio.file
 import java.nio.file.NoSuchFileException
@@ -120,7 +120,7 @@ trait ParserSuite extends SimpleIOSuite {
   ): List[TestCase] = {
     val baseDir = Paths
       .get(getClass().getResource("/parser-examples").getFile())
-      .resolve(file.Path.of(prefix.head, prefix.tail: _*))
+      .resolve(file.Path.of(prefix.head, prefix.tail*))
 
     baseDir
       .toFile

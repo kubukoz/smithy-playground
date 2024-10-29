@@ -6,11 +6,12 @@ import cats.data.Chain
 import cats.data.Ior
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all.*
 import com.softwaremill.diffx.Diff
-import com.softwaremill.diffx.cats._
+import com.softwaremill.diffx.cats.*
 import demo.smithy.Bad
 import demo.smithy.DeprecatedServiceGen
+import demo.smithy.EnumStruct
 import demo.smithy.FriendSet
 import demo.smithy.Good
 import demo.smithy.HasConstraintFields
@@ -26,7 +27,7 @@ import demo.smithy.Power
 import demo.smithy.SampleSparseList
 import demo.smithy.StringWithLength
 import org.scalacheck.Arbitrary
-import playground.Assertions._
+import playground.Assertions.*
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
@@ -34,16 +35,16 @@ import playground.CompiledInput
 import playground.DeprecatedInfo
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
-import playground.Diffs._
+import playground.Diffs.given
 import playground.DynamicModel
 import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.QueryCompiler
 import playground.QueryCompilerVisitor
 import playground.ServiceIndex
-import playground.ServiceUtils._
+import playground.ServiceUtils.*
 import playground.smithyql.parser.SourceParser
-import playground.smithyql.syntax._
+import playground.smithyql.syntax.*
 import playground.std.ClockGen
 import playground.std.RandomGen
 import playground.types.IorThrow
@@ -57,18 +58,18 @@ import smithy4s.ShapeTag
 import smithy4s.Timestamp
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Schema
-import weaver._
+import weaver.*
 import weaver.scalacheck.Checkers
 
 import java.time
 import java.util.UUID
 
-import Arbitraries._
-import StringRangeUtils._
+import Arbitraries.*
+import StringRangeUtils.*
 
 object CompilationTests extends SimpleIOSuite with Checkers {
 
-  import DSL._
+  import DSL.*
 
   private def compile[A: smithy4s.Schema](
     in: QueryCompiler.WAST
@@ -153,7 +154,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId(struct().mapK(WithSource.liftId))
-      }(Schema.unit).isRight
+      }(
+        using Schema.unit
+      ).isRight
     )
   }
 
@@ -161,7 +164,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId("test".mapK(WithSource.liftId))
-      }(Schema.unit).isLeft
+      }(
+        using Schema.unit
+      ).isLeft
     )
   }
 
@@ -169,7 +174,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId(struct("test" -> 42).mapK(WithSource.liftId))
-      }(Schema.unit).isBoth
+      }(
+        using Schema.unit
+      ).isBoth
     )
   }
 
@@ -177,7 +184,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId("foo".mapK(WithSource.liftId))
-      }(Schema.string) == Ior.right("foo")
+      }(
+        using Schema.string
+      ) == Ior.right("foo")
     )
   }
 
@@ -194,7 +203,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     val result = compile {
       WithSource.liftId("".mapK(WithSource.liftId))
-    }(dynamicStringSchema)
+    }(
+      using dynamicStringSchema
+    )
       .leftMap(_.map(_.err.asInstanceOf[CompilationErrorDetails.RefinementFailure]))
 
     assert(
@@ -207,7 +218,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     val result = compile {
       WithSource.liftId(struct("minLength" -> "").mapK(WithSource.liftId))
-    }(dynamicStringSchema)
+    }(
+      using dynamicStringSchema
+    )
       .leftMap(_.map(_.err.asInstanceOf[CompilationErrorDetails.RefinementFailure]))
 
     assert(
@@ -219,7 +232,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(Schema.string) == Ior.left(
+      }(
+        using Schema.string
+      ) == Ior.left(
         NonEmptyChain.of(
           CompilationError.error(
             CompilationErrorDetails.TypeMismatch(
@@ -237,7 +252,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(Long.MaxValue.mapK(WithSource.liftId))
-      }(Schema.long),
+      }(
+        using Schema.long
+      ),
       Ior.right(Long.MaxValue),
     )
   }
@@ -246,7 +263,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId((BigInt(Long.MaxValue) + 1).mapK(WithSource.liftId))
-      }(Schema.long).isLeft
+      }(
+        using Schema.long
+      ).isLeft
     )
   }
 
@@ -254,7 +273,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(Schema.int),
+      }(
+        using Schema.int
+      ),
       Ior.right(42),
     )
   }
@@ -263,7 +284,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId((Int.MaxValue.toLong + 1L).mapK(WithSource.liftId))
-      }(Schema.int).isLeft
+      }(
+        using Schema.int
+      ).isLeft
     )
   }
 
@@ -271,7 +294,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
-      }(Schema.int),
+      }(
+        using Schema.int
+      ),
       Ior.right(100),
     )
   }
@@ -280,7 +305,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId(IntLiteral("10.1e0").mapK(WithSource.liftId))
-      }(Schema.int).isLeft
+      }(
+        using Schema.int
+      ).isLeft
     )
   }
 
@@ -288,7 +315,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
-      }(Schema.short),
+      }(
+        using Schema.short
+      ),
       Ior.right(42.toShort),
     )
   }
@@ -297,7 +326,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId((Short.MaxValue + 1).mapK(WithSource.liftId))
-      }(Schema.short).isLeft
+      }(
+        using Schema.short
+      ).isLeft
     )
   }
 
@@ -305,7 +336,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
-      }(Schema.short),
+      }(
+        using Schema.short
+      ),
       Ior.right(100.toShort),
     )
   }
@@ -314,7 +347,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(Byte.MaxValue.mapK(WithSource.liftId))
-      }(Schema.byte),
+      }(
+        using Schema.byte
+      ),
       Ior.right(127.toByte),
     )
   }
@@ -323,7 +358,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId((Byte.MaxValue + 1).mapK(WithSource.liftId))
-      }(Schema.byte).isLeft
+      }(
+        using Schema.byte
+      ).isLeft
     )
   }
 
@@ -331,7 +368,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
-      }(Schema.byte),
+      }(
+        using Schema.byte
+      ),
       Ior.right(100.toByte),
     )
   }
@@ -340,7 +379,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert.same(
       compile {
         WithSource.liftId(Float.MaxValue.mapK(WithSource.liftId))
-      }(Schema.float),
+      }(
+        using Schema.float
+      ),
       Ior.right(Float.MaxValue),
     )
   }
@@ -349,7 +390,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId(Double.MaxValue.toString.mapK(WithSource.liftId))
-      }(Schema.float).isLeft
+      }(
+        using Schema.float
+      ).isLeft
     )
   }
 
@@ -357,7 +400,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(IntLiteral("0.1e0").mapK(WithSource.liftId))
-      }(Schema.float),
+      }(
+        using Schema.float
+      ),
       Ior.right(0.1f),
     )
   }
@@ -366,7 +411,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(Double.MaxValue.mapK(WithSource.liftId))
-      }(Schema.double),
+      }(
+        using Schema.double
+      ),
       Ior.right(Double.MaxValue),
     )
   }
@@ -375,7 +422,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId((BigDecimal(Double.MaxValue) + 1).mapK(WithSource.liftId))
-      }(Schema.double),
+      }(
+        using Schema.double
+      ),
       Ior.right(Double.MaxValue),
     )
   }
@@ -384,7 +433,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(IntLiteral("0.1e0").mapK(WithSource.liftId))
-      }(Schema.double),
+      }(
+        using Schema.double
+      ),
       Ior.right(0.1),
     )
   }
@@ -394,7 +445,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       assertNoDiff(
         compile {
           WithSource.liftId(bi.mapK(WithSource.liftId))
-        }(Schema.bigint),
+        }(
+          using Schema.bigint
+        ),
         Ior.right(bi),
       )
     }
@@ -404,7 +457,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId("40.50".mapK(WithSource.liftId))
-      }(Schema.bigint).isLeft
+      }(
+        using Schema.bigint
+      ).isLeft
     )
   }
 
@@ -412,7 +467,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
-      }(Schema.bigint),
+      }(
+        using Schema.bigint
+      ),
       Ior.right(BigInt(100)),
     )
   }
@@ -422,7 +479,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       assertNoDiff(
         compile {
           WithSource.liftId(bd.mapK(WithSource.liftId))
-        }(Schema.bigdecimal),
+        }(
+          using Schema.bigdecimal
+        ),
         Ior.right(bd),
       )
     }
@@ -432,7 +491,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId("AAAA".mapK(WithSource.liftId))
-      }(Schema.bigdecimal).isLeft
+      }(
+        using Schema.bigdecimal
+      ).isLeft
     )
   }
 
@@ -440,7 +501,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(IntLiteral("1e2").mapK(WithSource.liftId))
-      }(Schema.bigdecimal),
+      }(
+        using Schema.bigdecimal
+      ),
       Ior.right(BigDecimal(100)),
     )
   }
@@ -449,7 +512,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(true.mapK(WithSource.liftId))
-      }(Schema.boolean),
+      }(
+        using Schema.boolean
+      ),
       Ior.right(true),
     )
   }
@@ -458,7 +523,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId(NullLiteral[WithSource]())
-      }(Schema.document),
+      }(
+        using Schema.document
+      ),
       Ior.right(Document.nullDoc),
     )
   }
@@ -467,7 +534,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId(NullLiteral[WithSource]())
-      }(Schema.string).isLeft
+      }(
+        using Schema.string
+      ).isLeft
     )
   }
 
@@ -475,7 +544,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assertNoDiff(
       compile {
         WithSource.liftId("dGVzdA==".mapK(WithSource.liftId))
-      }(Schema.bytes),
+      }(
+        using Schema.bytes
+      ),
       Ior.right(Blob("test".getBytes())),
     )
   }
@@ -484,7 +555,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert(
       compile {
         WithSource.liftId("XYI519274n91lasdf/a'\'...,,".mapK(WithSource.liftId))
-      }(Schema.bytes).isLeft
+      }(
+        using Schema.bytes
+      ).isLeft
     )
   }
 
@@ -541,7 +614,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("dynamic struct with default field") {
     val result =
       compile(WithSource.liftId(struct().mapK(WithSource.liftId)))(
-        dynamicSchemaFor[HasDefault]
+        using dynamicSchemaFor[HasDefault]
       )
 
     // Object is empty here, but the server shall deserialize it providing the default
@@ -597,7 +670,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         WithSource.liftId {
           struct("name" -> "foo").mapK(WithSource.liftId)
         }
-      }(dynamicSchemaFor[HasMixin]).void
+      }(
+        using dynamicSchemaFor[HasMixin]
+      ).void
 
     val expected = Ior.left(
       NonEmptyChain.of(
@@ -673,7 +748,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("timestamp - OK") {
     val result =
       compile(WithSource.liftId("2022-07-11T17:42:28.000Z".mapK(WithSource.liftId)))(
-        Schema.timestamp
+        using Schema.timestamp
       )
     val expected = Timestamp.parse("2022-07-11T17:42:28.000Z", TimestampFormat.DATE_TIME).get
 
@@ -686,7 +761,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("timestamp - ignores format") {
     val result =
       compile(WithSource.liftId("2022-07-11T17:42:28.000Z".mapK(WithSource.liftId)))(
-        Schema.timestamp.addHints(TimestampFormat.EPOCH_SECONDS: TimestampFormat)
+        using Schema.timestamp.addHints(TimestampFormat.EPOCH_SECONDS: TimestampFormat)
       )
 
     val expected = Timestamp.parse("2022-07-11T17:42:28.000Z", TimestampFormat.DATE_TIME).get
@@ -699,7 +774,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   pureTest("timestamp - fails when the format is invalid") {
     val result = compile(WithSource.liftId("not-a-timestamp".mapK(WithSource.liftId)))(
-      Schema.timestamp
+      using Schema.timestamp
     ).leftMap(_.map(_.err))
 
     assertNoDiff(
@@ -715,7 +790,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       compile(
         WithSource.liftId("9c8f8f8f-8f8f-8f8f-8f8f-8f8f8f8f8f8f".mapK(WithSource.liftId))
       )(
-        Schema.uuid
+        using Schema.uuid
       )
 
     assertNoDiff(
@@ -729,6 +804,69 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     assert(
       result == Ior.right(Power.WIND)
+    )
+  }
+
+  pureTest("enum - length validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("enumWithLength" -> Document.fromString("AB"))),
+      compile(
+        WithSource.liftId(struct("enumWithLength" -> "AB").mapK(WithSource.liftId))
+      )(
+        using dynamicSchemaFor[EnumStruct]
+      ),
+    )
+  }
+
+  pureTest("enum - length validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("enumWithLength" -> "ABC").mapK(WithSource.liftId))
+      )(
+        using dynamicSchemaFor[EnumStruct]
+      ).isLeft
+    )
+  }
+
+  pureTest("enum - range validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("intEnumWithRange" -> Document.fromInt(2))),
+      compile(
+        WithSource.liftId(struct("intEnumWithRange" -> "QUEEN").mapK(WithSource.liftId))
+      )(
+        using dynamicSchemaFor[EnumStruct]
+      ),
+    )
+  }
+
+  pureTest("enum - range validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("intEnumWithRange" -> "KING").mapK(WithSource.liftId))
+      )(
+        using dynamicSchemaFor[EnumStruct]
+      ).isLeft
+    )
+  }
+
+  pureTest("enum - pattern validation (dynamic, OK)") {
+    assert.same(
+      Ior.right(Document.obj("enumWithPattern" -> Document.fromString("AB"))),
+      compile(
+        WithSource.liftId(struct("enumWithPattern" -> "AB").mapK(WithSource.liftId))
+      )(
+        using dynamicSchemaFor[EnumStruct]
+      ),
+    )
+  }
+
+  pureTest("enum - pattern validation (dynamic, fail)") {
+    assert(
+      compile(
+        WithSource.liftId(struct("enumWithPattern" -> "ABC").mapK(WithSource.liftId))
+      )(
+        using dynamicSchemaFor[EnumStruct]
+      ).isLeft
     )
   }
 
@@ -765,7 +903,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           CompilationError.error(
             CompilationErrorDetails.UnknownEnumValue(
               "POISON",
-              List("FIRE", "LIGHTNING", "WIND", "ICE"),
+              List("ICE", "FIRE", "LIGHTNING", "WIND"),
             ),
             SourceRange(Position(0), Position(0)),
           )
@@ -799,7 +937,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     assert.same(
       compile(
         WithSource.liftId(List[InputNode[Id]](1, NullLiteral(), 3).mapK(WithSource.liftId))
-      )(dynamicSchemaFor[SampleSparseList]).leftMap(_.map(_.err)),
+      )(
+        using dynamicSchemaFor[SampleSparseList]
+      ).leftMap(_.map(_.err)),
       Ior.right(
         Document.array(
           List(
@@ -879,7 +1019,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
                 )
               )
             )
-          )(dynamicSchemaFor[IntSet])
+          )(
+            using dynamicSchemaFor[IntSet]
+          )
 
         assert(
           actual == Ior.both(
@@ -930,7 +1072,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           item,
         ).mapK(WithSource.liftId)
       )
-    )(dynamicSchemaFor[FriendSet])
+    )(
+      using dynamicSchemaFor[FriendSet]
+    )
       .leftMap(_.map(_.err))
 
     assertNoDiff(
@@ -952,7 +1096,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           ).mapK(WithSource.liftId)
         )
       )(
-        Schema.set(dynamicSchemaFor[Person])
+        using Schema.set(dynamicSchemaFor[Person])
       )
 
     val expected = Set(
@@ -995,7 +1139,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   test("anything to document matches") {
     forall((wast: QueryCompiler.WAST) =>
       assert(
-        compile[Document](wast)(Schema.document).isRight
+        compile[Document](wast)(
+          using Schema.document
+        ).isRight
       )
     )
   }
@@ -1009,7 +1155,9 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             struct("name" -> "aaa"),
           ).mapK(WithSource.liftId)
         )
-      )(Schema.document),
+      )(
+        using Schema.document
+      ),
       Ior.right(
         Document.array(
           Document.obj(

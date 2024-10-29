@@ -3,7 +3,7 @@ package playground.language
 import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all.*
 import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
@@ -17,7 +17,7 @@ import playground.smithyql.SourceRange
 import playground.smithyql.WithSource
 import playground.smithyql.parser.ParsingFailure
 import playground.smithyql.parser.SourceParser
-import playground.types._
+import playground.types.*
 
 trait DiagnosticProvider[F[_]] {
 

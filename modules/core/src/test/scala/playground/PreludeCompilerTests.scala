@@ -4,17 +4,17 @@ import cats.Id
 import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
-import cats.implicits._
-import com.softwaremill.diffx.cats._
+import cats.syntax.all.*
+import com.softwaremill.diffx.cats.*
 import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.StringRangeUtils._
+import playground.smithyql.StringRangeUtils.*
 import playground.smithyql.parser.SourceParser
-import weaver._
+import weaver.*
 
-import Assertions._
-import Diffs._
+import Assertions.*
+import Diffs.given
 
 object PreludeCompilerTests extends FunSuite {
 

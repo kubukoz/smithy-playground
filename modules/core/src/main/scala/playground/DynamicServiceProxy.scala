@@ -1,11 +1,11 @@
 package playground
 
 import cats.MonadThrow
-import cats.implicits._
+import cats.syntax.all.*
 import smithy4s.Document
 import smithy4s.Endpoint
 import smithy4s.Service
-import smithy4s.kinds._
+import smithy4s.kinds.*
 import smithy4s.schema.Schema
 
 class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
@@ -26,8 +26,6 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
   ): FunctorInterpreter[Op, F] = {
     val grp = serviceStatic.endpoints.groupBy(_.id).fmap(_.head)
 
-    type Proxy[I, E, O, SE, EO] = I => F[O]
-
     def makeProxy[A, B](
       schemaIn: Schema[A],
       schemaOut: Schema[B],
@@ -39,7 +37,7 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     }
 
     val endpointMapping =
-      new smithy4s.kinds.PolyFunction5[Endpoint[Op, *, *, *, *, *], Proxy] {
+      new service.FunctorEndpointCompiler[F] {
         private val trans = serviceStatic.toPolyFunction(interp)
 
         private def applyWithStatic[I, E, O, SI, SO, STI, STE, STO, STSI, STSO](

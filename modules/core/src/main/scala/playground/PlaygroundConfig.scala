@@ -1,12 +1,12 @@
 package playground
 
-import cats.implicits._
 import cats.kernel.Eq
-import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
+import cats.syntax.all.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 
 final case class PlaygroundConfig(
   imports: List[String],
+  sources: List[String],
   dependencies: List[String],
   repositories: List[String],
   extensions: List[String],
@@ -18,6 +18,7 @@ object PlaygroundConfig {
 
   val empty: PlaygroundConfig = PlaygroundConfig(
     imports = Nil,
+    sources = Nil,
     dependencies = Nil,
     repositories = Nil,
     extensions = Nil,
@@ -29,12 +30,14 @@ object PlaygroundConfig {
       mavenDependencies: List[String] = Nil,
       mavenRepositories: List[String] = Nil,
       imports: List[String] = Nil,
+      sources: List[String] = Nil,
       maven: Option[MavenConfig] = None,
       smithyPlayground: Option[SmithyPlaygroundPluginConfig] = None,
     ) {
 
       def toPlaygroundConfig: PlaygroundConfig = PlaygroundConfig(
         imports = imports,
+        sources = sources,
         dependencies = mavenDependencies ++ maven.foldMap(_.dependencies),
         repositories = mavenRepositories ++ maven.foldMap(_.repositories).map(_.url),
         extensions = smithyPlayground.foldMap(_.extensions),
@@ -43,7 +46,9 @@ object PlaygroundConfig {
     }
 
     object BuildConfig {
-      implicit val c: JsonValueCodec[BuildConfig] = JsonCodecMaker.make
+      // note: this is flagged as an unused import if imported
+      implicit val c: com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec[BuildConfig] =
+        JsonCodecMaker.make
 
       def fromPlaygroundConfig(
         c: PlaygroundConfig
@@ -51,6 +56,7 @@ object PlaygroundConfig {
         mavenDependencies = c.dependencies,
         mavenRepositories = c.repositories,
         imports = c.imports,
+        sources = c.sources,
         smithyPlayground = c.extensions.toNel.map { e =>
           SmithyPlaygroundPluginConfig(extensions = e.toList)
         },
@@ -73,7 +79,7 @@ object PlaygroundConfig {
 
   }
 
-  import com.github.plokhotnyuk.jsoniter_scala.core._
+  import com.github.plokhotnyuk.jsoniter_scala.core.*
 
   val decode: Array[Byte] => Either[Throwable, PlaygroundConfig] =
     bytes =>

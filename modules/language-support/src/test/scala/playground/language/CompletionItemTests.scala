@@ -2,16 +2,16 @@ package playground.language
 
 import demo.smithy.Hero
 import demo.smithy.Subscription
-import playground.Assertions._
+import playground.Assertions.*
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.syntax._
+import playground.smithyql.syntax.*
 import playground.std.ClockGen
 import playground.std.ClockOperation
 import smithy4s.schema.Schema
-import weaver._
+import weaver.*
 
-import Diffs._
+import Diffs.given
 
 object CompletionItemTests extends FunSuite {
   test("CompletionItem.fromField: required field") {

@@ -4,10 +4,10 @@ import cats.Id
 import cats.data.Ior
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
-import cats.implicits._
-import playground.CompilationErrorDetails._
-import playground.smithyql._
-import playground.smithyutil._
+import cats.syntax.all.*
+import playground.CompilationErrorDetails.*
+import playground.smithyql.*
+import playground.smithyutil.*
 import smithy.api
 import smithy.api.TimestampFormat
 import smithy4s.Bijection
@@ -20,10 +20,6 @@ import smithy4s.ShapeId
 import smithy4s.Timestamp
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumTag.OpenIntEnum
 import smithy4s.schema.EnumTag.OpenStringEnum
@@ -47,8 +43,8 @@ import smithy4s.schema.Primitive.PUUID
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaVisitor
 import smithy4s.~>
-import types._
-import util.chaining._
+import types.*
+import util.chaining.*
 
 import java.util.Base64
 import java.util.UUID
@@ -56,7 +52,7 @@ import scala.collection.immutable.ListMap
 
 object QueryCompilerVisitor {
   val full: Schema ~> QueryCompiler =
-    new TransitiveCompiler(AddDynamicRefinements) andThen QueryCompilerVisitorInternal
+    Schema.transformTransitivelyK(AddDynamicRefinements) andThen QueryCompilerVisitorInternal
 }
 
 object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
@@ -154,12 +150,9 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
       else
         listOf(member)
 
-    tag match {
-      case ListTag       => base
-      case SetTag        => base.map(_.toSet)
-      case IndexedSeqTag => base.map(_.toIndexedSeq)
-      case VectorTag     => base.map(_.toVector)
-    }
+    base
+      .map(_.iterator)
+      .map(tag.fromIterator(_))
   }
 
   private def uniqueListOf[A](
@@ -228,7 +221,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   private object FieldCompiler {
 
     def compile[A](
-      field: Field[_, A]
+      field: Field[?, A]
     ): FieldCompiler[A] =
       new FieldCompiler[A] {
         override val compiler: QueryCompiler[A] = field.schema.compile(QueryCompilerVisitorInternal)
@@ -242,7 +235,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fieldsRaw: Vector[Field[S, _]],
+    fieldsRaw: Vector[Field[S, ?]],
     make: IndexedSeq[Any] => S,
   ): QueryCompiler[S] = {
     val fields = fieldsRaw
@@ -327,7 +320,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[Alt[U, _]],
+    alternatives: Vector[Alt[U, ?]],
     dispatcher: Alt.Dispatcher[U],
   ): QueryCompiler[U] = {
     def handleAlt[A](
@@ -454,7 +447,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
           .parTraverse { binding =>
             document.compile(binding.value).tupleLeft(binding.identifier.value.text)
           }
-          .map(Document.obj(_: _*))
+          .map(Document.obj(_*))
       case NullLiteral() => Document.nullDoc.rightIor
     }
 

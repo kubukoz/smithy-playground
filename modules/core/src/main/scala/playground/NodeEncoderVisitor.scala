@@ -2,7 +2,7 @@ package playground
 
 import cats.Contravariant
 import cats.Id
-import cats.implicits._
+import cats.syntax.all.*
 import playground.smithyql.Binding
 import playground.smithyql.BooleanLiteral
 import playground.smithyql.Identifier
@@ -27,16 +27,12 @@ import smithy4s.ShapeId
 import smithy4s.capability.EncoderK
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
-import smithy4s.schema.CollectionTag.IndexedSeqTag
-import smithy4s.schema.CollectionTag.ListTag
-import smithy4s.schema.CollectionTag.SetTag
-import smithy4s.schema.CollectionTag.VectorTag
 import smithy4s.schema.EnumTag
 import smithy4s.schema.EnumTag._
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
-import smithy4s.schema.Primitive._
+import smithy4s.schema.Primitive.*
 import smithy4s.schema.Schema
 import smithy4s.schema.SchemaVisitor
 
@@ -134,11 +130,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     hints: Hints,
     tag: CollectionTag[C],
     member: Schema[A],
-  ): NodeEncoder[C[A]] =
-    tag match {
-      case ListTag                            => listOf(member)
-      case IndexedSeqTag | SetTag | VectorTag => listOf(member).contramap(_.toList)
-    }
+  ): NodeEncoder[C[A]] = listOf(member).contramap(tag.iterator(_).toList)
 
   private def listOf[A](
     member: Schema[A]
@@ -183,7 +175,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fieldsRaw: Vector[Field[S, _]],
+    fieldsRaw: Vector[Field[S, ?]],
     make: IndexedSeq[Any] => S,
   ): NodeEncoder[S] = {
 
@@ -206,7 +198,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[Alt[U, _]],
+    alternatives: Vector[Alt[U, ?]],
     dispatcher: Alt.Dispatcher[U],
   ): NodeEncoder[U] = dispatcher.compile(new Alt.Precompiler[NodeEncoder] {
 

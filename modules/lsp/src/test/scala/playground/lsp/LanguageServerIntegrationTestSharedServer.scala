@@ -2,7 +2,7 @@ package playground.lsp
 
 import cats.effect.IO
 import cats.effect.Resource
-import com.comcast.ip4s._
+import com.comcast.ip4s.*
 import org.eclipse.lsp4j.CodeLensParams
 import org.eclipse.lsp4j.Command
 import org.eclipse.lsp4j.CompletionParams
@@ -14,46 +14,26 @@ import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.http4s.HttpRoutes
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.implicits._
+import org.http4s.implicits.*
 import org.http4s.server.Server
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient
-import weaver._
+import weaver.*
 
-import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
+import scala.concurrent.duration.*
+import scala.jdk.CollectionConverters.*
 
 object LanguageServerIntegrationTestSharedServer
   extends IOSuite
   with LanguageServerIntegrationTests {
 
+  override protected def checkStartupLogs: Boolean = true
+
   type Res = Fixture
 
   def sharedResource: Resource[IO, Res] = makeServer(testWorkspacesBase / "default")
-
-  test("server init produces logs consistent with the workspace folder") { f =>
-    val initLogs = List(
-      TestClient
-        .MessageLog(
-          MessageType.Info,
-          s"Hello from Smithy Playground v${BuildInfo.version}",
-        ),
-      TestClient.MessageLog(
-        MessageType.Info,
-        "Loaded Smithy Playground server with 2 imports, 2 dependencies and 0 plugins",
-      ),
-    )
-
-    // logs produced during an implicit initialization in the resource setup
-    f.client.getEvents.map { events =>
-      assert.same(
-        events,
-        initLogs,
-      )
-    }
-  }
 
   test("completions").apply { f =>
     f.server
@@ -94,7 +74,7 @@ object LanguageServerIntegrationTestSharedServer
           report.getRelatedFullDocumentDiagnosticReport().getItems().asScala.toList
 
         assert(diagnosticItems.size == 1) &&
-        assert(diagnosticItems.head.getSeverity() == DiagnosticSeverity.Error) &&
+        assert.same(diagnosticItems.head.getSeverity(), DiagnosticSeverity.Error) &&
         assert(diagnosticItems.head.getMessage.contains("Parsing failure"))
       }
   }
@@ -250,7 +230,7 @@ object LanguageServerIntegrationTestSharedServer
       .withPort(port"0")
       .withShutdownTimeout(Duration.Zero)
       .withHttpApp {
-        import org.http4s.dsl.io._
+        import org.http4s.dsl.io.*
         HttpRoutes
           .of[IO] { case GET -> Root / "weather" / _ =>
             Ok(
@@ -312,7 +292,9 @@ object LanguageServerIntegrationTestSharedServer
       .map { events =>
         assert.eql(events.length, 4) &&
         assert.same(events(0), TestClient.OutputPanelShow) &&
-        assert(events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")) &&
+        assert(
+          events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")
+        ) &&
         assert(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
         assert(
           events(3)

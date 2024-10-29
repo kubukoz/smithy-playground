@@ -1,27 +1,48 @@
 package playground.smithyql
 
+import cats.Id
 import com.softwaremill.diffx.Diff
 
 object Diffs {
-  import com.softwaremill.diffx.cats._
-  import com.softwaremill.diffx.generic.auto._
+  import com.softwaremill.diffx.cats.*
+  import com.softwaremill.diffx.generic.auto.*
 
-  implicit val diffSourceRange: Diff[SourceRange] = Diff.derivedDiff
+  given Diff[Position] = Diff.derived
 
-  implicit val diffComment: Diff[Comment] = Diff.derivedDiff
+  given Diff[SourceRange] = Diff.derived
 
-  implicit val diffQualifiedIdentifier: Diff[QualifiedIdentifier] = Diff.derivedDiff
+  given Diff[Comment] = Diff.derived
 
-  implicit val diffUseClause: Diff[UseClause[WithSource]] = Diff.derivedDiff
+  given Diff[QualifiedIdentifier] = Diff.derived
 
-  implicit def diffListedWithSource: Diff[Listed[WithSource]] = Diff.derivedDiff
+  given [A: Diff]: Diff[WithSource[A]] = Diff.derived
 
-  implicit val diffStructWithSource: Diff[Struct[WithSource]] = Diff.derivedDiff
+  given Diff[UseClause[WithSource]] = Diff.derived
 
-  implicit val diffQueryWithSource: Diff[Query[WithSource]] = Diff.derivedDiff
+  given Diff[InputNode[WithSource]] = Diff.derived
 
-  implicit val diffPreludeWithSource: Diff[Prelude[WithSource]] = Diff.derivedDiff
+  given Diff[Listed[WithSource]] = Diff.derived
 
-  implicit val diffSourceFile: Diff[SourceFile[WithSource]] = Diff.derivedDiff
+  given Diff[NodeKind] = Diff.derived
+  given Diff[Identifier] = Diff.derived
+
+  given Diff[Binding[WithSource]] = Diff.derived
+
+  given Diff[Struct.Fields[WithSource]] = Diff.derived
+
+  given Diff[Struct[WithSource]] = Diff.derived
+
+  given Diff[OperationName[WithSource]] = Diff.derived
+  given opNameDiffId: Diff[OperationName[Id]] = Diff.derived
+
+  given Diff[QueryOperationName[WithSource]] = Diff.derived
+
+  given Diff[Query[WithSource]] = Diff.derived
+
+  given Diff[Prelude[WithSource]] = Diff.derived
+
+  given Diff[Statement[WithSource]] = Diff.derived
+
+  given Diff[SourceFile[WithSource]] = Diff.derived
 
 }

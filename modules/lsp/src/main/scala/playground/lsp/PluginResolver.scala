@@ -1,7 +1,7 @@
 package playground.lsp
 
 import cats.effect.kernel.Sync
-import cats.implicits._
+import cats.syntax.all.*
 import playground.PlaygroundConfig
 import playground.plugins.PlaygroundPlugin
 

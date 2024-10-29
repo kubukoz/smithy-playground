@@ -3,7 +3,7 @@ package playground.lsp.harness
 import cats.data.Chain
 import cats.effect.IO
 import cats.effect.IOLocal
-import cats.implicits._
+import cats.syntax.all.*
 import cats.~>
 import io.circe.Json
 import org.eclipse.lsp4j.MessageType
@@ -12,10 +12,11 @@ import playground.lsp.LanguageClient
 
 trait TestClient[F[_]] extends LanguageClient[F] {
   def getEvents: F[List[TestClient.Event]]
+
   def scoped: F ~> F
 
   def withConfiguration(
-    v: ConfigurationValue.Applied[_]*
+    v: ConfigurationValue.Applied[?]*
   ): F ~> F
 
 }
@@ -42,7 +43,7 @@ object TestClient {
   ) {
 
     def addConfig(
-      values: ConfigurationValue.Applied[_]*
+      values: ConfigurationValue.Applied[?]*
     ): State = copy(configuration =
       configuration ++ values.map { v =>
         v.cv.key -> v.encoded
@@ -115,7 +116,7 @@ object TestClient {
         }
 
       def withConfiguration(
-        v: ConfigurationValue.Applied[_]*
+        v: ConfigurationValue.Applied[?]*
       ): IO ~> IO =
         new (IO ~> IO) {
           def apply[T](
@@ -124,7 +125,7 @@ object TestClient {
             state
               .modify { old =>
                 (
-                  old.addConfig(v: _*),
+                  old.addConfig(v*),
                   old,
                 )
               }
