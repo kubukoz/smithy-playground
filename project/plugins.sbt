@@ -8,6 +8,5 @@ addSbtPlugin("com.disneystreaming.smithy4s" % "smithy4s-sbt-codegen" % "0.18.25"
 
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.1")
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.12.1")
 
 addDependencyTreePlugin

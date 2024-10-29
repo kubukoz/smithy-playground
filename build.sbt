@@ -72,8 +72,6 @@ val commonSettings = Seq(
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions ++= Seq("-release", "11"),
   mimaFailOnNoPrevious := false,
-  semanticdbEnabled := true,
-  semanticdbVersion := scalafixSemanticdb.revision,
 )
 
 def module(

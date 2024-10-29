@@ -36,9 +36,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
 
   @JsonRequest("shutdown")
   def shutdown(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(
-    impl.shutdown.as(null: Object): @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
-  )
+  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.shutdown.as(null: Object))
 
   @JsonNotification("textDocument/didChange")
   def didChange(
@@ -99,12 +97,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   @JsonRequest("workspace/executeCommand")
   def executeCommand(
     params: ExecuteCommandParams
-  ): CompletableFuture[Object] = d
-    .unsafeToCompletableFuture(
-      impl
-        .executeCommand(params)
-        .as(null: Object): @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
-    )
+  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(
+    impl.executeCommand(params).as(null: Object)
+  )
 
   @JsonNotification("workspace/didChangeWatchedFiles")
   def didChangeWatchedFiles(
@@ -123,15 +118,10 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   @JsonRequest("smithyql/runQuery")
   def runQuery(
     params: RunFileParams
-  ): CompletableFuture[Object] = d
-    .unsafeToCompletableFuture(
-      impl.runFile(params).as(null: Object): @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
-    )
+  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.runFile(params).as(null: Object))
 
   @JsonRequest("exit")
   def exit(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(
-    impl.exit.as(null: Object): @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
-  )
+  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))
 
 }

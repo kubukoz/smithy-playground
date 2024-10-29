@@ -112,7 +112,7 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case DuplicateItem => "Duplicate item - some entries will be dropped to fit in a set shape."
       case AmbiguousService(workspaceServices) =>
         """Couldn't determine service for this operation. Add a use clause, or use an explicit reference to specify the service you want to use.
-           |Available services:""".stripMargin + workspaceServices
+          |Available services:""".stripMargin + workspaceServices
           .sorted
           .map(UseClause[Id](_).mapK(WithSource.liftId))
           .map(Formatter.useClauseFormatter.format(_, Int.MaxValue))

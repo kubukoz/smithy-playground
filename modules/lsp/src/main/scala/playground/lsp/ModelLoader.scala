@@ -72,10 +72,7 @@ object ModelLoader {
   ): List[URL] =
     Using.resource(
       // Note: On JDK13+, the second parameter is redundant.
-      FileSystems.newFileSystem(
-        file.toPath(),
-        null: ClassLoader @SuppressWarnings(Array("scalafix:DisableSyntax.null")),
-      )
+      FileSystems.newFileSystem(file.toPath(), null: ClassLoader)
     ) { jarFS =>
       val manifestPath = jarFS.getPath("META-INF", "smithy", "manifest")
 
@@ -99,23 +96,19 @@ object ModelLoader {
 
   private def addFileImports(
     imports: Iterable[File]
-  ): ModelAssembler => ModelAssembler = {
-    assembler => {
-      imports.foreach(f => assembler.addImport(f.toPath()))
-      assembler
-    }
+  ): ModelAssembler => ModelAssembler = { assembler =>
+    imports.foreach(f => assembler.addImport(f.toPath()))
+    assembler
   }
 
   private def addPlaygroundModels(
     classLoader: ClassLoader
-  ): ModelAssembler => ModelAssembler = {
-    assembler => {
-      List(
-        "META-INF/smithy/std.smithy"
-      ).map(classLoader.getResource).foreach(assembler.addImport)
+  ): ModelAssembler => ModelAssembler = { assembler =>
+    List(
+      "META-INF/smithy/std.smithy"
+    ).map(classLoader.getResource).foreach(assembler.addImport)
 
-      assembler
-    }
+    assembler
   }
 
   def resolveModelDependencies(

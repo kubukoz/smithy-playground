@@ -50,12 +50,6 @@ object TokenKind {
   implicit val eq: Eq[TokenKind] = Eq.fromUniversalEquals
 }
 
-@SuppressWarnings(
-  Array(
-    "scalafix:DisableSyntax.var",
-    "scalafix:DisableSyntax.while",
-  )
-)
 object Scanner {
 
   /** Entrypoint to scanning text into tokens.
