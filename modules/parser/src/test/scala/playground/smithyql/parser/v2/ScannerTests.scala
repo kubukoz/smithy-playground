@@ -10,6 +10,8 @@ import playground.smithyql.parser.v2.scanner.TokenKind.*
 import weaver.*
 import weaver.scalacheck.Checkers
 
+import scala.annotation.nowarn
+
 import Diffs.given
 import Scanner.scan
 
@@ -17,7 +19,7 @@ object ScannerTests extends SimpleIOSuite with Checkers with ScannerSuite {
 
   arbTests("Any string input scans successfully") { implicit arbString =>
     forall { (s: String) =>
-      scan(s): Unit
+      scan(s): @nowarn("msg=discarded non-Unit value")
       success
     }
   }
