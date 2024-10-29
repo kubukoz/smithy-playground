@@ -1,12 +1,6 @@
 name: "Release plugin"
 on:
   workflow_dispatch:
-    inputs:
-      publishExtension:
-        description: "Publish Extension"
-        required: true
-        default: false
-        type: boolean
 
 jobs:
   build:
@@ -24,7 +18,6 @@ jobs:
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: release plugin
-        if: github.event.inputs.publishExtension
         run: nix develop --command ./release-plugin.sh
         env:
           VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
