@@ -33,7 +33,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
 import smithy4s.schema.EnumTag
-import smithy4s.schema.EnumTag.IntEnum
+import smithy4s.schema.EnumTag._
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -251,8 +251,10 @@ object CompletionItem {
 
       case e @ EnumerationSchema(_, _, _, _, _) =>
         e.tag match {
-          case IntEnum() => now(s"intEnum ${e.shapeId.name}")
-          case _         => now(s"enum ${e.shapeId.name}")
+          case ClosedIntEnum     => now(s"intEnum ${e.shapeId.name}")
+          case OpenIntEnum(_)    => now(s"@openEnum intEnum ${e.shapeId.name}")
+          case OpenStringEnum(_) => now(s"@openEnum enum ${e.shapeId.name}")
+          case ClosedStringEnum  => now(s"enum ${e.shapeId.name}")
         }
 
       case MapSchema(shapeId, _, key, value) =>

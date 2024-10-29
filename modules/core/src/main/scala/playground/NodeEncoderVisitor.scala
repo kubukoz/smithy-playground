@@ -28,6 +28,7 @@ import smithy4s.capability.EncoderK
 import smithy4s.schema.Alt
 import smithy4s.schema.CollectionTag
 import smithy4s.schema.EnumTag
+import smithy4s.schema.EnumTag._
 import smithy4s.schema.EnumValue
 import smithy4s.schema.Field
 import smithy4s.schema.Primitive
@@ -164,7 +165,12 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
     tag: EnumTag[E],
     values: List[EnumValue[E]],
     total: E => EnumValue[E],
-  ): NodeEncoder[E] = string.contramap(total(_).name)
+  ): NodeEncoder[E] =
+    tag match {
+      case ClosedIntEnum | ClosedStringEnum => string.contramap(total(_).name)
+      // todo: test
+      case OpenIntEnum(_) | OpenStringEnum(_) => string.contramap(total(_).stringValue)
+    }
 
   def struct[S](
     shapeId: ShapeId,

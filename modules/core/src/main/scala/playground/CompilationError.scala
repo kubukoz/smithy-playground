@@ -138,6 +138,9 @@ sealed trait CompilationErrorDetails extends Product with Serializable {
       case EmptyStruct(possibleValues) =>
         s"found empty struct, expected one of: ${possibleValues.mkString_(", ")}."
 
+      case InvalidIntEnumValue(value) =>
+        s"Invalid value for open int enum: $value - must be an integer."
+
       case UnknownEnumValue(name, possibleValues) =>
         s"Unknown enum value: $name. Available values: ${possibleValues.mkString(", ")}"
 
@@ -226,6 +229,10 @@ object CompilationErrorDetails {
 
   final case class EmptyStruct(
     possibleValues: NonEmptyList[String]
+  ) extends CompilationErrorDetails
+
+  final case class InvalidIntEnumValue(
+    value: String
   ) extends CompilationErrorDetails
 
   final case class UnknownEnumValue(

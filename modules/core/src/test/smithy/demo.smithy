@@ -3,6 +3,7 @@ $version: "2"
 namespace demo.smithy
 
 use alloy#UUID
+use alloy#openEnum
 use alloy#simpleRestJson
 use smithy4s.meta#indexedSeq
 use smithy4s.meta#refinement
@@ -67,9 +68,10 @@ structure CreateHeroInput {
     friendSet: FriendSet
     hasNewtypes: HasNewtypes
     hasDeprecations: HasDeprecations
-    doc: Document,
-    sparse: SampleSparseList,
+    doc: Document
+    sparse: SampleSparseList
     sparseMap: SampleSparseMap
+    tier: PrivacyTier
 }
 
 @uniqueItems
@@ -290,7 +292,6 @@ structure HasMixin with [SampleMixin] {
     name: String
 }
 
-
 @sparse
 list SampleSparseList {
     member: Integer
@@ -300,4 +301,16 @@ list SampleSparseList {
 map SampleSparseMap {
     key: String
     value: Integer
+}
+
+@openEnum
+enum OpenStringEnum {
+    ICE
+    FIRE
+}
+
+@openEnum
+intEnum OpenIntEnum {
+    ICE = 1
+    FIRE = 2
 }
