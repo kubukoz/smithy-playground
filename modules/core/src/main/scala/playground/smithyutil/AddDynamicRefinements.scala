@@ -2,6 +2,7 @@ package playground.smithyutil
 
 import cats.syntax.all.*
 import smithy.api
+import smithy.api.Length
 import smithy4s.Refinement
 import smithy4s.RefinementProvider
 import smithy4s.Surjection
@@ -47,7 +48,7 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
   private def enumSchema[A](
     schema: Schema.EnumerationSchema[A]
   ): Schema[A] = schema
-    .reifyHint(
+    .reifyHint[Length](
       using RefinementProvider.lengthConstraint(schema.total(_).stringValue.size)
     )
     .reifyHint(
@@ -67,39 +68,15 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
             schema
               .reifyHint[api.Length]
               .reifyHint[api.Pattern]
-          case PByte =>
-            schema.reifyHint[api.Range](
-              using RefinementProvider.numericRangeConstraints[Byte]
-            )
-          case PShort =>
-            schema.reifyHint[api.Range](
-              using RefinementProvider.numericRangeConstraints[Short]
-            )
-          case PInt =>
-            schema.reifyHint[api.Range](
-              using RefinementProvider.numericRangeConstraints[Int]
-            )
-          case PLong =>
-            schema.reifyHint[api.Range](
-              using RefinementProvider.numericRangeConstraints[Long]
-            )
-          case PFloat =>
-            schema.reifyHint[api.Range](
-              using RefinementProvider.numericRangeConstraints[Float]
-            )
-          case PDouble =>
-            schema.reifyHint[api.Range](
-              using RefinementProvider.numericRangeConstraints[Double]
-            )
-          case PBigInt =>
-            schema.reifyHint[api.Range](
-              using RefinementProvider.numericRangeConstraints[BigInt]
-            )
-          case PBigDecimal =>
-            schema.reifyHint[api.Range](
-              using RefinementProvider.numericRangeConstraints[BigDecimal]
-            )
-          case PBlob                                     => schema.reifyHint[api.Length]
+          case PByte       => (schema: Schema[Byte]).reifyHint[api.Range]
+          case PShort      => (schema: Schema[Short]).reifyHint[api.Range]
+          case PInt        => (schema: Schema[Int]).reifyHint[api.Range]
+          case PLong       => (schema: Schema[Long]).reifyHint[api.Range]
+          case PFloat      => (schema: Schema[Float]).reifyHint[api.Range]
+          case PDouble     => (schema: Schema[Double]).reifyHint[api.Range]
+          case PBigInt     => (schema: Schema[BigInt]).reifyHint[api.Range]
+          case PBigDecimal => (schema: Schema[BigDecimal]).reifyHint[api.Range]
+          case PBlob       => schema.reifyHint[api.Length]
           case PTimestamp | PDocument | PBoolean | PUUID => schema
         }
 
