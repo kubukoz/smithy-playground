@@ -54,4 +54,13 @@ object Codecs {
   given Codec[Query[WithSource]] = Codec.AsObject.derived
 
   given Codec[Prelude[WithSource]] = Codec.AsObject.derived
+
+  given Codec[Statement[WithSource]] = Codec.AsObject.derived
+
+  given lsw: Codec[List[Statement[WithSource]]] = Codec.from(
+    Decoder.decodeList,
+    Encoder.encodeList,
+  )
+
+  given Codec[SourceFile[WithSource]] = Codec.AsObject.derived
 }
