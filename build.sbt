@@ -2,7 +2,7 @@ inThisBuild(
   List(
     organization := "com.kubukoz",
     homepage := Some(url("https://github.com/kubukoz/smithy-playground")),
-    licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
       Developer(
         "kubukoz",
@@ -14,9 +14,17 @@ inThisBuild(
   )
 )
 
-import scala.sys.process._
+val ScalaLTS = "3.3.4"
+val ScalaNext = "3.5.2"
 
-def crossPlugin(x: sbt.librarymanagement.ModuleID) = compilerPlugin(x.cross(CrossVersion.full))
+ThisBuild / scalaVersion := ScalaNext
+ThisBuild / versionScheme := Some("early-semver")
+
+import scala.sys.process.*
+
+def crossPlugin(
+  x: sbt.librarymanagement.ModuleID
+) = compilerPlugin(x.cross(CrossVersion.full))
 
 val compilerPlugins =
   libraryDependencies ++= List(
@@ -25,38 +33,54 @@ val compilerPlugins =
           Nil
         else
           List(
-            crossPlugin("org.typelevel" % "kind-projector" % "0.13.2")
+            crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
           ))
 
-ThisBuild / versionScheme := Some("early-semver")
-
-Global / onChangedBuildSource := ReloadOnSourceChanges
-
-ThisBuild / scalaVersion := "2.13.10"
-ThisBuild / crossScalaVersions := Seq("2.13.10")
+// For coursier's "latest.integration"
+ThisBuild / dynverSeparator := "-"
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.8.0",
-    "com.disneystreaming" %% "weaver-cats" % "0.8.0" % Test,
-    "com.disneystreaming" %% "weaver-discipline" % "0.8.0" % Test,
-    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.0" % Test,
-    "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
-    "com.softwaremill.diffx" %% "diffx-cats" % "0.7.1" % Test,
+    "org.typelevel" %% "cats-core" % "2.12.0",
+    "org.typelevel" %% "cats-mtl" % "1.5.0",
+    "com.disneystreaming" %% "weaver-cats" % "0.8.4" % Test,
+    "com.disneystreaming" %% "weaver-discipline" % "0.8.4" % Test,
+    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.4" % Test,
+    "com.softwaremill.diffx" %% "diffx-core" % "0.9.0" % Test,
+    "com.softwaremill.diffx" %% "diffx-cats" % "0.9.0" % Test,
   ),
-  testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
-  scalacOptions += "-Wnonunit-statement",
-  scalacOptions ++= Seq("-Xsource:3.0"),
-  javacOptions ++= Seq("-source", "8", "-target", "8"),
+  scalacOptions -= "-language:existentials",
+  // https://github.com/lampepfl/dotty/issues/18674
+  Test / scalacOptions -= "-Wunused:implicits",
+  Test / scalacOptions -= "-Wunused:explicits",
+  Test / scalacOptions -= "-Wunused:imports",
+  Test / scalacOptions -= "-Wunused:locals",
+  Test / scalacOptions -= "-Wunused:params",
+  Test / scalacOptions -= "-Wunused:privates",
+  //
+  scalacOptions += "-no-indent",
+  scalacOptions ++= {
+    if (scalaVersion.value.startsWith("3.5"))
+      Seq(
+        // for cats-tagless macros
+        "-experimental"
+      )
+    else
+      Nil
+  },
+  Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
+  scalacOptions ++= Seq("-release", "11"),
   mimaFailOnNoPrevious := false,
   resolvers += "Sonatype S01 snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
 )
 
-def module(name: String) = Project(name, file("modules") / name)
+def module(
+  name: String
+) = Project(name, file("modules") / name)
   .settings(
     commonSettings
   )
@@ -66,8 +90,17 @@ lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
+  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
+  mimaPreviousArtifacts := Set.empty,
+  scalaVersion := ScalaLTS,
 )
+
+lazy val pluginSample = module("plugin-sample")
+  .dependsOn(pluginCore)
+  .settings(
+    // used for tests only
+    mimaPreviousArtifacts := Set.empty
+  )
 
 // AST of SmithyQL language (plus DSL and minor utilities for building these)
 lazy val ast = module("ast")
@@ -80,11 +113,11 @@ lazy val source = module("source")
 lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-parse" % "0.3.8",
+      "org.typelevel" %% "cats-parse" % "1.0.0",
+      "io.circe" %% "circe-generic" % "0.14.10" % Test,
+      "io.circe" %% "circe-parser" % "0.14.10" % Test,
+      "co.fs2" %% "fs2-io" % "3.11.0" % Test,
       "org.polyvariant.treesitter4s" %% "core" % "0.3-b944a3d-SNAPSHOT",
-      "io.circe" %% "circe-generic" % "0.14.3" % Test,
-      "io.circe" %% "circe-parser" % "0.14.3" % Test,
-      "co.fs2" %% "fs2-io" % "3.3.0" % Test,
     )
   )
   .dependsOn(
@@ -96,7 +129,7 @@ lazy val parser = module("parser")
 lazy val formatter = module("formatter")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "paiges-cats" % "0.4.2"
+      "org.typelevel" %% "paiges-cats" % "0.4.4"
     )
   )
   .dependsOn(
@@ -110,14 +143,16 @@ lazy val formatter = module("formatter")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.3.14",
+      "org.typelevel" %% "cats-effect" % "3.5.5",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.31.1",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen-cli" % smithy4sVersion.value % Test,
-      "org.typelevel" %% "paiges-cats" % "0.4.2",
-      "com.softwaremill.diffx" %% "diffx-core" % "0.7.1" % Test,
+      "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.14" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.52.1" % Test,
     ),
+    // todo: move this to a separate module like "examples"
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .enablePlugins(Smithy4sCodegenPlugin)
@@ -137,24 +172,69 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.16.0",
-      "io.circe" %% "circe-core" % "0.14.3",
-      "org.http4s" %% "http4s-ember-client" % "0.23.16",
-      "io.get-coursier" %% "coursier" % "2.0.16",
-      "org.typelevel" %% "cats-tagless-macros" % "0.14.0",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.23.1",
+      "io.circe" %% "circe-core" % "0.14.10",
+      "org.http4s" %% "http4s-ember-client" % "0.23.29",
+      "org.http4s" %% "http4s-ember-server" % "0.23.29" % Test,
+      ("io.get-coursier" % "coursier" % "2.1.14")
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13")
+        .exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_2.13"),
+      "org.typelevel" %% "cats-tagless-core" % "0.16.2",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
-    buildInfoKeys ++= Seq(version),
+    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
+    (Test / test) := {
+      (pluginCore / publishLocal).value
+      (pluginSample / publishLocal).value
+
+      (Test / test).value
+    },
   )
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(languageSupport)
+
+lazy val e2e = module("e2e")
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys ++=
+      Seq[BuildInfoKey.Entry[_]]( // do you know how to simplify this? let me know please!
+        Def
+          .task((lsp / Compile / fullClasspath).value.map(_.data).map(_.toString))
+          .taskValue
+          .named("lspClassPath"),
+        Def
+          .task(
+            (lsp / Compile / mainClass).value.getOrElse(sys.error("didn't find main class in lsp"))
+          )
+          .taskValue
+          .named("lspMainClass"),
+      ),
+    publish / skip := true,
+  )
+  .dependsOn(lsp)
+
+val writeVersion = taskKey[Unit]("Writes the current version to the `.version` file")
 
 lazy val root = project
   .in(file("."))
   .settings(
     publish / skip := true,
     mimaFailOnNoPrevious := false,
-    addCommandAlias("ci", "+test;+mimaReportBinaryIssues"),
+    addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
+    writeVersion := {
+      IO.write(file(".version"), version.value)
+    },
   )
-  .aggregate(ast, source, core, parser, formatter, languageSupport, lsp, pluginCore)
+  .aggregate(
+    ast,
+    source,
+    core,
+    parser,
+    formatter,
+    languageSupport,
+    lsp,
+    pluginCore,
+    pluginSample,
+    e2e,
+  )

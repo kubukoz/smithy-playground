@@ -4,10 +4,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 1
+        "index": 0
       },
       "end": {
-        "index": 1
+        "index": 0
       }
     },
     "value": null
@@ -17,10 +17,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 1
+        "index": 0
       },
       "end": {
-        "index": 12
+        "index": 11
       }
     },
     "value": {
@@ -30,10 +30,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 1
+            "index": 0
           },
           "end": {
-            "index": 12
+            "index": 11
           }
         },
         "value": {
@@ -47,10 +47,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 13
+        "index": 12
       },
       "end": {
-        "index": 16
+        "index": 15
       }
     },
     "value": {
@@ -59,10 +59,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 14
+            "index": 13
           },
           "end": {
-            "index": 15
+            "index": 14
           }
         },
         "value": {

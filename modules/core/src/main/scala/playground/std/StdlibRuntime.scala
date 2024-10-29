@@ -2,7 +2,7 @@ package playground.std
 
 import cats.Functor
 import cats.effect.std.UUIDGen
-import cats.implicits._
+import cats.syntax.all.*
 import smithy4s.Timestamp
 
 trait StdlibRuntime[F[_]] {
@@ -11,14 +11,24 @@ trait StdlibRuntime[F[_]] {
 }
 
 object StdlibRuntime {
-  def apply[F[_]](implicit F: StdlibRuntime[F]): StdlibRuntime[F] = F
+
+  def apply[F[_]](
+    implicit F: StdlibRuntime[F]
+  ): StdlibRuntime[F] = F
 
   def instance[F[_]: cats.effect.Clock: UUIDGen: Functor]: StdlibRuntime[F] =
     new StdlibRuntime[F] {
 
       val random: Random[F] =
         new playground.std.Random[F] {
-          def nextUUID(): F[NextUUIDOutput] = UUIDGen[F].randomUUID.map(NextUUIDOutput(_))
+
+          def nextUUID(
+          ): F[NextUUIDOutput] = UUIDGen[F]
+            .randomUUID
+            .map(_.toString())
+            .map(UUID(_))
+            .map(NextUUIDOutput(_))
+
         }
 
       val clock: Clock[F] =

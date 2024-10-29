@@ -1,12 +1,16 @@
 package playground
 
-import weaver._
 import cats.data.Ior
-
-import cats.implicits._
+import cats.syntax.all.*
+import weaver.*
 
 object IorUtilsTests extends FunSuite {
-  case class Case(lhs: Ior[Int, String], rhs: Ior[Int, String], expected: Ior[Int, String])
+
+  case class Case(
+    lhs: Ior[Int, String],
+    rhs: Ior[Int, String],
+    expected: Ior[Int, String],
+  )
 
   List(
     Case(10.leftIor, 15.leftIor, 25.leftIor),
@@ -22,7 +26,7 @@ object IorUtilsTests extends FunSuite {
     .foreach { testCase =>
       test(s"orElseCombine(${testCase.lhs}, ${testCase.rhs})") {
         val result = IorUtils.orElseCombine(testCase.lhs, testCase.rhs)
-        assert(result == testCase.expected)
+        assert(result === testCase.expected)
       }
     }
 }

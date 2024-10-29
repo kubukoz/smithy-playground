@@ -7,28 +7,26 @@
     treesitter4s.inputs.flake-utils.follows = "flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, treesitter4s, ... }@inputs:
+  outputs = { self, nixpkgs, flake-utils, treesitter4s, ... }:
     let
       ts-lib = treesitter4s.lib; in
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        jvm = final: prev: { jdk = final.openjdk17; jre = final.jdk; };
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ jvm ];
-        };
+        pkgs = import nixpkgs { inherit system; };
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.yarn
-            pkgs.nodejs-14_x
+            pkgs.nodejs
             pkgs.sbt
             pkgs.jless
             pkgs.gnupg
             pkgs.tree-sitter
-          ];
+            # temporary, while we don't download coursier ourselves
+            pkgs.coursier
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.xvfb-run ];
         };
         packages.grammar =
           let base = pkgs.stdenv.mkDerivation {

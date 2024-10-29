@@ -1,215 +1,244 @@
 package playground.smithyql.format
 
+import cats.kernel.Order.catsKernelOrderingForOrder
+import cats.syntax.all.*
 import org.typelevel.paiges.Doc
-import cats.implicits._
-import playground.smithyql._
+import org.typelevel.paiges.instances.*
+import playground.smithyql.*
 
-// note: formatter could be moved to a new module that's used by core
-object Formatter {
+trait Formatter[-Alg[_[_]]] {
 
   def format(
-    q: Query[WithSource],
-    w: Int,
-  ): String = writeQuery(q).renderTrim(w)
+    repr: Alg[WithSource],
+    width: Int,
+  ): String
 
-  def writeAst(ast: AST[WithSource]): Doc =
-    ast match {
-      case qo: QueryOperationName[WithSource] =>
-        // Comments inside this whole node are not allowed, so we ignore them
-        qo.identifier
-          .map(_.value)
-          .fold(Doc.empty)(renderIdent(_) + Doc.char('.')) +
-          writeAst(qo.operationName.value)
+}
 
-      case o: OperationName[WithSource] => renderOperationName(o)
-      case q: Query[WithSource]         => writeQuery(q)
-      case u: UseClause[WithSource]     => renderUseClause(u)
-      case n: InputNode[WithSource]     => writeInputNode(n)
-    }
+object Formatter {
 
-  def writeInputNode(ast: InputNode[WithSource]): Doc =
-    ast match {
-      case s @ Struct(_)     => renderStruct(s)
-      case IntLiteral(i)     => Doc.text(i.toString())
-      case BooleanLiteral(b) => Doc.text(b.toString())
-      case StringLiteral(s)  => Doc.text(renderStringLiteral(s))
-      case l @ Listed(_)     => renderSequence(l)
-      case NullLiteral()     => Doc.text("null")
-    }
+  def apply[Alg[_[_]]](
+    implicit F: Formatter[Alg]
+  ): Formatter[Alg] = F
 
-  def renderOperationName(o: OperationName[WithSource]): Doc = Doc.text(o.text)
+  val writeDoc: Formatter[AST] = FormattingVisitor(_).renderTrim(_)
 
-  def renderUseClause(
-    clause: UseClause[WithSource]
+  implicit val fileFormatter: Formatter[SourceFile] = writeDoc
+  implicit val queryFormatter: Formatter[Query] = writeDoc
+  implicit val useClauseFormatter: Formatter[UseClause] = writeDoc
+  implicit val preludeFormatter: Formatter[Prelude] = writeDoc
+  implicit val qonFormatter: Formatter[QueryOperationName] = writeDoc
+  implicit val inputNodeFormatter: Formatter[InputNode] = writeDoc
+  implicit val structFormatter: Formatter[Struct] = writeDoc
+  implicit val listedFormatter: Formatter[Listed] = writeDoc
+
+  def writeIdentifier(
+    ident: QualifiedIdentifier,
+    width: Int,
+  ): String = FormattingVisitor.writeIdent(ident).renderTrim(width)
+
+}
+
+private[format] object FormattingVisitor extends ASTVisitor[WithSource, Doc] { visit =>
+
+  private def printWithComments[A](
+    ast: WithSource[A]
+  )(
+    printA: A => Doc
+  ) = {
+    val commentsLHS = printComments(ast.commentsLeft)
+    val commentsRHS = printComments(ast.commentsRight)
+
+    val internal = printA(ast.value)
+
+    val commentsLHSSep =
+      if (internal.nonEmpty && commentsLHS.nonEmpty)
+        Doc.hardLine
+      else
+        Doc.empty
+
+    val commentsRHSSep =
+      ast.commentsRight.length match {
+        case 0 => Doc.empty
+        case 1 => Doc.lineOrSpace
+        case _ => Doc.hardLine
+      }
+
+    commentsLHS +
+      commentsLHSSep +
+      internal +
+      commentsRHSSep +
+      commentsRHS
+  }
+
+  private def printGeneric(
+    ast: WithSource[AST[WithSource]]
+  ) = printWithComments(ast)(visit)
+
+  override def sourceFile(
+    prelude: Prelude[WithSource],
+    statements: WithSource[List[Statement[WithSource]]],
+  ): Doc = List(
+    visit(prelude),
+    printWithComments(statements)(_.map(visit).intercalate(Doc.hardLine.repeat(2))),
+  ).filterNot(_.isEmpty).intercalate(Doc.hardLine.repeat(2))
+
+  override def prelude(
+    useClauses: List[WithSource[UseClause[WithSource]]]
+  ): Doc = useClauses
+    // keeping range here to avoid merging duplicate entries when formatting
+    .sortBy(ws => (ws.value.identifier.value, ws.range))
+    .map(printGeneric)
+    .intercalate(Doc.hardLine)
+
+  override def operationName(
+    text: String
+  ): Doc = Doc.text(text)
+
+  override def useClause(
+    identifier: WithSource[QualifiedIdentifier]
   ): Doc =
     // comments in clause are not allowed so we can ignore them when printing
     Doc
       .text("use")
       .space("service")
-      .space(renderIdent(clause.identifier.value))
+      .space(writeIdent(identifier.value))
 
-  def renderIdent(ident: QualifiedIdentifier): Doc =
-    Doc.intercalate(
-      Doc.char('.'),
-      ident.segments.map(Doc.text(_)).toList,
-    ) + Doc.char('#') + Doc
-      .text(
-        ident.selection
-      )
+  override def runQuery(
+    query: WithSource[Query[WithSource]]
+  ): Doc = printGeneric(query)
 
-  def renderKey(k: WithSource[Identifier]): Doc =
-    comments(k.commentsLeft) +
-      Doc.text(k.value.text) +
-      comments(k.commentsRight)
+  override def struct(
+    fields: WithSource[Struct.Fields[WithSource]]
+  ): Doc = writeBracketed(fields.map(_.value))(Doc.char('{'), Doc.char('}'))(writeField)
 
-  def renderValue(v: WithSource[InputNode[WithSource]]): Doc = {
-    val maybeGrouped: Doc => Doc =
-      if (v.value.kind == NodeKind.Struct)
-        identity
+  private def forceLineAfterTrailingComments[A](
+    printer: WithSource[A] => Doc
+  ): WithSource[A] => Doc =
+    v =>
+      if (v.commentsRight.nonEmpty)
+        printer(v) + Doc.hardLine
       else
-        _.nested(2).grouped
+        printer(v)
 
-    maybeGrouped {
-      {
-        if (v.commentsLeft.nonEmpty)
-          Doc.space
-        else
-          Doc.empty
-      } +
-        comments(v.commentsLeft) + {
-          val sepBefore =
-            if (v.commentsLeft.nonEmpty)
-              Doc.empty // hard line included in comment renderer
-            else if (v.value.kind == NodeKind.Struct)
-              Doc.space
-            else
-              Doc.lineOrSpace
-
-          sepBefore + writeInputNode(v.value)
-        } + {
-          if (v.commentsRight.isEmpty)
-            Doc.empty
-          else
-            {
-              val sep =
-                if (v.value.kind == NodeKind.Struct)
-                  Doc.hardLine
-                else
-                  Doc.space
-
-              sep
-            } +
-              comments(v.commentsRight)
-        }
+  override def listed(
+    values: WithSource[List[WithSource[InputNode[WithSource]]]]
+  ): Doc =
+    writeBracketed(values)(Doc.char('['), Doc.char(']')) {
+      forceLineAfterTrailingComments(printGeneric)
     }
-  }
 
-  def renderField(binding: Binding[WithSource]): Doc = {
+  override def intLiteral(
+    value: String
+  ): Doc = Doc.text(value)
+
+  override def stringLiteral(
+    value: String
+  ): Doc = Doc.text(writeStringLiteral(value))
+
+  override def booleanLiteral(
+    value: Boolean
+  ): Doc = Doc.text(value.show)
+
+  override val nullLiteral: Doc = Doc.text("null")
+
+  private def writeKey(
+    k: WithSource[Identifier]
+  ): Doc = printWithComments(k)(v => Doc.text(v.text))
+
+  private def writeField(
+    binding: Binding[WithSource]
+  ): Doc = {
     val k = binding.identifier
     val v = binding.value
 
-    renderKey(k) +
-      Doc.char(':') +
-      renderValue(v)
+    forceLineAfterTrailingComments(writeKey)(k) +
+      Doc.str(": ") +
+      forceLineAfterTrailingComments(writeValue)(v)
   }
 
-  def renderFields[T](fields: List[T])(renderField: T => Doc): Doc =
-    Doc
-      .intercalate(
-        // Force newlines between fields
-        Doc.hardLine,
-        fields
-          .map(renderField),
-      )
-      .aligned + {
-      if (fields.isEmpty)
-        Doc.empty
-      else
-        Doc.space
+  private def writeValue(
+    v: WithSource[InputNode[WithSource]]
+  ): Doc =
+    v.value.kind match {
+      // Structs and sequences introduce their own nesting, so we don't add it here.
+      // however, if such a node occurs that has leading comments,
+      // these comments will already force a hard line (see `printComments`).
+      // That warrants an extra indent on such a node, so we fall through to the other case of this match.
+      case NodeKind.Struct | NodeKind.Listed if v.commentsLeft.isEmpty => printGeneric(v)
+      case _ => printGeneric(v).nested(2).grouped
     }
 
-  def renderBracketed[T](
-    fields: WithSource[List[T]]
+  private def writeFields[T](
+    fields: List[T]
+  )(
+    renderField: T => Doc
+  ): Doc =
+    // Force newlines between fields
+    fields.map(renderField).intercalate(Doc.hardLine)
+
+  private def writeBracketed[T](
+    items: WithSource[List[T]]
   )(
     before: Doc,
     after: Doc,
   )(
-    renderField: T => Doc
+    renderItem: T => Doc
   ): Doc =
-    before + Doc.hardLine + {
-      comments(fields.commentsLeft) +
-        renderFields(fields.value)(renderField(_) + Doc.comma) +
-        comments(fields.commentsRight)
-    }
-      .indent(2) +
+    before + Doc.hardLine +
+      printWithComments(items)(writeFields(_)(renderItem(_) + Doc.comma))
+        .indent(2) +
       Doc.hardLine +
       after
 
-  def renderStruct(struct: Struct[WithSource]): Doc =
-    renderBracketed(struct.fields.map(_.value))(Doc.char('{'), Doc.char('}'))(renderField)
+  def writeIdent(
+    ident: QualifiedIdentifier
+  ): Doc = Doc.text(ident.render)
 
-  def renderSequence(seq: Listed[WithSource]): Doc =
-    renderBracketed(seq.values)(Doc.char('['), Doc.char(']'))(renderValue(_))
+  private def writeStringLiteral(
+    s: String
+  ) = "\"" + s + "\""
 
-  def renderStringLiteral(s: String) = "\"" + s + "\""
+  private def printComments(
+    lines: List[Comment]
+  ): Doc = lines.map(lineComment(_)).intercalate(Doc.hardLine)
 
-  def comments(lines: List[Comment]): Doc = {
-    def ensureLeadingSpace(s: String): String =
+  private def lineComment(
+    s: Comment
+  ) = {
+    def ensureLeadingSpace(
+      s: String
+    ): String =
       if (s.startsWith(" "))
         s
       else
         " " + s
-
-    def lineComment(s: Comment) = Doc.text("//" + ensureLeadingSpace(s.text))
-
-    lines match {
-      case Nil => Doc.empty
-      case one :: Nil =>
-        Doc.lineOrEmpty +
-          lineComment(one) +
-          Doc.hardLine
-      case _ =>
-        Doc.hardLine +
-          Doc.cat(
-            lines.map(lineComment(_) + Doc.hardLine).toList
-          )
-    }
+    Doc.text("//" + ensureLeadingSpace(s.text))
   }
 
-  def writeQuery(q: Query[WithSource]): Doc = {
+  override def queryOperationName(
+    identifier: Option[WithSource[QualifiedIdentifier]],
+    operationName: WithSource[OperationName[WithSource]],
+  ): Doc =
+    // Comments inside this whole node are not allowed, but we use this anyway
+    identifier.foldMap(printWithComments(_)(writeIdent(_) + Doc.char('.'))) +
+      visit(operationName.value)
 
-    val useClausePart =
-      comments(q.useClause.commentsLeft) +
-        q.useClause.value.fold(Doc.empty)(renderUseClause(_) + Doc.hardLine) +
-        comments(q.useClause.commentsRight) + (if (q.useClause.value.isEmpty)
-                                                 Doc.empty
-                                               else
-                                                 Doc.hardLine)
+  override def query(
+    operationName: WithSource[QueryOperationName[WithSource]],
+    input: WithSource[Struct[WithSource]],
+  ): Doc = {
+    val nameInputSeparator =
+      if (operationName.commentsRight.isEmpty)
+        Doc.text(" ")
+      else
+        // If there are comments on the RHS of the op name, we're guaranteed a line break
+        // so a space is redundant (it would've been part of the comment, in fact).
+        Doc.empty
 
-    val opNamePart =
-      comments(q.operationName.commentsLeft) +
-        writeAst(q.operationName.value) +
-        Doc.space +
-        comments(q.operationName.commentsRight)
-
-    val inputPart =
-      comments(q.input.commentsLeft) +
-        writeInputNode(q.input.value) + {
-          if (q.input.commentsRight.isEmpty)
-            Doc.empty
-          else
-            Doc.hardLine
-        } +
-        comments(q.input.commentsRight) + {
-          if (q.input.commentsRight.isEmpty)
-            Doc.hardLine
-          else
-            Doc.empty
-        }
-
-    useClausePart +
-      opNamePart +
-      inputPart
+    forceLineAfterTrailingComments[AST[WithSource]](
+      printGeneric(_) + nameInputSeparator
+    )(operationName) + printGeneric(input)
   }
 
 }

@@ -3,63 +3,111 @@ package playground.lsp
 import cats.Applicative
 import cats.FlatMap
 import cats.MonadThrow
-import cats.effect.implicits._
+import cats.data.Kleisli
 import cats.effect.kernel.Async
-import cats.effect.std.Supervisor
-import cats.implicits._
+import cats.parse.LocationMap
+import cats.syntax.all.*
 import cats.tagless.Derive
 import cats.tagless.FunctorK
-import cats.tagless.implicits._
+import cats.tagless.catsTaglessApplyKForIdK
+import cats.tagless.implicits.*
 import cats.~>
 import com.google.gson.JsonElement
+import com.google.gson.JsonPrimitive
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.TextDocumentSyncKind
-import org.eclipse.lsp4j._
-import playground.OperationRunner
+import playground.CompilationError
+import playground.CompilationFailed
+import playground.FileCompiler
+import playground.FileRunner
+import playground.OperationCompiler
+import playground.PreludeCompiler
+import playground.ServiceIndex
 import playground.TextDocumentManager
+import playground.language
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
 import playground.language.CommandResultReporter
 import playground.language.CompletionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbolProvider
+import playground.language.Feedback
+import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
+import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
-import playground.lsp.util.KleisliOps
-import playground.smithyql.Query
-import playground.smithyql.format.Formatter
-import playground.smithyql.parser.SourceParser
-import playground.types._
+import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
+import scala.jdk.CollectionConverters.*
+import scala.util.chaining.*
+
+import ToUriOps.*
 
 trait LanguageServer[F[_]] {
-  def initialize(params: InitializeParams): F[InitializeResult]
-  def initialized(params: InitializedParams): F[Unit]
-  def didChange(params: DidChangeTextDocumentParams): F[Unit]
-  def didOpen(params: DidOpenTextDocumentParams): F[Unit]
-  def didSave(params: DidSaveTextDocumentParams): F[Unit]
-  def didClose(params: DidCloseTextDocumentParams): F[Unit]
-  def formatting(params: DocumentFormattingParams): F[List[TextEdit]]
-  def completion(position: CompletionParams): F[Either[List[CompletionItem], CompletionList]]
-  def diagnostic(params: DocumentDiagnosticParams): F[DocumentDiagnosticReport]
-  def codeLens(params: CodeLensParams): F[List[CodeLens]]
-  def documentSymbol(params: DocumentSymbolParams): F[List[DocumentSymbol]]
+
+  def initialize(
+    params: InitializeParams
+  ): F[InitializeResult]
+
+  def initialized(
+    params: InitializedParams
+  ): F[Unit]
+
+  def didChange(
+    params: DidChangeTextDocumentParams
+  ): F[Unit]
+
+  def didOpen(
+    params: DidOpenTextDocumentParams
+  ): F[Unit]
+
+  def didSave(
+    params: DidSaveTextDocumentParams
+  ): F[Unit]
+
+  def didClose(
+    params: DidCloseTextDocumentParams
+  ): F[Unit]
+
+  def formatting(
+    params: DocumentFormattingParams
+  ): F[List[TextEdit]]
+
+  def completion(
+    position: CompletionParams
+  ): F[Either[List[CompletionItem], CompletionList]]
+
+  def diagnostic(
+    params: DocumentDiagnosticParams
+  ): F[DocumentDiagnosticReport]
+
+  def codeLens(
+    params: CodeLensParams
+  ): F[List[CodeLens]]
+
+  def documentSymbol(
+    params: DocumentSymbolParams
+  ): F[List[DocumentSymbol]]
 
   def didChangeWatchedFiles(
     params: DidChangeWatchedFilesParams
   ): F[Unit]
 
-  def executeCommand(params: ExecuteCommandParams): F[Unit]
+  def executeCommand(
+    params: ExecuteCommandParams
+  ): F[Unit]
+
+  def runFile(
+    params: RunFileParams
+  ): F[Unit]
+
   def shutdown: F[Unit]
   def exit: F[Unit]
 }
 
 object LanguageServer {
-
-  implicit val functorK: FunctorK[LanguageServer] = Derive.functorK
 
   def notAvailable[F[_]: MonadThrow]: LanguageServer[F] = defer(
     new Throwable("Server not available").raiseError[F, LanguageServer[F]]
@@ -69,23 +117,43 @@ object LanguageServer {
     F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
   ](
     dsi: DynamicSchemaIndex,
-    runner: OperationRunner.Resolver[F],
-  )(
-    implicit sup: Supervisor[F]
+    runner: FileRunner.Resolver[F],
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
       private val iorToF: IorThrow ~> F =
         new (IorThrow ~> F) {
-          def apply[A](fa: IorThrow[A]): F[A] = fa.toEither.liftTo[F]
+
+          def apply[A](
+            fa: IorThrow[A]
+          ): F[A] = fa.toEither.liftTo[F]
+
         }
 
-      val compiler = playground.OperationCompiler.fromSchemaIndex(dsi)
+      // see if we can pass this everywhere
+      // https://github.com/kubukoz/smithy-playground/issues/164
+      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
 
-      val completionProvider = CompletionProvider.forSchemaIndex(dsi)
-      val diagnosticProvider = DiagnosticProvider.instance(compiler, runner)
-      val lensProvider = CodeLensProvider.instance(compiler, runner)
-      val commandProvider = CommandProvider.instance[F](compiler.mapK(iorToF), runner)
+      val compiler: FileCompiler[IorThrow] = FileCompiler
+        .instance(
+          PreludeCompiler.instance[CompilationError.InIorNel](serviceIndex),
+          OperationCompiler.fromSchemaIndex(dsi),
+        )
+        .mapK(CompilationFailed.wrapK)
+
+      val completionProvider: CompletionProvider = CompletionProvider.forSchemaIndex(dsi)
+      val diagnosticProvider: DiagnosticProvider[F] = DiagnosticProvider.instance(compiler, runner)
+      val lensProvider: CodeLensProvider[F] = CodeLensProvider.instance(compiler, runner)
+
+      val commandProvider: CommandProvider[F] = CommandProvider
+        .instance[F](compiler.mapK(iorToF), runner)
+
+      private val getFormatterWidth: F[Int] = LanguageClient[F]
+        .configuration(ConfigurationValue.maxWidth)
+
+      val formattingProvider: Uri => F[List[language.TextEdit]] = FormattingProvider.provider(
+        getFormatterWidth
+      )
 
       def initialize(
         params: InitializeParams
@@ -98,13 +166,23 @@ object LanguageServer {
           .tap(_.setCodeLensProvider(new CodeLensOptions()))
           .tap(_.setDocumentSymbolProvider(true))
 
-        LanguageClient[F]
-          .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
+        val serverInfo = new ServerInfo("Smithy Playground", BuildInfo.version)
+
+        val wsf = params
+          .getWorkspaceFolders()
+          .asScala
+          .toList
+          .map(_.toUri)
+
+        Feedback[F]
+          .showInfoMessage(
+            s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
+          ) *>
           ServerLoader[F]
-            .prepare
+            .prepare(wsf.some)
             .flatMap { prepped =>
               ServerLoader[F].perform(prepped.params).flatTap { stats =>
-                LanguageClient[F]
+                Feedback[F]
                   .showInfoMessage(
                     s"Loaded Smithy Playground server with ${stats.render}"
                   )
@@ -112,87 +190,76 @@ object LanguageServer {
             }
             .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
             .attempt
-            .as(new InitializeResult(capabilities))
+            .as(new InitializeResult(capabilities, serverInfo))
       }
 
-      def initialized(params: InitializedParams): F[Unit] = Applicative[F].unit
+      def initialized(
+        params: InitializedParams
+      ): F[Unit] = Applicative[F].unit
+
       def shutdown: F[Unit] = Applicative[F].unit
 
-      def didChange(params: DidChangeTextDocumentParams): F[Unit] = {
+      def didChange(
+        params: DidChangeTextDocumentParams
+      ): F[Unit] = {
         val changesAsList = params.getContentChanges.asScala.toList
         if (changesAsList.isEmpty)
           Applicative[F].unit
         else
           TextDocumentManager[F].put(
-            params.getTextDocument().getUri(),
+            params.getTextDocument().toUri,
             changesAsList.head.getText(),
           )
       }
 
-      def didOpen(params: DidOpenTextDocumentParams): F[Unit] = TextDocumentManager[F].put(
-        params.getTextDocument().getUri(),
+      def didOpen(
+        params: DidOpenTextDocumentParams
+      ): F[Unit] = TextDocumentManager[F].put(
+        params.getTextDocument().toUri,
         params.getTextDocument().getText(),
       )
 
       def didSave(
         params: DidSaveTextDocumentParams
       ): F[Unit] = TextDocumentManager[F]
-        .remove(params.getTextDocument().getUri())
+        .remove(params.getTextDocument().toUri)
 
       def didClose(
         params: DidCloseTextDocumentParams
-      ): F[Unit] = TextDocumentManager[F].remove(params.getTextDocument().getUri())
-
-      private val getFormatterWidth: F[Int] = LanguageClient[F]
-        .configuration[Int]("smithyql.formatter.maxWidth")
+      ): F[Unit] = TextDocumentManager[F].remove(
+        params.getTextDocument().toUri
+      )
 
       def formatting(
         params: DocumentFormattingParams
-      ): F[List[TextEdit]] = TextDocumentProvider[F]
-        .get(params.getTextDocument().getUri())
-        .flatMap { text =>
-          getFormatterWidth
-            .map { maxWidth =>
-              SourceParser[Query]
-                .parse(text)
-                .map { parsed =>
-                  val formatted = Formatter.format(parsed, maxWidth)
+      ): F[List[TextEdit]] = {
+        val uri = params.getTextDocument().toUri
 
-                  val lines = text.linesWithSeparators.toList
-
-                  List(
-                    new TextEdit(
-                      new Range(
-                        new Position(0, 0),
-                        new Position(lines.indices.size, lines.last.size),
-                      ),
-                      formatted,
-                    )
-                  )
-                }
-                // doesn't parse, we won't format
-                .getOrElse(Nil)
-            }
+        TextDocumentProvider[F].get(uri).flatMap { doc =>
+          formattingProvider(uri).map(_.map(converters.toLSP.textEdit(_, LocationMap(doc))))
         }
+      }
 
       def completion(
         position: CompletionParams
       ): F[Either[List[CompletionItem], CompletionList]] = TextDocumentManager[F]
-        .get(position.getTextDocument().getUri())
+        .get(position.getTextDocument.toUri)
         .map { documentText =>
+          val map = LocationMap(documentText)
+
           completionProvider
             .provide(
               documentText,
-              converters.fromLSP.position(documentText, position.getPosition()),
+              converters.fromLSP.position(map, position.getPosition()),
             )
-            .map(converters.toLSP.completionItem(documentText, _))
+            .map(converters.toLSP.completionItem(map, _))
         }
         .map(Left(_))
 
       def diagnostic(
         params: DocumentDiagnosticParams
       ): F[DocumentDiagnosticReport] = {
-        val documentUri = params.getTextDocument().getUri()
+        val documentUri = params.getTextDocument().toUri
         TextDocumentManager[F]
           .get(documentUri)
           .map { documentText =>
@@ -201,10 +268,12 @@ object LanguageServer {
               documentText,
             )
 
+            val map = LocationMap(documentText)
+
             new DocumentDiagnosticReport(
               new RelatedFullDocumentDiagnosticReport(
                 diags
-                  .map(converters.toLSP.diagnostic(documentText, documentUri, _))
+                  .map(converters.toLSP.diagnostic(map, _))
                   .asJava
               )
             )
@@ -213,32 +282,39 @@ object LanguageServer {
 
       def codeLens(
         params: CodeLensParams
-      ): F[List[CodeLens]] = TextDocumentManager[F].get(params.getTextDocument().getUri()).map {
-        documentText =>
+      ): F[List[CodeLens]] = TextDocumentManager[F]
+        .get(params.getTextDocument().toUri)
+        .map { documentText =>
+          val map = LocationMap(documentText)
+
           lensProvider
             .provide(
-              documentUri = params.getTextDocument.getUri(),
+              documentUri = params.getTextDocument.toUri,
               documentText = documentText,
             )
-            .map(converters.toLSP.codeLens(documentText, _))
-      }
-
-      def documentSymbol(params: DocumentSymbolParams): F[List[DocumentSymbol]] =
-        TextDocumentManager[F].get(params.getTextDocument().getUri()).map { text =>
-          DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(text, _))
+            .map(converters.toLSP.codeLens(map, _))
         }
+
+      def documentSymbol(
+        params: DocumentSymbolParams
+      ): F[List[DocumentSymbol]] = TextDocumentManager[F].get(params.getTextDocument().toUri).map {
+        text =>
+          val map = LocationMap(text)
+
+          DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(map, _))
+      }
 
       def didChangeWatchedFiles(
         params: DidChangeWatchedFilesParams
       ): F[Unit] = ServerLoader[F]
-        .prepare
+        .prepare(workspaceFolders = None)
         .flatMap {
           case prepared if !prepared.isChanged =>
-            LanguageClient[F].showInfoMessage(
-              "No change detected, not rebuilding server"
+            Feedback[F].showInfoMessage(
+              LanguageClient.NoChangeDetected
             )
           case prepared =>
-            LanguageClient[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
+            Feedback[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
               ServerLoader[F]
                 .perform(prepared.params)
                 .onError { case e =>
@@ -247,14 +323,11 @@ object LanguageServer {
                   )
                 }
                 .flatMap { stats =>
-                  // Can't make (and wait for) client requests while handling a client request (file change)
-                  {
-                    LanguageClient[F].refreshDiagnostics *>
-                      LanguageClient[F].refreshCodeLenses *> LanguageClient[F]
-                        .showInfoMessage(
-                          s"Reloaded Smithy Playground server with ${stats.render}"
-                        )
-                  }.supervise(sup).void
+                  LanguageClient[F].refreshDiagnostics *>
+                    LanguageClient[F].refreshCodeLenses *>
+                    Feedback[F].showInfoMessage(
+                      s"Reloaded Smithy Playground server with ${stats.render}"
+                    )
                 }
         }
         .onError { case e =>
@@ -275,11 +348,29 @@ object LanguageServer {
         }
         .flatMap(commandProvider.runCommand(params.getCommand(), _))
 
+      def runFile(
+        params: RunFileParams
+      ): F[Unit] = executeCommand(
+        new ExecuteCommandParams()
+          .tap(_.setCommand(playground.language.Command.RUN_FILE))
+          .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))
+      )
+
       def exit: F[Unit] = Applicative[F].unit
     }
 
+  implicit val functorK: FunctorK[LanguageServer] = Derive.functorK[LanguageServer]
+
   def defer[F[_]: FlatMap](
     fa: F[LanguageServer[F]]
-  ): LanguageServer[F] = Derive.readerT[LanguageServer, F].mapK(KleisliOps.applyEffectK(fa))
+  ): LanguageServer[F] = Derive
+    .readerT[LanguageServer, F]
+    .mapK(new (Kleisli[F, LanguageServer[F], *] ~> F) {
+
+      def apply[A](
+        k: Kleisli[F, LanguageServer[F], A]
+      ): F[A] = fa.flatMap(k.run)
+
+    })
 
 }

@@ -1,21 +1,26 @@
 package playground.language
 
+import playground.Assertions.*
+import playground.language.Diffs.given
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
-import weaver._
-
-import playground.Assertions._
-import playground.language.Diffs._
+import weaver.*
 
 object DocumentSymbolProviderTests extends FunSuite {
 
-  def makeDSL(documentText: String) = new DocumentDSL(documentText)
+  def makeDSL(
+    documentText: String
+  ) = new DocumentDSL(documentText)
 
-  final class DocumentDSL(documentText: String) {
+  final class DocumentDSL(
+    documentText: String
+  ) {
 
-    def symbols = DocumentSymbolProvider.make(documentText)
+    def symbols: List[DocumentSymbol] = DocumentSymbolProvider.make(documentText)
 
-    def textRange(text: String): SourceRange = {
+    def textRange(
+      text: String
+    ): SourceRange = {
       val i = documentText.indexOf(text)
       SourceRange(
         Position(i),

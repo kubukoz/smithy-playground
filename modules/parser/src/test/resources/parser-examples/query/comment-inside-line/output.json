@@ -4,10 +4,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 3
+        "index": 0
       },
       "end": {
-        "index": 3
+        "index": 0
       }
     },
     "value": null
@@ -21,10 +21,10 @@
     ],
     "range": {
       "start": {
-        "index": 3
+        "index": 0
       },
       "end": {
-        "index": 8
+        "index": 5
       }
     },
     "value": {
@@ -34,10 +34,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 3
+            "index": 0
           },
           "end": {
-            "index": 8
+            "index": 5
           }
         },
         "value": {
@@ -51,10 +51,10 @@
     "commentsRight": [],
     "range": {
       "start": {
-        "index": 19
+        "index": 16
       },
       "end": {
-        "index": 43
+        "index": 40
       }
     },
     "value": {
@@ -63,10 +63,10 @@
         "commentsRight": [],
         "range": {
           "start": {
-            "index": 20
+            "index": 17
           },
           "end": {
-            "index": 42
+            "index": 39
           }
         },
         "value": {
@@ -77,10 +77,10 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 25
+                    "index": 22
                   },
                   "end": {
-                    "index": 30
+                    "index": 27
                   }
                 },
                 "value": {
@@ -92,10 +92,10 @@
                 "commentsRight": [],
                 "range": {
                   "start": {
-                    "index": 32
+                    "index": 29
                   },
                   "end": {
-                    "index": 37
+                    "index": 34
                   }
                 },
                 "value": {

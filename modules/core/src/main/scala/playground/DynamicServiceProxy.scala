@@ -1,33 +1,35 @@
 package playground
 
 import cats.MonadThrow
-import cats.implicits._
+import cats.syntax.all.*
 import smithy4s.Document
 import smithy4s.Endpoint
 import smithy4s.Service
+import smithy4s.kinds.*
 import smithy4s.schema.Schema
 
 class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
-  service: Service[Alg, Op]
+  service: Service.Aux[Alg, Op]
 ) {
 
   def tryProxy[AlgStatic[_[_, _, _, _, _]], OpStatic[_, _, _, _, _], F[_]: MonadThrow](
-    interp: smithy4s.Monadic[AlgStatic, F]
+    interp: FunctorAlgebra[AlgStatic, F]
   )(
-    implicit serviceStatic: Service[AlgStatic, OpStatic]
-  ): Option[smithy4s.Interpreter[Op, F]] =
+    implicit serviceStatic: Service.Aux[AlgStatic, OpStatic]
+  ): Option[FunctorInterpreter[Op, F]] =
     Option.when(service.id == serviceStatic.id)(proxy(interp)(serviceStatic))
 
   def proxy[AlgStatic[_[_, _, _, _, _]], OpStatic[_, _, _, _, _], F[_]: MonadThrow](
-    interp: smithy4s.Monadic[AlgStatic, F]
+    interp: FunctorAlgebra[AlgStatic, F]
   )(
-    serviceStatic: Service[AlgStatic, OpStatic]
-  ): smithy4s.Interpreter[Op, F] = {
+    serviceStatic: Service.Aux[AlgStatic, OpStatic]
+  ): FunctorInterpreter[Op, F] = {
     val grp = serviceStatic.endpoints.groupBy(_.id).fmap(_.head)
 
-    type Proxy[I, E, O, SE, EO] = I => F[O]
-
-    def makeProxy[A, B](schemaIn: Schema[A], schemaOut: Schema[B]): A => F[B] = {
+    def makeProxy[A, B](
+      schemaIn: Schema[A],
+      schemaOut: Schema[B],
+    ): A => F[B] = {
       val inputEncoder = Document.Encoder.fromSchema(schemaIn)
       val outputDecoder = Document.Decoder.fromSchema(schemaOut)
 
@@ -35,8 +37,8 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
     }
 
     val endpointMapping =
-      new (smithy4s.Transformation[Endpoint[Op, *, *, *, *, *], Proxy]) {
-        private val trans = serviceStatic.asTransformation(interp)
+      new service.FunctorEndpointCompiler[F] {
+        private val trans = serviceStatic.toPolyFunction(interp)
 
         private def applyWithStatic[I, E, O, SI, SO, STI, STE, STO, STSI, STSO](
           endpoint: Endpoint[Op, I, E, O, SI, SO],
@@ -46,11 +48,11 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
           val mapOutput = makeProxy(endpointStatic.output, endpoint.output)
 
           def errorMapper[A]: Throwable => F[A] =
-            endpointStatic.errorable match {
+            endpointStatic.error match {
               case None => _.raiseError[F, A]
               case Some(errorableStatic) =>
-                val errorable = endpoint.errorable.get // should be there at this point
-                val mapError = makeProxy(errorableStatic.error, errorable.error)
+                val errorable = endpoint.error.get // should be there at this point
+                val mapError = makeProxy(errorableStatic.schema, errorable.schema)
 
                 e =>
                   errorableStatic.liftError(e) match {
@@ -69,17 +71,12 @@ class DynamicServiceProxy[Alg[_[_, _, _, _, _]], Op[_, _, _, _, _]](
               .flatMap(mapOutput)
         }
 
-        def apply[I, E, O, SI, SO](endpoint: Endpoint[Op, I, E, O, SI, SO]): I => F[O] =
-          applyWithStatic(endpoint, grp(endpoint.id))
+        def apply[I, E, O, SI, SO](
+          endpoint: Endpoint[Op, I, E, O, SI, SO]
+        ): I => F[O] = applyWithStatic(endpoint, grp(endpoint.id))
       }
-        .precompute(service.endpoints)
 
-    new smithy4s.Interpreter[Op, F] {
-      def apply[I, E, O, SI, SO](op: Op[I, E, O, SI, SO]): F[O] = {
-        val (input, endpoint) = service.endpoint(op)
-        endpointMapping(endpoint)(input)
-      }
-    }
+    service.functorInterpreter(endpointMapping)
   }
 
 }

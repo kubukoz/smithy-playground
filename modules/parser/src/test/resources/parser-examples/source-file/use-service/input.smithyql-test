@@ -1,0 +1,2 @@
+//comment before use clause
+use service com#Demo hello {}

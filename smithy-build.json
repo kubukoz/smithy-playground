@@ -1,6 +1,8 @@
 {
-  "imports": ["modules/core/src/test/smithy"],
+  "sources": ["modules/core/src/test/smithy"],
   "mavenDependencies": [
-    "com.disneystreaming.smithy4s:smithy4s-protocol:latest.release"
+    "com.disneystreaming.alloy:alloy-core:0.3.14",
+    "com.disneystreaming.smithy4s:smithy4s-protocol:0.18.25",
+    "software.amazon.smithy:smithy-aws-traits:1.52.1"
   ]
 }

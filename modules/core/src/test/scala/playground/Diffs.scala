@@ -1,31 +1,42 @@
 package playground
 
-import cats.data.Chain
-import com.softwaremill.diffx.instances.DiffForSeq
+import cats.data.Ior
 import playground.smithyql.ContextRange
+import playground.smithyql.Diffs.given
 import playground.smithyql.NodeContext
+import smithy.api.TimestampFormat
+import smithy4s.Blob
+import smithy4s.ShapeId
+
+import scala.annotation.nowarn
 
 object Diffs {
-  import com.softwaremill.diffx._
-  import com.softwaremill.diffx.generic.auto._
+  import com.softwaremill.diffx.*
+  import com.softwaremill.diffx.cats.*
 
-  // TODO: wait for https://github.com/softwaremill/diffx/pull/413 to land
-  // remove workaround below
-  // import com.softwaremill.diffx.cats._
+  given Diff[ShapeId] = Diff.derived
 
-  implicit def diffChain[T: Diff](
-    implicit
-    seqMatcher: SeqMatcher[T]
-  ): Diff[Chain[T]] =
-    new DiffForSeq[Chain, T](
-      Diff[T],
-      seqMatcher,
-      new SeqLike[Chain] {
-        override def asSeq[A](c: Chain[A]): Seq[A] = c.toList
-      },
-      "Chain",
-    )
+  given Diff[NodeContext.PathEntry] = Diff.derived
+  given Diff[NodeContext] = Diff[List[NodeContext.PathEntry]].contramap(_.toList)
+  given Diff[ContextRange] = Diff.derived
+  given Diff[TimestampFormat] = Diff.derived
+  given Diff[DiagnosticTag] = Diff.derived
+  given Diff[DiagnosticSeverity] = Diff.derived
+  given Diff[DeprecatedInfo] = Diff.derived
+  given Diff[CompilationErrorDetails] = Diff.derived
+  given Diff[CompilationError] = Diff.derived
 
-  implicit val diffNodeContext: Diff[NodeContext] = Diff.derivedDiff
-  implicit val diffContextRange: Diff[ContextRange] = Diff.derivedDiff
+  given Diff[Unit] =
+    (
+      _,
+      _,
+      _,
+    ) => IdenticalValue("unit")
+
+  @nowarn("msg=unused")
+  given [E: Diff, A: Diff]: Diff[Ior[E, A]] = Diff.derived
+
+  given Diff[Blob] = Diff[String].contramap(_.toUTF8String)
+  given Diff[smithy4s.Document] = Diff.derived
+  given Diff[smithy4s.Timestamp] = Diff[String].contramap(_.toString())
 }

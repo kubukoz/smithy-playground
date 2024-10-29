@@ -1,41 +1,64 @@
 package playground.language
 
+import cats.syntax.all.*
+import playground.FileCompiler
+import playground.FileRunner
+import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
-import cats.implicits._
-import playground.types._
-import playground.OperationCompiler
-import playground.OperationRunner
+import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
-import playground.smithyql.Query
+import playground.types.*
 
 trait CodeLensProvider[F[_]] {
-  def provide(documentUri: String, documentText: String): List[CodeLens]
+
+  def provide(
+    documentUri: Uri,
+    documentText: String,
+  ): List[CodeLens]
+
 }
 
 object CodeLensProvider {
 
   def instance[F[_]](
-    compiler: OperationCompiler[IorThrow],
-    runner: OperationRunner.Resolver[F],
+    compiler: FileCompiler[IorThrow],
+    runner: FileRunner.Resolver[F],
   ): CodeLensProvider[F] =
     new CodeLensProvider[F] {
 
-      def provide(documentUri: String, documentText: String): List[CodeLens] =
-        SourceParser[Query].parse(documentText) match {
-          case Right(parsed) if runner.get(parsed).toEither.isRight =>
+      def provide(
+        documentUri: Uri,
+        documentText: String,
+      ): List[CodeLens] =
+        if (FileNames.isOutputPanel(documentUri.value))
+          Nil
+        else
+          provideImpl(documentUri, documentText)
+
+      private def provideImpl(
+        documentUri: Uri,
+        documentText: String,
+      ): List[CodeLens] =
+        SourceParser[SourceFile].parse(documentText) match {
+          case Right(parsed) if runner.get(parsed).isRight =>
             compiler
               .compile(parsed)
               .as {
-                CodeLens(
-                  range = parsed.operationName.range,
-                  Command(
-                    title = "Run query",
-                    command = Command.RUN_QUERY,
-                    args = documentUri :: Nil,
-                  ),
-                )
+                val queries = parsed.queries(WithSource.unwrap)
+                if (queries.isEmpty)
+                  Nil
+                else
+                  CodeLens(
+                    range = queries.head.query.value.operationName.range,
+                    Command(
+                      title = "Run SmithyQL file",
+                      command = Command.RUN_FILE,
+                      args = documentUri.value :: Nil,
+                    ),
+                  ) :: Nil
               }
               .toList
+              .flatten
           case _ => Nil
         }
 
@@ -43,9 +66,18 @@ object CodeLensProvider {
 
 }
 
-case class CodeLens(range: SourceRange, command: Command)
-case class Command(title: String, command: String, args: List[String])
+case class CodeLens(
+  range: SourceRange,
+  command: Command,
+)
+
+case class Command(
+  title: String,
+  command: String,
+  args: List[String],
+)
 
 object Command {
-  val RUN_QUERY: String = "smithyql.runQuery"
+  // Legacy value, kept for backwards compatibility with the language client
+  val RUN_FILE: String = "smithyql.runQuery"
 }

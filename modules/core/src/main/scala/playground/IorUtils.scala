@@ -4,12 +4,15 @@ import cats.data.Ior
 import cats.data.Ior.Both
 import cats.data.Ior.Left
 import cats.data.Ior.Right
-import cats.implicits._
 import cats.kernel.Semigroup
+import cats.syntax.all.*
 
 object IorUtils {
 
-  def orElseCombine[A: Semigroup, B](lhs: Ior[A, B], rhs: Ior[A, B]): Ior[A, B] =
+  def orElseCombine[A: Semigroup, B](
+    lhs: Ior[A, B],
+    rhs: Ior[A, B],
+  ): Ior[A, B] =
     lhs match {
       case Both(a, b) =>
         rhs match {

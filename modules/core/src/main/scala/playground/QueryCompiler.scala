@@ -3,17 +3,21 @@ package playground
 import cats.Apply
 import cats.data.IorNec
 import cats.data.NonEmptyChain
-import cats.implicits._
-import playground.CompilationErrorDetails._
-import playground.smithyql._
+import cats.syntax.all.*
+import playground.CompilationErrorDetails.*
+import playground.smithyql.*
 
 import QueryCompiler.WAST
 
 trait QueryCompiler[A] {
-  final def emap[B](f: A => QueryCompiler.Result[B]): QueryCompiler[B] =
-    ast => compile(ast).flatMap(f)
 
-  def compile(ast: WAST): QueryCompiler.Result[A]
+  final def emap[B](
+    f: A => QueryCompiler.Result[B]
+  ): QueryCompiler[B] = ast => compile(ast).flatMap(f)
+
+  def compile(
+    ast: WAST
+  ): QueryCompiler.Result[A]
 
 }
 
@@ -22,10 +26,26 @@ object QueryCompiler {
 
   implicit val apply: Apply[QueryCompiler] =
     new Apply[QueryCompiler] {
-      def map[A, B](fa: QueryCompiler[A])(f: A => B): QueryCompiler[B] = fa.compile(_).map(f)
 
-      def ap[A, B](ff: QueryCompiler[A => B])(fa: QueryCompiler[A]): QueryCompiler[B] =
-        wast => (ff.compile(wast), fa.compile(wast)).parMapN((a, b) => a(b))
+      def map[A, B](
+        fa: QueryCompiler[A]
+      )(
+        f: A => B
+      ): QueryCompiler[B] = fa.compile(_).map(f)
+
+      def ap[A, B](
+        ff: QueryCompiler[A => B]
+      )(
+        fa: QueryCompiler[A]
+      ): QueryCompiler[B] =
+        wast =>
+          (ff.compile(wast), fa.compile(wast)).parMapN(
+            (
+              a,
+              b,
+            ) => a(b)
+          )
+
     }
 
   type WAST = WithSource[InputNode[WithSource]]

@@ -1,5 +1,9 @@
 package playground
 
 object TextUtils {
-  def quote(s: String): String = "\"" + s + "\""
+
+  def quote(
+    s: String
+  ): String = "\"" + s + "\""
+
 }

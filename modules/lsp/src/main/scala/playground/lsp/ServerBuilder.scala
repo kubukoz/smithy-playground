@@ -1,41 +1,48 @@
 package playground.lsp
 
-import cats.effect.implicits._
+import cats.effect.implicits.*
 import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
 import cats.effect.std
-import cats.effect.std.Supervisor
-import cats.implicits._
-import io.circe.Decoder
-import org.http4s.Uri
+import cats.syntax.all.*
+import fs2.compression.Compression
+import fs2.io.file.Files
+import fs2.io.net.Network
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
-import playground.language.CommandResultReporter
+import playground.FileRunner
 import playground.OperationRunner
+import playground.ServiceIndex
 import playground.TextDocumentManager
+import playground.language.CommandResultReporter
 import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
-import smithy4s.aws.http4s.AwsHttp4sBackend
 import smithy4s.aws.kernel.AwsRegion
 
 trait ServerBuilder[F[_]] {
-  def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F]): F[LanguageServer[F]]
+
+  def build(
+    buildInfo: BuildLoader.Loaded,
+    loader: ServerLoader[F],
+  ): F[LanguageServer[F]]
+
 }
 
 object ServerBuilder {
-  def apply[F[_]](implicit F: ServerBuilder[F]): ServerBuilder[F] = F
 
-  def instance[F[_]: Async: LanguageClient: BuildLoader: std.Console] = {
+  def apply[F[_]](
+    implicit F: ServerBuilder[F]
+  ): ServerBuilder[F] = F
+
+  def instance[F[_]: Async: LanguageClient: BuildLoader: Files: Network: Compression: std.Console]
+    : Resource[F, ServerBuilder[F]] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
-
-    implicit val uriJsonDecoder: Decoder[Uri] = Decoder[String].emap(
-      Uri.fromString(_).leftMap(_.message)
-    )
 
     implicit val stdlibRuntime: StdlibRuntime[F] = StdlibRuntime.instance[F]
 
-    EmberClientBuilder
+    val makeClient = EmberClientBuilder
       .default[F]
       .build
       .map(middleware.AuthorizationHeader[F])
@@ -48,47 +55,45 @@ object ServerBuilder {
           ),
         )
       )
-      .flatMap { client =>
+
+    for {
+      client <- makeClient
+      awsEnv <-
         AwsEnvironment
-          .default(AwsHttp4sBackend(client), AwsRegion.US_EAST_1)
+          .default(client, AwsRegion.US_EAST_1)
           .memoize
-          .flatMap { awsEnv =>
-            TextDocumentManager
-              .instance[F]
-              .toResource
-              .flatMap { implicit tdm =>
-                Supervisor[F].map { implicit sup =>
-                  new ServerBuilder[F] {
+      tdm <- TextDocumentManager.instance[F].toResource
+    } yield new ServerBuilder[F] {
+      private implicit val textManager: TextDocumentManager[F] = tdm
 
-                    def build(buildInfo: BuildLoader.Loaded, loader: ServerLoader[F])
-                      : F[LanguageServer[F]] = BuildLoader[F]
-                      .buildSchemaIndex(buildInfo)
-                      .flatMap { dsi =>
-                        PluginResolver[F]
-                          .resolveFromConfig(buildInfo.config)
-                          .flatMap { plugins =>
-                            val runner = OperationRunner
-                              .forSchemaIndex[F](
-                                dsi,
-                                client,
-                                LanguageClient[F]
-                                  .configuration[Uri]("smithyql.http.baseUrl"),
-                                awsEnv,
-                                plugins = plugins,
-                              )
+      def build(
+        buildInfo: BuildLoader.Loaded,
+        loader: ServerLoader[F],
+      ): F[LanguageServer[F]] =
+        for {
+          dsi <- BuildLoader[F].buildSchemaIndex(buildInfo)
+          plugins <- PluginResolver[F].resolve(buildInfo.config)
+          rep <- CommandResultReporter.instance[F]
+        } yield {
+          val runners = OperationRunner
+            .forSchemaIndex[F](
+              dsi = dsi,
+              client = client,
+              baseUri = LanguageClient[F].configuration(ConfigurationValue.baseUri),
+              awsEnv = awsEnv,
+              plugins = plugins,
+            )
 
-                            implicit val sl: ServerLoader[F] = loader
+          val serviceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
 
-                            CommandResultReporter.instance[F].map { implicit rep =>
-                              LanguageServer.instance[F](dsi, runner)
-                            }
-                          }
-                      }
-                  }
-                }
-              }
-          }
-      }
+          implicit val sl: ServerLoader[F] = loader
+
+          implicit val reporter: CommandResultReporter[F] = rep
+
+          LanguageServer
+            .instance[F](dsi, FileRunner.instance(OperationRunner.merge[F](runners, serviceIndex)))
+        }
+    }
   }
 
   private object middleware {
@@ -98,7 +103,7 @@ object ServerBuilder {
         Client[F] { request =>
           val updatedRequest =
             LanguageClient[F]
-              .configuration[String]("smithyql.http.authorizationHeader")
+              .configuration(ConfigurationValue.authorizationHeader)
               .flatMap {
                 case v if v.trim.isEmpty() => request.pure[F]
                 case v => Authorization.parse(v).liftTo[F].map(request.putHeaders(_))

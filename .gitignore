@@ -1,6 +1,7 @@
 **/target
 .direnv/
 .idea/
+.vscode/
 **/.DS_Store
 .smithy.lsp.log
 .sbt
@@ -12,3 +13,4 @@ tree-sitter-smithyql/bindings
 smithyql-log.txt
 
 result
+.version
