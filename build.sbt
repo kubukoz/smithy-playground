@@ -14,6 +14,12 @@ inThisBuild(
   )
 )
 
+val ScalaLTS = "3.3.4"
+val ScalaNext = "3.5.2"
+
+ThisBuild / scalaVersion := ScalaNext
+ThisBuild / versionScheme := Some("early-semver")
+
 import scala.sys.process.*
 
 def crossPlugin(
@@ -29,14 +35,6 @@ val compilerPlugins =
           List(
             crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
           ))
-
-ThisBuild / versionScheme := Some("early-semver")
-
-Global / onChangedBuildSource := ReloadOnSourceChanges
-
-// todo: change to 3.3.x in plugin module
-ThisBuild / scalaVersion := "3.5.2"
-ThisBuild / crossScalaVersions := Seq("3.5.2")
 
 // For coursier's "latest.integration"
 ThisBuild / dynverSeparator := "-"
@@ -65,10 +63,15 @@ val commonSettings = Seq(
   Test / scalacOptions -= "-Wunused:privates",
   //
   scalacOptions += "-no-indent",
-  scalacOptions ++= Seq(
-    "-source:3.7",
-    "-experimental",
-  ),
+  scalacOptions ++= {
+    if (scalaVersion.value.startsWith("3.5"))
+      Seq(
+        // for cats-tagless macros
+        "-experimental"
+      )
+    else
+      Nil
+  },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions ++= Seq("-release", "11"),
   mimaFailOnNoPrevious := false,
@@ -88,6 +91,7 @@ lazy val pluginCore = module("plugin-core").settings(
   ),
   // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
   mimaPreviousArtifacts := Set.empty,
+  scalaVersion := ScalaLTS,
 )
 
 lazy val pluginSample = module("plugin-sample")
