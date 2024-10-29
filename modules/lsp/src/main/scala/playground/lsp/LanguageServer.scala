@@ -175,8 +175,9 @@ object LanguageServer {
           .map(_.toUri)
 
         Feedback[F]
-          .showInfoMessage(s"Hello from Smithy Playground v${BuildInfo.version}") *>
-          Feedback[F].showInfoMessage("Loading project...") *>
+          .showInfoMessage(
+            s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
+          ) *>
           ServerLoader[F]
             .prepare(wsf.some)
             .flatMap { prepped =>

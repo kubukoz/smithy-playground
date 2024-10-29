@@ -71,12 +71,8 @@ trait LanguageServerIntegrationTests {
         TestClient
           .MessageLog(
             MessageType.Info,
-            s"Hello from Smithy Playground v${BuildInfo.version}",
+            s"Hello from Smithy Playground v${BuildInfo.version}! Loading project...",
           ),
-        TestClient.MessageLog(
-          MessageType.Info,
-          "Loading project...",
-        ),
         TestClient.MessageLog(
           MessageType.Info,
           "Loaded Smithy Playground server with 2 source entries, 0 imports, 2 dependencies and 0 plugins",
