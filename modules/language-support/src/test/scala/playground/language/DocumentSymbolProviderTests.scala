@@ -1,6 +1,6 @@
 package playground.language
 
-import playground.Assertions._
+import playground.Assertions.*
 import playground.language.Diffs.given
 import playground.smithyql.Position
 import playground.smithyql.SourceRange

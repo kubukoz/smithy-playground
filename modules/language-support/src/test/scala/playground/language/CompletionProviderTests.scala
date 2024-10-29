@@ -2,8 +2,8 @@ package playground.language
 
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
-import playground.Assertions._
-import playground.ServiceUtils._
+import playground.Assertions.*
+import playground.ServiceUtils.*
 import playground.language.Diffs.given
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier

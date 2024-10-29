@@ -13,7 +13,7 @@ import playground.smithyql.StringRangeUtils.*
 import playground.smithyql.parser.SourceParser
 import weaver.*
 
-import Assertions._
+import Assertions.*
 import Diffs.given
 
 object PreludeCompilerTests extends FunSuite {

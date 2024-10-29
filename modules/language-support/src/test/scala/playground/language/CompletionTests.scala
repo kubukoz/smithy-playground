@@ -15,7 +15,7 @@ import demo.smithy.PowerMap
 import demo.smithy.PrivacyTier
 import demo.smithy.SampleSparseList
 import demo.smithy.SampleSparseMap
-import playground.Assertions._
+import playground.Assertions.*
 import playground.language.Diffs.given
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.PathEntry.*

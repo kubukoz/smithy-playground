@@ -11,9 +11,9 @@ import playground.OperationCompiler
 import playground.OperationRunner
 import playground.PreludeCompiler
 import playground.ServiceIndex
-import playground.ServiceUtils._
+import playground.ServiceUtils.*
 import playground.language.Diffs.given
-import playground.smithyql.StringRangeUtils._
+import playground.smithyql.StringRangeUtils.*
 import playground.std.RandomGen
 import weaver.*
 
