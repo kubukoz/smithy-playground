@@ -14,7 +14,7 @@ import playground.smithyql.parser.SourceParser
 import weaver.*
 
 import Assertions.*
-import Diffs.*
+import Diffs.given
 
 object PreludeCompilerTests extends FunSuite {
 

@@ -14,6 +14,7 @@ import playground.smithyql.Query
 import playground.smithyql.WithSource
 import smithy.api
 import smithy4s.Endpoint
+import smithy4s.Hints
 import smithy4s.Service
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithyql.syntax.*
@@ -22,12 +23,15 @@ import util.chaining.*
 
 trait CompiledInput {
   type _Op[_, _, _, _, _]
+  type I
   type E
   type O
+  type SI
+  type SO
   def catchError: Throwable => Option[E]
   def writeError: Option[NodeEncoder[E]]
   def writeOutput: NodeEncoder[O]
-  def op: _Op[_, E, O, _, _]
+  def op: _Op[I, E, O, SI, SO]
 }
 
 object CompiledInput {
@@ -149,8 +153,8 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
   service: Service[Alg]
 ) extends OperationCompiler[IorNel[CompilationError, *]] {
 
-  private def compileEndpoint[In, Err, Out](
-    e: Endpoint[service.Operation, In, Err, Out, _, _]
+  private def compileEndpoint[In, Err, Out, SIn, SOut](
+    e: Endpoint[service.Operation, In, Err, Out, SIn, SOut]
   ): QueryCompiler[CompiledInput] = {
     val inputCompiler = e.input.compile(QueryCompilerVisitor.full)
     val outputEncoder = NodeEncoder.derive(e.output)
@@ -162,10 +166,13 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
         .map { compiled =>
           new CompiledInput {
             type _Op[_I, _E, _O, _SE, _SO] = service.Operation[_I, _E, _O, _SE, _SO]
+            type I = In
             type E = Err
             type O = Out
+            type SI = SIn
+            type SO = SOut
 
-            val op: _Op[_, Err, Out, _, _] = e.wrap(compiled)
+            val op: _Op[I, E, O, SI, SO] = e.wrap(compiled)
             val writeOutput: NodeEncoder[Out] = outputEncoder
             val writeError: Option[NodeEncoder[Err]] = errorEncoder
             val catchError: Throwable => Option[Err] = e.Error.unapply(_).map(_._2)
@@ -174,12 +181,12 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
   }
 
   // https://github.com/kubukoz/smithy-playground/issues/154
-  // map of endpoint names to (endpoint, input compiler)
+  // map of endpoint names to (endpoint hints, input compiler)
   private val endpoints = service
     .endpoints
     .toList
     .groupByNel(_.name)
-    .map(_.map(_.head).map(e => (e, compileEndpoint(e))))
+    .map(_.map(_.head).map(e => (e.hints, compileEndpoint(e))))
 
   // Checks the explicit service reference (if any).
   // Note that the reference should be valid thanks to MultiServiceResolver's checks.
@@ -201,10 +208,9 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
 
   private def deprecatedOperationCheck(
     q: Query[WithSource],
-    endpoint: Endpoint[service.Operation, _, _, _, _, _],
+    endpointHints: Hints,
   ): IorNel[CompilationError, Unit] =
-    endpoint
-      .hints
+    endpointHints
       .get(api.Deprecated)
       .map { info =>
         CompilationError.deprecation(

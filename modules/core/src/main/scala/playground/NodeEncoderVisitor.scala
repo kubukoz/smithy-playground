@@ -169,7 +169,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fieldsRaw: Vector[Field[S, _]],
+    fieldsRaw: Vector[Field[S, ?]],
     make: IndexedSeq[Any] => S,
   ): NodeEncoder[S] = {
 
@@ -192,7 +192,7 @@ object NodeEncoderVisitor extends SchemaVisitor[NodeEncoder] { self =>
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[Alt[U, _]],
+    alternatives: Vector[Alt[U, ?]],
     dispatcher: Alt.Dispatcher[U],
   ): NodeEncoder[U] = dispatcher.compile(new Alt.Precompiler[NodeEncoder] {
 

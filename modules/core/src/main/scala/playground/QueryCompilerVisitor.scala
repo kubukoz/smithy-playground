@@ -219,7 +219,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   private object FieldCompiler {
 
     def compile[A](
-      field: Field[_, A]
+      field: Field[?, A]
     ): FieldCompiler[A] =
       new FieldCompiler[A] {
         override val compiler: QueryCompiler[A] = field.schema.compile(QueryCompilerVisitorInternal)
@@ -233,7 +233,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fieldsRaw: Vector[Field[S, _]],
+    fieldsRaw: Vector[Field[S, ?]],
     make: IndexedSeq[Any] => S,
   ): QueryCompiler[S] = {
     val fields = fieldsRaw
@@ -318,7 +318,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
   def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[Alt[U, _]],
+    alternatives: Vector[Alt[U, ?]],
     dispatcher: Alt.Dispatcher[U],
   ): QueryCompiler[U] = {
     def handleAlt[A](
@@ -445,7 +445,7 @@ object QueryCompilerVisitorInternal extends SchemaVisitor[QueryCompiler] {
           .parTraverse { binding =>
             document.compile(binding.value).tupleLeft(binding.identifier.value.text)
           }
-          .map(Document.obj(_: _*))
+          .map(Document.obj(_*))
       case NullLiteral() => Document.nullDoc.rightIor
     }
 

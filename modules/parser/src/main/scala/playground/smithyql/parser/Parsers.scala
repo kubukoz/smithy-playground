@@ -170,7 +170,7 @@ object Parsers {
 
       (
         // soft: allows backtracking if hash isn't present (for operation names)
-        segments.soft ~ (tokens.hash *> tokens.whitespace *> rawIdent),
+        segments.soft ~ (tokens.hash *> tokens.whitespace *> rawIdent)
       ).map(QualifiedIdentifier.apply.tupled)
     }.withContext("qualified_ident")
 

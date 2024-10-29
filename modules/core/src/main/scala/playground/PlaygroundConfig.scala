@@ -2,7 +2,6 @@ package playground
 
 import cats.kernel.Eq
 import cats.syntax.all.*
-import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 
 final case class PlaygroundConfig(
@@ -47,7 +46,9 @@ object PlaygroundConfig {
     }
 
     object BuildConfig {
-      implicit val c: JsonValueCodec[BuildConfig] = JsonCodecMaker.make
+      // note: this is flagged as an unused import if imported
+      implicit val c: com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec[BuildConfig] =
+        JsonCodecMaker.make
 
       def fromPlaygroundConfig(
         c: PlaygroundConfig

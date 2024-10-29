@@ -11,7 +11,7 @@ import util.chaining.*
 import weaver.*
 import weaver.scalacheck.Checkers
 
-import Diffs.*
+import Diffs.given
 
 object FormattingTests extends SimpleIOSuite with Checkers {
 

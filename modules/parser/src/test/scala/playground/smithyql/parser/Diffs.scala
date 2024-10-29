@@ -1,9 +1,9 @@
 package playground.smithyql.parser
 
+import cats.parse.Parser
 import com.softwaremill.diffx.Diff
 
 object Diffs {
-  import com.softwaremill.diffx.generic.auto.*
-
-  implicit val diffParsingFailure: Diff[ParsingFailure] = Diff.derivedDiff
+  given Diff[Parser.Error] = Diff.useEquals
+  given Diff[ParsingFailure] = Diff.derived
 }

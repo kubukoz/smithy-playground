@@ -6,7 +6,7 @@ import cats.syntax.all.*
 object DSL {
 
   implicit class StringDSLOps(
-    val s: String
+    private val s: String
   ) extends AnyVal {
 
     def call(
@@ -16,7 +16,7 @@ object DSL {
       )*
     ): Query[Id] = Query[Id](
       operationName = QueryOperationName[Id](None, OperationName(s)),
-      input = struct(args: _*),
+      input = struct(args*),
     )
 
   }

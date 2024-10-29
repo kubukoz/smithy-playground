@@ -16,7 +16,7 @@ import demo.smithy.PrivacyTier
 import demo.smithy.SampleSparseList
 import demo.smithy.SampleSparseMap
 import playground.Assertions.*
-import playground.language.Diffs.*
+import playground.language.Diffs.given
 import playground.smithyql.NodeContext
 import playground.smithyql.NodeContext.PathEntry.*
 import smithy.api.TimestampFormat
@@ -30,7 +30,7 @@ import java.util.UUID
 object CompletionTests extends FunSuite {
 
   def getCompletions(
-    schema: Schema[_],
+    schema: Schema[?],
     ctx: NodeContext,
   ): List[CompletionItem] = schema.compile(CompletionVisitor).getCompletions(ctx)
 

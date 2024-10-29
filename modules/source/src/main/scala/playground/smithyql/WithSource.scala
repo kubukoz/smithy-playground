@@ -9,13 +9,11 @@ import cats.kernel.Eq
 import cats.kernel.Order
 import cats.syntax.all.*
 import cats.~>
-import playground.smithyql.InputNode
-import playground.smithyql.Query
 
 // todo: multiline
 final case class Comment(
   text: String
-) extends AnyVal
+)
 
 object Comment {
   implicit val eq: Eq[Comment] = Eq.by(_.text)

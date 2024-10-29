@@ -134,7 +134,7 @@ object Scanner {
       // I love this language
       object jsonNumber {
         def unapply(
-          @nowarn("cat=unused")
+          @nowarn("msg=unused")
           unused: Unit
         ): Option[
           (
@@ -181,7 +181,7 @@ object Scanner {
     val eatWhitespace: PartialFunction[Unit, Unit] = {
       object matches {
         def unapply(
-          @nowarn("cat=unused") u: Unit
+          @nowarn("msg=unused") u: Unit
         ): Option[
           (
             String,
@@ -239,7 +239,7 @@ object Scanner {
       readAny
         .lift(())
         .isDefined ||
-        eatErrors(): Unit
+        eatErrors(): @nowarn("msg=unused value of type Boolean")
 
       // last-effort sanity check
       if (remaining == last)

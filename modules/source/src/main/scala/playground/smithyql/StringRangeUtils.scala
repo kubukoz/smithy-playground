@@ -1,8 +1,5 @@
 package playground.smithyql
 
-import playground.smithyql.Position
-import playground.smithyql.SourceRange
-
 // Mostly for testing.
 object StringRangeUtils {
 

@@ -14,6 +14,12 @@ inThisBuild(
   )
 )
 
+val ScalaLTS = "3.3.4"
+val ScalaNext = "3.5.2"
+
+ThisBuild / scalaVersion := ScalaNext
+ThisBuild / versionScheme := Some("early-semver")
+
 import scala.sys.process.*
 
 def crossPlugin(
@@ -29,13 +35,6 @@ val compilerPlugins =
           List(
             crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
           ))
-
-ThisBuild / versionScheme := Some("early-semver")
-
-Global / onChangedBuildSource := ReloadOnSourceChanges
-
-ThisBuild / scalaVersion := "2.13.15"
-ThisBuild / crossScalaVersions := Seq("2.13.15")
 
 // For coursier's "latest.integration"
 ThisBuild / dynverSeparator := "-"
@@ -54,8 +53,25 @@ val commonSettings = Seq(
   compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
-  scalacOptions += "-Wnonunit-statement",
-  scalacOptions ++= Seq("-Xsource:3.0"),
+  scalacOptions -= "-language:existentials",
+  // https://github.com/lampepfl/dotty/issues/18674
+  Test / scalacOptions -= "-Wunused:implicits",
+  Test / scalacOptions -= "-Wunused:explicits",
+  Test / scalacOptions -= "-Wunused:imports",
+  Test / scalacOptions -= "-Wunused:locals",
+  Test / scalacOptions -= "-Wunused:params",
+  Test / scalacOptions -= "-Wunused:privates",
+  //
+  scalacOptions += "-no-indent",
+  scalacOptions ++= {
+    if (scalaVersion.value.startsWith("3.5"))
+      Seq(
+        // for cats-tagless macros
+        "-experimental"
+      )
+    else
+      Nil
+  },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions ++= Seq("-release", "11"),
   mimaFailOnNoPrevious := false,
@@ -73,8 +89,9 @@ lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
+  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
   mimaPreviousArtifacts := Set.empty,
+  scalaVersion := ScalaLTS,
 )
 
 lazy val pluginSample = module("plugin-sample")
@@ -133,6 +150,7 @@ lazy val core = module("core")
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.14" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.52.1" % Test,
     ),
+    // todo: move this to a separate module like "examples"
     Smithy4sCodegenPlugin.defaultSettings(Test),
   )
   .enablePlugins(Smithy4sCodegenPlugin)
@@ -156,8 +174,11 @@ lazy val lsp = module("lsp")
       "io.circe" %% "circe-core" % "0.14.10",
       "org.http4s" %% "http4s-ember-client" % "0.23.29",
       "org.http4s" %% "http4s-ember-server" % "0.23.29" % Test,
-      "io.get-coursier" %% "coursier" % "2.1.14",
-      "org.typelevel" %% "cats-tagless-macros" % "0.16.2",
+      ("io.get-coursier" % "coursier" % "2.1.14")
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13")
+        .exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_2.13"),
+      "org.typelevel" %% "cats-tagless-core" % "0.16.2",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),

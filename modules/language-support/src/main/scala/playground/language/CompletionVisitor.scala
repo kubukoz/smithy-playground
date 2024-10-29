@@ -127,7 +127,7 @@ object CompletionItem {
   ).copy(detail = describeService(service))
 
   def fromField(
-    field: Field[_, _]
+    field: Field[?, ?]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.Field,
     label = field.label,
@@ -136,7 +136,7 @@ object CompletionItem {
   )
 
   def fromAlt(
-    alt: Alt[_, _]
+    alt: Alt[?, ?]
   ): CompletionItem = fromHints(
     kind = CompletionItemKind.UnionMember,
     label = alt.label,
@@ -156,7 +156,7 @@ object CompletionItem {
     kind: CompletionItemKind,
     label: String,
     insertText: InsertText,
-    schema: Schema[_],
+    schema: Schema[?],
   ): CompletionItem = {
     val isField = kind === CompletionItemKind.Field
 
@@ -188,7 +188,7 @@ object CompletionItem {
 
   def describeType(
     isField: Boolean,
-    schema: Schema[_],
+    schema: Schema[?],
   ): String = {
     val isOptional = isField && !isRequiredField(schema)
 
@@ -201,10 +201,10 @@ object CompletionItem {
   }
 
   private def isRequiredField(
-    schema: Schema[_]
+    schema: Schema[?]
   ): Boolean = schema.hints.has(smithy.api.Required)
 
-  private val describePrimitive: Primitive[_] => String = {
+  private val describePrimitive: Primitive[?] => String = {
     import smithy4s.schema.Primitive.*
 
     {
@@ -238,7 +238,7 @@ object CompletionItem {
 
   // nice to have: precompile this? caching?
   def describeSchema(
-    schema: Schema[_]
+    schema: Schema[?]
   ): (
   ) => String =
     schema match {
@@ -310,7 +310,7 @@ object CompletionItem {
 
   def forOperation[Op[_, _, _, _, _]](
     insertUseClause: InsertUseClause,
-    endpoint: Endpoint[Op, _, _, _, _, _],
+    endpoint: Endpoint[Op, ?, ?, ?, ?, ?],
     serviceId: QualifiedIdentifier,
     insertBodyStruct: InsertBodyStruct,
   ): CompletionItem = {
@@ -567,7 +567,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   override def struct[S](
     shapeId: ShapeId,
     hints: Hints,
-    fields: Vector[Field[S, _]],
+    fields: Vector[Field[S, ?]],
     make: IndexedSeq[Any] => S,
   ): CompletionResolver[S] = {
     val compiledFields = fields.map(field => (field, field.schema.compile(this)))
@@ -595,7 +595,7 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
   override def union[U](
     shapeId: ShapeId,
     hints: Hints,
-    alternatives: Vector[Alt[U, _]],
+    alternatives: Vector[Alt[U, ?]],
     dispatcher: Alt.Dispatcher[U],
   ): CompletionResolver[U] = {
     val compiledAlts = alternatives.map { alt =>

@@ -111,15 +111,14 @@ object RangeIndex {
       .fold(
         listed = l => entireNode(ctx) :: findInList(l, ctx),
         struct = s => entireNode(ctx) :: findInStruct(s, ctx.inStructBody),
-        string =
-          _ => {
-            val inQuotes = ContextRange(
-              node.range.shrink1,
-              ctx.inQuotes,
-            )
+        string = { _ =>
+          val inQuotes = ContextRange(
+            node.range.shrink1,
+            ctx.inQuotes,
+          )
 
-            inQuotes :: entireNode(ctx) :: Nil
-          },
+          inQuotes :: entireNode(ctx) :: Nil
+        },
         int = default,
         bool = default,
         nul = default,
@@ -150,19 +149,18 @@ object RangeIndex {
   private def findInStruct(
     struct: Struct[WithSource],
     ctx: NodeContext,
-  ): List[ContextRange] =
+  ): List[ContextRange] = {
     // Struct fields that allow nesting in them
-    {
-      val inFields = struct
-        .fields
-        .value
-        .value
-        .flatMap { binding =>
-          findInNode(binding.value, ctx.inStructValue(binding.identifier.value.text))
-        }
+    val inFields = struct
+      .fields
+      .value
+      .value
+      .flatMap { binding =>
+        findInNode(binding.value, ctx.inStructValue(binding.identifier.value.text))
+      }
 
-      ContextRange(struct.fields.range, ctx) :: inFields
-    }
+    ContextRange(struct.fields.range, ctx) :: inFields
+  }
 
 }
 
