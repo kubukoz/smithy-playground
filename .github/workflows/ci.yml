@@ -67,6 +67,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4.1.1
+      - uses: coursier/setup-action@v1
+        with:
+          apps: sbt
       - name: Parser tests
         # intentionally not setting up nix
         run: sbt parser/run
