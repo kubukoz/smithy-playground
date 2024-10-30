@@ -29,10 +29,8 @@
             src = ./tree-sitter-smithyql;
             buildInputs = [pkgs.tree-sitter pkgs.nodejs];
             buildPhase = ''
-              ls -ll
               tree-sitter generate
               make
-              ls -ll
             '';
             installPhase = if system == "x86_64-darwin" || system == "aarch64-darwin" then ''
               cp libtree-sitter-smithyql.dylib $out
