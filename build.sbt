@@ -117,7 +117,7 @@ lazy val parser = module("parser")
       "io.circe" %% "circe-generic" % "0.14.10" % Test,
       "io.circe" %% "circe-parser" % "0.14.10" % Test,
       "co.fs2" %% "fs2-io" % "3.11.0" % Test,
-      "org.polyvariant.treesitter4s" %% "core" % "0.3-8c8ea67-SNAPSHOT",
+      "org.polyvariant.treesitter4s" %% "core" % "0.3-1ab76c4-SNAPSHOT",
     )
   )
   .dependsOn(

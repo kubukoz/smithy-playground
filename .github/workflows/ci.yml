@@ -57,3 +57,16 @@ jobs:
       - name: Show extension test logs
         if: job.status == 'failure'
         run: cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000
+
+  build-parser:
+    name: "Build parser"
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, macos-13]
+    runs-on: ${{matrix.os}}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Parser tests
+        # intentionally not setting up nix
+        run: sbt parser/run

@@ -1,11 +1,11 @@
 package playground.smithyql
 
-import org.polyvariant.treesitter4s.TreeSitter
+import org.polyvariant.treesitter4s.TreeSitterAPI
 
 object ParserTreeSitterDemo extends App {
 
   def parse(s: String) = {
-    val p = TreeSitter.make(SmithyQLLanguageBindings.SmithyQL)
+    val p = TreeSitterAPI.make(_.Language(SmithyQLLanguageBindings.SmithyQL))
     val tree = p.parse(s)
     println(tree.rootNode.get.fields.keySet)
   }
