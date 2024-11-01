@@ -146,7 +146,7 @@ lazy val examples = module("examples")
   )
   .enablePlugins(Smithy4sCodegenPlugin)
 
-// not named "protocol" to leave space for a potential java-only protocol jav
+// not named "protocol" to leave space for a potential java-only protocol jar
 lazy val protocol4s = module("protocol4s")
   .settings(
     libraryDependencies ++= Seq(
