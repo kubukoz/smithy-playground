@@ -118,6 +118,12 @@ lazy val parser = module("parser")
       "co.fs2" %% "fs2-io" % "3.11.0" % Test,
     )
   )
+  .enablePlugins(Antlr4Plugin)
+  .settings(
+    Antlr4 / antlr4Version := "4.13.0",
+    Antlr4 / antlr4PackageName := Some("playground.smithyql.parser.v3"),
+    Antlr4 / antlr4GenVisitor := true,
+  )
   .dependsOn(
     ast % "test->test;compile->compile",
     source % "test->test;compile->compile",
