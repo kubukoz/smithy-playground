@@ -136,6 +136,25 @@ lazy val formatter = module("formatter")
     parser % "test->test",
   )
 
+lazy val examples = module("examples")
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.disneystreaming.smithy4s" %% "smithy4s-core" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %% "smithy4s-aws-kernel" % smithy4sVersion.value,
+    ),
+    publish := false,
+  )
+  .enablePlugins(Smithy4sCodegenPlugin)
+
+// not named "protocol" to leave space for a potential java-only protocol jav
+lazy val protocol4s = module("protocol4s")
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.disneystreaming.smithy4s" %% "smithy4s-core" % smithy4sVersion.value
+    )
+  )
+  .enablePlugins(Smithy4sCodegenPlugin)
+
 // Most of the core functionality of SmithyQL (compilation, analysis, evaluation)
 // also: SmithyQL standard library
 lazy val core = module("core")
@@ -149,12 +168,11 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.14" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.52.1" % Test,
-    ),
-    // todo: move this to a separate module like "examples"
-    Smithy4sCodegenPlugin.defaultSettings(Test),
+    )
   )
-  .enablePlugins(Smithy4sCodegenPlugin)
   .dependsOn(
+    protocol4s,
+    examples % "test->compile",
     pluginCore,
     ast,
     source % "test->test;compile->compile",
@@ -228,10 +246,12 @@ lazy val root = project
     ast,
     source,
     core,
+    examples,
     parser,
     formatter,
     languageSupport,
     lsp,
+    protocol4s,
     pluginCore,
     pluginSample,
     e2e,
