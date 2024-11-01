@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -18,7 +18,7 @@
             pkgs.sbt
             pkgs.jless
             pkgs.gnupg
-            pkgs.tree-sitter
+            (pkgs.tree-sitter.override { webUISupport = true; })
             # temporary, while we don't download coursier ourselves
             pkgs.coursier
           ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.xvfb-run ];
