@@ -73,7 +73,7 @@ val commonSettings = Seq(
       Nil
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
-  scalacOptions ++= Seq("-release", "11"),
+  scalacOptions += "-release:11",
   mimaFailOnNoPrevious := false,
   resolvers += "Sonatype S01 snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
 )
@@ -117,13 +117,25 @@ lazy val parser = module("parser")
       "io.circe" %% "circe-generic" % "0.14.10" % Test,
       "io.circe" %% "circe-parser" % "0.14.10" % Test,
       "co.fs2" %% "fs2-io" % "3.11.0" % Test,
-      "org.polyvariant.treesitter4s" %% "core" % "0.3-e777c6d-SNAPSHOT",
+      "org.polyvariant.treesitter4s" %% "core" % "0.3-9edd0ef-SNAPSHOT",
     )
   )
   .dependsOn(
     ast % "test->test;compile->compile",
     source % "test->test;compile->compile",
   )
+
+lazy val parsergen = module("parser-gen")
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.optics" %% "monocle-core" % "3.3.0",
+      "com.disneystreaming.smithy4s" %% "smithy4s-json" % smithy4sVersion.value,
+      ("org.scalameta" %% "scalameta" % "4.11.0").cross(CrossVersion.for3Use2_13),
+      "org.polyvariant.treesitter4s" %% "core" % "0.3-9edd0ef-SNAPSHOT",
+    ),
+    scalacOptions -= "-release:11",
+  )
+  .enablePlugins(Smithy4sCodegenPlugin)
 
 // Formatter for the SmithyQL language constructs
 lazy val formatter = module("formatter")
@@ -250,6 +262,7 @@ lazy val root = project
     core,
     examples,
     parser,
+    parsergen,
     formatter,
     languageSupport,
     lsp,

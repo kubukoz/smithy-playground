@@ -50,7 +50,7 @@ module.exports = grammar({
         )
       ),
 
-    input_node: ($) =>
+    _input_node: ($) =>
       choice($.struct, $.list, $.number, $.string, $.boolean, $.null),
 
     struct: ($) => seq("{", field("bindings", optional($.bindings)), "}"),
@@ -59,9 +59,9 @@ module.exports = grammar({
     bindings: ($) => comma_separated_trailing($.binding),
 
     binding: ($) =>
-      seq(field("key", $.identifier), "=", field("value", $.input_node)),
+      seq(field("key", $.identifier), "=", field("value", $._input_node)),
 
-    list_fields: ($) => comma_separated_trailing($.input_node),
+    list_fields: ($) => comma_separated_trailing($._input_node),
 
     identifier: ($) => /[a-zA-Z_][a-zA-Z0-9_]*/,
 
@@ -74,5 +74,6 @@ module.exports = grammar({
     comment: ($) => token(seq("//", /.*/)),
     whitespace: ($) => /\s+/,
   },
+  supertypes: ($) => [$._input_node],
 });
 //
