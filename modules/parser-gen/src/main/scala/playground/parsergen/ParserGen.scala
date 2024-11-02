@@ -6,6 +6,7 @@ import org.polyvariant.treesitter4s.Node
 import smithy4s.Blob
 import smithy4s.Document
 import smithy4s.json.Json
+import treesittersmithy.FieldName
 import treesittersmithy.NodeType
 import treesittersmithy.NodeTypes
 import treesittersmithy.TypeName
@@ -13,6 +14,7 @@ import util.chaining.*
 
 import java.nio.file.Files
 import java.nio.file.Paths
+import scala.annotation.targetName
 import scala.jdk.CollectionConverters.*
 import scala.meta.Dialect
 
@@ -24,8 +26,14 @@ def debugDump(s: String): String =
     ""
 
 extension (tn: TypeName) {
+  @targetName("renderTypeName")
   def render: String = tn.value.smartCapitalize.ident
   def asEnumCase: TypeName = TypeName(tn.value + "Case")
+}
+
+extension (fn: FieldName) {
+  @targetName("renderFieldName")
+  def render: String = fn.value.ident
 }
 
 extension (tpe: NodeType) {
@@ -52,7 +60,7 @@ def renderAdt(tpe: NodeType) = {
         |enum $name {
         |${enumCases.mkString_("\n").indentTrim(2)}
         |
-        |  def asNode: Node = this match {
+        |  def node: Node = this match {
         |${tpe
          .subtypes
          .map { nodeType =>
@@ -75,6 +83,18 @@ def renderAdt(tpe: NodeType) = {
          .mkString_("\n")
          .indentTrim(4)}
         |  }
+        |
+        |  def unapply(node: Node): Boolean = node match {
+        |${tpe
+         .subtypes
+         .map { nodeType =>
+           show"""case node @ ${nodeType
+               .tpe
+               .render}() => true"""
+         }
+         .mkString_("\n")
+         .indentTrim(4)}
+        |  }
         |}
         |
         |/*
@@ -90,12 +110,13 @@ def renderClass(tpe: NodeType) = {
     .fields
     .toList
     .map { (k, fieldType) =>
-      val singleFieldType = fieldType
+      val typeUnion = fieldType
         .types
         .map(tpe => show"${tpe.tpe.render}")
-        .reduceLeft(_ + " | " + _)
+        .reduceLeftOption(_ + " | " + _)
+        .getOrElse(sys.error(s"unexpected empty list of types: $k (in ${tpe.tpe})"))
 
-      val fieldTypeAnnotation = singleFieldType.pipe {
+      val fieldTypeAnnotation = typeUnion.pipe {
         case s if fieldType.multiple => show"List[$s]"
         case s                       => s
       }
@@ -110,9 +131,12 @@ def renderClass(tpe: NodeType) = {
                                          |${cases.mkString("\n").indentTrim(2)}
                                          |}""".stripMargin
         else
-          show"""${singleFieldType}($allFields.head)"""
+          // todo replace head with a stricter "only" check?
+          show"""$allFields.head match {
+                |${cases.mkString("\n").indentTrim(2)}
+                |}""".stripMargin
 
-      show"""def ${k.value}: ${fieldTypeAnnotation} = $fieldValue"""
+      show"""def ${k.render}: ${fieldTypeAnnotation} = $fieldValue"""
     }
 
   show"""// Generated code! Do not modify by hand.
@@ -130,7 +154,7 @@ def renderClass(tpe: NodeType) = {
         |}
         |
         |object $name {
-        |  def unapply(node: Node): scala.Boolean = node.tpe == ${tpe.tpe.value.literal}
+        |  def unapply(node: Node): Boolean = node.tpe == ${tpe.tpe.value.literal}
         |}
         |
         |/*
@@ -156,7 +180,14 @@ def renderClass(tpe: NodeType) = {
 
   types
     .filter(_.named)
-    .map(_.focus(_.fields.each.types).modify(_.filter(_.named)))
+    .map(
+      // only render field types that are named
+      _.focus(_.fields.each.types)
+        .modify(_.filter(_.named))
+        // don't render the field if it has no types
+        .focus(_.fields)
+        .modify(_.filter((_, v) => v.types.nonEmpty))
+    )
     .fproduct(
       _.render
     )

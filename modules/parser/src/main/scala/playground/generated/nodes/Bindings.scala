@@ -11,7 +11,7 @@ case class Bindings /* private */(node: Node) extends Node {
 }
 
 object Bindings {
-  def unapply(node: Node): scala.Boolean = node.tpe == "bindings"
+  def unapply(node: Node): Boolean = node.tpe == "bindings"
 }
 
 /*

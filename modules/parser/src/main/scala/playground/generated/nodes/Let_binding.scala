@@ -11,7 +11,7 @@ case class Let_binding /* private */(node: Node) extends Node {
 }
 
 object Let_binding {
-  def unapply(node: Node): scala.Boolean = node.tpe == "let_binding"
+  def unapply(node: Node): Boolean = node.tpe == "let_binding"
 }
 
 /*

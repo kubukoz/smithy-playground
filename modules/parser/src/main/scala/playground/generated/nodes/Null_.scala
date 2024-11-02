@@ -11,7 +11,7 @@ case class Null_ /* private */(node: Node) extends Node {
 }
 
 object Null_ {
-  def unapply(node: Node): scala.Boolean = node.tpe == "null"
+  def unapply(node: Node): Boolean = node.tpe == "null"
 }
 
 /*

@@ -11,7 +11,7 @@ case class Identifier /* private */(node: Node) extends Node {
 }
 
 object Identifier {
-  def unapply(node: Node): scala.Boolean = node.tpe == "identifier"
+  def unapply(node: Node): Boolean = node.tpe == "identifier"
 }
 
 /*

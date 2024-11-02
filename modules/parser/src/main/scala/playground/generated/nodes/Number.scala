@@ -11,7 +11,7 @@ case class Number /* private */(node: Node) extends Node {
 }
 
 object Number {
-  def unapply(node: Node): scala.Boolean = node.tpe == "number"
+  def unapply(node: Node): Boolean = node.tpe == "number"
 }
 
 /*

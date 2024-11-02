@@ -11,7 +11,7 @@ case class Top_level_statement /* private */(node: Node) extends Node {
 }
 
 object Top_level_statement {
-  def unapply(node: Node): scala.Boolean = node.tpe == "top_level_statement"
+  def unapply(node: Node): Boolean = node.tpe == "top_level_statement"
 }
 
 /*

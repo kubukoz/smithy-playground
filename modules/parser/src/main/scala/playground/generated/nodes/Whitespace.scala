@@ -11,7 +11,7 @@ case class Whitespace /* private */(node: Node) extends Node {
 }
 
 object Whitespace {
-  def unapply(node: Node): scala.Boolean = node.tpe == "whitespace"
+  def unapply(node: Node): Boolean = node.tpe == "whitespace"
 }
 
 /*

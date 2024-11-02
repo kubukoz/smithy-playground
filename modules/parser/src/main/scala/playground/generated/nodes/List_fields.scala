@@ -11,7 +11,7 @@ case class List_fields /* private */(node: Node) extends Node {
 }
 
 object List_fields {
-  def unapply(node: Node): scala.Boolean = node.tpe == "list_fields"
+  def unapply(node: Node): Boolean = node.tpe == "list_fields"
 }
 
 /*

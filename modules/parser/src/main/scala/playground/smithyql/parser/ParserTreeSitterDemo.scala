@@ -22,5 +22,5 @@ object ParserTreeSitterDemo extends App {
       .collect { case b @ Binding() => Binding(b) }
       .head
 
-  println(bind.key.source + ": " + bind.value.asNode.source)
+  println(bind.key.source + ": " + bind.value.node.source)
 }

@@ -11,7 +11,7 @@ case class String_ /* private */(node: Node) extends Node {
 }
 
 object String_ {
-  def unapply(node: Node): scala.Boolean = node.tpe == "string"
+  def unapply(node: Node): Boolean = node.tpe == "string"
 }
 
 /*

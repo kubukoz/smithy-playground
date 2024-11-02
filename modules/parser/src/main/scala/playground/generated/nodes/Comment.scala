@@ -11,7 +11,7 @@ case class Comment /* private */(node: Node) extends Node {
 }
 
 object Comment {
-  def unapply(node: Node): scala.Boolean = node.tpe == "comment"
+  def unapply(node: Node): Boolean = node.tpe == "comment"
 }
 
 /*

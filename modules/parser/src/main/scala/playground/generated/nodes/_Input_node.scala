@@ -11,7 +11,7 @@ enum _Input_node {
   case StringCase(value: String_)
   case StructCase(value: Struct)
 
-  def asNode: Node = this match {
+  def node: Node = this match {
     case BooleanCase(value) => value.node
     case ListCase(value) => value.node
     case NullCase(value) => value.node
@@ -29,6 +29,15 @@ object _Input_node {
     case node @ Number() => NumberCase(Number(node))
     case node @ String_() => StringCase(String_(node))
     case node @ Struct() => StructCase(Struct(node))
+  }
+
+  def unapply(node: Node): Boolean = node match {
+    case node @ Boolean_() => true
+    case node @ List_() => true
+    case node @ Null_() => true
+    case node @ Number() => true
+    case node @ String_() => true
+    case node @ Struct() => true
   }
 }
 
