@@ -23,5 +23,5 @@ object ParserTreeSitterDemo extends App {
       .find(_.key.source == "x")
       .get
 
-  println(bind.value.asNumber.source)
+  println(bind.value.asNumber.get.source)
 }

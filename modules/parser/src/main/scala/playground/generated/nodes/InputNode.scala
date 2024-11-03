@@ -4,19 +4,19 @@ package playground.generated.nodes
 import org.polyvariant.treesitter4s.Node
 
 enum InputNode {
-  case BooleanCase(value: Boolean_)
-  case ListCase(value: List_)
-  case NullCase(value: Null_)
-  case NumberCase(value: Number)
-  case StringCase(value: String_)
-  case StructCase(value: Struct)
+  private case BooleanCase(value: Boolean_)
+  private case ListCase(value: List_)
+  private case NullCase(value: Null_)
+  private case NumberCase(value: Number)
+  private case StringCase(value: String_)
+  private case StructCase(value: Struct)
 
-  def asBoolean: Boolean_ = this match { case BooleanCase(v) => v }
-  def asList: List_ = this match { case ListCase(v) => v }
-  def asNull: Null_ = this match { case NullCase(v) => v }
-  def asNumber: Number = this match { case NumberCase(v) => v }
-  def asString: String_ = this match { case StringCase(v) => v }
-  def asStruct: Struct = this match { case StructCase(v) => v }
+  def asBoolean: Option[Boolean_] = this match { case BooleanCase(v) => Some(v); case _ => None }
+  def asList: Option[List_] = this match { case ListCase(v) => Some(v); case _ => None }
+  def asNull: Option[Null_] = this match { case NullCase(v) => Some(v); case _ => None }
+  def asNumber: Option[Number] = this match { case NumberCase(v) => Some(v); case _ => None }
+  def asString: Option[String_] = this match { case StringCase(v) => Some(v); case _ => None }
+  def asStruct: Option[Struct] = this match { case StructCase(v) => Some(v); case _ => None }
 
   def node: Node = this match {
     case BooleanCase(value) => value.node

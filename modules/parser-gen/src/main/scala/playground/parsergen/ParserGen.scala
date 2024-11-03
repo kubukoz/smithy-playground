@@ -51,15 +51,12 @@ def renderAdt(tpe: NodeType) = {
   val name = tpe.tpe.render
 
   val enumCases = tpe.subtypes.map { nodeType =>
-    show"""case ${nodeType.tpe.asEnumCase.render}(value: ${nodeType.tpe.render})"""
+    show"""private case ${nodeType.tpe.asEnumCase.render}(value: ${nodeType.tpe.render})"""
   }
 
   val projections = tpe.subtypes.map { nodeType =>
-    // UNSAFE: inexhaustive match
     // format: off
-    show"""def ${nodeType.tpe.renderProjection}: ${nodeType
-        .tpe
-        .render} = this match { case ${nodeType.tpe.asEnumCase.render}(v) => v }"""
+    show"""def ${nodeType.tpe.renderProjection}: Option[${nodeType.tpe.render}] = this match { case ${nodeType.tpe.asEnumCase.render}(v) => Some(v); case _ => None }"""
     // format: on
   }
 

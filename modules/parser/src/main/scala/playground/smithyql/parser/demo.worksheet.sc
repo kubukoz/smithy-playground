@@ -34,4 +34,4 @@ val bind =
 
 bind.key.source
 
-bind.value.asNumber.source
+bind.value.asNumber.get.source
