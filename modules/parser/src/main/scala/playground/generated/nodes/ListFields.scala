@@ -3,16 +3,16 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class List_fields /* private */(node: Node) extends Node {
+case class ListFields /* private */(node: Node) extends Node {
 
-  def typedChildren: List[_Input_node] = node.children.toList.collect {
-    case node @ _Input_node() => _Input_node(node)
+  def typedChildren: List[InputNode] = node.children.toList.collect {
+    case node @ InputNode() => InputNode(node)
   }
 
   export node.*
 }
 
-object List_fields {
+object ListFields {
   def unapply(node: Node): Boolean = node.tpe == "list_fields"
 }
 

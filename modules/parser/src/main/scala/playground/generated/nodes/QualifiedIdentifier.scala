@@ -3,7 +3,7 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class Qualified_identifier /* private */(node: Node) extends Node {
+case class QualifiedIdentifier /* private */(node: Node) extends Node {
   def head: Identifier = node.fields("head").head match {
     case node @ Identifier() => Identifier(node)
   }
@@ -20,7 +20,7 @@ case class Qualified_identifier /* private */(node: Node) extends Node {
   export node.*
 }
 
-object Qualified_identifier {
+object QualifiedIdentifier {
   def unapply(node: Node): Boolean = node.tpe == "qualified_identifier"
 }
 

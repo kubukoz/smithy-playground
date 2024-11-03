@@ -3,7 +3,7 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-enum _Input_node {
+enum InputNode {
   case BooleanCase(value: Boolean_)
   case ListCase(value: List_)
   case NullCase(value: Null_)
@@ -21,8 +21,8 @@ enum _Input_node {
   }
 }
 
-object _Input_node {
-  def apply(node: Node): _Input_node = node match {
+object InputNode {
+  def apply(node: Node): InputNode = node match {
     case node @ Boolean_() => BooleanCase(Boolean_(node))
     case node @ List_() => ListCase(List_(node))
     case node @ Null_() => NullCase(Null_(node))

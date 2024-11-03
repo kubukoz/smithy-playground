@@ -27,7 +27,7 @@ def debugDump(s: String): String =
 
 extension (tn: TypeName) {
   @targetName("renderTypeName")
-  def render: String = tn.value.smartCapitalize.ident
+  def render: String = tn.value.dropWhile(_ == '_').fromSnakeCase.ident
   def asEnumCase: TypeName = TypeName(tn.value + "Case")
 }
 
@@ -249,10 +249,7 @@ extension (s: String) {
       scala.meta.Name(s).printSyntaxFor(scala.meta.dialects.Scala3)
   }
 
-  def smartCapitalize: String = {
-    val (before, after) = s.span(!_.isLetter)
-    before + after.capitalize
-  }
+  def fromSnakeCase: String = s.split('_').map(_.capitalize).mkString
 
 }
 

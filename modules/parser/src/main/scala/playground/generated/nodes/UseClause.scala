@@ -3,9 +3,9 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class Use_clause /* private */(node: Node) extends Node {
-  def identifier: Qualified_identifier = node.fields("identifier").head match {
-    case node @ Qualified_identifier() => Qualified_identifier(node)
+case class UseClause /* private */(node: Node) extends Node {
+  def identifier: QualifiedIdentifier = node.fields("identifier").head match {
+    case node @ QualifiedIdentifier() => QualifiedIdentifier(node)
   }
   def typedChildren: List[Whitespace] = node.children.toList.collect {
     case node @ Whitespace() => Whitespace(node)
@@ -14,7 +14,7 @@ case class Use_clause /* private */(node: Node) extends Node {
   export node.*
 }
 
-object Use_clause {
+object UseClause {
   def unapply(node: Node): Boolean = node.tpe == "use_clause"
 }
 

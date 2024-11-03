@@ -3,7 +3,7 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class Let_binding /* private */(node: Node) extends Node {
+case class LetBinding /* private */(node: Node) extends Node {
 
   def typedChildren: List[Binding | Whitespace] = node.children.toList.collect {
     case node @ Binding() => Binding(node)
@@ -13,7 +13,7 @@ case class Let_binding /* private */(node: Node) extends Node {
   export node.*
 }
 
-object Let_binding {
+object LetBinding {
   def unapply(node: Node): Boolean = node.tpe == "let_binding"
 }
 

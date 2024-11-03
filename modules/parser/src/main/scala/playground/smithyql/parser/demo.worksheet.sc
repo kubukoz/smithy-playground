@@ -13,17 +13,17 @@ val p = TreeSitterAPI.make("smithyql")
 
 val tree = p.parse(s)
 
-Source_file(tree.rootNode.get).use_clause.identifier.head.node.source
-//
-Source_file(tree.rootNode.get).use_clause.identifier.selection.node.source
+SourceFile(tree.rootNode.get).use_clause.identifier.head.node.source
 
-Source_file(tree.rootNode.get)
+SourceFile(tree.rootNode.get).use_clause.identifier.selection.node.source
+
+SourceFile(tree.rootNode.get)
   .use_clause
   .identifier
   .tail
 
 val bind =
-  Operation_call(Source_file(tree.rootNode.get).statements.children.head)
+  OperationCall(SourceFile(tree.rootNode.get).statements.children.head)
     .input
     .bindings
     .children
@@ -34,5 +34,5 @@ val bind =
 bind.key.source
 
 bind.value match {
-  case _Input_node.NumberCase(value) => value.source
+  case InputNode.NumberCase(value) => value.source
 }

@@ -8,8 +8,8 @@ case class Binding /* private */(node: Node) extends Node {
     case node @ Identifier() => Identifier(node)
   }
 
-  def value: _Input_node = node.fields("value").head match {
-    case node @ _Input_node() => _Input_node(node)
+  def value: InputNode = node.fields("value").head match {
+    case node @ InputNode() => InputNode(node)
   }
 
 

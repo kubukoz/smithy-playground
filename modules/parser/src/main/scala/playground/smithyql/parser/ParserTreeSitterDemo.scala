@@ -15,7 +15,7 @@ object ParserTreeSitterDemo extends App {
   }
 
   val bind =
-    Operation_call(Source_file(tree.rootNode.get).statements.children.head)
+    OperationCall(SourceFile(tree.rootNode.get).statements.children.head)
       .input
       .bindings
       .children
