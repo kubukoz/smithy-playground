@@ -175,11 +175,9 @@ def renderClass(tpe: NodeType) = {
         |import ${classOf[Node].getName()}
         |
         |case class $name /* private */(node: Node) extends Node {
-
-        |${fieldGetters
-         .mkString_("\n")
-         .indentTrim(2)}
-        |${typedChildren.foldMap(s => (s + "\n").indentTrim(2)): String}
+        |${fieldGetters.mkString_("\n\n").indentTrim(2)}
+        |${typedChildren.foldMap(_.indentTrim(2)): String}
+        |
         |  export node.*
         |}
         |

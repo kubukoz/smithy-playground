@@ -5,11 +5,11 @@ import org.polyvariant.treesitter4s.Node
 
 case class Let_binding /* private */(node: Node) extends Node {
 
-
   def typedChildren: List[Binding | Whitespace] = node.children.toList.collect {
     case node @ Binding() => Binding(node)
     case node @ Whitespace() => Whitespace(node)
   }
+
   export node.*
 }
 
