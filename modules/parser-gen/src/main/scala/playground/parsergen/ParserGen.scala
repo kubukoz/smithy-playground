@@ -139,6 +139,36 @@ def renderClass(tpe: NodeType) = {
       show"""def ${k.render}: ${fieldTypeAnnotation} = $fieldValue"""
     }
 
+  val typedChildren = tpe.children.map { fieldType =>
+    val typeUnion = fieldType
+      .types
+      .map(tpe => show"${tpe.tpe.render}")
+      .reduceLeftOption(_ + " | " + _)
+      .getOrElse(sys.error(s"unexpected empty list of types in children: (in ${tpe.tpe})"))
+
+    val fieldTypeAnnotation = typeUnion.pipe {
+      case s if fieldType.multiple => show"List[$s]"
+      case s                       => s
+    }
+
+    val allChildren = show"""node.children"""
+
+    val cases = fieldType.types.map { typeInfo =>
+      show"""case node @ ${typeInfo.tpe.render}() => ${typeInfo.tpe.render}(node)"""
+    }
+
+    val fieldValue =
+      if fieldType.multiple then show"""$allChildren.toList.collect {
+                                       |${cases.mkString("\n").indentTrim(2)}
+                                       |}""".stripMargin
+      else
+        show"""$allChildren.head match {
+              |${cases.mkString("\n").indentTrim(2)}
+              |}""".stripMargin
+
+    show"""def typedChildren: ${fieldTypeAnnotation} = $fieldValue"""
+  }
+
   show"""// Generated code! Do not modify by hand.
         |package playground.generated.nodes
         |
@@ -149,7 +179,7 @@ def renderClass(tpe: NodeType) = {
         |${fieldGetters
          .mkString_("\n")
          .indentTrim(2)}
-        |
+        |${typedChildren.foldMap(s => (s + "\n").indentTrim(2)): String}
         |  export node.*
         |}
         |

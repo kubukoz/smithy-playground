@@ -6,7 +6,7 @@ val s =
   """
     use service foo.bar.baz.bax#Baz
 
-    Bax { x = 42 , y = 50}
+    Bax { a = , x = 44 , y = 50}
     """.stripMargin
 
 val p = TreeSitterAPI.make("smithyql")
@@ -28,7 +28,8 @@ val bind =
     .bindings
     .children
     .collect { case b @ Binding() => Binding(b) }
-    .head
+    .find(_.key.source == "x")
+    .get
 
 bind.key.source
 
