@@ -28,6 +28,7 @@ def debugDump(s: String): String =
 extension (tn: TypeName) {
   @targetName("renderTypeName")
   def render: String = tn.value.dropWhile(_ == '_').fromSnakeCase.ident
+  def renderProjection: String = show"as${tn.value.dropWhile(_ == '_').fromSnakeCase}".ident
   def asEnumCase: TypeName = TypeName(tn.value + "Case")
   def asChildName: FieldName = FieldName(tn.value)
 }
@@ -53,6 +54,14 @@ def renderAdt(tpe: NodeType) = {
     show"""case ${nodeType.tpe.asEnumCase.render}(value: ${nodeType.tpe.render})"""
   }
 
+  val projections = tpe.subtypes.map { nodeType =>
+    // format: off
+    show"""def ${nodeType.tpe.renderProjection}: ${nodeType
+        .tpe
+        .render} = this match { case ${nodeType.tpe.asEnumCase.render}(v) => v; case _ => sys.error("no match") }"""
+    // format: on
+  }
+
   show"""// Generated code! Do not modify by hand.
         |package playground.generated.nodes
         |
@@ -60,6 +69,8 @@ def renderAdt(tpe: NodeType) = {
         |
         |enum $name {
         |${enumCases.mkString_("\n").indentTrim(2)}
+        |
+        |${projections.mkString_("\n").indentTrim(2)}
         |
         |  def node: Node = this match {
         |${tpe

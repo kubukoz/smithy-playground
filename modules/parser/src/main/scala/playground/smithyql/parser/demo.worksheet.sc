@@ -34,6 +34,4 @@ val bind =
 
 bind.key.source
 
-bind.value match {
-  case InputNode.NumberCase(value) => value.source
-}
+bind.value.asNumber.source

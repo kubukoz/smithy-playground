@@ -1,6 +1,5 @@
 package playground.smithyql
 
-import org.polyvariant.treesitter4s.Node
 import org.polyvariant.treesitter4s.TreeSitterAPI
 import playground.generated.nodes.*
 
@@ -24,7 +23,5 @@ object ParserTreeSitterDemo extends App {
       .find(_.key.source == "x")
       .get
 
-  bind.value match {
-    case InputNode.NumberCase(value) => println(value.source)
-  }
+  println(bind.value.asNumber.source)
 }
