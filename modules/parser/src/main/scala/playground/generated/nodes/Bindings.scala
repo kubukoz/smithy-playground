@@ -4,8 +4,14 @@ package playground.generated.nodes
 import org.polyvariant.treesitter4s.Node
 
 case class Bindings /* private */(node: Node) extends Node {
+  // fields
 
+  // typed children
   def typedChildren: List[Binding] = node.children.toList.collect {
+    case node @ Binding() => Binding(node)
+  }
+  // precise typed children
+  def binding: List[Binding] = node.children.toList.collect {
     case node @ Binding() => Binding(node)
   }
 

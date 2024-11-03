@@ -4,6 +4,7 @@ package playground.generated.nodes
 import org.polyvariant.treesitter4s.Node
 
 case class QualifiedIdentifier /* private */(node: Node) extends Node {
+  // fields
   def head: Identifier = node.fields("head").head match {
     case node @ Identifier() => Identifier(node)
   }
@@ -15,6 +16,9 @@ case class QualifiedIdentifier /* private */(node: Node) extends Node {
   def tail: List[Identifier] = node.fields("tail").toList.collect {
     case node @ Identifier() => Identifier(node)
   }
+  // typed children
+
+  // precise typed children
 
 
   export node.*

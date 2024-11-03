@@ -15,12 +15,16 @@ object ParserTreeSitterDemo extends App {
   }
 
   val bind =
-    OperationCall(SourceFile(tree.rootNode.get).statements.children.head)
+    SourceFile(tree.rootNode.get)
+      .statements
+      .operation_call
       .input
       .bindings
-      .children
-      .collect { case b @ Binding() => Binding(b) }
-      .head
+      .binding
+      .find(_.key.source == "x")
+      .get
 
-  println(bind.key.source + ": " + bind.value.node.source)
+  bind.value match {
+    case InputNode.NumberCase(value) => println(value.source)
+  }
 }

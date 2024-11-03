@@ -29,6 +29,7 @@ extension (tn: TypeName) {
   @targetName("renderTypeName")
   def render: String = tn.value.dropWhile(_ == '_').fromSnakeCase.ident
   def asEnumCase: TypeName = TypeName(tn.value + "Case")
+  def asChildName: FieldName = FieldName(tn.value)
 }
 
 extension (fn: FieldName) {
@@ -169,14 +170,47 @@ def renderClass(tpe: NodeType) = {
     show"""def typedChildren: ${fieldTypeAnnotation} = $fieldValue"""
   }
 
+  val typedChildrenPrecise = tpe
+    .children
+    .toList
+    .flatMap { fieldInfo =>
+      fieldInfo.types.tupleLeft(fieldInfo.multiple)
+    }
+    .map { (multiple, fieldType) =>
+      val fieldTypeAnnotation = fieldType.tpe.render.pipe {
+        case s if multiple => show"List[$s]"
+        case s             => s
+      }
+
+      val childValue =
+        if multiple then show"""node.children.toList.collect {
+                               |  case node @ ${fieldType
+                                .tpe
+                                .render}() => ${fieldType.tpe.render}(node)
+                               |}""".stripMargin
+        else
+          show"""node.children.collectFirst {
+                |  case node @ ${fieldType.tpe.render}() => ${fieldType.tpe.render}(node)
+                |}.get""".stripMargin
+
+      show"""def ${fieldType
+             .tpe
+             .asChildName
+             .render}: $fieldTypeAnnotation = $childValue""".stripMargin
+    }
+
   show"""// Generated code! Do not modify by hand.
         |package playground.generated.nodes
         |
         |import ${classOf[Node].getName()}
         |
         |case class $name /* private */(node: Node) extends Node {
+        |  // fields
         |${fieldGetters.mkString_("\n\n").indentTrim(2)}
+        |  // typed children
         |${typedChildren.foldMap(_.indentTrim(2)): String}
+        |  // precise typed children
+        |${typedChildrenPrecise.mkString_("\n\n").indentTrim(2)}
         |
         |  export node.*
         |}
