@@ -127,8 +127,9 @@ def renderClass(tpe: NodeType) = {
         .getOrElse(sys.error(s"unexpected empty list of types: $k (in ${tpe.tpe})"))
 
       val fieldTypeAnnotation = typeUnion.pipe {
-        case s if fieldType.multiple => show"List[$s]"
-        case s                       => s
+        case s if fieldType.multiple  => show"List[$s]"
+        case s if !fieldType.required => show"Option[$s]"
+        case s                        => s
       }
 
       val allFields = show"""node.fields(${k.value.literal})"""
@@ -140,6 +141,9 @@ def renderClass(tpe: NodeType) = {
         if fieldType.multiple then show"""$allFields.toList.collect {
                                          |${cases.mkString("\n").indentTrim(2)}
                                          |}""".stripMargin
+        else if !fieldType.required then show"""$allFields.headOption.map {
+                                               |${cases.mkString("\n").indentTrim(2)}
+                                               |}""".stripMargin
         else
           // UNSAFE: head
           show"""$allFields.head match {
@@ -157,8 +161,9 @@ def renderClass(tpe: NodeType) = {
       .getOrElse(sys.error(s"unexpected empty list of types in children: (in ${tpe.tpe})"))
 
     val fieldTypeAnnotation = typeUnion.pipe {
-      case s if fieldType.multiple => show"List[$s]"
-      case s                       => s
+      case s if fieldType.multiple  => show"List[$s]"
+      case s if !fieldType.required => show"Option[$s]"
+      case s                        => s
     }
 
     val allChildren = show"""node.children"""
@@ -171,6 +176,9 @@ def renderClass(tpe: NodeType) = {
       if fieldType.multiple then show"""$allChildren.toList.collect {
                                        |${cases.mkString("\n").indentTrim(2)}
                                        |}""".stripMargin
+      else if !fieldType.required then show"""$allChildren.collectFirst {
+                                             |${cases.mkString("\n").indentTrim(2)}
+                                             |}""".stripMargin
       else
         // UNSAFE: head
         show"""$allChildren.head match {
@@ -184,9 +192,9 @@ def renderClass(tpe: NodeType) = {
     .children
     .toList
     .flatMap { fieldInfo =>
-      fieldInfo.types.tupleLeft(fieldInfo.multiple)
+      fieldInfo.types.map((fieldInfo.multiple, fieldInfo.required, _))
     }
-    .map { (multiple, fieldType) =>
+    .map { (multiple, required, fieldType) =>
       val fieldTypeAnnotation = fieldType.tpe.render.pipe {
         case s if multiple => show"List[$s]"
         case s             => s
@@ -198,6 +206,11 @@ def renderClass(tpe: NodeType) = {
                                 .tpe
                                 .render}() => ${fieldType.tpe.render}(node)
                                |}""".stripMargin
+        else if !required then show"""node.children.collectFirst {
+                                     |  case node @ ${fieldType
+                                      .tpe
+                                      .render}() => ${fieldType.tpe.render}(node)
+                                     |}""".stripMargin
         else
           // UNSAFE: get
           show"""node.children.collectFirst {

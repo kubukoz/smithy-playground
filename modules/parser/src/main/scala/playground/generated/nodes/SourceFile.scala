@@ -9,7 +9,7 @@ case class SourceFile /* private */(node: Node) extends Node {
     case node @ TopLevelStatement() => TopLevelStatement(node)
   }
 
-  def use_clause: UseClause = node.fields("use_clause").head match {
+  def use_clause: Option[UseClause] = node.fields("use_clause").headOption.map {
     case node @ UseClause() => UseClause(node)
   }
   // typed children

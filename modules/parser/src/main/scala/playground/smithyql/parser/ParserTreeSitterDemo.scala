@@ -13,15 +13,15 @@ object ParserTreeSitterDemo extends App {
     """.stripMargin
   }
 
-  val bind =
-    SourceFile(tree.rootNode.get)
-      .statements
-      .operation_call
-      .input
-      .bindings
-      .binding
-      .find(_.key.source == "x")
-      .get
+  val bind = SourceFile(tree.rootNode.get)
+    .statements
+    .operation_call
+    .input
+    .bindings
+    .getOrElse(sys.error("no bindings in bindings section of struct"))
+    .binding
+    .find(_.key.source == "x")
+    .getOrElse(sys.error("no binding with key 'x'"))
 
-  println(bind.value.asNumber.get.source)
+  println(bind.value.asNumber.getOrElse(sys.error("binding wasn't a number literal")).source)
 }

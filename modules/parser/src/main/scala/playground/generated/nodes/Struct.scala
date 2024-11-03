@@ -5,7 +5,7 @@ import org.polyvariant.treesitter4s.Node
 
 case class Struct /* private */(node: Node) extends Node {
   // fields
-  def bindings: Bindings = node.fields("bindings").head match {
+  def bindings: Option[Bindings] = node.fields("bindings").headOption.map {
     case node @ Bindings() => Bindings(node)
   }
   // typed children
