@@ -117,7 +117,7 @@ lazy val parser = module("parser")
       "io.circe" %% "circe-generic" % "0.14.10" % Test,
       "io.circe" %% "circe-parser" % "0.14.10" % Test,
       "co.fs2" %% "fs2-io" % "3.11.0" % Test,
-      "org.polyvariant.treesitter4s" %% "core" % "0.3-9edd0ef-SNAPSHOT",
+      "org.polyvariant.treesitter4s" %% "core" % "0.3-f46864f-SNAPSHOT",
     )
   )
   .dependsOn(
@@ -131,7 +131,7 @@ lazy val parsergen = module("parser-gen")
       "dev.optics" %% "monocle-core" % "3.3.0",
       "com.disneystreaming.smithy4s" %% "smithy4s-json" % smithy4sVersion.value,
       ("org.scalameta" %% "scalameta" % "4.11.0").cross(CrossVersion.for3Use2_13),
-      "org.polyvariant.treesitter4s" %% "core" % "0.3-9edd0ef-SNAPSHOT",
+      "org.polyvariant.treesitter4s" %% "core" % "0.3-f46864f-SNAPSHOT",
     ),
     scalacOptions -= "-release:11",
   )
