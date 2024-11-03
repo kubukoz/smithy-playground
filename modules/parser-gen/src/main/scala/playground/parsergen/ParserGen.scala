@@ -55,10 +55,11 @@ def renderAdt(tpe: NodeType) = {
   }
 
   val projections = tpe.subtypes.map { nodeType =>
+    // UNSAFE: inexhaustive match
     // format: off
     show"""def ${nodeType.tpe.renderProjection}: ${nodeType
         .tpe
-        .render} = this match { case ${nodeType.tpe.asEnumCase.render}(v) => v; case _ => sys.error("no match") }"""
+        .render} = this match { case ${nodeType.tpe.asEnumCase.render}(v) => v }"""
     // format: on
   }
 
@@ -143,7 +144,7 @@ def renderClass(tpe: NodeType) = {
                                          |${cases.mkString("\n").indentTrim(2)}
                                          |}""".stripMargin
         else
-          // todo replace head with a stricter "only" check?
+          // UNSAFE: head
           show"""$allFields.head match {
                 |${cases.mkString("\n").indentTrim(2)}
                 |}""".stripMargin
@@ -174,6 +175,7 @@ def renderClass(tpe: NodeType) = {
                                        |${cases.mkString("\n").indentTrim(2)}
                                        |}""".stripMargin
       else
+        // UNSAFE: head
         show"""$allChildren.head match {
               |${cases.mkString("\n").indentTrim(2)}
               |}""".stripMargin
@@ -200,6 +202,7 @@ def renderClass(tpe: NodeType) = {
                                 .render}() => ${fieldType.tpe.render}(node)
                                |}""".stripMargin
         else
+          // UNSAFE: get
           show"""node.children.collectFirst {
                 |  case node @ ${fieldType.tpe.render}() => ${fieldType.tpe.render}(node)
                 |}.get""".stripMargin

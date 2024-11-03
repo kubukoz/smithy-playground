@@ -11,12 +11,12 @@ enum InputNode {
   case StringCase(value: String_)
   case StructCase(value: Struct)
 
-  def asBoolean: Boolean_ = this match { case BooleanCase(v) => v; case _ => sys.error("no match") }
-  def asList: List_ = this match { case ListCase(v) => v; case _ => sys.error("no match") }
-  def asNull: Null_ = this match { case NullCase(v) => v; case _ => sys.error("no match") }
-  def asNumber: Number = this match { case NumberCase(v) => v; case _ => sys.error("no match") }
-  def asString: String_ = this match { case StringCase(v) => v; case _ => sys.error("no match") }
-  def asStruct: Struct = this match { case StructCase(v) => v; case _ => sys.error("no match") }
+  def asBoolean: Boolean_ = this match { case BooleanCase(v) => v }
+  def asList: List_ = this match { case ListCase(v) => v }
+  def asNull: Null_ = this match { case NullCase(v) => v }
+  def asNumber: Number = this match { case NumberCase(v) => v }
+  def asString: String_ = this match { case StringCase(v) => v }
+  def asStruct: Struct = this match { case StructCase(v) => v }
 
   def node: Node = this match {
     case BooleanCase(value) => value.node
