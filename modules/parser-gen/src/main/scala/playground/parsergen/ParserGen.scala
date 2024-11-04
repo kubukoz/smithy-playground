@@ -82,31 +82,21 @@ def renderAdt(tpe: NodeType) = {
         |}
         |
         |object $name {
-        |  def apply(node: Node): $name = node match {
+        |  def apply(node: Node): Either[String, $name] = node match {
         |${tpe
          .subtypes
          .map { nodeType =>
-           show"""case node @ ${nodeType
+           show"""case ${nodeType
                .tpe
-               .render}() => ${nodeType.tpe.asEnumCase.render}(${nodeType.tpe.render}(node))"""
+               .render}(node) => Right(${nodeType.tpe.asEnumCase.render}(node))"""
          }
          .mkString_("\n")
          .indentTrim(4)}
+        |    case _ => Left(s"Expected $name, got $${node.tpe}")
         |  }
         |
-        |  def unapply(node: Node): Boolean = node match {
-        |${tpe
-         .subtypes
-         .map { nodeType =>
-           show"""case node @ ${nodeType
-               .tpe
-               .render}() => true"""
-         }
-         .mkString_("\n")
-         .indentTrim(4)}
-        |  }
+        |  def unapply(node: Node): Option[$name] = apply(node).toOption
         |}
-        |
         |/*
         |${debugDump(Json.writeDocumentAsPrettyString(Document.encode(tpe)).trimLines)}
         |*/
@@ -134,7 +124,7 @@ def renderClass(tpe: NodeType) = {
       val allFields = show"""node.fields.getOrElse(${k.value.literal}, Nil)"""
 
       val cases = fieldType.types.map { typeInfo =>
-        show"""case node @ ${typeInfo.tpe.render}() => ${typeInfo.tpe.render}(node)"""
+        show"""case ${typeInfo.tpe.render}(node) => node"""
       }
       val fieldValue =
         if fieldType.multiple then show"""$allFields.toList.collect {
@@ -163,7 +153,7 @@ def renderClass(tpe: NodeType) = {
     val allChildren = show"""node.children"""
 
     val cases = fieldType.types.map { typeInfo =>
-      show"""case node @ ${typeInfo.tpe.render}() => ${typeInfo.tpe.render}(node)"""
+      show"""case ${typeInfo.tpe.render}(node) => node"""
     }
 
     val fieldValue =
@@ -192,13 +182,13 @@ def renderClass(tpe: NodeType) = {
 
       val childValue =
         if multiple then show"""node.children.toList.collect {
-                               |  case node @ ${fieldType
+                               |  case ${fieldType
                                 .tpe
-                                .render}() => ${fieldType.tpe.render}(node)
+                                .render}(node) => node
                                |}""".stripMargin
         else
           show"""node.children.collectFirst {
-                |  case node @ ${fieldType.tpe.render}() => ${fieldType.tpe.render}(node)
+                |  case ${fieldType.tpe.render}(node) => node
                 |}""".stripMargin
 
       show"""def ${fieldType
@@ -214,7 +204,7 @@ def renderClass(tpe: NodeType) = {
         |
         |import ${classOf[Node].getName()}
         |
-        |case class $name /* private */(node: Node) extends Node {
+        |final case class $name /* private */(node: Node) extends Node {
         |  // fields
         |${fieldGetters.mkString_("\n\n").indentTrim(2)}
         |  // typed children
@@ -226,7 +216,12 @@ def renderClass(tpe: NodeType) = {
         |}
         |
         |object $name {
-        |  def unapply(node: Node): Boolean = node.tpe == ${tpe.tpe.value.literal}
+        |  def apply(node: Node): Either[String, $name] =
+        |    if node.tpe == ${tpe.tpe.value.literal}
+        |    then Right(new $name(node))
+        |    else Left(s"Expected ${tpe.tpe.render}, got $${node.tpe}")
+        |  def unsafeApply(node: Node): $name = apply(node).fold(sys.error, identity)
+        |  def unapply(node: Node): Option[$name] = apply(node).toOption
         |}
         |
         |/*

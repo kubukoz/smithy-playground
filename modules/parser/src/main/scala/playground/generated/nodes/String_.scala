@@ -3,7 +3,7 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class String_ /* private */(node: Node) extends Node {
+final case class String_ /* private */(node: Node) extends Node {
   // fields
 
   // typed children
@@ -15,7 +15,12 @@ case class String_ /* private */(node: Node) extends Node {
 }
 
 object String_ {
-  def unapply(node: Node): Boolean = node.tpe == "string"
+  def apply(node: Node): Either[String, String_] =
+    if node.tpe == "string"
+    then Right(new String_(node))
+    else Left(s"Expected String_, got ${node.tpe}")
+  def unsafeApply(node: Node): String_ = apply(node).fold(sys.error, identity)
+  def unapply(node: Node): Option[String_] = apply(node).toOption
 }
 
 /*

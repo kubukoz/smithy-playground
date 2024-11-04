@@ -3,23 +3,28 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class Bindings /* private */(node: Node) extends Node {
+final case class Bindings /* private */(node: Node) extends Node {
   // fields
 
   // typed children
   def typedChildren: List[Binding] = node.children.toList.collect {
-    case node @ Binding() => Binding(node)
+    case Binding(node) => node
   }
   // precise typed children
   def binding: List[Binding] = node.children.toList.collect {
-    case node @ Binding() => Binding(node)
+    case Binding(node) => node
   }
 
   export node.*
 }
 
 object Bindings {
-  def unapply(node: Node): Boolean = node.tpe == "bindings"
+  def apply(node: Node): Either[String, Bindings] =
+    if node.tpe == "bindings"
+    then Right(new Bindings(node))
+    else Left(s"Expected Bindings, got ${node.tpe}")
+  def unsafeApply(node: Node): Bindings = apply(node).fold(sys.error, identity)
+  def unapply(node: Node): Option[Bindings] = apply(node).toOption
 }
 
 /*

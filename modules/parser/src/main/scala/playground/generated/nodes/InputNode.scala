@@ -29,25 +29,18 @@ enum InputNode {
 }
 
 object InputNode {
-  def apply(node: Node): InputNode = node match {
-    case node @ Boolean_() => BooleanCase(Boolean_(node))
-    case node @ List_() => ListCase(List_(node))
-    case node @ Null_() => NullCase(Null_(node))
-    case node @ Number() => NumberCase(Number(node))
-    case node @ String_() => StringCase(String_(node))
-    case node @ Struct() => StructCase(Struct(node))
+  def apply(node: Node): Either[String, InputNode] = node match {
+    case Boolean_(node) => Right(BooleanCase(node))
+    case List_(node) => Right(ListCase(node))
+    case Null_(node) => Right(NullCase(node))
+    case Number(node) => Right(NumberCase(node))
+    case String_(node) => Right(StringCase(node))
+    case Struct(node) => Right(StructCase(node))
+    case _ => Left(s"Expected InputNode, got ${node.tpe}")
   }
 
-  def unapply(node: Node): Boolean = node match {
-    case node @ Boolean_() => true
-    case node @ List_() => true
-    case node @ Null_() => true
-    case node @ Number() => true
-    case node @ String_() => true
-    case node @ Struct() => true
-  }
+  def unapply(node: Node): Option[InputNode] = apply(node).toOption
 }
-
 /*
 
 */

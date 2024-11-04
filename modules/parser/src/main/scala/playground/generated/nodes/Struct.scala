@@ -3,10 +3,10 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class Struct /* private */(node: Node) extends Node {
+final case class Struct /* private */(node: Node) extends Node {
   // fields
   def bindings: Option[Bindings] = node.fields.getOrElse("bindings", Nil).headOption.map {
-    case node @ Bindings() => Bindings(node)
+    case Bindings(node) => node
   }
   // typed children
 
@@ -17,7 +17,12 @@ case class Struct /* private */(node: Node) extends Node {
 }
 
 object Struct {
-  def unapply(node: Node): Boolean = node.tpe == "struct"
+  def apply(node: Node): Either[String, Struct] =
+    if node.tpe == "struct"
+    then Right(new Struct(node))
+    else Left(s"Expected Struct, got ${node.tpe}")
+  def unsafeApply(node: Node): Struct = apply(node).fold(sys.error, identity)
+  def unapply(node: Node): Option[Struct] = apply(node).toOption
 }
 
 /*

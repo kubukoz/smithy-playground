@@ -3,14 +3,14 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class OperationCall /* private */(node: Node) extends Node {
+final case class OperationCall /* private */(node: Node) extends Node {
   // fields
   def input: Option[Struct] = node.fields.getOrElse("input", Nil).headOption.map {
-    case node @ Struct() => Struct(node)
+    case Struct(node) => node
   }
 
   def operation_name: Option[OperationName] = node.fields.getOrElse("operation_name", Nil).headOption.map {
-    case node @ OperationName() => OperationName(node)
+    case OperationName(node) => node
   }
   // typed children
 
@@ -21,7 +21,12 @@ case class OperationCall /* private */(node: Node) extends Node {
 }
 
 object OperationCall {
-  def unapply(node: Node): Boolean = node.tpe == "operation_call"
+  def apply(node: Node): Either[String, OperationCall] =
+    if node.tpe == "operation_call"
+    then Right(new OperationCall(node))
+    else Left(s"Expected OperationCall, got ${node.tpe}")
+  def unsafeApply(node: Node): OperationCall = apply(node).fold(sys.error, identity)
+  def unapply(node: Node): Option[OperationCall] = apply(node).toOption
 }
 
 /*

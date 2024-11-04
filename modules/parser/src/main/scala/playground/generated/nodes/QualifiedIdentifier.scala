@@ -3,18 +3,18 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class QualifiedIdentifier /* private */(node: Node) extends Node {
+final case class QualifiedIdentifier /* private */(node: Node) extends Node {
   // fields
   def head: Option[Identifier] = node.fields.getOrElse("head", Nil).headOption.map {
-    case node @ Identifier() => Identifier(node)
+    case Identifier(node) => node
   }
 
   def selection: Option[Identifier] = node.fields.getOrElse("selection", Nil).headOption.map {
-    case node @ Identifier() => Identifier(node)
+    case Identifier(node) => node
   }
 
   def tail: List[Identifier] = node.fields.getOrElse("tail", Nil).toList.collect {
-    case node @ Identifier() => Identifier(node)
+    case Identifier(node) => node
   }
   // typed children
 
@@ -25,7 +25,12 @@ case class QualifiedIdentifier /* private */(node: Node) extends Node {
 }
 
 object QualifiedIdentifier {
-  def unapply(node: Node): Boolean = node.tpe == "qualified_identifier"
+  def apply(node: Node): Either[String, QualifiedIdentifier] =
+    if node.tpe == "qualified_identifier"
+    then Right(new QualifiedIdentifier(node))
+    else Left(s"Expected QualifiedIdentifier, got ${node.tpe}")
+  def unsafeApply(node: Node): QualifiedIdentifier = apply(node).fold(sys.error, identity)
+  def unapply(node: Node): Option[QualifiedIdentifier] = apply(node).toOption
 }
 
 /*

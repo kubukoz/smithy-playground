@@ -3,28 +3,33 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class LetBinding /* private */(node: Node) extends Node {
+final case class LetBinding /* private */(node: Node) extends Node {
   // fields
 
   // typed children
   def typedChildren: List[Binding | Whitespace] = node.children.toList.collect {
-    case node @ Binding() => Binding(node)
-    case node @ Whitespace() => Whitespace(node)
+    case Binding(node) => node
+    case Whitespace(node) => node
   }
   // precise typed children
   def binding: List[Binding] = node.children.toList.collect {
-    case node @ Binding() => Binding(node)
+    case Binding(node) => node
   }
 
   def whitespace: List[Whitespace] = node.children.toList.collect {
-    case node @ Whitespace() => Whitespace(node)
+    case Whitespace(node) => node
   }
 
   export node.*
 }
 
 object LetBinding {
-  def unapply(node: Node): Boolean = node.tpe == "let_binding"
+  def apply(node: Node): Either[String, LetBinding] =
+    if node.tpe == "let_binding"
+    then Right(new LetBinding(node))
+    else Left(s"Expected LetBinding, got ${node.tpe}")
+  def unsafeApply(node: Node): LetBinding = apply(node).fold(sys.error, identity)
+  def unapply(node: Node): Option[LetBinding] = apply(node).toOption
 }
 
 /*

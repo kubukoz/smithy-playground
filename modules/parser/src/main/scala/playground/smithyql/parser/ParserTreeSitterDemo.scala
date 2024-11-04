@@ -13,7 +13,8 @@ object ParserTreeSitterDemo extends App {
     """.stripMargin
   }
 
-  val bind = SourceFile(tree.rootNode.get)
+  val bind = SourceFile
+    .unsafeApply(tree.rootNode.get)
     .statements
     .getOrElse(sys.error("no statements section in source file"))
     .operation_call

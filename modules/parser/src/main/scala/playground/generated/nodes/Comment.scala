@@ -3,7 +3,7 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-case class Comment /* private */(node: Node) extends Node {
+final case class Comment /* private */(node: Node) extends Node {
   // fields
 
   // typed children
@@ -15,7 +15,12 @@ case class Comment /* private */(node: Node) extends Node {
 }
 
 object Comment {
-  def unapply(node: Node): Boolean = node.tpe == "comment"
+  def apply(node: Node): Either[String, Comment] =
+    if node.tpe == "comment"
+    then Right(new Comment(node))
+    else Left(s"Expected Comment, got ${node.tpe}")
+  def unsafeApply(node: Node): Comment = apply(node).fold(sys.error, identity)
+  def unapply(node: Node): Option[Comment] = apply(node).toOption
 }
 
 /*

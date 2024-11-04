@@ -11,27 +11,56 @@ Bax { a = , x = 44  y = 50, b = ,,42, xyz = { a = }}
 
 val p = TreeSitterAPI.make("smithyql")
 
-SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).tpe
-SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).statements
-SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).isError
-SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).hasError
-SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).children.map(_.tpe)
+// hmm
+// https://github.com/Jakobeha/type-sitter/blob/5d2cff2f2641d2af9a9a7ebdcd49b0311f19ad66/type-sitter-lib/src/node/incorrect_kind.rs#L10
+/// Underlying cause of why the node is the wrong kind
+// pub enum IncorrectKindCause {
+//     /// Node is an error node
+//     Error,
+//     /// Node is a missing node
+//     Missing,
+//     /// Node is valid but simply of a different kind (bad node-types.json? Different language?
+//     /// Broken user invariant?)
+//     OtherKind(&'static str),
+// }
+case class ErrorNode(node: Node) extends Node {
+  export node.*
+}
+
+val base = p.parse("Foo { true }").rootNode.get
+SourceFile
+  .unsafeApply(base)
+  .statements
+  .get
+  .operation_call
+  .get
+  .input
+  .get
+  .children
+  .find(_.isError)
+
+// SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).statements
+// SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).isError
+// SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).hasError
+// SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).children.map(_.tpe)
 
 val tree = p.parse(s)
 
 tree.rootNode.get.text
 
-SourceFile(tree.rootNode.get).use_clause.get.identifier.head.source
+SourceFile.unsafeApply(tree.rootNode.get).use_clause.get.identifier.head.source
 
-SourceFile(tree.rootNode.get).use_clause.get.identifier.get.selection.get.source
+SourceFile.unsafeApply(tree.rootNode.get).use_clause.get.identifier.get.selection.get.source
 
-SourceFile(tree.rootNode.get)
+SourceFile
+  .unsafeApply(tree.rootNode.get)
   .use_clause
   .get
   .identifier
   .tail
 
-SourceFile(tree.rootNode.get)
+SourceFile
+  .unsafeApply(tree.rootNode.get)
   .statements
   .get
   .operation_call
@@ -94,7 +123,8 @@ tree
   .toSet
 
 val bind =
-  SourceFile(tree.rootNode.get)
+  SourceFile
+    .unsafeApply(tree.rootNode.get)
     .statements
     .get
     .operation_call
