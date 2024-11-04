@@ -3,39 +3,26 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-enum InputNode {
-  private case BooleanCase(value: Boolean_)
-  private case ListCase(value: List_)
-  private case NullCase(value: Null_)
-  private case NumberCase(value: Number)
-  private case StringCase(value: String_)
-  private case StructCase(value: Struct)
-
-  def asBoolean: Option[Boolean_] = this match { case BooleanCase(v) => Some(v); case _ => None }
-  def asList: Option[List_] = this match { case ListCase(v) => Some(v); case _ => None }
-  def asNull: Option[Null_] = this match { case NullCase(v) => Some(v); case _ => None }
-  def asNumber: Option[Number] = this match { case NumberCase(v) => Some(v); case _ => None }
-  def asString: Option[String_] = this match { case StringCase(v) => Some(v); case _ => None }
-  def asStruct: Option[Struct] = this match { case StructCase(v) => Some(v); case _ => None }
-
-  def node: Node = this match {
-    case BooleanCase(value) => value.node
-    case ListCase(value) => value.node
-    case NullCase(value) => value.node
-    case NumberCase(value) => value.node
-    case StringCase(value) => value.node
-    case StructCase(value) => value.node
-  }
-}
+opaque type InputNode <: Node = Boolean_ | List_ | Null_ | Number | String_ | Struct
 
 object InputNode {
+
+  extension (node: InputNode) {
+    def asBoolean: Option[Boolean_] = Boolean_.unapply(node)
+    def asList: Option[List_] = List_.unapply(node)
+    def asNull: Option[Null_] = Null_.unapply(node)
+    def asNumber: Option[Number] = Number.unapply(node)
+    def asString: Option[String_] = String_.unapply(node)
+    def asStruct: Option[Struct] = Struct.unapply(node)
+  }
+
   def apply(node: Node): Either[String, InputNode] = node match {
-    case Boolean_(node) => Right(BooleanCase(node))
-    case List_(node) => Right(ListCase(node))
-    case Null_(node) => Right(NullCase(node))
-    case Number(node) => Right(NumberCase(node))
-    case String_(node) => Right(StringCase(node))
-    case Struct(node) => Right(StructCase(node))
+    case Boolean_(node) => Right(node)
+    case List_(node) => Right(node)
+    case Null_(node) => Right(node)
+    case Number(node) => Right(node)
+    case String_(node) => Right(node)
+    case Struct(node) => Right(node)
     case _ => Left(s"Expected InputNode, got ${node.tpe}")
   }
 

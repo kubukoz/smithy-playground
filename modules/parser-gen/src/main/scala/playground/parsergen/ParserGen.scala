@@ -29,7 +29,6 @@ extension (tn: TypeName) {
   @targetName("renderTypeName")
   def render: String = tn.value.dropWhile(_ == '_').fromSnakeCase.ident
   def renderProjection: String = show"as${tn.value.dropWhile(_ == '_').fromSnakeCase}".ident
-  def asEnumCase: TypeName = TypeName(tn.value + "Case")
   def asChildName: FieldName = FieldName(tn.value)
 }
 
@@ -50,13 +49,9 @@ extension (tpe: NodeType) {
 def renderAdt(tpe: NodeType) = {
   val name = tpe.tpe.render
 
-  val enumCases = tpe.subtypes.map { nodeType =>
-    show"""private case ${nodeType.tpe.asEnumCase.render}(value: ${nodeType.tpe.render})"""
-  }
-
   val projections = tpe.subtypes.map { nodeType =>
     // format: off
-    show"""def ${nodeType.tpe.renderProjection}: Option[${nodeType.tpe.render}] = this match { case ${nodeType.tpe.asEnumCase.render}(v) => Some(v); case _ => None }"""
+    show"""def ${nodeType.tpe.renderProjection}: Option[${nodeType.tpe.render}] = ${nodeType.tpe.render}.unapply(node)"""
     // format: on
   }
 
@@ -65,30 +60,21 @@ def renderAdt(tpe: NodeType) = {
         |
         |import ${classOf[Node].getName()}
         |
-        |enum $name {
-        |${enumCases.mkString_("\n").indentTrim(2)}
-        |
-        |${projections.mkString_("\n").indentTrim(2)}
-        |
-        |  def node: Node = this match {
-        |${tpe
-         .subtypes
-         .map { nodeType =>
-           show"""case ${nodeType.tpe.asEnumCase.render}(value) => value.node"""
-         }
-         .mkString_("\n")
-         .indentTrim(4)}
-        |  }
-        |}
+        |opaque type $name <: Node = ${tpe.subtypes.map(_.tpe.render).mkString(" | ")}
         |
         |object $name {
+        |
+        |  extension (node: $name) {
+        |${projections.mkString_("\n").indentTrim(4)}
+        |  }
+        |
         |  def apply(node: Node): Either[String, $name] = node match {
         |${tpe
          .subtypes
          .map { nodeType =>
            show"""case ${nodeType
                .tpe
-               .render}(node) => Right(${nodeType.tpe.asEnumCase.render}(node))"""
+               .render}(node) => Right(node)"""
          }
          .mkString_("\n")
          .indentTrim(4)}
@@ -197,28 +183,32 @@ def renderClass(tpe: NodeType) = {
              .render}: $fieldTypeAnnotation = $childValue""".stripMargin
     }
 
-  // todo: make unapply return option, and then
-  // todo: turn these into opaque types, these types have no identity beyond type anyway
+  val methods =
+    if (fieldGetters.nonEmpty || typedChildren.nonEmpty || typedChildrenPrecise.nonEmpty) {
+      show"""extension (node: $name) {
+            |  // fields
+            |${fieldGetters.mkString_("\n\n").indentTrim(2)}
+            |  // typed children
+            |${typedChildren.foldMap(_.indentTrim(2)): String}
+            |  // precise typed children
+            |${typedChildrenPrecise.mkString_("\n\n").indentTrim(2)}
+            |}""".stripMargin
+    } else
+      ""
+
   show"""// Generated code! Do not modify by hand.
         |package playground.generated.nodes
         |
         |import ${classOf[Node].getName()}
         |
-        |final case class $name /* private */(node: Node) extends Node {
-        |  // fields
-        |${fieldGetters.mkString_("\n\n").indentTrim(2)}
-        |  // typed children
-        |${typedChildren.foldMap(_.indentTrim(2)): String}
-        |  // precise typed children
-        |${typedChildrenPrecise.mkString_("\n\n").indentTrim(2)}
-        |
-        |  export node.*
-        |}
+        |opaque type $name <: Node = Node
         |
         |object $name {
+        |${methods.indentTrim(2)}
+        |
         |  def apply(node: Node): Either[String, $name] =
         |    if node.tpe == ${tpe.tpe.value.literal}
-        |    then Right(new $name(node))
+        |    then Right(node)
         |    else Left(s"Expected ${tpe.tpe.render}, got $${node.tpe}")
         |  def unsafeApply(node: Node): $name = apply(node).fold(sys.error, identity)
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
