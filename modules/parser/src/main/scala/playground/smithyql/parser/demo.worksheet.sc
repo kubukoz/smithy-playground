@@ -11,13 +11,19 @@ Bax { a = , x = 44  y = 50, b = ,,42, xyz = { a = }}
 
 val p = TreeSitterAPI.make("smithyql")
 
+SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).tpe
+SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).statements
+SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).isError
+SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).hasError
+SourceFile(p.parse("use service foo.bar.baz.bax#Baz").rootNode.get).children.map(_.tpe)
+
 val tree = p.parse(s)
 
 tree.rootNode.get.text
 
-SourceFile(tree.rootNode.get).use_clause.get.identifier.head.node.source
+SourceFile(tree.rootNode.get).use_clause.get.identifier.head.source
 
-SourceFile(tree.rootNode.get).use_clause.get.identifier.selection.node.source
+SourceFile(tree.rootNode.get).use_clause.get.identifier.get.selection.get.source
 
 SourceFile(tree.rootNode.get)
   .use_clause
@@ -27,8 +33,11 @@ SourceFile(tree.rootNode.get)
 
 SourceFile(tree.rootNode.get)
   .statements
+  .get
   .operation_call
+  .get
   .input
+  .get
   .children
   .filter(_.tpe == "ERROR")
   .head
@@ -87,8 +96,11 @@ tree
 val bind =
   SourceFile(tree.rootNode.get)
     .statements
+    .get
     .operation_call
+    .get
     .input
+    .get
     .bindings
     .get
     .binding
@@ -98,9 +110,9 @@ val bind =
 
 bind.size
 bind.head.fields
-bind.map(_.key.source)
+bind.map(_.key.get.source)
 
-bind.last.value.asStruct.get.bindings.get.binding.head.value.asBoolean.get.tpe
+bind.last.value.get.asStruct.get.bindings.get.binding.head.value.get.asBoolean.get.tpe
 // bind.key.source
 
 // bind.value.asNumber.get.source

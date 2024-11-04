@@ -5,7 +5,7 @@ import org.polyvariant.treesitter4s.Node
 
 case class List_ /* private */(node: Node) extends Node {
   // fields
-  def list_fields: Option[ListFields] = node.fields("list_fields").headOption.map {
+  def list_fields: Option[ListFields] = node.fields.getOrElse("list_fields", Nil).headOption.map {
     case node @ ListFields() => ListFields(node)
   }
   // typed children

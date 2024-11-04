@@ -5,11 +5,11 @@ import org.polyvariant.treesitter4s.Node
 
 case class OperationCall /* private */(node: Node) extends Node {
   // fields
-  def input: Struct = node.fields("input").head match {
+  def input: Option[Struct] = node.fields.getOrElse("input", Nil).headOption.map {
     case node @ Struct() => Struct(node)
   }
 
-  def operation_name: OperationName = node.fields("operation_name").head match {
+  def operation_name: Option[OperationName] = node.fields.getOrElse("operation_name", Nil).headOption.map {
     case node @ OperationName() => OperationName(node)
   }
   // typed children

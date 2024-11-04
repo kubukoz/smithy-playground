@@ -5,11 +5,11 @@ import org.polyvariant.treesitter4s.Node
 
 case class SourceFile /* private */(node: Node) extends Node {
   // fields
-  def statements: TopLevelStatement = node.fields("statements").head match {
+  def statements: Option[TopLevelStatement] = node.fields.getOrElse("statements", Nil).headOption.map {
     case node @ TopLevelStatement() => TopLevelStatement(node)
   }
 
-  def use_clause: Option[UseClause] = node.fields("use_clause").headOption.map {
+  def use_clause: Option[UseClause] = node.fields.getOrElse("use_clause", Nil).headOption.map {
     case node @ UseClause() => UseClause(node)
   }
   // typed children

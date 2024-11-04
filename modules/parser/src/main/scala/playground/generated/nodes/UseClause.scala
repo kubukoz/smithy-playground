@@ -5,7 +5,7 @@ import org.polyvariant.treesitter4s.Node
 
 case class UseClause /* private */(node: Node) extends Node {
   // fields
-  def identifier: QualifiedIdentifier = node.fields("identifier").head match {
+  def identifier: Option[QualifiedIdentifier] = node.fields.getOrElse("identifier", Nil).headOption.map {
     case node @ QualifiedIdentifier() => QualifiedIdentifier(node)
   }
   // typed children

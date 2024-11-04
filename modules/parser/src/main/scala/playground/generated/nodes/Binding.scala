@@ -5,11 +5,11 @@ import org.polyvariant.treesitter4s.Node
 
 case class Binding /* private */(node: Node) extends Node {
   // fields
-  def key: Identifier = node.fields("key").head match {
+  def key: Option[Identifier] = node.fields.getOrElse("key", Nil).headOption.map {
     case node @ Identifier() => Identifier(node)
   }
 
-  def value: InputNode = node.fields("value").head match {
+  def value: Option[InputNode] = node.fields.getOrElse("value", Nil).headOption.map {
     case node @ InputNode() => InputNode(node)
   }
   // typed children
