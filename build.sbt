@@ -143,6 +143,8 @@ lazy val examples = module("examples")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-kernel" % smithy4sVersion.value,
     ),
     publish := false,
+    // generated code
+    scalacOptions += "-Wconf:cat=deprecation:silent",
   )
   .enablePlugins(Smithy4sCodegenPlugin)
 
