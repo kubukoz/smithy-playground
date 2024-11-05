@@ -5,5 +5,8 @@
 **/.DS_Store
 .smithy.lsp.log
 .sbt
+**/node_modules
 smithyql-log.txt
+
+result
 .version

@@ -73,7 +73,7 @@ val commonSettings = Seq(
       Nil
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
-  scalacOptions ++= Seq("-release", "11"),
+  scalacOptions += "-release:11",
   mimaFailOnNoPrevious := false,
 )
 
@@ -143,6 +143,8 @@ lazy val examples = module("examples")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-kernel" % smithy4sVersion.value,
     ),
     publish := false,
+    // generated code
+    scalacOptions += "-Wconf:cat=deprecation:silent",
   )
   .enablePlugins(Smithy4sCodegenPlugin)
 
