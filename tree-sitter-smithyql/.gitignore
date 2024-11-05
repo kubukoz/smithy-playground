@@ -50,3 +50,5 @@ go.mod
 package.json
 pyproject.toml
 setup.py
+
+a.out.js
