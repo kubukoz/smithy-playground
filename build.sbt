@@ -73,7 +73,7 @@ val commonSettings = Seq(
       Nil
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
-  scalacOptions ++= Seq("-release", "11"),
+  scalacOptions += "-release:11",
   mimaFailOnNoPrevious := false,
 )
 
