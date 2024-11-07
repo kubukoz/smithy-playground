@@ -8,12 +8,12 @@ opaque type SourceFile <: Node = Node
 object SourceFile {
   extension (node: SourceFile) {
     // fields
-    def statements: Option[TopLevelStatement] = node.fields.getOrElse("statements", Nil).headOption.map {
-      case TopLevelStatement(node) => node
+    def prelude: Option[Prelude] = node.fields.getOrElse("prelude", Nil).headOption.map {
+      case Prelude(node) => node
     }
 
-    def use_clause: Option[UseClause] = node.fields.getOrElse("use_clause", Nil).headOption.map {
-      case UseClause(node) => node
+    def statements: List[TopLevelStatement] = node.fields.getOrElse("statements", Nil).toList.collect {
+      case TopLevelStatement(node) => node
     }
     // typed children
 

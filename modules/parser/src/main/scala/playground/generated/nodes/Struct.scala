@@ -8,8 +8,8 @@ opaque type Struct <: Node = Node
 object Struct {
   extension (node: Struct) {
     // fields
-    def bindings: Option[Bindings] = node.fields.getOrElse("bindings", Nil).headOption.map {
-      case Bindings(node) => node
+    def bindings: List[Binding] = node.fields.getOrElse("bindings", Nil).toList.collect {
+      case Binding(node) => node
     }
     // typed children
 

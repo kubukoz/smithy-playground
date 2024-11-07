@@ -8,15 +8,11 @@ opaque type QualifiedIdentifier <: Node = Node
 object QualifiedIdentifier {
   extension (node: QualifiedIdentifier) {
     // fields
-    def head: Option[Identifier] = node.fields.getOrElse("head", Nil).headOption.map {
+    def namespace: List[Identifier] = node.fields.getOrElse("namespace", Nil).toList.collect {
       case Identifier(node) => node
     }
 
     def selection: Option[Identifier] = node.fields.getOrElse("selection", Nil).headOption.map {
-      case Identifier(node) => node
-    }
-
-    def tail: List[Identifier] = node.fields.getOrElse("tail", Nil).toList.collect {
       case Identifier(node) => node
     }
     // typed children

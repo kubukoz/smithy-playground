@@ -13,17 +13,14 @@ module.exports = grammar({
   rules: {
     source_file: ($) =>
       seq(
-        field("use_clause", optional($.use_clause)),
-        field("statements", seq($.top_level_statement))
+        field("prelude", optional($.prelude)),
+        field("statements", repeat($.top_level_statement))
       ),
 
-    top_level_statement: ($) => choice($.let_binding, $.operation_call),
+    prelude: ($) => repeat1($.use_clause),
 
-    let_binding: ($) => seq("let", $.whitespace, $.binding, optional(",")),
-
-    operation_call: ($) =>
-      seq(field("operation_name", $.operation_name), field("input", $.struct)),
-
+    // todo: use token.immediate to prevent comments?
+    // or just allow comments everywhere?
     use_clause: ($) =>
       seq(
         "use",
@@ -33,10 +30,14 @@ module.exports = grammar({
         field("identifier", $.qualified_identifier)
       ),
 
+    top_level_statement: ($) => choice($.run_query),
+
+    run_query: ($) =>
+      seq(field("operation_name", $.operation_name), field("input", $.struct)),
+
     qualified_identifier: ($) =>
       seq(
-        field("head", $.identifier),
-        field("tail", repeat(seq(".", $.identifier))),
+        field("namespace", seq($.identifier, repeat(seq(".", $.identifier)))),
         "#",
         field("selection", $.identifier)
       ),
@@ -53,15 +54,15 @@ module.exports = grammar({
     _input_node: ($) =>
       choice($.struct, $.list, $.number, $.string, $.boolean, $.null),
 
-    struct: ($) => seq("{", field("bindings", optional($.bindings)), "}"),
-    list: ($) => seq("[", field("list_fields", optional($.list_fields)), "]"),
+    struct: ($) => seq("{", field("bindings", optional($._bindings)), "}"),
+    list: ($) => seq("[", field("list_fields", optional($._list_fields)), "]"),
 
-    bindings: ($) => comma_separated_trailing($.binding),
+    _bindings: ($) => comma_separated_trailing($.binding),
 
     binding: ($) =>
       seq(field("key", $.identifier), "=", field("value", $._input_node)),
 
-    list_fields: ($) => comma_separated_trailing($._input_node),
+    _list_fields: ($) => comma_separated_trailing($._input_node),
 
     identifier: ($) => /[a-zA-Z_][a-zA-Z0-9_]*/,
 

@@ -3,10 +3,10 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 
-opaque type OperationCall <: Node = Node
+opaque type RunQuery <: Node = Node
 
-object OperationCall {
-  extension (node: OperationCall) {
+object RunQuery {
+  extension (node: RunQuery) {
     // fields
     def input: Option[Struct] = node.fields.getOrElse("input", Nil).headOption.map {
       case Struct(node) => node
@@ -21,12 +21,12 @@ object OperationCall {
 
   }
 
-  def apply(node: Node): Either[String, OperationCall] =
-    if node.tpe == "operation_call"
+  def apply(node: Node): Either[String, RunQuery] =
+    if node.tpe == "run_query"
     then Right(node)
-    else Left(s"Expected OperationCall, got ${node.tpe}")
-  def unsafeApply(node: Node): OperationCall = apply(node).fold(sys.error, identity)
-  def unapply(node: Node): Option[OperationCall] = apply(node).toOption
+    else Left(s"Expected RunQuery, got ${node.tpe}")
+  def unsafeApply(node: Node): RunQuery = apply(node).fold(sys.error, identity)
+  def unapply(node: Node): Option[RunQuery] = apply(node).toOption
 }
 
 /*

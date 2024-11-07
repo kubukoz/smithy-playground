@@ -8,8 +8,8 @@ opaque type List_ <: Node = Node
 object List_ {
   extension (node: List_) {
     // fields
-    def list_fields: Option[ListFields] = node.fields.getOrElse("list_fields", Nil).headOption.map {
-      case ListFields(node) => node
+    def list_fields: List[InputNode] = node.fields.getOrElse("list_fields", Nil).toList.collect {
+      case InputNode(node) => node
     }
     // typed children
 

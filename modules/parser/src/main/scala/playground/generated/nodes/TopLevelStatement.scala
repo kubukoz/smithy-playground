@@ -10,17 +10,12 @@ object TopLevelStatement {
     // fields
 
     // typed children
-    def typedChildren: Option[LetBinding | OperationCall] = node.children.collectFirst {
-      case LetBinding(node) => node
-      case OperationCall(node) => node
+    def typedChildren: Option[RunQuery] = node.children.collectFirst {
+      case RunQuery(node) => node
     }
     // precise typed children
-    def let_binding: Option[LetBinding] = node.children.collectFirst {
-      case LetBinding(node) => node
-    }
-
-    def operation_call: Option[OperationCall] = node.children.collectFirst {
-      case OperationCall(node) => node
+    def run_query: Option[RunQuery] = node.children.collectFirst {
+      case RunQuery(node) => node
     }
   }
 

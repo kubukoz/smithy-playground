@@ -16,14 +16,13 @@ object ParserTreeSitterDemo extends App {
   val bind = SourceFile
     .unsafeApply(tree.rootNode.get)
     .statements
+    .headOption
     .getOrElse(sys.error("no statements section in source file"))
-    .operation_call
-    .getOrElse(sys.error("no operation call in statements section"))
+    .run_query
+    .getOrElse(sys.error("no run_query in statements section"))
     .input
     .getOrElse(sys.error("no input in operation call"))
     .bindings
-    .getOrElse(sys.error("no bindings in bindings section of struct"))
-    .binding
     .find(_.key.exists(_.source == "x"))
     .getOrElse(sys.error("no binding with key 'x'"))
 

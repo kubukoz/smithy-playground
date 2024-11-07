@@ -16,7 +16,7 @@ object TreeSitterParserTests extends FunSuite {
     val in = parse("""use service foo.bar.baz.bax#Baz
                      |GetBaz{}""".stripMargin)
 
-    assert(in.use_clause.nonEmpty) &&
+    assert.eql(in.prelude.map(_.use_clause.size), Some(1)) &&
     assert(in.statements.nonEmpty)
   }
 
@@ -35,12 +35,10 @@ object TreeSitterParserTests extends FunSuite {
     val expected = List(
       "identifier" -> "x",
       "binding" -> "x = 42",
-      "bindings" -> "x = 42",
       "struct" -> "{ x = 42 }",
       "binding" -> "a = { x = 42 }",
-      "bindings" -> "a = { x = 42 }",
       "struct" -> "{ a = { x = 42 }}",
-      "operation_call" -> "GetBaz { a = { x = 42 }}",
+      "run_query" -> "GetBaz { a = { x = 42 }}",
       "top_level_statement" -> "GetBaz { a = { x = 42 }}",
       "source_file" -> "use service foo.bar.baz.bax#Baz\nGetBaz { a = { x = 42 }}",
     ).mkString("\n")
@@ -56,14 +54,12 @@ object TreeSitterParserTests extends FunSuite {
     // watch out for the upcoming lookup DSL
     val valueOfX =
       in.statements
-        .get
-        .operation_call
+        .head
+        .run_query
         .get
         .input
         .get
         .bindings
-        .get
-        .binding
         .find(_.key.get.source == "a")
         .get
         .value
@@ -71,8 +67,6 @@ object TreeSitterParserTests extends FunSuite {
         .asStruct
         .get
         .bindings
-        .get
-        .binding
         .find(_.key.get.source == "x")
         .get
         .value
@@ -93,14 +87,12 @@ object TreeSitterParserTests extends FunSuite {
     // watch out for the upcoming lookup DSL
     val valueOfX =
       in.statements
-        .get
-        .operation_call
+        .head
+        .run_query
         .get
         .input
         .get
         .bindings
-        .get
-        .binding
         .find(_.key.get.source == "a")
         .get
         .value
@@ -108,8 +100,6 @@ object TreeSitterParserTests extends FunSuite {
         .asStruct
         .get
         .bindings
-        .get
-        .binding
         .find(_.key.get.source == "x")
         .get
         .value
