@@ -22,6 +22,8 @@ import java.nio.file.Paths
 
 trait ParserSuite extends SimpleIOSuite {
 
+  def treeSitterWrap(fileSource: String): String = fileSource
+
   def loadParserTests[Alg[_[_]]: SourceParser](
     prefix: String,
     // this isn't on by default because whitespace in full files (currently, 1-1 mapping to queries) is significant and should not be trimmed before parsing.
@@ -82,11 +84,18 @@ trait ParserSuite extends SimpleIOSuite {
   ) =
     test(testCase.name + " (tree-sitter no errors)") {
       testCase.readInput(trimWhitespace).map { input =>
-        val scanned = TreeSitterAPI.make("smithyql").parse(input).rootNode.get
+        val src = treeSitterWrap(input)
+        val scanned = TreeSitterAPI.make("smithyql").parse(src).rootNode.get
 
-        val errors = scanned.fold[List[Node]](_ :: _.flatten.toList).find(_.isError)
+        val errors = scanned
+          .fold[List[Node]](_ :: _.flatten.toList)
+          .filter(_.isError)
+          .map { node =>
+            s"${node.source} (${node.startByte} to ${node.endByte}, ${node.selfAndParents.map(_.tpe).mkString(" -> ")})"
+          }
+          .mkString("\n")
 
-        assert(errors.isEmpty)
+        assert(errors.isEmpty) || failure("error in file: " + testCase.base) || failure(src)
       }
     }
 
@@ -176,11 +185,12 @@ trait ParserSuite extends SimpleIOSuite {
     outputExtension: String,
   ) {
 
+    private val inputPath = base / "input.smithyql-test"
     private val outputPath = base / s"output$outputExtension"
 
     def readInput(
       trimWhitespace: Boolean
-    ): IO[String] = readText(base / "input.smithyql-test").map(
+    ): IO[String] = readText(inputPath).map(
       if (trimWhitespace)
         _.strip
       else

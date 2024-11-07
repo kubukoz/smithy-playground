@@ -60,7 +60,11 @@ module.exports = grammar({
     _bindings: ($) => comma_separated_trailing($.binding),
 
     binding: ($) =>
-      seq(field("key", $.identifier), "=", field("value", $._input_node)),
+      seq(
+        field("key", $.identifier),
+        choice("=", ":"),
+        field("value", $._input_node)
+      ),
 
     _list_fields: ($) => comma_separated_trailing($._input_node),
 
