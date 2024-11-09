@@ -231,7 +231,9 @@ def renderClass(tpe: NodeType) = {
       .get
       .value
 
-  val base = Paths.get(s"modules/parser/src/main/scala/playground/generated/nodes")
+  val base = Paths.get(s"modules/treesitter/src/main/scala/playground/generated/nodes")
+
+  Files.createDirectories(base)
 
   Files.walk(base).iterator().asScala.filter(Files.isRegularFile(_)).foreach(Files.delete)
 

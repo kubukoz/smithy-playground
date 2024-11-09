@@ -12,6 +12,8 @@ trait RangeIndex {
 
 object RangeIndex {
 
+  // def build(parsed: playground.generated.nodes.SourceFile) = ???
+
   def build(
     sf: SourceFile[WithSource]
   ): RangeIndex =

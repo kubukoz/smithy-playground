@@ -117,12 +117,19 @@ lazy val parser = module("parser")
       "io.circe" %% "circe-generic" % "0.14.10" % Test,
       "io.circe" %% "circe-parser" % "0.14.10" % Test,
       "co.fs2" %% "fs2-io" % "3.11.0" % Test,
-      "org.polyvariant.treesitter4s" %% "core" % "0.3-460753c-SNAPSHOT",
     )
   )
   .dependsOn(
     ast % "test->test;compile->compile",
     source % "test->test;compile->compile",
+    treesitter % "test->compile",
+  )
+
+lazy val treesitter = module("treesitter")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.polyvariant.treesitter4s" %% "core" % "0.3-460753c-SNAPSHOT"
+    )
   )
 
 lazy val parsergen = module("parser-gen")
@@ -191,6 +198,7 @@ lazy val core = module("core")
     examples % "test->compile",
     pluginCore,
     ast,
+    treesitter,
     source % "test->test;compile->compile",
     parser % "test->compile;test->test",
     formatter,
@@ -269,4 +277,5 @@ lazy val root = project
     pluginCore,
     pluginSample,
     e2e,
+    treesitter,
   )
