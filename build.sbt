@@ -232,15 +232,12 @@ lazy val e2e = module("e2e")
     buildInfoKeys ++=
       Seq[BuildInfoKey.Entry[_]]( // do you know how to simplify this? let me know please!
         Def
-          .task((lsp / Compile / fullClasspath).value.map(_.data).map(_.toString))
+          .task {
+            s"""${(lsp / organization).value}::${(lsp / moduleName).value}:${(lsp / version).value}"""
+          }
+          .dependsOn(lsp / publishLocal)
           .taskValue
-          .named("lspClassPath"),
-        Def
-          .task(
-            (lsp / Compile / mainClass).value.getOrElse(sys.error("didn't find main class in lsp"))
-          )
-          .taskValue
-          .named("lspMainClass"),
+          .named("lspArtifact")
       ),
     publish / skip := true,
   )
