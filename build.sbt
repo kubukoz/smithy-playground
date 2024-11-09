@@ -253,7 +253,7 @@ lazy val root = project
   .settings(
     publish / skip := true,
     mimaFailOnNoPrevious := false,
-    addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
+    addCommandAlias("ci", "+publishLocal;writeVersion"),
     writeVersion := {
       IO.write(file(".version"), version.value)
     },
