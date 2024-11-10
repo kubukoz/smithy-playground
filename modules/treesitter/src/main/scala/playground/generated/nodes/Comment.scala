@@ -15,7 +15,3 @@ object Comment {
   def unsafeApply(node: Node): Comment = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Comment] = apply(node).toOption
 }
-
-/*
-
-*/

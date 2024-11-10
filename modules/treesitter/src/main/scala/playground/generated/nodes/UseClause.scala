@@ -28,7 +28,3 @@ object UseClause {
   def unsafeApply(node: Node): UseClause = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[UseClause] = apply(node).toOption
 }
-
-/*
-
-*/

@@ -24,7 +24,3 @@ object List_ {
   def unsafeApply(node: Node): List_ = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[List_] = apply(node).toOption
 }
-
-/*
-
-*/

@@ -28,7 +28,3 @@ object Binding {
   def unsafeApply(node: Node): Binding = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Binding] = apply(node).toOption
 }
-
-/*
-
-*/

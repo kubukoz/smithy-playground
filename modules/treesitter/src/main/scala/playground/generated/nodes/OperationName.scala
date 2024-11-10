@@ -28,7 +28,3 @@ object OperationName {
   def unsafeApply(node: Node): OperationName = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[OperationName] = apply(node).toOption
 }
-
-/*
-
-*/

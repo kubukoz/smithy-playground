@@ -15,7 +15,3 @@ object Null_ {
   def unsafeApply(node: Node): Null_ = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Null_] = apply(node).toOption
 }
-
-/*
-
-*/

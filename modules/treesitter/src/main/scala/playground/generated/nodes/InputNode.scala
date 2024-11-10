@@ -28,6 +28,3 @@ object InputNode {
 
   def unapply(node: Node): Option[InputNode] = apply(node).toOption
 }
-/*
-
-*/

@@ -28,7 +28,3 @@ object SourceFile {
   def unsafeApply(node: Node): SourceFile = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[SourceFile] = apply(node).toOption
 }
-
-/*
-
-*/

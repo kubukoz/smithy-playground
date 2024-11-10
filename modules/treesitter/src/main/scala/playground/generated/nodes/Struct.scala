@@ -24,7 +24,3 @@ object Struct {
   def unsafeApply(node: Node): Struct = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Struct] = apply(node).toOption
 }
-
-/*
-
-*/

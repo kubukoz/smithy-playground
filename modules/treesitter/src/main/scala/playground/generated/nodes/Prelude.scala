@@ -26,7 +26,3 @@ object Prelude {
   def unsafeApply(node: Node): Prelude = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Prelude] = apply(node).toOption
 }
-
-/*
-
-*/

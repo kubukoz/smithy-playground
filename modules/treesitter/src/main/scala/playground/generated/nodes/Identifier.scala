@@ -15,7 +15,3 @@ object Identifier {
   def unsafeApply(node: Node): Identifier = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Identifier] = apply(node).toOption
 }
-
-/*
-
-*/

@@ -28,7 +28,3 @@ object QualifiedIdentifier {
   def unsafeApply(node: Node): QualifiedIdentifier = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[QualifiedIdentifier] = apply(node).toOption
 }
-
-/*
-
-*/

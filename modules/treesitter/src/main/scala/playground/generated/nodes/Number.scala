@@ -15,7 +15,3 @@ object Number {
   def unsafeApply(node: Node): Number = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Number] = apply(node).toOption
 }
-
-/*
-
-*/

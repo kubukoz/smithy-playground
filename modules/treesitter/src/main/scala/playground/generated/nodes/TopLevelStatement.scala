@@ -26,7 +26,3 @@ object TopLevelStatement {
   def unsafeApply(node: Node): TopLevelStatement = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[TopLevelStatement] = apply(node).toOption
 }
-
-/*
-
-*/

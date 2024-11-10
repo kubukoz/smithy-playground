@@ -28,7 +28,3 @@ object RunQuery {
   def unsafeApply(node: Node): RunQuery = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[RunQuery] = apply(node).toOption
 }
-
-/*
-
-*/

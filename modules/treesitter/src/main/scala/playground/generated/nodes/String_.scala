@@ -15,7 +15,3 @@ object String_ {
   def unsafeApply(node: Node): String_ = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[String_] = apply(node).toOption
 }
-
-/*
-
-*/

@@ -15,7 +15,3 @@ object Whitespace {
   def unsafeApply(node: Node): Whitespace = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Whitespace] = apply(node).toOption
 }
-
-/*
-
-*/

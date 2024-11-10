@@ -4,7 +4,6 @@ import cats.syntax.all.*
 import monocle.syntax.all.*
 import org.polyvariant.treesitter4s.Node
 import smithy4s.Blob
-import smithy4s.Document
 import smithy4s.json.Json
 import treesittersmithy.FieldName
 import treesittersmithy.NodeType
@@ -17,13 +16,6 @@ import java.nio.file.Paths
 import scala.annotation.targetName
 import scala.jdk.CollectionConverters.*
 import scala.meta.Dialect
-
-val debug = false
-
-def debugDump(s: String): String =
-  if debug then s
-  else
-    ""
 
 extension (tn: TypeName) {
   @targetName("renderTypeName")
@@ -83,9 +75,6 @@ def renderAdt(tpe: NodeType) = {
         |
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
         |}
-        |/*
-        |${debugDump(Json.writeDocumentAsPrettyString(Document.encode(tpe)).trimLines)}
-        |*/
         |""".stripMargin
 }
 
@@ -213,10 +202,6 @@ def renderClass(tpe: NodeType) = {
         |  def unsafeApply(node: Node): $name = apply(node).fold(sys.error, identity)
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
         |}
-        |
-        |/*
-        |${debugDump(Json.writeDocumentAsPrettyString(Document.encode(tpe)).trimLines)}
-        |*/
         |""".stripMargin
 
 }

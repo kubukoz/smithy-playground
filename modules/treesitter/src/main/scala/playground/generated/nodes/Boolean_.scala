@@ -15,7 +15,3 @@ object Boolean_ {
   def unsafeApply(node: Node): Boolean_ = apply(node).fold(sys.error, identity)
   def unapply(node: Node): Option[Boolean_] = apply(node).toOption
 }
-
-/*
-
-*/
