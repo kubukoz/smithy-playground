@@ -4,6 +4,7 @@ import cats.Id
 import cats.kernel.Order.catsKernelOrderingForOrder
 import cats.syntax.all.*
 import org.polyvariant.treesitter4s.TreeSitterAPI
+import playground.ASTAdapter
 import playground.MultiServiceResolver
 import playground.ServiceIndex
 import playground.smithyql.NodeContext
@@ -12,11 +13,7 @@ import playground.smithyql.NodeContext.^^:
 import playground.smithyql.OperationName
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
-import playground.smithyql.Query
 import playground.smithyql.RangeIndex
-import playground.smithyql.SourceFile
-import playground.smithyql.WithSource
-import playground.smithyql.parser.SourceParser
 import playground.smithyql.syntax.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
@@ -75,15 +72,19 @@ object CompletionProvider {
         .toList
     }
 
-    def completeRootOperationName(
-      file: SourceFile[WithSource],
+    def completeRootOperationNameTs(
+      file: playground.generated.nodes.SourceFile,
       insertBodyStruct: CompletionItem.InsertBodyStruct,
     ) = {
       // double-check test coverage.
       // there's definitely a test missing for N>1 clauses.
       // https://github.com/kubukoz/smithy-playground/issues/161
-      val presentServiceIds
-        : List[QualifiedIdentifier] = file.prelude.useClauses.map(_.value.identifier.value)
+      val presentServiceIds: List[QualifiedIdentifier] = file
+        .prelude
+        .toList
+        .flatMap(_.use_clause)
+        .flatMap(_.identifier)
+        .flatMap(ASTAdapter.decodeQI)
 
       // for operations on root level we show:
       // - completions for ops from the service being used, which don't insert a use clause and don't show the service ID
@@ -112,9 +113,9 @@ object CompletionProvider {
       }
 
     // we're definitely in an existing query, so we don't insert a brace in either case.
-    def completeOperationNameFor(
-      q: Query[WithSource],
-      sf: SourceFile[WithSource],
+    def completeOperationNameForTs(
+      q: playground.generated.nodes.RunQuery,
+      sf: playground.generated.nodes.SourceFile,
       serviceId: Option[QualifiedIdentifier],
     ): List[CompletionItem] =
       serviceId match {
@@ -122,8 +123,12 @@ object CompletionProvider {
           // includes the current query's service reference
           // as it wouldn't result in ading a use clause
           val presentServiceIdentifiers =
-            q.operationName.value.mapK(WithSource.unwrap).identifier.toList ++
-              sf.prelude.useClauses.map(_.value.identifier.value)
+            q.operation_name.toList.flatMap(_.identifier).flatMap(ASTAdapter.decodeQI) ++
+              sf.prelude
+                .toList
+                .flatMap(_.use_clause)
+                .flatMap(_.identifier)
+                .flatMap(ASTAdapter.decodeQI)
 
           completeOperationName(
             serviceId,
@@ -131,34 +136,38 @@ object CompletionProvider {
             CompletionItem.InsertBodyStruct.No,
           )
 
-        case None => completeRootOperationName(sf, CompletionItem.InsertBodyStruct.No)
+        case None => completeRootOperationNameTs(sf, CompletionItem.InsertBodyStruct.No)
       }
 
-    def completeInQuery(
-      q: Query[WithSource],
-      sf: SourceFile[WithSource],
+    def completeInQueryTs(
+      q: playground.generated.nodes.RunQuery,
+      sf: playground.generated.nodes.SourceFile,
       ctx: NodeContext,
-    ): List[CompletionItem] = {
+    ): List[CompletionItem] = q.operation_name.toList.flatMap { operationName =>
       val resolvedServiceId =
         MultiServiceResolver
-          .resolveService(
-            q.operationName.value,
+          .resolveServiceTs(
+            operationName,
             serviceIndex,
-            sf.prelude.useClauses.map(_.value),
+            sf.prelude.toList.flatMap(_.use_clause),
           )
           .toOption
 
       ctx match {
         case NodeContext.PathEntry.AtOperationName ^^: EmptyPath =>
-          completeOperationNameFor(q, sf, resolvedServiceId)
+          completeOperationNameForTs(q, sf, resolvedServiceId)
 
         case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
           resolvedServiceId match {
             case Some(serviceId) =>
-              inputCompletions(serviceId)(
-                q.operationName.value.operationName.value.mapK(WithSource.unwrap)
-              )
-                .getCompletions(ctx)
+              q.operation_name
+                .toList
+                .flatMap(_.name)
+                .map(id => OperationName[Id](id.source))
+                .flatMap {
+                  inputCompletions(serviceId)(_)
+                    .getCompletions(ctx)
+                }
 
             case None => Nil
           }
@@ -177,44 +186,40 @@ object CompletionProvider {
         .SourceFile
         .unsafeApply(TreeSitterAPI.make("smithyql").parse(doc).rootNode.get)
 
-      SourceParser[SourceFile].parse(doc) match {
-        case Left(_) =>
-          // we can try to deal with this later
-          Nil
+      val matchingNode = RangeIndex
+        .build(parsedTs)
+        .findAtPosition(pos)
+        .getOrElse(NodeContext.EmptyPath)
 
-        case Right(sf) =>
-          val matchingNode = RangeIndex.build(parsedTs)
-            .findAtPosition(pos)
-            .getOrElse(NodeContext.EmptyPath)
+      // System.err.println("matchingNode: " + matchingNode.render)
 
-          // System.err.println("matchingNode: " + matchingNode.render)
+      matchingNode match {
+        case NodeContext.PathEntry.InQuery(n) ^^: rest =>
+          val q = parsedTs
+            .statements
+            .flatMap(_.run_query)
+            .get(n.toLong)
+            .getOrElse(sys.error(s"Fatal error: no query at index $n"))
 
-          matchingNode match {
-            case NodeContext.PathEntry.InQuery(n) ^^: rest =>
-              val q =
-                sf
-                  .queries(WithSource.unwrap)
-                  .get(n.toLong)
-                  .getOrElse(sys.error(s"Fatal error: no query at index $n"))
-                  .query
-                  .value
+          completeInQueryTs(q, parsedTs, rest)
 
-              completeInQuery(q, sf, rest)
+        case NodeContext.PathEntry.AtPrelude ^^:
+            NodeContext.PathEntry.AtUseClause(_) ^^:
+            EmptyPath =>
+          servicesById
+            .toList
+            .sortBy(_._1)
+            .map(CompletionItem.useServiceClause.tupled)
 
-            case NodeContext.PathEntry.AtPrelude ^^:
-                NodeContext.PathEntry.AtUseClause(_) ^^:
-                EmptyPath =>
-              servicesById
-                .toList
-                .sortBy(_._1)
-                .map(CompletionItem.useServiceClause.tupled)
+        case EmptyPath =>
+          completeRootOperationNameTs(
+            parsedTs,
+            CompletionItem.InsertBodyStruct.Yes,
+          )
 
-            case EmptyPath => completeRootOperationName(sf, CompletionItem.InsertBodyStruct.Yes)
-
-            case _ => Nil
-          }
-
+        case _ => Nil
       }
+
     }
   }
 

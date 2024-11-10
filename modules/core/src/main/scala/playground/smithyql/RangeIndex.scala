@@ -2,7 +2,7 @@ package playground.smithyql
 
 import cats.kernel.Monoid
 import cats.syntax.all.*
-import org.polyvariant.treesitter4s.Node
+import tsutils.*
 import util.chaining.*
 
 trait RangeIndex {
@@ -21,10 +21,6 @@ object RangeIndex {
   )
 
   def build(parsed: playground.generated.nodes.SourceFile): RangeIndex = fromRanges {
-
-    extension (node: Node) {
-      def range: SourceRange = SourceRange(Position(node.startByte), Position(node.endByte))
-    }
 
     val root = NodeContext.EmptyPath
 
@@ -137,12 +133,12 @@ object RangeIndex {
       allRanges
         .filter(_.range.contains(pos))
         .tap { ranges =>
-          println()
-          println("=======")
-          println(s"all ranges: ${allRanges.map(_.render).mkString(", ")}")
-          println(s"ranges for position ${pos.index}: ${ranges.map(_.render).mkString(", ")}")
-          println("=======")
-          println()
+          // println()
+          // println("=======")
+          // println(s"all ranges: ${allRanges.map(_.render).mkString(", ")}")
+          // println(s"ranges for position ${pos.index}: ${ranges.map(_.render).mkString(", ")}")
+          // println("=======")
+          // println()
         }
         .maxByOption(_.ctx.length)
         .map(_.ctx)
