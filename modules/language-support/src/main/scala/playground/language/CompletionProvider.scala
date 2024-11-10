@@ -3,6 +3,7 @@ package playground.language
 import cats.Id
 import cats.kernel.Order.catsKernelOrderingForOrder
 import cats.syntax.all.*
+import org.polyvariant.treesitter4s.TreeSitterAPI
 import playground.MultiServiceResolver
 import playground.ServiceIndex
 import playground.smithyql.NodeContext
@@ -169,16 +170,22 @@ object CompletionProvider {
     (
       doc,
       pos,
-    ) =>
+    ) => {
+      val parsedTs = playground
+        .generated
+        .nodes
+        .SourceFile
+        .unsafeApply(TreeSitterAPI.make("smithyql").parse(doc).rootNode.get)
+
       SourceParser[SourceFile].parse(doc) match {
         case Left(_) =>
           // we can try to deal with this later
           Nil
 
         case Right(sf) =>
-          val matchingNode = RangeIndex
-            .build(sf)
+          val matchingNode = RangeIndex.build(parsedTs)
             .findAtPosition(pos)
+            .getOrElse(NodeContext.EmptyPath)
 
           // System.err.println("matchingNode: " + matchingNode.render)
 
@@ -208,6 +215,7 @@ object CompletionProvider {
           }
 
       }
+    }
   }
 
 }
