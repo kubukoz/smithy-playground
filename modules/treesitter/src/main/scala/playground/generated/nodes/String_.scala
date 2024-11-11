@@ -20,5 +20,8 @@ object String_ {
 
   final case class Selector(path: List[String_]) extends Selection[String_] {
 
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

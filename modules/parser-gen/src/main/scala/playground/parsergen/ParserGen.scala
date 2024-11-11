@@ -99,6 +99,9 @@ private def renderUnion(u: Type.Union): String = {
         |
         |  final case class Selector(path: List[$name]) extends Selection[$name] {
         |${selectorMethods.indentTrim(4)}
+        |
+        |    type Self = Selector
+        |    protected val remake = Selector.apply
         |  }
         |}
         |""".stripMargin
@@ -249,6 +252,9 @@ private def renderProduct(p: Type.Product): String = {
         |
         |  final case class Selector(path: List[$name]) extends Selection[$name] {
         |${selectorMethods.indentTrim(4)}
+        |
+        |    type Self = Selector
+        |    protected val remake = Selector.apply
         |  }
         |}
         |""".stripMargin

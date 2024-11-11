@@ -32,5 +32,8 @@ object TopLevelStatement {
 
   final case class Selector(path: List[TopLevelStatement]) extends Selection[TopLevelStatement] {
     def run_query: RunQuery.Selector = RunQuery.Selector(path.flatMap(_.run_query))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

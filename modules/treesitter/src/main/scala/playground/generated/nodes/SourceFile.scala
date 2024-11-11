@@ -35,5 +35,8 @@ object SourceFile {
   final case class Selector(path: List[SourceFile]) extends Selection[SourceFile] {
     def prelude: Prelude.Selector = Prelude.Selector(path.flatMap(_.prelude))
     def statements: TopLevelStatement.Selector = TopLevelStatement.Selector(path.flatMap(_.statements))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

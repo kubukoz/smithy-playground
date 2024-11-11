@@ -20,5 +20,8 @@ object Whitespace {
 
   final case class Selector(path: List[Whitespace]) extends Selection[Whitespace] {
 
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

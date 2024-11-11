@@ -32,5 +32,8 @@ object Prelude {
 
   final case class Selector(path: List[Prelude]) extends Selection[Prelude] {
     def use_clause: UseClause.Selector = UseClause.Selector(path.flatMap(_.use_clause))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

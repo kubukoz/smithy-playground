@@ -35,5 +35,8 @@ object Binding {
   final case class Selector(path: List[Binding]) extends Selection[Binding] {
     def key: Identifier.Selector = Identifier.Selector(path.flatMap(_.key))
     def value: InputNode.Selector = InputNode.Selector(path.flatMap(_.value))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

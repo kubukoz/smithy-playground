@@ -35,5 +35,8 @@ object QualifiedIdentifier {
   final case class Selector(path: List[QualifiedIdentifier]) extends Selection[QualifiedIdentifier] {
     def namespace: Identifier.Selector = Identifier.Selector(path.flatMap(_.namespace))
     def selection: Identifier.Selector = Identifier.Selector(path.flatMap(_.selection))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

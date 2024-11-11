@@ -35,5 +35,8 @@ object RunQuery {
   final case class Selector(path: List[RunQuery]) extends Selection[RunQuery] {
     def input: Struct.Selector = Struct.Selector(path.flatMap(_.input))
     def operation_name: OperationName.Selector = OperationName.Selector(path.flatMap(_.operation_name))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

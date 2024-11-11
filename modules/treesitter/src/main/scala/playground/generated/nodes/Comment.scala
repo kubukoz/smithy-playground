@@ -20,5 +20,8 @@ object Comment {
 
   final case class Selector(path: List[Comment]) extends Selection[Comment] {
 
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

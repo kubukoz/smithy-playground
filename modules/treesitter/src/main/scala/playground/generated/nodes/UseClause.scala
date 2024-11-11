@@ -35,5 +35,8 @@ object UseClause {
   final case class Selector(path: List[UseClause]) extends Selection[UseClause] {
     def identifier: QualifiedIdentifier.Selector = QualifiedIdentifier.Selector(path.flatMap(_.identifier))
     def whitespace: Whitespace.Selector = Whitespace.Selector(path.flatMap(_.whitespace))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

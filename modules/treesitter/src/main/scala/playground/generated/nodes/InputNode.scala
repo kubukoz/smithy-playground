@@ -40,5 +40,8 @@ object InputNode {
     def number : Number.Selector = Number.Selector(path.flatMap(_.asNumber))
     def string : String_.Selector = String_.Selector(path.flatMap(_.asString))
     def struct : Struct.Selector = Struct.Selector(path.flatMap(_.asStruct))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

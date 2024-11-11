@@ -30,5 +30,8 @@ object Struct {
 
   final case class Selector(path: List[Struct]) extends Selection[Struct] {
     def bindings: Binding.Selector = Binding.Selector(path.flatMap(_.bindings))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

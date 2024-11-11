@@ -50,29 +50,20 @@ object TreeSitterParserTests extends FunSuite {
     val in = parse("""use service foo.bar.baz.bax#Baz
                      |GetBaz { a = { x = 42 } }""".stripMargin)
 
-    // this ain't pretty huh
-    // watch out for the upcoming lookup DSL
     val valueOfX =
-      in.statements
-        .head
-        .run_query
-        .get
-        .input
-        .get
-        .bindings
-        .find(_.key.get.source == "a")
-        .get
-        .value
-        .get
-        .asStruct
-        .get
-        .bindings
-        .find(_.key.get.source == "x")
-        .get
-        .value
-        .get
-        .asNumber
-        .get
+      in.select(
+        _.statements
+          .run_query
+          .input
+          .bindings
+          .find(_.key.get.source == "a")
+          .value
+          .struct
+          .bindings
+          .find(_.key.get.source == "x")
+          .value
+          .number
+      ).head
         .source
         .toInt
 
@@ -86,26 +77,19 @@ object TreeSitterParserTests extends FunSuite {
     // this ain't pretty huh
     // watch out for the upcoming lookup DSL
     val valueOfX =
-      in.statements
-        .head
-        .run_query
-        .get
-        .input
-        .get
-        .bindings
-        .find(_.key.get.source == "a")
-        .get
-        .value
-        .get
-        .asStruct
-        .get
-        .bindings
-        .find(_.key.get.source == "x")
-        .get
-        .value
-        .get
-        .asNumber
-        .get
+      in.select(
+        _.statements
+          .run_query
+          .input
+          .bindings
+          .find(_.key.get.source == "a")
+          .value
+          .struct
+          .bindings
+          .find(_.key.get.source == "x")
+          .value
+          .number
+      ).head
         .source
         .toInt
 

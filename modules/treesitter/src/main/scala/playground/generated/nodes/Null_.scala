@@ -20,5 +20,8 @@ object Null_ {
 
   final case class Selector(path: List[Null_]) extends Selection[Null_] {
 
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }

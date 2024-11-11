@@ -30,5 +30,8 @@ object List_ {
 
   final case class Selector(path: List[List_]) extends Selection[List_] {
     def list_fields: InputNode.Selector = InputNode.Selector(path.flatMap(_.list_fields))
+
+    type Self = Selector
+    protected val remake = Selector.apply
   }
 }
