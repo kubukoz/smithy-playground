@@ -72,7 +72,7 @@ object CompletionProvider {
         .toList
     }
 
-    def completeRootOperationNameTs(
+    def completeRootOperationName(
       file: playground.generated.nodes.SourceFile,
       insertBodyStruct: CompletionItem.InsertBodyStruct,
     ) = {
@@ -110,7 +110,7 @@ object CompletionProvider {
       }
 
     // we're definitely in an existing query, so we don't insert a brace in either case.
-    def completeOperationNameForTs(
+    def completeOperationNameFor(
       q: playground.generated.nodes.RunQuery,
       sf: playground.generated.nodes.SourceFile,
       serviceId: Option[QualifiedIdentifier],
@@ -130,10 +130,10 @@ object CompletionProvider {
             CompletionItem.InsertBodyStruct.No,
           )
 
-        case None => completeRootOperationNameTs(sf, CompletionItem.InsertBodyStruct.No)
+        case None => completeRootOperationName(sf, CompletionItem.InsertBodyStruct.No)
       }
 
-    def completeInQueryTs(
+    def completeInQuery(
       q: playground.generated.nodes.RunQuery,
       sf: playground.generated.nodes.SourceFile,
       ctx: NodeContext,
@@ -149,7 +149,7 @@ object CompletionProvider {
 
       ctx match {
         case NodeContext.PathEntry.AtOperationName ^^: EmptyPath =>
-          completeOperationNameForTs(q, sf, resolvedServiceId)
+          completeOperationNameFor(q, sf, resolvedServiceId)
 
         case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
           resolvedServiceId match {
@@ -193,7 +193,7 @@ object CompletionProvider {
             .get(n.toLong)
             .getOrElse(sys.error(s"Fatal error: no query at index $n"))
 
-          completeInQueryTs(q, parsedTs, rest)
+          completeInQuery(q, parsedTs, rest)
 
         case NodeContext.PathEntry.AtPrelude ^^:
             NodeContext.PathEntry.AtUseClause(_) ^^:
@@ -204,7 +204,7 @@ object CompletionProvider {
             .map(CompletionItem.useServiceClause.tupled)
 
         case EmptyPath =>
-          completeRootOperationNameTs(
+          completeRootOperationName(
             parsedTs,
             CompletionItem.InsertBodyStruct.Yes,
           )
