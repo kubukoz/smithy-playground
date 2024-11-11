@@ -38,7 +38,7 @@ extension (tpe: NodeType) {
 
 }
 
-def renderAdt(adt: Type.ADT) = {
+private def renderAdt(adt: Type.ADT): String = {
   val name = adt.name.render
 
   val projections = adt.subtypes.map { sub =>
@@ -78,7 +78,7 @@ def renderAdt(adt: Type.ADT) = {
         |""".stripMargin
 }
 
-def renderClass(tpe: NodeType) = {
+private def renderClass(tpe: NodeType): String = {
   val name = tpe.tpe.render
 
   val fieldGetters = tpe
