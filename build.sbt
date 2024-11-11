@@ -243,11 +243,24 @@ lazy val e2e = module("e2e")
           .task {
             s"""${(lsp / organization).value}::${(lsp / moduleName).value}:${(lsp / version).value}"""
           }
-          .dependsOn(lsp / publishLocal)
+          // todo: replace with a full publishLocal before e2e in particular gets run (but not before tests run normally)
+          .dependsOn(
+            lsp / publishLocal,
+            languageSupport / publishLocal,
+            core / publishLocal,
+            parser / publishLocal,
+            pluginCore / publishLocal,
+            source / publishLocal,
+            treesitter / publishLocal,
+            ast / publishLocal,
+            formatter / publishLocal,
+            protocol4s / publishLocal,
+          )
           .taskValue
           .named("lspArtifact")
       ),
     publish / skip := true,
+    Test / fork := true,
   )
   .dependsOn(lsp)
 
