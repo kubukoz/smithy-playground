@@ -34,23 +34,23 @@ extension (tpe: NodeType) {
 
   def render: String =
     IR.from(tpe) match {
-      case adt: Type.ADT         => renderAdt(adt)
+      case union: Type.Union     => renderUnion(union)
       case product: Type.Product => renderProduct(product)
     }
 
 }
 
-private def renderAdt(adt: Type.ADT): String = {
-  val name = adt.name.render
+private def renderUnion(u: Type.Union): String = {
+  val name = u.name.render
 
-  val projections = adt.subtypes.map { sub =>
+  val projections = u.subtypes.map { sub =>
     // format: off
     show"""def ${sub.name.renderProjection}: Option[${sub.name.render}] = ${sub.name.render}.unapply(node)"""
     // format: on
   }
 
   val applyMethod = {
-    val cases = adt
+    val cases = u
       .subtypes
       .map(nodeType => show"""case ${nodeType.name.render}(node) => Right(node)""")
 
@@ -65,7 +65,7 @@ private def renderAdt(adt: Type.ADT): String = {
         |
         |import ${classOf[Node].getName()}
         |
-        |opaque type $name <: Node = ${adt.subtypes.map(_.name.render).mkString_(" | ")}
+        |opaque type $name <: Node = ${u.subtypes.map(_.name.render).mkString_(" | ")}
         |
         |object $name {
         |

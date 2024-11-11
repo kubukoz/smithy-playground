@@ -6,7 +6,7 @@ import treesittersmithy.NodeType
 import treesittersmithy.TypeName
 
 enum Type {
-  case ADT(name: TypeName, subtypes: NonEmptyList[Subtype])
+  case Union(name: TypeName, subtypes: NonEmptyList[Subtype])
   case Product(name: TypeName, fields: List[Field], children: Option[Children])
 }
 
@@ -18,11 +18,11 @@ case class Subtype(name: TypeName)
 object IR {
 
   def from(nt: NodeType): Type =
-    if nt.subtypes.nonEmpty then fromADT(nt)
+    if nt.subtypes.nonEmpty then fromUnion(nt)
     else
       fromProduct(nt)
 
-  private def fromADT(nt: NodeType): Type.ADT = Type.ADT(
+  private def fromUnion(nt: NodeType): Type.Union = Type.Union(
     name = nt.tpe,
     subtypes = NonEmptyList.fromListUnsafe(nt.subtypes.map(subtype => Subtype(name = subtype.tpe))),
   )
