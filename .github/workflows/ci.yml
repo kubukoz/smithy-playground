@@ -73,4 +73,4 @@ jobs:
           jvm: adoptium:1.21
       - name: Parser tests
         # intentionally not setting up nix
-        run: sbt parser/run
+        run: sbt treesitter/test
