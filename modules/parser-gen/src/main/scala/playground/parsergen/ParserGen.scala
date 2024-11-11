@@ -49,6 +49,11 @@ private def renderUnion(u: Type.Union): String = {
     // format: on
   }
 
+  val instanceMethods =
+    show"""extension (node: $name) {
+          |${projections.mkString_("\n").indentTrim(2)}
+          |}""".stripMargin
+
   val applyMethod = {
     val cases = u
       .subtypes
@@ -69,9 +74,7 @@ private def renderUnion(u: Type.Union): String = {
         |
         |object $name {
         |
-        |  extension (node: $name) {
-        |${projections.mkString_("\n").indentTrim(4)}
-        |  }
+        |${instanceMethods.indentTrim(2)}
         |
         |${applyMethod.indentTrim(2)}
         |
@@ -164,7 +167,7 @@ private def renderProduct(p: Type.Product): String = {
       show"""def ${fieldType.asChildName.render}: $fieldTypeAnnotation = $childValue""".stripMargin
     }
 
-  val methods =
+  val instanceMethods =
     if (fieldGetters.nonEmpty || typedChildren.nonEmpty || typedChildrenPrecise.nonEmpty) {
       show"""extension (node: $name) {
             |  // fields
@@ -185,7 +188,7 @@ private def renderProduct(p: Type.Product): String = {
         |opaque type $name <: Node = Node
         |
         |object $name {
-        |${methods.indentTrim(2)}
+        |${instanceMethods.indentTrim(2)}
         |
         |  def apply(node: Node): Either[String, $name] =
         |    if node.tpe == ${p.name.value.literal}
