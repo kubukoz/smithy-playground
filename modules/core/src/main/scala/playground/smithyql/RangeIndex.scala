@@ -1,6 +1,5 @@
 package playground.smithyql
 
-import cats.kernel.Monoid
 import cats.syntax.all.*
 import tsutils.*
 import util.chaining.*
@@ -14,11 +13,6 @@ trait RangeIndex {
 }
 
 object RangeIndex {
-
-  given Monoid[RangeIndex] = Monoid.instance(
-    _ => None,
-    (a, b) => pos => a.findAtPosition(pos).orElse(b.findAtPosition(pos)),
-  )
 
   def build(parsed: playground.generated.nodes.SourceFile): RangeIndex = fromRanges {
 
