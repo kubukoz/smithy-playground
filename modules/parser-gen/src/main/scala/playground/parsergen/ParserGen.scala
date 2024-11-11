@@ -32,19 +32,30 @@ extension (fn: FieldName) {
 extension (tpe: NodeType) {
 
   def render: String =
-    if tpe.subtypes.nonEmpty then renderAdt(tpe)
+    if tpe.subtypes.nonEmpty then renderAdt(IR.from(tpe).asInstanceOf[Type.ADT])
     else
       renderClass(tpe)
 
 }
 
-def renderAdt(tpe: NodeType) = {
-  val name = tpe.tpe.render
+def renderAdt(adt: Type.ADT) = {
+  val name = adt.name.render
 
-  val projections = tpe.subtypes.map { nodeType =>
+  val projections = adt.subtypes.map { sub =>
     // format: off
-    show"""def ${nodeType.tpe.renderProjection}: Option[${nodeType.tpe.render}] = ${nodeType.tpe.render}.unapply(node)"""
+    show"""def ${sub.name.renderProjection}: Option[${sub.name.render}] = ${sub.name.render}.unapply(node)"""
     // format: on
+  }
+
+  val applyMethod = {
+    val cases = adt
+      .subtypes
+      .map(nodeType => show"""case ${nodeType.name.render}(node) => Right(node)""")
+
+    show"""def apply(node: Node): Either[String, $name] = node match {
+          |${cases.mkString_("\n").indentTrim(2)}
+          |  case _ => Left(s"Expected $name, got $${node.tpe}")
+          |}""".stripMargin
   }
 
   show"""// Generated code! Do not modify by hand.
@@ -52,7 +63,7 @@ def renderAdt(tpe: NodeType) = {
         |
         |import ${classOf[Node].getName()}
         |
-        |opaque type $name <: Node = ${tpe.subtypes.map(_.tpe.render).mkString(" | ")}
+        |opaque type $name <: Node = ${adt.subtypes.map(_.name.render).mkString_(" | ")}
         |
         |object $name {
         |
@@ -60,18 +71,7 @@ def renderAdt(tpe: NodeType) = {
         |${projections.mkString_("\n").indentTrim(4)}
         |  }
         |
-        |  def apply(node: Node): Either[String, $name] = node match {
-        |${tpe
-         .subtypes
-         .map { nodeType =>
-           show"""case ${nodeType
-               .tpe
-               .render}(node) => Right(node)"""
-         }
-         .mkString_("\n")
-         .indentTrim(4)}
-        |    case _ => Left(s"Expected $name, got $${node.tpe}")
-        |  }
+        |${applyMethod.indentTrim(2)}
         |
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
         |}
