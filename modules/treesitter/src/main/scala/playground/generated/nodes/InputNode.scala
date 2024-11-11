@@ -27,6 +27,8 @@ object InputNode {
     case _ => Left(s"Expected InputNode, got ${node.tpe}")
   }
 
+  def unsafeApply(node: Node): InputNode = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[InputNode] = apply(node).toOption
 
   final case class Selector(path: List[InputNode]) extends Selection[InputNode] {

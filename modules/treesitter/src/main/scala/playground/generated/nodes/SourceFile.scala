@@ -29,6 +29,7 @@ object SourceFile {
     else Left(s"Expected SourceFile, got ${node.tpe}")
 
   def unsafeApply(node: Node): SourceFile = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[SourceFile] = apply(node).toOption
 
   final case class Selector(path: List[SourceFile]) extends Selection[SourceFile] {

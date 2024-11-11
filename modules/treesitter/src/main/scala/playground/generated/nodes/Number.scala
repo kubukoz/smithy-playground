@@ -15,6 +15,7 @@ object Number {
     else Left(s"Expected Number, got ${node.tpe}")
 
   def unsafeApply(node: Node): Number = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[Number] = apply(node).toOption
 
   final case class Selector(path: List[Number]) extends Selection[Number] {

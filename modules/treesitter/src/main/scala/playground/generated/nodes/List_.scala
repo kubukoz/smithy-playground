@@ -25,6 +25,7 @@ object List_ {
     else Left(s"Expected List_, got ${node.tpe}")
 
   def unsafeApply(node: Node): List_ = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[List_] = apply(node).toOption
 
   final case class Selector(path: List[List_]) extends Selection[List_] {

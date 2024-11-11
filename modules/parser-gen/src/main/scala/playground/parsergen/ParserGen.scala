@@ -88,6 +88,8 @@ private def renderUnion(u: Type.Union): String = {
         |
         |${applyMethod.indentTrim(2)}
         |
+        |  def unsafeApply(node: Node): $name = apply(node).fold(sys.error, identity)
+        |
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
         |
         |  final case class Selector(path: List[$name]) extends Selection[$name] {
@@ -237,6 +239,7 @@ private def renderProduct(p: Type.Product): String = {
         |    else Left(s"Expected ${p.name.render}, got $${node.tpe}")
         |
         |  def unsafeApply(node: Node): $name = apply(node).fold(sys.error, identity)
+        |
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
         |
         |  final case class Selector(path: List[$name]) extends Selection[$name] {

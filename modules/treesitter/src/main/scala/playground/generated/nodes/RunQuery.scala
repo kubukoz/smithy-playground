@@ -29,6 +29,7 @@ object RunQuery {
     else Left(s"Expected RunQuery, got ${node.tpe}")
 
   def unsafeApply(node: Node): RunQuery = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[RunQuery] = apply(node).toOption
 
   final case class Selector(path: List[RunQuery]) extends Selection[RunQuery] {

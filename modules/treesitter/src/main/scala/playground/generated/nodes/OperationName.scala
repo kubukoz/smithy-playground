@@ -29,6 +29,7 @@ object OperationName {
     else Left(s"Expected OperationName, got ${node.tpe}")
 
   def unsafeApply(node: Node): OperationName = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[OperationName] = apply(node).toOption
 
   final case class Selector(path: List[OperationName]) extends Selection[OperationName] {

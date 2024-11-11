@@ -15,6 +15,7 @@ object Comment {
     else Left(s"Expected Comment, got ${node.tpe}")
 
   def unsafeApply(node: Node): Comment = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[Comment] = apply(node).toOption
 
   final case class Selector(path: List[Comment]) extends Selection[Comment] {

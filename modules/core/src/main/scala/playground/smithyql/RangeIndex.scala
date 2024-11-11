@@ -75,7 +75,7 @@ object RangeIndex {
           } ++
           runQuery.input.toList.flatMap { input =>
             inputNodeRanges(
-              playground.generated.nodes.InputNode(input).toOption.get /* todo */,
+              playground.generated.nodes.InputNode.unsafeApply(input),
               root.inQuery(statementIndex).inOperationInput,
             )
 

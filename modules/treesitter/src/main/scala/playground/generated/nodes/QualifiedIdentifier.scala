@@ -29,6 +29,7 @@ object QualifiedIdentifier {
     else Left(s"Expected QualifiedIdentifier, got ${node.tpe}")
 
   def unsafeApply(node: Node): QualifiedIdentifier = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[QualifiedIdentifier] = apply(node).toOption
 
   final case class Selector(path: List[QualifiedIdentifier]) extends Selection[QualifiedIdentifier] {

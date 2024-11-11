@@ -29,6 +29,7 @@ object Binding {
     else Left(s"Expected Binding, got ${node.tpe}")
 
   def unsafeApply(node: Node): Binding = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[Binding] = apply(node).toOption
 
   final case class Selector(path: List[Binding]) extends Selection[Binding] {

@@ -29,6 +29,7 @@ object UseClause {
     else Left(s"Expected UseClause, got ${node.tpe}")
 
   def unsafeApply(node: Node): UseClause = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[UseClause] = apply(node).toOption
 
   final case class Selector(path: List[UseClause]) extends Selection[UseClause] {

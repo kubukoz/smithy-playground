@@ -25,6 +25,7 @@ object Struct {
     else Left(s"Expected Struct, got ${node.tpe}")
 
   def unsafeApply(node: Node): Struct = apply(node).fold(sys.error, identity)
+
   def unapply(node: Node): Option[Struct] = apply(node).toOption
 
   final case class Selector(path: List[Struct]) extends Selection[Struct] {
