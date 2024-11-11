@@ -128,7 +128,7 @@ lazy val parser = module("parser")
 lazy val treesitter = module("treesitter")
   .settings(
     libraryDependencies ++= Seq(
-      "org.polyvariant.treesitter4s" %% "core" % "0.3-460753c-SNAPSHOT"
+      "org.polyvariant.treesitter4s" %% "core" % "0.4.0"
     )
   )
 
@@ -138,7 +138,7 @@ lazy val parsergen = module("parser-gen")
       "dev.optics" %% "monocle-core" % "3.3.0",
       "com.disneystreaming.smithy4s" %% "smithy4s-json" % smithy4sVersion.value,
       ("org.scalameta" %% "scalameta" % "4.11.0").cross(CrossVersion.for3Use2_13),
-      "org.polyvariant.treesitter4s" %% "core" % "0.3-460753c-SNAPSHOT",
+      "org.polyvariant.treesitter4s" %% "core" % "0.4.0",
     ),
     scalacOptions -= "-release:11",
   )
