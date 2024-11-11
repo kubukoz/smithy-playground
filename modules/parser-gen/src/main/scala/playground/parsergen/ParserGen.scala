@@ -65,10 +65,20 @@ private def renderUnion(u: Type.Union): String = {
           |}""".stripMargin
   }
 
+  val selectorMethods = u
+    .subtypes
+    .map { subtype =>
+      // format: off
+      show"""def ${subtype.name.asChildName.render} : ${subtype.name.render}.Selector = ${subtype.name.render}.Selector(path.flatMap(_.${subtype.name.renderProjection}))"""
+      // format: on
+    }
+    .mkString_("\n")
+
   show"""// Generated code! Do not modify by hand.
         |package playground.generated.nodes
         |
         |import ${classOf[Node].getName()}
+        |import playground.treesitter4s.std.Selection
         |
         |opaque type $name <: Node = ${u.subtypes.map(_.name.render).mkString_(" | ")}
         |
@@ -79,6 +89,10 @@ private def renderUnion(u: Type.Union): String = {
         |${applyMethod.indentTrim(2)}
         |
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
+        |
+        |  final case class Selector(path: List[$name]) extends Selection[$name] {
+        |${selectorMethods.indentTrim(4)}
+        |  }
         |}
         |""".stripMargin
 }
@@ -170,6 +184,7 @@ private def renderProduct(p: Type.Product): String = {
   val instanceMethods =
     if (fieldGetters.nonEmpty || typedChildren.nonEmpty || typedChildrenPrecise.nonEmpty) {
       show"""extension (node: $name) {
+            |  def select[A](f: $name.Selector => Selection[A]): List[A] = f($name.Selector(List(node))).path
             |  // fields
             |${fieldGetters.mkString_("\n\n").indentTrim(2)}
             |  // typed children
@@ -180,10 +195,36 @@ private def renderProduct(p: Type.Product): String = {
     } else
       ""
 
+  val selectorMethods = p
+    .fields
+    .flatMap {
+      case field if field.targetTypes.size == 1 =>
+        // format: off
+        show"""def ${field.name.render}: ${field.targetTypes.head.render}.Selector = ${field.targetTypes.head.render}.Selector(path.flatMap(_.${field.name.render}))""".stripMargin.some
+        // format: on
+
+      case f =>
+        System
+          .err
+          .println(
+            s"Skipping selector for field ${f.name} in product $name as it has multiple target types"
+          )
+        none
+    }
+    .concat(
+      p.children.toList.flatMap(_.targetTypes.toList).map { tpe =>
+        // format: off
+        show"""def ${tpe.asChildName.render}: ${tpe.render}.Selector = ${tpe.render}.Selector(path.flatMap(_.${tpe.asChildName.render}))""".stripMargin
+        // format: on
+      }
+    )
+    .mkString_("\n")
+
   show"""// Generated code! Do not modify by hand.
         |package playground.generated.nodes
         |
         |import ${classOf[Node].getName()}
+        |import playground.treesitter4s.std.Selection
         |
         |opaque type $name <: Node = Node
         |
@@ -194,8 +235,13 @@ private def renderProduct(p: Type.Product): String = {
         |    if node.tpe == ${p.name.value.literal}
         |    then Right(node)
         |    else Left(s"Expected ${p.name.render}, got $${node.tpe}")
+        |
         |  def unsafeApply(node: Node): $name = apply(node).fold(sys.error, identity)
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
+        |
+        |  final case class Selector(path: List[$name]) extends Selection[$name] {
+        |${selectorMethods.indentTrim(4)}
+        |  }
         |}
         |""".stripMargin
 

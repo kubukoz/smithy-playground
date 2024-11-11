@@ -2,6 +2,7 @@
 package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
+import playground.treesitter4s.std.Selection
 
 opaque type InputNode <: Node = Boolean_ | List_ | Null_ | Number | String_ | Struct
 
@@ -27,4 +28,13 @@ object InputNode {
   }
 
   def unapply(node: Node): Option[InputNode] = apply(node).toOption
+
+  final case class Selector(path: List[InputNode]) extends Selection[InputNode] {
+    def boolean : Boolean_.Selector = Boolean_.Selector(path.flatMap(_.asBoolean))
+    def list : List_.Selector = List_.Selector(path.flatMap(_.asList))
+    def `null` : Null_.Selector = Null_.Selector(path.flatMap(_.asNull))
+    def number : Number.Selector = Number.Selector(path.flatMap(_.asNumber))
+    def string : String_.Selector = String_.Selector(path.flatMap(_.asString))
+    def struct : Struct.Selector = Struct.Selector(path.flatMap(_.asStruct))
+  }
 }
