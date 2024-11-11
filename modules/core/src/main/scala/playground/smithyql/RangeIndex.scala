@@ -55,9 +55,7 @@ object RangeIndex {
               (binding.key, binding.value).tupled.toList.flatMap { (key, value) =>
                 ContextRange(
                   value.range,
-                  base
-                    .inStructBody
-                    .inStructValue(key.source),
+                  base.inStructBody.inStructValue(key.source),
                 ) :: inputNodeRanges(value, base.inStructBody.inStructValue(key.source))
               }
             }
