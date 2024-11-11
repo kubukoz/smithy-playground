@@ -14,8 +14,8 @@ object RunQuery {
       case Struct(node) => node
     }
 
-    def operation_name: Option[OperationName] = node.fields.getOrElse("operation_name", Nil).headOption.map {
-      case OperationName(node) => node
+    def operation_name: Option[QueryOperationName] = node.fields.getOrElse("operation_name", Nil).headOption.map {
+      case QueryOperationName(node) => node
     }
     // typed children
 
@@ -34,7 +34,7 @@ object RunQuery {
 
   final case class Selector(path: List[RunQuery]) extends Selection[RunQuery] {
     def input: Struct.Selector = Struct.Selector(path.flatMap(_.input))
-    def operation_name: OperationName.Selector = OperationName.Selector(path.flatMap(_.operation_name))
+    def operation_name: QueryOperationName.Selector = QueryOperationName.Selector(path.flatMap(_.operation_name))
 
     type Self = Selector
     protected val remake = Selector.apply

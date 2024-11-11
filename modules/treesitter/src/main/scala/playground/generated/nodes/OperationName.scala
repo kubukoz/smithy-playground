@@ -10,17 +10,15 @@ object OperationName {
   extension (node: OperationName) {
     def select[A](f: OperationName.Selector => Selection[A]): List[A] = f(OperationName.Selector(List(node))).path
     // fields
-    def identifier: List[QualifiedIdentifier] = node.fields.getOrElse("identifier", Nil).toList.collect {
-      case QualifiedIdentifier(node) => node
-    }
 
-    def name: Option[Identifier] = node.fields.getOrElse("name", Nil).headOption.map {
+    // typed children
+    def typedChildren: Option[Identifier] = node.children.collectFirst {
       case Identifier(node) => node
     }
-    // typed children
-
     // precise typed children
-
+    def identifier: Option[Identifier] = node.children.collectFirst {
+      case Identifier(node) => node
+    }
   }
 
   def apply(node: Node): Either[String, OperationName] =
@@ -33,8 +31,7 @@ object OperationName {
   def unapply(node: Node): Option[OperationName] = apply(node).toOption
 
   final case class Selector(path: List[OperationName]) extends Selection[OperationName] {
-    def identifier: QualifiedIdentifier.Selector = QualifiedIdentifier.Selector(path.flatMap(_.identifier))
-    def name: Identifier.Selector = Identifier.Selector(path.flatMap(_.name))
+    def identifier: Identifier.Selector = Identifier.Selector(path.flatMap(_.identifier))
 
     type Self = Selector
     protected val remake = Selector.apply

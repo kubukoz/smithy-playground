@@ -54,7 +54,7 @@ object MultiServiceResolver {
     * perform a check on that. For the actual check, see PreludeCompiler.
     */
   def resolveServiceTs(
-    queryOperationName: playground.generated.nodes.OperationName,
+    queryOperationName: playground.generated.nodes.QueryOperationName,
     serviceIndex: ServiceIndex,
     useClauses: List[playground.generated.nodes.UseClause],
   ): EitherNel[CompilationError, QualifiedIdentifier] =
@@ -104,7 +104,7 @@ object MultiServiceResolver {
   private def resolveExplicitTs(
     index: ServiceIndex,
     explicitRef: playground.generated.nodes.QualifiedIdentifier,
-    operationName: playground.generated.nodes.Identifier,
+    operationName: playground.generated.nodes.OperationName,
   ): EitherNel[CompilationError, QualifiedIdentifier] =
     ASTAdapter.decodeQI(explicitRef) match {
       case None => ??? /* todo - I don't really know xD */
@@ -161,8 +161,7 @@ object MultiServiceResolver {
   }
 
   private def resolveImplicitTs(
-    // todo: introduce type wrapper for OperationName, rename current to QueryOperationName
-    operationName: playground.generated.nodes.Identifier,
+    operationName: playground.generated.nodes.OperationName,
     index: ServiceIndex,
     useClauses: List[playground.generated.nodes.UseClause],
   ): EitherNel[CompilationError, QualifiedIdentifier] = {

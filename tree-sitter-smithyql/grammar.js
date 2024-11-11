@@ -33,7 +33,10 @@ module.exports = grammar({
     top_level_statement: ($) => choice($.run_query),
 
     run_query: ($) =>
-      seq(field("operation_name", $.operation_name), field("input", $.struct)),
+      seq(
+        field("operation_name", $.query_operation_name),
+        field("input", $.struct)
+      ),
 
     qualified_identifier: ($) =>
       seq(
@@ -42,14 +45,16 @@ module.exports = grammar({
         field("selection", $.identifier)
       ),
 
-    operation_name: ($) =>
+    query_operation_name: ($) =>
       prec.left(
         1,
         seq(
           field("identifier", optional(seq($.qualified_identifier, "."))),
-          field("name", $.identifier)
+          field("name", $.operation_name)
         )
       ),
+
+    operation_name: ($) => $.identifier,
 
     _input_node: ($) =>
       choice($.struct, $.list, $.number, $.string, $.boolean, $.null),
