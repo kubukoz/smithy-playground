@@ -218,11 +218,7 @@ private def renderClass(tpe: NodeType): String = {
 
   val base = Paths.get(s"modules/treesitter/src/main/scala/playground/generated/nodes")
 
-  Files.createDirectories(base)
-
-  Files.walk(base).iterator().asScala.filter(Files.isRegularFile(_)).foreach(Files.delete)
-
-  types
+  val rendered = types
     .filter(_.named)
     .map(
       // only render field types that are named
@@ -235,6 +231,12 @@ private def renderClass(tpe: NodeType): String = {
     .fproduct(
       _.render
     )
+
+  Files.createDirectories(base)
+
+  Files.walk(base).iterator().asScala.filter(Files.isRegularFile(_)).foreach(Files.delete)
+
+  rendered
     .foreach { (tpe, code) =>
       Files.writeString(
         base.resolve(s"${tpe.tpe.render}.scala"),
