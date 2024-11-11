@@ -42,6 +42,7 @@ extension (tpe: NodeType) {
 
 private def renderUnion(u: Type.Union): String = {
   val name = u.name.render
+  val underlyingType = u.subtypes.map(_.name.render).mkString_(" | ")
 
   val projections = u.subtypes.map { sub =>
     // format: off
@@ -65,6 +66,8 @@ private def renderUnion(u: Type.Union): String = {
           |}""".stripMargin
   }
 
+  val typedApplyMethod = show"""def apply(node: $underlyingType): $name = node""".stripMargin
+
   val selectorMethods = u
     .subtypes
     .map { subtype =>
@@ -80,13 +83,15 @@ private def renderUnion(u: Type.Union): String = {
         |import ${classOf[Node].getName()}
         |import playground.treesitter4s.std.Selection
         |
-        |opaque type $name <: Node = ${u.subtypes.map(_.name.render).mkString_(" | ")}
+        |opaque type $name <: Node = $underlyingType
         |
         |object $name {
         |
         |${instanceMethods.indentTrim(2)}
         |
         |${applyMethod.indentTrim(2)}
+        |
+        |${typedApplyMethod.indentTrim(2)}
         |
         |  def unsafeApply(node: Node): $name = apply(node).fold(sys.error, identity)
         |
