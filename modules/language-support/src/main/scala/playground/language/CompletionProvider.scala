@@ -80,10 +80,7 @@ object CompletionProvider {
       // there's definitely a test missing for N>1 clauses.
       // https://github.com/kubukoz/smithy-playground/issues/161
       val presentServiceIds: List[QualifiedIdentifier] = file
-        .prelude
-        .toList
-        .flatMap(_.use_clause)
-        .flatMap(_.identifier)
+        .select(_.prelude.use_clause.identifier)
         .flatMap(ASTAdapter.decodeQI)
 
       // for operations on root level we show:
@@ -122,13 +119,10 @@ object CompletionProvider {
         case Some(serviceId) =>
           // includes the current query's service reference
           // as it wouldn't result in ading a use clause
-          val presentServiceIdentifiers =
-            q.operation_name.toList.flatMap(_.identifier).flatMap(ASTAdapter.decodeQI) ++
-              sf.prelude
-                .toList
-                .flatMap(_.use_clause)
-                .flatMap(_.identifier)
-                .flatMap(ASTAdapter.decodeQI)
+          val presentServiceIdentifiers = {
+            q.select(_.operation_name.identifier) ++
+              sf.select(_.prelude.use_clause.identifier)
+          }.flatMap(ASTAdapter.decodeQI)
 
           completeOperationName(
             serviceId,
@@ -149,7 +143,7 @@ object CompletionProvider {
           .resolveServiceTs(
             operationName,
             serviceIndex,
-            sf.prelude.toList.flatMap(_.use_clause),
+            sf.select(_.prelude.use_clause),
           )
           .toOption
 
@@ -160,9 +154,7 @@ object CompletionProvider {
         case NodeContext.PathEntry.AtOperationInput ^^: ctx =>
           resolvedServiceId match {
             case Some(serviceId) =>
-              q.operation_name
-                .toList
-                .flatMap(_.name)
+              q.select(_.operation_name.name)
                 .map(id => OperationName[Id](id.source))
                 .flatMap {
                   inputCompletions(serviceId)(_)
