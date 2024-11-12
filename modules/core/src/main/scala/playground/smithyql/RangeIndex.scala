@@ -30,32 +30,31 @@ object RangeIndex {
       }
 
     def inputNodeRanges(node: playground.generated.nodes.InputNode, base: NodeContext)
-      : List[ContextRange] =
-      node match {
-        case playground.generated.nodes.String_(string) =>
-          ContextRange(string.range.shrink1, base.inQuotes) :: Nil
+      : List[ContextRange] = node.visit(
+      new playground.generated.nodes.InputNode.Visitor.Default[List[ContextRange]] {
+        def default: List[ContextRange] = Nil
 
-        case playground.generated.nodes.List_(list) =>
-          ContextRange(list.range.shrink1, base.inCollectionEntry(None)) ::
-            list.list_fields.zipWithIndex.flatMap { (inputNode, i) =>
+        override def onString(node: playground.generated.nodes.String_): List[ContextRange] =
+          ContextRange(node.range.shrink1, base.inQuotes) :: Nil
+
+        override def onList(node: playground.generated.nodes.List_): List[ContextRange] =
+          ContextRange(node.range.shrink1, base.inCollectionEntry(None)) ::
+            node.list_fields.zipWithIndex.flatMap { (inputNode, i) =>
               ContextRange(inputNode.range, base.inCollectionEntry(Some(i))) ::
                 inputNodeRanges(inputNode, base.inCollectionEntry(Some(i)))
             }
 
-        case playground.generated.nodes.Struct(struct) =>
-          ContextRange(struct.range, base) ::
-            ContextRange(struct.range.shrink1, base.inStructBody) ::
-            struct.bindings.toList.flatMap { binding =>
+        override def onStruct(node: playground.generated.nodes.Struct): List[ContextRange] =
+          ContextRange(node.range, base) ::
+            ContextRange(node.range.shrink1, base.inStructBody) ::
+            node.bindings.toList.flatMap { binding =>
               (binding.key, binding.value).tupled.toList.flatMap { (key, value) =>
-                ContextRange(
-                  value.range,
-                  base.inStructBody.inStructValue(key.source),
-                ) :: inputNodeRanges(value, base.inStructBody.inStructValue(key.source))
+                ContextRange(value.range, base.inStructBody.inStructValue(key.source)) ::
+                  inputNodeRanges(value, base.inStructBody.inStructValue(key.source))
               }
             }
-
-        case _ => Nil
       }
+    )
 
     val queryRanges = parsed.statements.zipWithIndex.flatMap { (stat, statementIndex) =>
       stat.run_query.toList.flatMap { runQuery =>

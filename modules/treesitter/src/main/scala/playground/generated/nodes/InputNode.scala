@@ -3,6 +3,7 @@ package playground.generated.nodes
 
 import org.polyvariant.treesitter4s.Node
 import playground.treesitter4s.std.Selection
+import annotation.nowarn
 
 opaque type InputNode <: Node = Boolean_ | List_ | Null_ | Number | String_ | Struct
 
@@ -15,6 +16,7 @@ object InputNode {
     def asNumber: Option[Number] = Number.unapply(node)
     def asString: Option[String_] = String_.unapply(node)
     def asStruct: Option[Struct] = Struct.unapply(node)
+    def visit[A](visitor: Visitor[A]): A = visitor.visit(node)
   }
 
   def apply(node: Node): Either[String, InputNode] = node match {
@@ -32,6 +34,38 @@ object InputNode {
   def unsafeApply(node: Node): InputNode = apply(node).fold(sys.error, identity)
 
   def unapply(node: Node): Option[InputNode] = apply(node).toOption
+
+
+  trait Visitor[A] {
+    def onBoolean(node: Boolean_): A
+    def onList(node: List_): A
+    def onNull(node: Null_): A
+    def onNumber(node: Number): A
+    def onString(node: String_): A
+    def onStruct(node: Struct): A
+
+    def visit(node: InputNode): A = (node: @nowarn("msg=match may not be exhaustive")) match {
+      case Boolean_(node) => onBoolean(node)
+      case List_(node) => onList(node)
+      case Null_(node) => onNull(node)
+      case Number(node) => onNumber(node)
+      case String_(node) => onString(node)
+      case Struct(node) => onStruct(node)
+    }
+  }
+
+  object Visitor {
+    abstract class Default[A] extends Visitor[A] {
+      def default: A
+
+      def onBoolean(node: Boolean_): A = default
+      def onList(node: List_): A = default
+      def onNull(node: Null_): A = default
+      def onNumber(node: Number): A = default
+      def onString(node: String_): A = default
+      def onStruct(node: Struct): A = default
+    }
+  }
 
   final case class Selector(path: List[InputNode]) extends Selection[InputNode] {
     def boolean : Boolean_.Selector = Boolean_.Selector(path.flatMap(_.asBoolean))

@@ -21,7 +21,9 @@ import scala.meta.Dialect
 extension (tn: TypeName) {
   @targetName("renderTypeName")
   def render: String = tn.value.dropWhile(_ == '_').fromSnakeCase.ident
-  def renderProjection: String = show"as${tn.value.dropWhile(_ == '_').fromSnakeCase}".ident
+  def renderProjection: String = show"as${tn.prettyName}".ident
+  def renderVisitorMethod: String = show"on${tn.prettyName}".ident
+  private def prettyName = tn.value.dropWhile(_ == '_').fromSnakeCase
   def asChildName: FieldName = FieldName(tn.value)
 }
 
@@ -53,6 +55,7 @@ private def renderUnion(u: Type.Union): String = {
   val instanceMethods =
     show"""extension (node: $name) {
           |${projections.mkString_("\n").indentTrim(2)}
+          |  def visit[A](visitor: Visitor[A]): A = visitor.visit(node)
           |}""".stripMargin
 
   val applyMethod = {
@@ -68,6 +71,39 @@ private def renderUnion(u: Type.Union): String = {
 
   val typedApplyMethod = show"""def apply(node: $underlyingType): $name = node""".stripMargin
 
+  val visitor =
+    show"""
+          |trait Visitor[A] {
+          |${u
+           .subtypes
+           .map(sub => show"def ${sub.name.renderVisitorMethod}(node: ${sub.name.render}): A")
+           .mkString_("\n")
+           .indentTrim(2)}
+          |
+          |  def visit(node: $name): A = (node: @nowarn("msg=match may not be exhaustive")) match {
+          |${u
+           .subtypes
+           .map(sub => show"case ${sub.name.render}(node) => ${sub.name.renderVisitorMethod}(node)")
+           .mkString_("\n")
+           .indentTrim(4)}
+          |  }
+          |}
+          |
+          |object Visitor {
+          |  abstract class Default[A] extends Visitor[A] {
+          |    def default: A
+          |
+          |${u
+           .subtypes
+           .map(sub =>
+             show"def ${sub.name.renderVisitorMethod}(node: ${sub.name.render}): A = default"
+           )
+           .mkString_("\n")
+           .indentTrim(4)}
+          |  }
+          |}
+          |""".stripMargin
+
   val selectorMethods = u
     .subtypes
     .map { subtype =>
@@ -82,6 +118,7 @@ private def renderUnion(u: Type.Union): String = {
         |
         |import ${classOf[Node].getName()}
         |import playground.treesitter4s.std.Selection
+        |import annotation.nowarn
         |
         |opaque type $name <: Node = $underlyingType
         |
@@ -96,6 +133,8 @@ private def renderUnion(u: Type.Union): String = {
         |  def unsafeApply(node: Node): $name = apply(node).fold(sys.error, identity)
         |
         |  def unapply(node: Node): Option[$name] = apply(node).toOption
+        |
+        |${visitor.indentTrim(2)}
         |
         |  final case class Selector(path: List[$name]) extends Selection[$name] {
         |${selectorMethods.indentTrim(4)}
