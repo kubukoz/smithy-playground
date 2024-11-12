@@ -38,20 +38,22 @@ module.exports = grammar({
         field("input", $.struct)
       ),
 
+    _namespace: ($) => seq($.identifier, repeat(seq(".", $.identifier))),
+
     qualified_identifier: ($) =>
       seq(
-        field("namespace", seq($.identifier, repeat(seq(".", $.identifier)))),
+        field("namespace", $._namespace),
         "#",
         field("selection", $.identifier)
       ),
 
     query_operation_name: ($) =>
-      prec.left(
-        1,
-        seq(
-          field("identifier", optional(seq($.qualified_identifier, "."))),
-          field("name", $.operation_name)
-        )
+      seq(
+        field(
+          "identifier",
+          optional(prec.left(seq($.qualified_identifier, ".")))
+        ),
+        field("name", $.operation_name)
       ),
 
     operation_name: ($) => $.identifier,
