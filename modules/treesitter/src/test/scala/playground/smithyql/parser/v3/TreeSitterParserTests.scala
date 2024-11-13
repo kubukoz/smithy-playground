@@ -74,8 +74,6 @@ object TreeSitterParserTests extends FunSuite {
     val in = parse("""use service fo o.b ar.b/az.bax/#//B//,,{}az
                      |GetBa z { a = { x = 42, 50 }, z, 42 }""".stripMargin)
 
-    // this ain't pretty huh
-    // watch out for the upcoming lookup DSL
     val valueOfX =
       in.select(
         _.statements
