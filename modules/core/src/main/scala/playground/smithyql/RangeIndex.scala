@@ -45,8 +45,7 @@ object RangeIndex {
             }
 
         override def onStruct(node: playground.generated.nodes.Struct): List[ContextRange] =
-          ContextRange(node.range, base) ::
-            ContextRange(node.range.shrink1, base.inStructBody) ::
+          ContextRange(node.range.shrink1, base.inStructBody) ::
             node.bindings.toList.flatMap { binding =>
               (binding.key, binding.value).tupled.toList.flatMap { (key, value) =>
                 ContextRange(value.range, base.inStructBody.inStructValue(key.source)) ::
