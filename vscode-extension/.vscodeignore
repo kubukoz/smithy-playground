@@ -24,3 +24,6 @@ flake.lock
 .direnv
 .envrc
 **/*.d.ts
+
+fixture
+out/test

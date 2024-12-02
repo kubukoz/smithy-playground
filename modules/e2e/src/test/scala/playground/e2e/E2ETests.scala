@@ -21,6 +21,7 @@ import weaver.*
 import java.io.PrintWriter
 import java.lang.ProcessBuilder.Redirect
 import java.util.concurrent.CompletableFuture
+import scala.annotation.nowarn
 import scala.concurrent.duration.*
 import scala.jdk.CollectionConverters.*
 import scala.util.chaining.*
@@ -93,7 +94,9 @@ object E2ETests extends SimpleIOSuite {
           .create()
 
         Resource
-          .make(IO(launcher.startListening()).timeout(5.seconds))(f => IO(f.cancel(true): Unit))
+          .make(IO(launcher.startListening()).timeout(5.seconds))(f =>
+            IO(f.cancel(true): @nowarn("msg=discarded non-Unit"))
+          )
           .as(new LanguageServerAdapter(launcher.getRemoteProxy()))
       }
   }

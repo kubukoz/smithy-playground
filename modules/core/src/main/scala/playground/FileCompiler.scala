@@ -3,7 +3,6 @@ package playground
 import cats.Parallel
 import cats.syntax.all.*
 import cats.~>
-import playground.*
 import playground.smithyql.SourceFile
 import playground.smithyql.WithSource
 

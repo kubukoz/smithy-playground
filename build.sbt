@@ -14,6 +14,12 @@ inThisBuild(
   )
 )
 
+val ScalaLTS = "3.3.4"
+val ScalaNext = "3.5.2"
+
+ThisBuild / scalaVersion := ScalaNext
+ThisBuild / versionScheme := Some("early-semver")
+
 import scala.sys.process.*
 
 def crossPlugin(
@@ -30,21 +36,14 @@ val compilerPlugins =
             crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
           ))
 
-ThisBuild / versionScheme := Some("early-semver")
-
-Global / onChangedBuildSource := ReloadOnSourceChanges
-
-ThisBuild / scalaVersion := "2.13.13"
-ThisBuild / crossScalaVersions := Seq("2.13.13")
-
 // For coursier's "latest.integration"
 ThisBuild / dynverSeparator := "-"
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.10.0",
-    "org.typelevel" %% "cats-mtl" % "1.4.0",
+    "org.typelevel" %% "cats-core" % "2.12.0",
+    "org.typelevel" %% "cats-mtl" % "1.5.0",
     "com.disneystreaming" %% "weaver-cats" % "0.8.4" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.8.4" % Test,
     "com.disneystreaming" %% "weaver-scalacheck" % "0.8.4" % Test,
@@ -54,10 +53,27 @@ val commonSettings = Seq(
   compilerPlugins,
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions -= "-Vtype-diffs",
-  scalacOptions += "-Wnonunit-statement",
-  scalacOptions ++= Seq("-Xsource:3.0"),
+  scalacOptions -= "-language:existentials",
+  // https://github.com/lampepfl/dotty/issues/18674
+  Test / scalacOptions -= "-Wunused:implicits",
+  Test / scalacOptions -= "-Wunused:explicits",
+  Test / scalacOptions -= "-Wunused:imports",
+  Test / scalacOptions -= "-Wunused:locals",
+  Test / scalacOptions -= "-Wunused:params",
+  Test / scalacOptions -= "-Wunused:privates",
+  //
+  scalacOptions += "-no-indent",
+  scalacOptions ++= {
+    if (scalaVersion.value.startsWith("3.5"))
+      Seq(
+        // for cats-tagless macros
+        "-experimental"
+      )
+    else
+      Nil
+  },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
-  scalacOptions ++= Seq("-release", "11"),
+  scalacOptions += "-release:11",
   mimaFailOnNoPrevious := false,
 )
 
@@ -73,8 +89,9 @@ lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
   ),
-  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.3.0"),
+  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
   mimaPreviousArtifacts := Set.empty,
+  scalaVersion := ScalaLTS,
 )
 
 lazy val pluginSample = module("plugin-sample")
@@ -96,9 +113,9 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "1.0.0",
-      "io.circe" %% "circe-generic" % "0.14.6" % Test,
-      "io.circe" %% "circe-parser" % "0.14.6" % Test,
-      "co.fs2" %% "fs2-io" % "3.10.2" % Test,
+      "io.circe" %% "circe-generic" % "0.14.10" % Test,
+      "io.circe" %% "circe-parser" % "0.14.10" % Test,
+      "co.fs2" %% "fs2-io" % "3.11.0" % Test,
     )
   )
   .dependsOn(
@@ -110,7 +127,7 @@ lazy val parser = module("parser")
 lazy val formatter = module("formatter")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "paiges-cats" % "0.4.3"
+      "org.typelevel" %% "paiges-cats" % "0.4.4"
     )
   )
   .dependsOn(
@@ -119,24 +136,45 @@ lazy val formatter = module("formatter")
     parser % "test->test",
   )
 
+lazy val examples = module("examples")
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.disneystreaming.smithy4s" %% "smithy4s-core" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %% "smithy4s-aws-kernel" % smithy4sVersion.value,
+    ),
+    publish := false,
+    // generated code
+    scalacOptions += "-Wconf:cat=deprecation:silent",
+  )
+  .enablePlugins(Smithy4sCodegenPlugin)
+
+// not named "protocol" to leave space for a potential java-only protocol jar
+lazy val protocol4s = module("protocol4s")
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.disneystreaming.smithy4s" %% "smithy4s-core" % smithy4sVersion.value
+    )
+  )
+  .enablePlugins(Smithy4sCodegenPlugin)
+
 // Most of the core functionality of SmithyQL (compilation, analysis, evaluation)
 // also: SmithyQL standard library
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.5.4",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.28.4",
+      "org.typelevel" %% "cats-effect" % "3.5.7",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.31.3",
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.3.6" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.47.0" % Test,
-    ),
-    Smithy4sCodegenPlugin.defaultSettings(Test),
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.14" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.53.0" % Test,
+    )
   )
-  .enablePlugins(Smithy4sCodegenPlugin)
   .dependsOn(
+    protocol4s,
+    examples % "test->compile",
     pluginCore,
     ast,
     source % "test->test;compile->compile",
@@ -152,12 +190,15 @@ lazy val languageSupport = module("language-support")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.22.0",
-      "io.circe" %% "circe-core" % "0.14.6",
-      "org.http4s" %% "http4s-ember-client" % "0.23.26",
-      "org.http4s" %% "http4s-ember-server" % "0.23.26" % Test,
-      "io.get-coursier" %% "coursier" % "2.1.9",
-      "org.typelevel" %% "cats-tagless-core" % "0.16.0",
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.23.1",
+      "io.circe" %% "circe-core" % "0.14.10",
+      "org.http4s" %% "http4s-ember-client" % "0.23.29",
+      "org.http4s" %% "http4s-ember-server" % "0.23.29" % Test,
+      ("io.get-coursier" % "coursier" % "2.1.14")
+        .cross(CrossVersion.for3Use2_13)
+        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13")
+        .exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_2.13"),
+      "org.typelevel" %% "cats-tagless-core" % "0.16.2",
     ),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),
@@ -207,10 +248,12 @@ lazy val root = project
     ast,
     source,
     core,
+    examples,
     parser,
     formatter,
     languageSupport,
     lsp,
+    protocol4s,
     pluginCore,
     pluginSample,
     e2e,

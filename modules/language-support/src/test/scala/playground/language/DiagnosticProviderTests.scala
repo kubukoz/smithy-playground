@@ -19,7 +19,7 @@ import playground.CompilationError
 import playground.CompilationErrorDetails
 import playground.CompilationFailed
 import playground.DiagnosticSeverity
-import playground.Diffs.*
+import playground.Diffs.given
 import playground.FileCompiler
 import playground.FileRunner
 import playground.OperationCompiler

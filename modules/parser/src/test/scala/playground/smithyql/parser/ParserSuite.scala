@@ -120,7 +120,7 @@ trait ParserSuite extends SimpleIOSuite {
   ): List[TestCase] = {
     val baseDir = Paths
       .get(getClass().getResource("/parser-examples").getFile())
-      .resolve(file.Path.of(prefix.head, prefix.tail: _*))
+      .resolve(file.Path.of(prefix.head, prefix.tail*))
 
     baseDir
       .toFile

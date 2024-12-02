@@ -9,7 +9,7 @@ import playground.smithyql.parser.v2.scanner.Scanner
 import playground.smithyql.parser.v2.scanner.Token
 import weaver.*
 
-import Diffs.*
+import Diffs.given
 import Scanner.scan
 
 trait ScannerSuite { self: IOSuite =>

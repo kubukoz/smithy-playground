@@ -19,7 +19,6 @@ import cats.syntax.all.*
 import fs2.compression.Compression
 import org.http4s.Uri
 import org.http4s.client.Client
-import playground.*
 import playground.plugins.PlaygroundPlugin
 import playground.plugins.SimpleHttpBuilder
 import playground.smithyql.InputNode
@@ -157,7 +156,7 @@ object OperationRunner {
 
   def forServices[F[_]: StdlibRuntime: Async: Compression: std.Console](
     services: List[DynamicSchemaIndex.ServiceWrapper],
-    getSchema: ShapeId => Option[Schema[_]],
+    getSchema: ShapeId => Option[Schema[?]],
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
@@ -204,7 +203,7 @@ object OperationRunner {
     client: Client[F],
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
-    schemaIndex: ShapeId => Option[Schema[_]],
+    schemaIndex: ShapeId => Option[Schema[?]],
     plugins: List[PlaygroundPlugin],
   ): Resolver[F] =
     new Resolver[F] {

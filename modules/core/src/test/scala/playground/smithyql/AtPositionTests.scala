@@ -1,7 +1,7 @@
 package playground.smithyql
 
 import playground.Assertions.*
-import playground.Diffs.*
+import playground.Diffs.given
 import playground.smithyql.parser.SourceParser
 import weaver.*
 

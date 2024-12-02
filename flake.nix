@@ -1,30 +1,20 @@
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
+  outputs = { nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [
-            (final: prev:
-              let
-                jre = final.openjdk11;
-                jdk = jre;
-              in
-              { inherit jdk jre; })
-          ];
-        };
+        pkgs = import nixpkgs { inherit system; };
       in
       {
-        devShell = pkgs.mkShell {
+        devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.yarn
-            pkgs.nodejs-14_x
+            pkgs.nodejs
             pkgs.sbt
             pkgs.jless
             pkgs.gnupg

@@ -96,22 +96,20 @@ object ModelLoader {
 
   private def addFileImports(
     imports: Iterable[File]
-  ): ModelAssembler => ModelAssembler =
-    assembler => {
-      imports.foreach(f => assembler.addImport(f.toPath()))
-      assembler
-    }
+  ): ModelAssembler => ModelAssembler = { assembler =>
+    imports.foreach(f => assembler.addImport(f.toPath()))
+    assembler
+  }
 
   private def addPlaygroundModels(
     classLoader: ClassLoader
-  ): ModelAssembler => ModelAssembler =
-    assembler => {
-      List(
-        "META-INF/smithy/std.smithy"
-      ).map(classLoader.getResource).foreach(assembler.addImport)
+  ): ModelAssembler => ModelAssembler = { assembler =>
+    List(
+      "META-INF/smithy/std.smithy"
+    ).map(classLoader.getResource).foreach(assembler.addImport)
 
-      assembler
-    }
+    assembler
+  }
 
   def resolveModelDependencies(
     config: PlaygroundConfig
@@ -150,8 +148,8 @@ object ModelLoader {
       }
 
     Fetch(FileCache[Task]().withTtl(1.hour))
-      .addRepositories(repos: _*)
-      .addDependencies(deps: _*)
+      .addRepositories(repos*)
+      .addDependencies(deps*)
       .run()
       .toList
   }
