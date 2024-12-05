@@ -74,10 +74,9 @@ object E2ETests extends SimpleIOSuite {
 
     val builder =
       new ProcessBuilder(
-        "java",
-        "-cp",
-        BuildInfo.lspClassPath.mkString(":"),
-        BuildInfo.lspMainClass,
+        "cs",
+        "launch",
+        BuildInfo.lspArtifact,
       )
         // Watch process stderr in test runner
         .redirectError(Redirect.INHERIT)

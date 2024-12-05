@@ -23,7 +23,7 @@ object Assertions extends Expectations.Helpers {
         val stringWithResets = d.show()(conf).linesWithSeparators.map(Console.RESET + _).mkString
 
         failure(
-          s"Diff failed:\n${Console.RESET}(${conf.left("expected")}, ${conf.right("actual")})\n\n" + stringWithResets
+          s"Diff failed:\n${Console.RESET}(${conf.left("actual")}, ${conf.right("expected")})\n\n" + stringWithResets
         )
     }
 
