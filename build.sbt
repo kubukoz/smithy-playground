@@ -112,7 +112,7 @@ lazy val source = module("source")
 lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-parse" % "1.0.0",
+      "org.typelevel" %% "cats-parse" % "1.1.0",
       "io.circe" %% "circe-generic" % "0.14.10" % Test,
       "io.circe" %% "circe-parser" % "0.14.10" % Test,
       "co.fs2" %% "fs2-io" % "3.11.0" % Test,
