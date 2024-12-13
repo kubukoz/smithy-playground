@@ -75,6 +75,7 @@ val commonSettings = Seq(
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions += "-release:11",
   mimaFailOnNoPrevious := false,
+  resolvers += "Sonatype S01 snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
 )
 
 def module(
@@ -121,7 +122,27 @@ lazy val parser = module("parser")
   .dependsOn(
     ast % "test->test;compile->compile",
     source % "test->test;compile->compile",
+    treesitter % "test->compile",
   )
+
+lazy val treesitter = module("treesitter")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.polyvariant.treesitter4s" %% "core" % "0.4.0"
+    )
+  )
+
+lazy val parsergen = module("parser-gen")
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.optics" %% "monocle-core" % "3.3.0",
+      "com.disneystreaming.smithy4s" %% "smithy4s-json" % smithy4sVersion.value,
+      ("org.scalameta" %% "scalameta" % "4.11.0").cross(CrossVersion.for3Use2_13),
+      "org.polyvariant.treesitter4s" %% "core" % "0.4.0",
+    ),
+    scalacOptions -= "-release:11",
+  )
+  .enablePlugins(Smithy4sCodegenPlugin)
 
 // Formatter for the SmithyQL language constructs
 lazy val formatter = module("formatter")
@@ -177,6 +198,7 @@ lazy val core = module("core")
     examples % "test->compile",
     pluginCore,
     ast,
+    treesitter,
     source % "test->test;compile->compile",
     parser % "test->compile;test->test",
     formatter,
@@ -218,17 +240,27 @@ lazy val e2e = module("e2e")
     buildInfoKeys ++=
       Seq[BuildInfoKey.Entry[_]]( // do you know how to simplify this? let me know please!
         Def
-          .task((lsp / Compile / fullClasspath).value.map(_.data).map(_.toString))
-          .taskValue
-          .named("lspClassPath"),
-        Def
-          .task(
-            (lsp / Compile / mainClass).value.getOrElse(sys.error("didn't find main class in lsp"))
+          .task {
+            s"""${(lsp / organization).value}::${(lsp / moduleName).value}:${(lsp / version).value}"""
+          }
+          // todo: replace with a full publishLocal before e2e in particular gets run (but not before tests run normally)
+          .dependsOn(
+            lsp / publishLocal,
+            languageSupport / publishLocal,
+            core / publishLocal,
+            parser / publishLocal,
+            pluginCore / publishLocal,
+            source / publishLocal,
+            treesitter / publishLocal,
+            ast / publishLocal,
+            formatter / publishLocal,
+            protocol4s / publishLocal,
           )
           .taskValue
-          .named("lspMainClass"),
+          .named("lspArtifact")
       ),
     publish / skip := true,
+    Test / fork := true,
   )
   .dependsOn(lsp)
 
@@ -250,6 +282,7 @@ lazy val root = project
     core,
     examples,
     parser,
+    parsergen,
     formatter,
     languageSupport,
     lsp,
@@ -257,4 +290,5 @@ lazy val root = project
     pluginCore,
     pluginSample,
     e2e,
+    treesitter,
   )
