@@ -17,10 +17,22 @@ inThisBuild(
 val ScalaLTS = "3.3.4"
 val ScalaNext = "3.5.2"
 
+val jsoniterVersion = "2.32.0"
+
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
 
 import scala.sys.process.*
+import scala.util.chaining.*
+
+// Workaround for https://github.com/coursier/coursier/issues/2001
+// from https://github.com/coursier/coursier/issues/2001#issuecomment-2556556628
+def jsoniterFix(deps: Seq[ModuleID]) =
+  deps.map(
+    _.exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_3")
+  ) ++ Seq(
+    "com.github.plokhotnyuk.jsoniter-scala" % "jsoniter-scala-core_2.13" % jsoniterVersion
+  )
 
 def crossPlugin(
   x: sbt.librarymanagement.ModuleID
@@ -89,7 +101,7 @@ def module(
 lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
-  ),
+  ).pipe(jsoniterFix),
   // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
   mimaPreviousArtifacts := Set.empty,
   scalaVersion := ScalaLTS,
@@ -113,7 +125,7 @@ lazy val source = module("source")
 lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-parse" % "1.0.0",
+      "org.typelevel" %% "cats-parse" % "1.1.0",
       "io.circe" %% "circe-generic" % "0.14.10" % Test,
       "io.circe" %% "circe-parser" % "0.14.10" % Test,
       "co.fs2" %% "fs2-io" % "3.11.0" % Test,
@@ -184,14 +196,14 @@ lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.5.7",
-      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.31.3",
+      "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % jsoniterVersion,
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.14" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.53.0" % Test,
-    )
+    ).pipe(jsoniterFix)
   )
   .dependsOn(
     protocol4s,
@@ -214,14 +226,12 @@ lazy val lsp = module("lsp")
     libraryDependencies ++= Seq(
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.23.1",
       "io.circe" %% "circe-core" % "0.14.10",
-      "org.http4s" %% "http4s-ember-client" % "0.23.29",
-      "org.http4s" %% "http4s-ember-server" % "0.23.29" % Test,
-      ("io.get-coursier" % "coursier" % "2.1.14")
-        .cross(CrossVersion.for3Use2_13)
-        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13")
-        .exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_2.13"),
+      "org.http4s" %% "http4s-ember-client" % "0.23.30",
+      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
+      ("io.get-coursier" % "coursier_2.13" % "2.1.22")
+        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
       "org.typelevel" %% "cats-tagless-core" % "0.16.2",
-    ),
+    ).pipe(jsoniterFix),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),
     (Test / test) := {
