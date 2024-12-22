@@ -25,6 +25,8 @@ ThisBuild / versionScheme := Some("early-semver")
 import scala.sys.process.*
 import scala.util.chaining.*
 
+// Workaround for https://github.com/coursier/coursier/issues/2001
+// from https://github.com/coursier/coursier/issues/2001#issuecomment-2556556628
 def jsoniterFix(deps: Seq[ModuleID]) =
   deps.map(
     _.exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_3")
