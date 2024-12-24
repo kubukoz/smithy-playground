@@ -151,6 +151,7 @@ lazy val parsergen = module("parser-gen")
       "com.disneystreaming.smithy4s" %% "smithy4s-json" % smithy4sVersion.value,
       ("org.scalameta" %% "scalameta" % "4.11.0").cross(CrossVersion.for3Use2_13),
       "org.polyvariant.treesitter4s" %% "core" % "0.4.0",
+      "com.lihaoyi" %% "os-lib" % "0.11.3",
     ),
     scalacOptions -= "-release:11",
   )

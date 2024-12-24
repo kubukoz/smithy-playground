@@ -12,10 +12,7 @@ import treesittersmithy.NodeTypes
 import treesittersmithy.TypeName
 import util.chaining.*
 
-import java.nio.file.Files
-import java.nio.file.Paths
 import scala.annotation.targetName
-import scala.jdk.CollectionConverters.*
 import scala.meta.Dialect
 
 extension (tn: TypeName) {
@@ -304,13 +301,14 @@ private def renderProduct(p: Type.Product): String = {
   val types =
     Json
       .read[NodeTypes](
-        Blob(Files.readString(Paths.get("tree-sitter-smithyql/src/node-types.json")))
+        Blob(os.read(os.pwd / "tree-sitter-smithyql" / "src" / "node-types.json"))
       )
       .toTry
       .get
       .value
 
-  val base = Paths.get(s"modules/treesitter/src/main/scala/playground/generated/nodes")
+  val base =
+    os.pwd / "modules" / "treesitter" / "src" / "main" / "scala" / "playground" / "generated" / "nodes"
 
   val rendered = types
     .filter(_.named)
@@ -326,15 +324,14 @@ private def renderProduct(p: Type.Product): String = {
       _.render
     )
 
-  Files.createDirectories(base)
-
-  Files.walk(base).iterator().asScala.filter(Files.isRegularFile(_)).foreach(Files.delete)
+  os.remove.all(base)
 
   rendered
     .foreach { (tpe, code) =>
-      Files.writeString(
-        base.resolve(s"${tpe.tpe.render}.scala"),
+      os.write(
+        base / s"${tpe.tpe.render}.scala",
         code,
+        createFolders = true,
       )
     }
 }
