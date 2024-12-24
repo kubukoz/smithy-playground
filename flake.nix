@@ -26,14 +26,9 @@
           buildInputs = [ pkgs.tree-sitter pkgs.nodejs ];
           buildPhase = ''
             tree-sitter generate
-            make
+            cc src/parser.c -shared -o $out
           '';
-          installPhase =
-            if system == "x86_64-darwin" || system == "aarch64-darwin" then ''
-              cp libtree-sitter-smithyql.dylib $out
-            '' else ''
-              cp libtree-sitter-smithyql.so $out
-            '';
+          dontInstall = true;
         };
         packages.tree-sitter-smithyql-all = pkgs.stdenv.mkDerivation {
           name = "tree-sitter-smithyql-all";
