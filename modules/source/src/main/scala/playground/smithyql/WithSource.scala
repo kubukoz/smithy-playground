@@ -64,8 +64,8 @@ final case class SourceRange(
   // Assuming this range corresponds to a bracket/brace/quote etc.,
   // shrink it by one character on each side.
   def shrink1: SourceRange = copy(
-    start = start.copy(index = start.index + 1),
-    end = end.copy(index = end.index - 1),
+    start = start.moveRight(1),
+    end = end.moveLeft(1),
   )
 
   def render: String = s"${start.index}-${end.index}"
