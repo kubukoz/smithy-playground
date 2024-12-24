@@ -1,5 +1,5 @@
 {
-  "sources": ["modules/core/src/test/smithy"],
+  "sources": ["modules/examples/src/main/smithy"],
   "mavenDependencies": [
     "com.disneystreaming.alloy:alloy-core:0.3.14",
     "com.disneystreaming.smithy4s:smithy4s-protocol:0.18.26",

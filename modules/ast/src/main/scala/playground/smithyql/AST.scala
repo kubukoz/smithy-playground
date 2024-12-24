@@ -4,6 +4,7 @@ import cats.Applicative
 import cats.Functor
 import cats.Id
 import cats.Show
+import cats.arrow.FunctionK
 import cats.data.NonEmptyList
 import cats.kernel.Eq
 import cats.kernel.Order
@@ -87,7 +88,7 @@ final case class SourceFile[F[_]](
 
   def mapK[G[_]: Functor](
     fk: F ~> G
-  ): AST[G] = SourceFile(
+  ): SourceFile[G] = SourceFile(
     prelude = prelude.mapK(fk),
     statements = fk(statements).map(_.map(_.mapK(fk))),
   )
@@ -132,9 +133,9 @@ final case class OperationName[F[_]](
   text: String
 ) extends AST[F] {
 
-  def mapK[G[_]: Functor](
-    fk: F ~> G
-  ): OperationName[G] = copy()
+  def mapK[G[_]: Functor](fk: FunctionK[F, G]): OperationName[G] = retag[G]
+
+  def retag[G[_]]: OperationName[G] = copy()
 
 }
 
@@ -189,7 +190,7 @@ final case class QueryOperationName[F[_]](
     fk: F ~> G
   ): QueryOperationName[G] = QueryOperationName(
     identifier.map(fk(_)),
-    fk(operationName).map(_.mapK(fk)),
+    fk(operationName).map(_.retag[G]),
   )
 
 }

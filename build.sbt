@@ -228,17 +228,26 @@ lazy val e2e = module("e2e")
     buildInfoKeys ++=
       Seq[BuildInfoKey.Entry[_]]( // do you know how to simplify this? let me know please!
         Def
-          .task((lsp / Compile / fullClasspath).value.map(_.data).map(_.toString))
-          .taskValue
-          .named("lspClassPath"),
-        Def
-          .task(
-            (lsp / Compile / mainClass).value.getOrElse(sys.error("didn't find main class in lsp"))
+          .task {
+            s"""${(lsp / organization).value}::${(lsp / moduleName).value}:${(lsp / version).value}"""
+          }
+          // todo: replace with a full publishLocal before e2e in particular gets run (but not before tests run normally)
+          .dependsOn(
+            lsp / publishLocal,
+            languageSupport / publishLocal,
+            core / publishLocal,
+            parser / publishLocal,
+            pluginCore / publishLocal,
+            source / publishLocal,
+            ast / publishLocal,
+            formatter / publishLocal,
+            protocol4s / publishLocal,
           )
           .taskValue
-          .named("lspMainClass"),
+          .named("lspArtifact")
       ),
     publish / skip := true,
+    Test / fork := true,
   )
   .dependsOn(lsp)
 
