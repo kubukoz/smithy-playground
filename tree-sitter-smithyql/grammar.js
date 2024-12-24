@@ -47,12 +47,13 @@ module.exports = grammar({
         field("selection", $.identifier)
       ),
 
-    operation_name_qualifier: ($) => seq($.qualified_identifier, "."),
-
-    // todo: model as union?
     query_operation_name: ($) =>
-      seq(
-        field("identifier", optional($.operation_name_qualifier)),
+      choice(
+        seq(
+          field("service_identifier", $.qualified_identifier),
+          ".",
+          field("name", $.operation_name)
+        ),
         field("name", $.operation_name)
       ),
 

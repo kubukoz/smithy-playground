@@ -60,7 +60,7 @@ object MultiServiceResolver {
   ): EitherNel[CompilationError, Option[QualifiedIdentifier]] = queryOperationName
     .name
     .flatTraverse { opName =>
-      queryOperationName.identifier.flatMap(_.qualified_identifier) match {
+      queryOperationName.service_identifier match {
         case Some(explicitRef) => resolveExplicitTs(serviceIndex, explicitRef, opName)
         case None              => resolveImplicitTs(opName, serviceIndex, useClauses).map(_.some)
       }
