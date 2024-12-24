@@ -146,6 +146,7 @@ object CompletionProvider {
             sf.select(_.prelude.use_clause),
           )
           .toOption
+          .flatten
 
       ctx match {
         case NodeContext.PathEntry.AtOperationName ^^: EmptyPath =>

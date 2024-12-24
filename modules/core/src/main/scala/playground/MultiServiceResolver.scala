@@ -57,18 +57,13 @@ object MultiServiceResolver {
     queryOperationName: playground.generated.nodes.QueryOperationName,
     serviceIndex: ServiceIndex,
     useClauses: List[playground.generated.nodes.UseClause],
-  ): EitherNel[CompilationError, QualifiedIdentifier] =
-    queryOperationName.name match {
-      case Some(opName) =>
-        queryOperationName.identifier.flatMap(_.qualified_identifier) match {
-          case Some(explicitRef) => resolveExplicitTs(serviceIndex, explicitRef, opName)
-
-          case None => resolveImplicitTs(opName, serviceIndex, useClauses)
-        }
-      case None =>
-        // TODO: operation name is invalid or something like that
-        ???
-
+  ): EitherNel[CompilationError, Option[QualifiedIdentifier]] = queryOperationName
+    .name
+    .flatTraverse { opName =>
+      queryOperationName.identifier.flatMap(_.qualified_identifier) match {
+        case Some(explicitRef) => resolveExplicitTs(serviceIndex, explicitRef, opName)
+        case None              => resolveImplicitTs(opName, serviceIndex, useClauses).map(_.some)
+      }
     }
 
   private def resolveExplicit(
@@ -104,34 +99,32 @@ object MultiServiceResolver {
     index: ServiceIndex,
     explicitRef: playground.generated.nodes.QualifiedIdentifier,
     operationName: playground.generated.nodes.OperationName,
-  ): EitherNel[CompilationError, QualifiedIdentifier] =
-    ASTAdapter.decodeQI(explicitRef) match {
-      case None => ??? /* todo - I don't really know xD */
-      // explicit reference exists, but doesn't parse
-      case Some(ref) =>
-        index.getService(ref) match {
-          // explicit reference exists, but the service doesn't
-          case None =>
-            CompilationError
-              .error(
-                CompilationErrorDetails.UnknownService(index.serviceIds.toList),
-                explicitRef.range,
-              )
-              .leftNel
+  ): EitherNel[CompilationError, Option[QualifiedIdentifier]] = ASTAdapter
+    .decodeQI(explicitRef)
+    .traverse { ref =>
+      index.getService(ref) match {
+        // explicit reference exists, but the service doesn't
+        case None =>
+          CompilationError
+            .error(
+              CompilationErrorDetails.UnknownService(index.serviceIds.toList),
+              explicitRef.range,
+            )
+            .leftNel
 
-          // the service exists, but doesn't have the requested operation
-          case Some(service)
-              if !service.operationNames.contains_(OperationName(operationName.source)) =>
-            CompilationError
-              .error(
-                CompilationErrorDetails.OperationMissing(service.operationNames.toList),
-                operationName.range,
-              )
-              .leftNel
+        // the service exists, but doesn't have the requested operation
+        case Some(service)
+            if !service.operationNames.contains_(OperationName(operationName.source)) =>
+          CompilationError
+            .error(
+              CompilationErrorDetails.OperationMissing(service.operationNames.toList),
+              operationName.range,
+            )
+            .leftNel
 
-          // all good
-          case Some(_) => ref.asRight
-        }
+        // all good
+        case Some(_) => ref.asRight
+      }
 
     }
 
