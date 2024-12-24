@@ -4,7 +4,6 @@ import cats.syntax.all.*
 import org.polyvariant.treesitter4s.TreeSitterAPI
 import playground.Assertions.*
 import playground.Diffs.given
-import playground.smithyql.parser.SourceParser
 import weaver.*
 
 object AtPositionTests extends FunSuite {
@@ -31,12 +30,6 @@ object AtPositionTests extends FunSuite {
       .nodes
       .SourceFile
       .unsafeApply(TreeSitterAPI.make("smithyql").parse(extracted).rootNode.get)
-
-    val parsed =
-      SourceParser[SourceFile]
-        .parse(extracted)
-        .toTry
-        .get
 
     RangeIndex
       .build(parsedTs)
