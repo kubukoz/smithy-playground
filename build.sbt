@@ -239,7 +239,6 @@ lazy val e2e = module("e2e")
             parser / publishLocal,
             pluginCore / publishLocal,
             source / publishLocal,
-            treesitter / publishLocal,
             ast / publishLocal,
             formatter / publishLocal,
             protocol4s / publishLocal,
