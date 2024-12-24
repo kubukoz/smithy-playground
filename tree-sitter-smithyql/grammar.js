@@ -47,12 +47,11 @@ module.exports = grammar({
         field("selection", $.identifier)
       ),
 
+    operation_name_qualifier: ($) => seq($.qualified_identifier, "."),
+
     query_operation_name: ($) =>
       seq(
-        field(
-          "identifier",
-          optional(prec.left(seq($.qualified_identifier, ".")))
-        ),
+        field("identifier", optional($.operation_name_qualifier)),
         field("name", $.operation_name)
       ),
 

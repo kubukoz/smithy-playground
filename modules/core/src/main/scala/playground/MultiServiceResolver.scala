@@ -60,8 +60,7 @@ object MultiServiceResolver {
   ): EitherNel[CompilationError, QualifiedIdentifier] =
     queryOperationName.name match {
       case Some(opName) =>
-        // todo: this should be an Option in codegen. might be a bad grammar
-        queryOperationName.identifier.headOption match {
+        queryOperationName.identifier.flatMap(_.qualified_identifier) match {
           case Some(explicitRef) => resolveExplicitTs(serviceIndex, explicitRef, opName)
 
           case None => resolveImplicitTs(opName, serviceIndex, useClauses)

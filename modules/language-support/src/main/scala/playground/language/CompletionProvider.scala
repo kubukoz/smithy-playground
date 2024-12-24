@@ -120,7 +120,7 @@ object CompletionProvider {
           // includes the current query's service reference
           // as it wouldn't result in ading a use clause
           val presentServiceIdentifiers = {
-            q.select(_.operation_name.identifier) ++
+            q.select(_.operation_name.identifier.qualified_identifier) ++
               sf.select(_.prelude.use_clause.identifier)
           }.flatMap(ASTAdapter.decodeQI)
 

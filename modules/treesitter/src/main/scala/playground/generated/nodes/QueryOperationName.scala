@@ -10,8 +10,8 @@ object QueryOperationName {
   extension (node: QueryOperationName) {
     def select[A](f: QueryOperationName.Selector => Selection[A]): List[A] = f(QueryOperationName.Selector(List(node))).path
     // fields
-    def identifier: List[QualifiedIdentifier] = node.fields.getOrElse("identifier", Nil).toList.collect {
-      case QualifiedIdentifier(node) => node
+    def identifier: Option[OperationNameQualifier] = node.fields.getOrElse("identifier", Nil).headOption.map {
+      case OperationNameQualifier(node) => node
     }
 
     def name: Option[OperationName] = node.fields.getOrElse("name", Nil).headOption.map {
@@ -33,7 +33,7 @@ object QueryOperationName {
   def unapply(node: Node): Option[QueryOperationName] = apply(node).toOption
 
   final case class Selector(path: List[QueryOperationName]) extends Selection[QueryOperationName] {
-    def identifier: QualifiedIdentifier.Selector = QualifiedIdentifier.Selector(path.flatMap(_.identifier))
+    def identifier: OperationNameQualifier.Selector = OperationNameQualifier.Selector(path.flatMap(_.identifier))
     def name: OperationName.Selector = OperationName.Selector(path.flatMap(_.name))
 
     type Self = Selector
