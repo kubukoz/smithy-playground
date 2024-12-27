@@ -206,7 +206,7 @@ lazy val lsp = module("lsp")
       "io.circe" %% "circe-core" % "0.14.10",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
       "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
-      ("io.get-coursier" % "coursier_2.13" % "2.1.22")
+      ("io.get-coursier" % "coursier_2.13" % "2.1.23")
         .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
       "org.typelevel" %% "cats-tagless-core" % "0.16.2",
     ).pipe(jsoniterFix),
