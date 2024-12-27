@@ -15,7 +15,7 @@ inThisBuild(
 )
 
 val ScalaLTS = "3.3.4"
-val ScalaNext = "3.5.2"
+val ScalaNext = "3.6.2"
 
 val jsoniterVersion = "2.32.0"
 
@@ -75,15 +75,8 @@ val commonSettings = Seq(
   Test / scalacOptions -= "-Wunused:privates",
   //
   scalacOptions += "-no-indent",
-  scalacOptions ++= {
-    if (scalaVersion.value.startsWith("3.5"))
-      Seq(
-        // for cats-tagless macros
-        "-experimental"
-      )
-    else
-      Nil
-  },
+  // for cats-tagless macros
+  scalacOptions ++= "-experimental",
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions += "-release:11",
   mimaFailOnNoPrevious := false,
