@@ -17,7 +17,7 @@ inThisBuild(
 val ScalaLTS = "3.3.4"
 val ScalaNext = "3.5.2"
 
-val jsoniterVersion = "2.32.0"
+val jsoniterVersion = "2.33.0"
 
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
