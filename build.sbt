@@ -76,7 +76,7 @@ val commonSettings = Seq(
   //
   scalacOptions += "-no-indent",
   scalacOptions ++= {
-    if (scalaVersion.value.startsWith("3.5"))
+    if (scalaVersion.value.startsWith("3.5") || scalaVersion.value.startsWith("3.6"))
       Seq(
         // for cats-tagless macros
         "-experimental"
