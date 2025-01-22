@@ -49,6 +49,28 @@ operation GetVersion {
 @documentation("""
 Create a hero.
 """)
+@examples([{
+    title: "Valid input"
+    documentation: "This is a valid input"
+    input: {
+        hero: {
+            good: {
+                howGood: 10
+            }
+        }
+    }
+}, {
+    title: "Valid input v2"
+    documentation: "This is also a valid input, but for a bad hero"
+    input: {
+        hero: {
+            bad: {
+                evilName: "Evil"
+                powerLevel: 10
+            }
+        }
+    }
+}])
 operation CreateHero {
     input: CreateHeroInput
     output: CreateHeroOutput

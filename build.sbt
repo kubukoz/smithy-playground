@@ -15,9 +15,9 @@ inThisBuild(
 )
 
 val ScalaLTS = "3.3.4"
-val ScalaNext = "3.5.2"
+val ScalaNext = "3.6.3"
 
-val jsoniterVersion = "2.32.0"
+val jsoniterVersion = "2.33.0"
 
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
@@ -54,7 +54,7 @@ ThisBuild / dynverSeparator := "-"
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-core" % "2.12.0",
+    "org.typelevel" %% "cats-core" % "2.13.0",
     "org.typelevel" %% "cats-mtl" % "1.5.0",
     "com.disneystreaming" %% "weaver-cats" % "0.8.4" % Test,
     "com.disneystreaming" %% "weaver-discipline" % "0.8.4" % Test,
@@ -76,7 +76,7 @@ val commonSettings = Seq(
   //
   scalacOptions += "-no-indent",
   scalacOptions ++= {
-    if (scalaVersion.value.startsWith("3.5"))
+    if (scalaVersion.value.startsWith("3.5") || scalaVersion.value.startsWith("3.6"))
       Seq(
         // for cats-tagless macros
         "-experimental"
@@ -203,7 +203,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.14" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.53.0" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.54.0" % Test,
     ).pipe(jsoniterFix)
   )
   .dependsOn(
@@ -229,9 +229,9 @@ lazy val lsp = module("lsp")
       "io.circe" %% "circe-core" % "0.14.10",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
       "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
-      ("io.get-coursier" % "coursier_2.13" % "2.1.22")
+      ("io.get-coursier" % "coursier_2.13" % "2.1.24")
         .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
-      "org.typelevel" %% "cats-tagless-core" % "0.16.2",
+      "org.typelevel" %% "cats-tagless-core" % "0.16.3",
     ).pipe(jsoniterFix),
     buildInfoPackage := "playground.lsp.buildinfo",
     buildInfoKeys ++= Seq(version, scalaBinaryVersion),

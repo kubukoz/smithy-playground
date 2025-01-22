@@ -12,7 +12,7 @@
     "dependencies": [
       "com.disneystreaming.alloy:alloy-core:0.3.14",
       "com.disneystreaming.smithy4s:smithy4s-protocol:0.18.27",
-      "software.amazon.smithy:smithy-aws-traits:1.53.0"
+      "software.amazon.smithy:smithy-aws-traits:1.54.0"
     ],
 
     "repositories": []

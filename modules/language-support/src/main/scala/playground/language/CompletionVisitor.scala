@@ -3,6 +3,7 @@ package playground.language
 import cats.Id
 import cats.kernel.Eq
 import cats.syntax.all.*
+import playground.NodeEncoder
 import playground.ServiceNameExtractor
 import playground.TextUtils
 import playground.language.CompletionItem.InsertUseClause.NotRequired
@@ -23,6 +24,7 @@ import playground.smithyql.WithSource
 import playground.smithyql.format.Formatter
 import smithy.api
 import smithy4s.Bijection
+import smithy4s.Document
 import smithy4s.Endpoint
 import smithy4s.Hints
 import smithy4s.Lazy
@@ -67,6 +69,8 @@ final case class CompletionItem(
   def asValueCompletion: CompletionItem = copy(
     insertText = InsertText.JustString(s"$label = ")
   )
+
+  def withSortText(text: String): CompletionItem = copy(sortText = text.some)
 
 }
 
@@ -383,6 +387,73 @@ object CompletionItem {
     )
   }
 
+  // Examples for operation inputs.
+  // TODO: currently only works inside the struct (and assumes that by rendering only fields, no braces).
+  // If/when we ever have graceful parsing in completions, we should handle other contexts, such as being outside of the struct.
+  def forInputExamples[S](
+    schema: Schema[S]
+  ): List[CompletionItem] = {
+    val documentDecoder = Document.Decoder.fromSchema(schema)
+    val nodeEncoder = NodeEncoder.derive(schema)
+
+    case class Sample(
+      name: String,
+      documentation: Option[String],
+      inputObject: Struct[Id],
+    )
+
+    def decodeSample(
+      example: api.Example
+    ): Option[Sample] =
+      for {
+        input <- example.input
+        decoded <- documentDecoder.decode(input).toOption
+        // note: we could've transcoded from Document to Node directly, without the intermediate decoding
+        // but the examples we suggest should be valid, and this is the only way to ensure that.
+        encoded = nodeEncoder.toNode(decoded)
+
+        // we're only covering inputs, and operation inputs must be structures.
+        asObject <- encoded.asStruct
+      } yield Sample(
+        name = example.title,
+        documentation = example.documentation,
+        inputObject = asObject,
+      )
+
+    def completionForSample(
+      sample: Sample,
+      index: Int,
+    ): CompletionItem = {
+      val text = Formatter[Struct.Fields]
+        .format(
+          sample
+            .inputObject
+            .fields
+            .mapK(WithSource.liftId),
+          Int.MaxValue,
+        )
+
+      CompletionItem
+        .fromHints(
+          kind = CompletionItemKind.Constant,
+          label = s"Example: ${sample.name}",
+          insertText = InsertText.JustString(text),
+          schema = schema.addHints(
+            sample.documentation.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
+          ),
+        )
+        .withSortText(s"0_$index")
+    }
+
+    schema
+      .hints
+      .get(api.Examples)
+      .foldMap(_.value)
+      .flatMap(decodeSample)
+      .zipWithIndex
+      .map(completionForSample.tupled)
+  }
+
   def deprecationString(
     info: api.Deprecated
   ): String = {
@@ -570,11 +641,16 @@ object CompletionVisitor extends SchemaVisitor[CompletionResolver] {
     fields: Vector[Field[S, ?]],
     make: IndexedSeq[Any] => S,
   ): CompletionResolver[S] = {
+    // Artificial schema resembling this one. Should be pretty much equivalent.
+    val schema = Schema.struct(fields)(make).addHints(hints).withId(shapeId)
+
     val compiledFields = fields.map(field => (field, field.schema.compile(this)))
+
+    val examples = CompletionItem.forInputExamples(schema)
 
     structLike(
       inBody =
-        fields
+        examples ++ fields
           // todo: filter out present fields
           .sortBy(field => (field.isRequired && !field.hasDefaultValue, field.label))
           .map(CompletionItem.fromField)

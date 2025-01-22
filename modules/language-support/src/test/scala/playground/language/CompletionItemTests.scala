@@ -1,5 +1,8 @@
 package playground.language
 
+import demo.smithy.CreateHeroInput
+import demo.smithy.DemoServiceOperation.CreateHero
+import demo.smithy.Good
 import demo.smithy.Hero
 import demo.smithy.Subscription
 import playground.Assertions.*
@@ -8,6 +11,9 @@ import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.syntax.*
 import playground.std.ClockGen
 import playground.std.ClockOperation
+import smithy.api.Documentation
+import smithy.api.Examples
+import smithy4s.Hints
 import smithy4s.schema.Schema
 import weaver.*
 
@@ -176,6 +182,19 @@ object CompletionItemTests extends FunSuite {
         sortText = None,
       ),
     )
+  }
+
+  test("CompletionItem.forInputExamples: documentation already present is ignored") {
+    val schema = CreateHeroInput
+      .schema
+      .addHints(CreateHero.hints.get(Examples).map(a => a: Hints.Binding).toList*)
+      .addHints(Documentation("hello"))
+
+    val results = CompletionItem.forInputExamples(schema)
+
+    val containsDocs = results.exists(_.docs.exists(_.contains("hello")))
+
+    assert(!containsDocs)
   }
 
   test("describeSchema: recursive struct") {
