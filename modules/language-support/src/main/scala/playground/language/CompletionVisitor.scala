@@ -435,10 +435,9 @@ object CompletionItem {
 
       CompletionItem
         .fromHints(
-          kind = CompletionItemKind.Constant /* todo */,
+          kind = CompletionItemKind.Constant,
           label = s"Example: ${sample.name}",
           insertText = InsertText.JustString(text),
-          // issue: this doesn't work if the schema already has a Documentation hint. We should remove it first, or do something else.
           schema = schema.addHints(
             sample.documentation.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
           ),
