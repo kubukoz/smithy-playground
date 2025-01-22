@@ -70,6 +70,8 @@ final case class CompletionItem(
     insertText = InsertText.JustString(s"$label = ")
   )
 
+  def withSortText(text: String): CompletionItem = copy(sortText = text.some)
+
 }
 
 sealed trait TextEdit extends Product with Serializable
@@ -159,17 +161,15 @@ object CompletionItem {
     label: String,
     insertText: InsertText,
     schema: Schema[?],
-    sortTextOverride: Option[String] = None,
   ): CompletionItem = {
     val isField = kind === CompletionItemKind.Field
 
-    val sortText = sortTextOverride.orElse {
+    val sortText =
       isField match {
         case true if isRequiredField(schema) => Some(s"1_$label")
         case true                            => Some(s"2_$label")
         case false                           => None
       }
-    }
 
     CompletionItem(
       kind = kind,
@@ -433,16 +433,17 @@ object CompletionItem {
           Int.MaxValue,
         )
 
-      CompletionItem.fromHints(
-        kind = CompletionItemKind.Constant /* todo */,
-        label = s"Example: ${sample.name}",
-        insertText = InsertText.JustString(text),
-        // issue: this doesn't work if the schema already has a Documentation hint. We should remove it first, or do something else.
-        schema = schema.addHints(
-          sample.documentation.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
-        ),
-        sortTextOverride = Some(s"0_$index"),
-      )
+      CompletionItem
+        .fromHints(
+          kind = CompletionItemKind.Constant /* todo */,
+          label = s"Example: ${sample.name}",
+          insertText = InsertText.JustString(text),
+          // issue: this doesn't work if the schema already has a Documentation hint. We should remove it first, or do something else.
+          schema = schema.addHints(
+            sample.documentation.map(api.Documentation(_)).map(Hints(_)).getOrElse(Hints.empty)
+          ),
+        )
+        .withSortText(s"0_$index")
     }
 
     schema
