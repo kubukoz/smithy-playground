@@ -1,5 +1,6 @@
 package playground.language
 
+import demo.smithy.DemoService
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions.*
@@ -208,6 +209,69 @@ object CompletionProviderTests extends SimpleIOSuite {
     )
 
     assertNoDiff(result, expected)
+  }
+
+  pureTest("completing operation examples - input examples get used") {
+    val provider = CompletionProvider.forServices(List(wrapService(DemoService)))
+
+    val input =
+      s"""use service ${DemoService.id}
+         |
+         |CreateHero {}""".stripMargin
+
+    val results = provider
+      .provide(
+        input,
+        input.positionOf("}"),
+      )
+      .filter(_.label.startsWith("Example:"))
+
+    val expected = List(
+      CompletionItem(
+        kind = CompletionItemKind.Constant,
+        label = "Example: Valid input",
+        insertText = InsertText.JustString(
+          """
+            |  hero: {
+            |    good: {
+            |      howGood: 10,
+            |    },
+            |  },
+            |""".stripMargin
+        ),
+        detail = ": structure CreateHeroInput",
+        description = Some("demo.smithy"),
+        deprecated = false,
+        docs = Some("This is a valid input"),
+        extraTextEdits = Nil,
+        sortText = Some("0_0"),
+      ),
+      CompletionItem(
+        kind = CompletionItemKind.Constant,
+        label = "Example: Valid input v2",
+        insertText = InsertText.JustString(
+          """
+            |  hero: {
+            |    bad: {
+            |      evilName: "Evil",
+            |      powerLevel: 10,
+            |    },
+            |  },
+            |""".stripMargin
+        ),
+        detail = ": structure CreateHeroInput",
+        description = Some("demo.smithy"),
+        deprecated = false,
+        docs = Some("This is also a valid input, but for a bad hero"),
+        extraTextEdits = Nil,
+        sortText = Some("0_1"),
+      ),
+    )
+
+    assertNoDiff(
+      results,
+      expected,
+    )
   }
 
   // needs: completions inside prelude (entire use clauses)
