@@ -146,6 +146,8 @@ lazy val treesitter = module("treesitter")
     ),
     Compile / sourceGenerators += {
       Def.task {
+        Process(Seq("tree-sitter", "generate"), Some((os.pwd / "tree-sitter-smithyql").toIO)).!!
+
         val pargenClasspath = (parsergen / Compile / fullClasspath).value.files.map(os.Path(_))
         val targetDir = os.Path((Compile / sourceManaged).value) / "ts4s-parsergen"
 
