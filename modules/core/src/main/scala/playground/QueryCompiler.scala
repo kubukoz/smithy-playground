@@ -2,6 +2,7 @@ package playground
 
 import cats.Apply
 import cats.data.IorNec
+import cats.data.Kleisli
 import cats.data.NonEmptyChain
 import cats.syntax.all.*
 import playground.CompilationErrorDetails.*
@@ -31,20 +32,13 @@ object QueryCompiler {
         fa: QueryCompiler[A]
       )(
         f: A => B
-      ): QueryCompiler[B] = fa.compile(_).map(f)
+      ): QueryCompiler[B] = Kleisli(fa.compile).map(f).run(_)
 
       def ap[A, B](
         ff: QueryCompiler[A => B]
       )(
         fa: QueryCompiler[A]
-      ): QueryCompiler[B] =
-        wast =>
-          (ff.compile(wast), fa.compile(wast)).parMapN(
-            (
-              a,
-              b,
-            ) => a(b)
-          )
+      ): QueryCompiler[B] = Kleisli(ff.compile).parAp(Kleisli(fa.compile)).run(_)
 
     }
 
