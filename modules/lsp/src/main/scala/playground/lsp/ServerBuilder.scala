@@ -2,6 +2,7 @@ package playground.lsp
 
 import cats.effect.implicits.*
 import cats.effect.kernel.Async
+import cats.effect.kernel.MonadCancelThrow
 import cats.effect.kernel.Resource
 import cats.effect.std
 import cats.syntax.all.*
@@ -45,6 +46,7 @@ object ServerBuilder {
     val makeClient = EmberClientBuilder
       .default[F]
       .build
+      .map(middleware.BaseUri[F])
       .map(middleware.AuthorizationHeader[F])
       .map(
         Logger[F](
@@ -79,7 +81,6 @@ object ServerBuilder {
             .forSchemaIndex[F](
               dsi = dsi,
               client = client,
-              baseUri = LanguageClient[F].configuration(ConfigurationValue.baseUri),
               awsEnv = awsEnv,
               plugins = plugins,
             )
@@ -98,7 +99,26 @@ object ServerBuilder {
 
   private object middleware {
 
-    def AuthorizationHeader[F[_]: Async: LanguageClient]: Client[F] => Client[F] =
+    def BaseUri[F[_]: LanguageClient: MonadCancelThrow]: Client[F] => Client[F] =
+      client =>
+        Client[F] { req =>
+          LanguageClient[F].configuration(ConfigurationValue.baseUri).toResource.flatMap { uri =>
+            client.run(
+              req.withUri(
+                req
+                  .uri
+                  .copy(
+                    scheme = uri.scheme,
+                    authority = uri.authority,
+                    // prefixing with uri.path
+                    path = uri.path.addSegments(req.uri.path.segments),
+                  )
+              )
+            )
+          }
+        }
+
+    def AuthorizationHeader[F[_]: LanguageClient: MonadCancelThrow]: Client[F] => Client[F] =
       client =>
         Client[F] { request =>
           val updatedRequest =
