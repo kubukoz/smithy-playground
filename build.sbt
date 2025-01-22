@@ -15,7 +15,7 @@ inThisBuild(
 )
 
 val ScalaLTS = "3.3.4"
-val ScalaNext = "3.5.2"
+val ScalaNext = "3.6.3"
 
 val jsoniterVersion = "2.33.0"
 
