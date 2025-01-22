@@ -13,11 +13,9 @@ import cats.data.NonEmptyList
 import cats.effect.Async
 import cats.effect.MonadCancelThrow
 import cats.effect.Resource
-import cats.effect.implicits.*
 import cats.effect.std
 import cats.syntax.all.*
 import fs2.compression.Compression
-import org.http4s.Uri
 import org.http4s.client.Client
 import playground.plugins.PlaygroundPlugin
 import playground.plugins.SimpleHttpBuilder
@@ -117,39 +115,15 @@ object OperationRunner {
 
   }
 
-  // https://github.com/kubukoz/smithy-playground/issues/158
-  def dynamicBaseUri[F[_]: MonadCancelThrow](
-    getUri: F[Uri]
-  ): Client[F] => Client[F] =
-    client =>
-      Client[F] { req =>
-        getUri.toResource.flatMap { uri =>
-          client.run(
-            req.withUri(
-              req
-                .uri
-                .copy(
-                  scheme = uri.scheme,
-                  authority = uri.authority,
-                  // prefixing with uri.path
-                  path = uri.path.addSegments(req.uri.path.segments),
-                )
-            )
-          )
-        }
-      }
-
   def forSchemaIndex[F[_]: StdlibRuntime: Async: Compression: std.Console](
     dsi: DynamicSchemaIndex,
     client: Client[F],
-    baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
   ): Map[QualifiedIdentifier, Resolver[F]] = forServices(
     services = dsi.allServices.toList,
     getSchema = dsi.getSchema,
     client = client,
-    baseUri = baseUri,
     awsEnv = awsEnv,
     plugins = plugins,
   )
@@ -158,7 +132,6 @@ object OperationRunner {
     services: List[DynamicSchemaIndex.ServiceWrapper],
     getSchema: ShapeId => Option[Schema[?]],
     client: Client[F],
-    baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
   ): Map[QualifiedIdentifier, Resolver[F]] =
@@ -167,7 +140,6 @@ object OperationRunner {
         OperationRunner.forService[svc.Alg, F](
           svc.service,
           client,
-          baseUri,
           awsEnv,
           getSchema,
           plugins,
@@ -201,7 +173,6 @@ object OperationRunner {
   def forService[Alg[_[_, _, _, _, _]], F[_]: StdlibRuntime: Async: Compression: std.Console](
     service: Service[Alg],
     client: Client[F],
-    baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     schemaIndex: ShapeId => Option[Schema[?]],
     plugins: List[PlaygroundPlugin],
@@ -224,11 +195,7 @@ object OperationRunner {
         builder
           .client(
             service,
-            dynamicBaseUri[F](
-              baseUri.flatTap { uri =>
-                std.Console[F].println(s"Using base URI: $uri")
-              }
-            ).apply(client),
+            client,
           )
           .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
           .map(service.toPolyFunction(_))
