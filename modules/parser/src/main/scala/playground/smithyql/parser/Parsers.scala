@@ -269,8 +269,10 @@ object Parsers {
       .map(Prelude.apply)
       .withContext("prelude")
 
-    val sourceFile: Parser0[SourceFile[T]] = SourceFile[T]
-      .liftN(prelude, tokens.withComments0(statement.rep0))
+    val sourceFile: Parser0[SourceFile[T]] = SourceFile[T].liftN(
+      prelude,
+      tokens.withComments0(statement.rep0),
+    )
 
     implicit class ParserOps[A](
       parser: Parser[A]
