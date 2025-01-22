@@ -127,6 +127,12 @@ sealed trait InputNode[F[_]] extends AST[F] {
     fk: F ~> G
   ): InputNode[G]
 
+  def asStruct: Option[Struct[F]] =
+    this match {
+      case Struct(fields) => Some(Struct(fields))
+      case _              => None
+    }
+
 }
 
 final case class OperationName[F[_]](
