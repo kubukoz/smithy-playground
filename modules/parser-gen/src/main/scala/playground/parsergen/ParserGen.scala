@@ -307,8 +307,8 @@ private def renderProduct(p: Type.Product): String = {
       .get
       .value
 
-  val base =
-    os.pwd / "modules" / "treesitter" / "src" / "main" / "scala" / "playground" / "generated" / "nodes"
+  val base = os.Path(sys.env("CODEGEN_TARGET"))
+  // os.pwd / "modules" / "treesitter" / "src" / "main" / "scala" / "playground" / "generated" / "nodes"
 
   val rendered = types
     .filter(_.named)
@@ -326,14 +326,18 @@ private def renderProduct(p: Type.Product): String = {
 
   os.remove.all(base)
 
-  rendered
-    .foreach { (tpe, code) =>
+  val files = rendered.map((tpe, code) => (base / s"${tpe.tpe.render}.scala", code))
+
+  files
+    .foreach { (path, code) =>
       os.write(
-        base / s"${tpe.tpe.render}.scala",
+        path,
         code,
         createFolders = true,
       )
+      println(path)
     }
+
 }
 
 extension (s: String) {

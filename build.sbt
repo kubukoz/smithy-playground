@@ -1,3 +1,5 @@
+import sbt.util.CacheImplicits._
+
 inThisBuild(
   List(
     organization := "com.kubukoz",
@@ -141,7 +143,35 @@ lazy val treesitter = module("treesitter")
   .settings(
     libraryDependencies ++= Seq(
       "org.polyvariant.treesitter4s" %% "core" % "0.4.0"
-    )
+    ),
+    Compile / sourceGenerators += {
+      Def.task {
+        val pargenClasspath = (parsergen / Compile / fullClasspath).value.files.map(os.Path(_))
+        val targetDir = os.Path((Compile / sourceManaged).value) / "ts4s-parsergen"
+
+        type Input = Seq[os.Path]
+
+        def generate(input: Input) = {
+          val pargenClasspath = input
+
+          val paths =
+            Process(
+              List(
+                "java",
+                "-cp",
+                pargenClasspath.mkString(":"),
+                (parsergen / Compile / discoveredMainClasses).value.head,
+              ),
+              None,
+              "CODEGEN_TARGET" -> targetDir.toString,
+            ).!!(streams.value.log).linesIterator.toList
+
+          paths.map(os.Path(_)).map(_.toIO)
+        }
+
+        generate(pargenClasspath)
+      }.taskValue
+    },
   )
 
 lazy val parsergen = module("parser-gen")
@@ -153,7 +183,7 @@ lazy val parsergen = module("parser-gen")
       "org.polyvariant.treesitter4s" %% "core" % "0.4.0",
       "com.lihaoyi" %% "os-lib" % "0.11.3",
     ),
-    scalacOptions -= "-release:11",
+    scalacOptions -= "-release:21",
   )
   .enablePlugins(Smithy4sCodegenPlugin)
 
