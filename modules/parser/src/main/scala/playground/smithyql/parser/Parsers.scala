@@ -201,11 +201,10 @@ object Parsers {
     lazy val struct: Parser[Struct[T]] = {
       type TField = Binding[T]
 
-      val field: Parser[TField] =
-        (
-          ident.map(_.map(Identifier.apply)) <* tokens.colon.orElse(tokens.equalsSign),
-          tokens.withComments(node),
-        ).mapN(Binding.apply[T])
+      val field: Parser[TField] = Binding[T].liftN(
+        ident.map(_.map(Identifier.apply)) <* tokens.colon.orElse(tokens.equalsSign),
+        tokens.withComments(node),
+      )
 
       // field, then optional whitespace, then optional coma, then optionally more `fields`
       val fields: Parser0[Struct.Fields[T]] = field
@@ -252,11 +251,12 @@ object Parsers {
         .withContext("query_operation_name")
     }
 
-    val query: Parser[Query[T]] =
-      (
+    val query: Parser[Query[T]] = Query[T]
+      .liftN(
         tokens.withComments(queryOperationName, left = false),
         tokens.withComments(struct, right = false),
-      ).mapN(Query.apply).withContext("query")
+      )
+      .withContext("query")
 
     val runQuery
       : Parser[RunQuery[T]] = tokens.withComments(query).map(RunQuery(_)).withContext("run_query")
@@ -269,8 +269,10 @@ object Parsers {
       .map(Prelude.apply)
       .withContext("prelude")
 
-    val sourceFile: Parser0[SourceFile[T]] = (prelude, tokens.withComments0(statement.rep0))
-      .mapN(SourceFile.apply[T])
+    val sourceFile: Parser0[SourceFile[T]] = SourceFile[T].liftN(
+      prelude,
+      tokens.withComments0(statement.rep0),
+    )
 
     implicit class ParserOps[A](
       parser: Parser[A]
