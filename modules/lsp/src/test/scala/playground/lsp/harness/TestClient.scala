@@ -1,6 +1,7 @@
 package playground.lsp.harness
 
 import cats.data.Chain
+import cats.data.OptionT
 import cats.effect.IO
 import cats.effect.IOLocal
 import cats.syntax.all.*
@@ -77,10 +78,14 @@ object TestClient {
 
       def configuration[A](
         v: ConfigurationValue[A]
-      ): IO[A] = state
-        .get
-        .flatMap(_.configuration.get(v.key).liftTo[IO](new Throwable(s"key not found: ${v.key}")))
-        .flatMap(_.as[A](v.codec).liftTo[IO])
+      ): IO[Option[A]] =
+        OptionT {
+          state
+            .get
+            .map(_.configuration.get(v.key))
+        }
+          .semiflatMap(_.as[A](v.codec).liftTo[IO])
+          .value
 
       def showMessage(
         tpe: MessageType,
