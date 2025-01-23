@@ -67,12 +67,12 @@
           "type": "string",
           "format": "uri",
           "description": "The base URL of the HTTP server to use for running queries.",
-          "default": "http://localhost:8080"
+          "default": null
         },
         "smithyql.http.authorizationHeader": {
           "type": "string",
           "description": "The value of the Authorization header to use for running queries. Empty/whitespace strings will result in no header.",
-          "default": ""
+          "default": null
         },
         "smithyql.server.artifact": {
           "type": "string",

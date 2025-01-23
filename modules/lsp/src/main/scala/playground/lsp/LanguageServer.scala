@@ -149,6 +149,7 @@ object LanguageServer {
 
       private val getFormatterWidth: F[Int] = LanguageClient[F]
         .configuration(ConfigurationValue.maxWidth)
+        .flatMap(_.liftTo[F](new Exception("couldn't find a formatter width")))
 
       val formattingProvider: Uri => F[List[language.TextEdit]] = FormattingProvider.provider(
         getFormatterWidth

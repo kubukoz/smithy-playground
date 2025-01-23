@@ -9,6 +9,7 @@ import cats.tagless.FunctorK
 import cats.tagless.implicits.*
 import cats.~>
 import com.google.gson.JsonElement
+import io.circe.Json
 import org.eclipse.lsp4j.ConfigurationItem
 import org.eclipse.lsp4j.ConfigurationParams
 import org.eclipse.lsp4j.MessageParams
@@ -23,7 +24,7 @@ trait LanguageClient[F[_]] extends Feedback[F] {
 
   def configuration[A](
     v: ConfigurationValue[A]
-  ): F[A]
+  ): F[Option[A]]
 
   def showMessage(
     tpe: MessageType,
@@ -68,7 +69,7 @@ object LanguageClient {
 
       def configuration[A](
         v: ConfigurationValue[A]
-      ): F[A] = withClientF(
+      ): F[Option[A]] = withClientF(
         _.configuration(
           new ConfigurationParams(
             (new ConfigurationItem().tap(_.setSection(v.key)) :: Nil).asJava
@@ -85,7 +86,10 @@ object LanguageClient {
           case e: JsonElement => converters.gsonToCirce(e)
           case e              => throw new RuntimeException(s"Unexpected configuration value: $e")
         }
-        .flatMap(_.as[A](v.codec).liftTo[F])
+        .flatMap {
+          case Json.Null => none[A].pure[F]
+          case other     => other.as[A](v.codec).liftTo[F].map(_.some)
+        }
 
       def showMessage(
         tpe: MessageType,
