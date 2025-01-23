@@ -14,6 +14,7 @@ import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
+import org.http4s.implicits.*
 import playground.FileRunner
 import playground.OperationRunner
 import playground.ServiceIndex
@@ -106,24 +107,26 @@ object ServerBuilder {
 
     def BaseUri[F[_]: LanguageClient: MonadCancelThrow]: Client[F] => Client[F] =
       client =>
-        Client[F] { req =>
-          LanguageClient[F].configuration(ConfigurationValue.baseUri).toResource.flatMap {
-            case None => client.run(req)
-            case Some(uri) =>
-              client.run(
-                req
-                  .withUri(
-                    req
-                      .uri
-                      .copy(
-                        scheme = uri.scheme,
-                        authority = uri.authority,
-                        // prefixing with uri.path
-                        path = uri.path.addSegments(req.uri.path.segments),
-                      )
-                  )
-              )
-          }
+        Client[F] {
+          case req if req.uri != uri"/" => client.run(req)
+          case req =>
+            LanguageClient[F].configuration(ConfigurationValue.baseUri).toResource.flatMap {
+              case None => client.run(req)
+              case Some(uri) =>
+                client.run(
+                  req
+                    .withUri(
+                      req
+                        .uri
+                        .copy(
+                          scheme = uri.scheme,
+                          authority = uri.authority,
+                          // prefixing with uri.path
+                          path = uri.path.addSegments(req.uri.path.segments),
+                        )
+                    )
+                )
+            }
         }
 
     def AuthorizationHeader[F[_]: LanguageClient: MonadCancelThrow]: Client[F] => Client[F] =
