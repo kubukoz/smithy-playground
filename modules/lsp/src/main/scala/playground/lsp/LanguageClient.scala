@@ -6,6 +6,7 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 import cats.tagless.Derive
 import cats.tagless.FunctorK
+import cats.tagless.catsTaglessApplyKForIdK
 import cats.tagless.implicits.*
 import cats.~>
 import com.google.gson.JsonElement
