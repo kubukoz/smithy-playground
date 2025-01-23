@@ -85,6 +85,7 @@ object DiagnosticProviderTests extends SimpleIOSuite {
           services = services,
           getSchema = _ => None,
           client = client,
+          baseUri = IO.stub,
           awsEnv = Resource.eval(IO.stub: IO[AwsEnvironment[IO]]),
           plugins = Nil,
         ),
