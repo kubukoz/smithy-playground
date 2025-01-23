@@ -1,3 +1,5 @@
+import sbt.util.CacheImplicits._
+
 inThisBuild(
   List(
     organization := "com.kubukoz",
@@ -87,6 +89,7 @@ val commonSettings = Seq(
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions += "-release:11",
   mimaFailOnNoPrevious := false,
+  resolvers += "Sonatype S01 snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
 )
 
 def module(
@@ -133,7 +136,58 @@ lazy val parser = module("parser")
   .dependsOn(
     ast % "test->test;compile->compile",
     source % "test->test;compile->compile",
+    treesitter % "test->compile",
   )
+
+lazy val treesitter = module("treesitter")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.polyvariant.treesitter4s" %% "core" % "0.4.0"
+    ),
+    Compile / sourceGenerators += {
+      Def.task {
+        Process(Seq("tree-sitter", "generate"), Some((os.pwd / "tree-sitter-smithyql").toIO)).!!
+
+        val pargenClasspath = (parsergen / Compile / fullClasspath).value.files.map(os.Path(_))
+        val targetDir = os.Path((Compile / sourceManaged).value) / "ts4s-parsergen"
+
+        type Input = Seq[os.Path]
+
+        def generate(input: Input) = {
+          val pargenClasspath = input
+
+          val paths =
+            Process(
+              List(
+                "java",
+                "-cp",
+                pargenClasspath.mkString(":"),
+                (parsergen / Compile / discoveredMainClasses).value.head,
+              ),
+              None,
+              "CODEGEN_TARGET" -> targetDir.toString,
+            ).!!(streams.value.log).linesIterator.toList
+
+          paths.map(os.Path(_)).map(_.toIO)
+        }
+
+        generate(pargenClasspath)
+      }.taskValue
+    },
+  )
+
+lazy val parsergen = module("parser-gen")
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.optics" %% "monocle-core" % "3.3.0",
+      "com.disneystreaming.smithy4s" %% "smithy4s-json" % smithy4sVersion.value,
+      ("org.scalameta" %% "scalameta" % "4.11.0").cross(CrossVersion.for3Use2_13),
+      "org.polyvariant.treesitter4s" %% "core" % "0.4.0",
+      "com.lihaoyi" %% "os-lib" % "0.11.3",
+    ),
+    scalacOptions -= "-release:21",
+  )
+  .enablePlugins(Smithy4sCodegenPlugin)
 
 // Formatter for the SmithyQL language constructs
 lazy val formatter = module("formatter")
@@ -189,6 +243,7 @@ lazy val core = module("core")
     examples % "test->compile",
     pluginCore,
     ast,
+    treesitter,
     source % "test->test;compile->compile",
     parser % "test->compile;test->test",
     formatter,
@@ -239,6 +294,7 @@ lazy val e2e = module("e2e")
             parser / publishLocal,
             pluginCore / publishLocal,
             source / publishLocal,
+            treesitter / publishLocal,
             ast / publishLocal,
             formatter / publishLocal,
             protocol4s / publishLocal,
@@ -269,6 +325,7 @@ lazy val root = project
     core,
     examples,
     parser,
+    parsergen,
     formatter,
     languageSupport,
     lsp,
@@ -276,4 +333,5 @@ lazy val root = project
     pluginCore,
     pluginSample,
     e2e,
+    treesitter,
   )
