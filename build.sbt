@@ -125,8 +125,8 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "1.1.0",
-      "io.circe" %% "circe-generic" % "0.14.10" % Test,
-      "io.circe" %% "circe-parser" % "0.14.10" % Test,
+      "io.circe" %% "circe-generic" % "0.14.12" % Test,
+      "io.circe" %% "circe-parser" % "0.14.12" % Test,
       "co.fs2" %% "fs2-io" % "3.11.0" % Test,
     )
   )
@@ -203,7 +203,7 @@ lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.24.0",
-      "io.circe" %% "circe-core" % "0.14.10",
+      "io.circe" %% "circe-core" % "0.14.12",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
       "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
       ("io.get-coursier" % "coursier_2.13" % "2.1.24")
