@@ -27,36 +27,66 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   @JsonRequest("initialize")
   def initialize(
     params: InitializeParams
-  ): CompletableFuture[InitializeResult] = d.unsafeToCompletableFuture(impl.initialize(params))
+  ): CompletableFuture[InitializeResult] = d.unsafeToCompletableFuture(
+    impl.initialize(
+      params
+        .getWorkspaceFolders()
+        .asScala
+        .map(converters.fromLSP.uri(_))
+        .toList
+    )
+  )
 
   @JsonNotification("initialized")
   def initialize(
     params: InitializedParams
-  ): Unit = handleNotification(impl.initialized(params))
+  ): Unit = ()
 
   @JsonRequest("shutdown")
   def shutdown(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.shutdown.as(null: Object))
+  ): CompletableFuture[Object] = CompletableFuture.completedFuture(null)
 
   @JsonNotification("textDocument/didChange")
   def didChange(
     params: DidChangeTextDocumentParams
-  ): Unit = handleNotification(impl.didChange(params))
+  ): Unit =
+    if (params.getContentChanges().isEmpty())
+      ()
+    else
+      handleNotification(
+        impl.didChange(
+          documentUri = converters.fromLSP.uri(params.getTextDocument),
+          newText = params.getContentChanges.asScala.head.getText(),
+        )
+      )
 
   @JsonNotification("textDocument/didOpen")
   def didOpen(
     params: DidOpenTextDocumentParams
-  ): Unit = handleNotification(impl.didOpen(params))
+  ): Unit = handleNotification(
+    impl.didOpen(
+      documentUri = converters.fromLSP.uri(params.getTextDocument),
+      text = params.getTextDocument.getText,
+    )
+  )
 
   @JsonNotification("textDocument/didSave")
   def didSave(
     params: DidSaveTextDocumentParams
-  ): Unit = handleNotification(impl.didSave(params))
+  ): Unit = handleNotification(
+    impl.didSave(
+      documentUri = converters.fromLSP.uri(params.getTextDocument)
+    )
+  )
 
   @JsonNotification("textDocument/didClose")
   def didClose(
     params: DidCloseTextDocumentParams
-  ): Unit = handleNotification(impl.didClose(params))
+  ): Unit = handleNotification(
+    impl.didClose(
+      documentUri = converters.fromLSP.uri(params.getTextDocument)
+    )
+  )
 
   @JsonRequest("textDocument/formatting")
   def formatting(
@@ -122,6 +152,6 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
 
   @JsonRequest("exit")
   def exit(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))
+  ): CompletableFuture[Object] = CompletableFuture.completedFuture(null)
 
 }

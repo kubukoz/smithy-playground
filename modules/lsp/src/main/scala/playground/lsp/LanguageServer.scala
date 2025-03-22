@@ -1,6 +1,5 @@
 package playground.lsp
 
-import cats.Applicative
 import cats.FlatMap
 import cats.MonadThrow
 import cats.data.Kleisli
@@ -13,7 +12,7 @@ import cats.tagless.implicits.*
 import cats.~>
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
-import org.eclipse.lsp4j.*
+import org.eclipse.lsp4j
 import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
@@ -43,63 +42,59 @@ import scala.util.chaining.*
 trait LanguageServer[F[_]] {
 
   def initialize(
-    params: InitializeParams
-  ): F[InitializeResult]
-
-  def initialized(
-    params: InitializedParams
-  ): F[Unit]
+    workspaceFolders: List[Uri]
+  ): F[lsp4j.InitializeResult]
 
   def didChange(
-    params: DidChangeTextDocumentParams
+    documentUri: Uri,
+    newText: String,
   ): F[Unit]
 
   def didOpen(
-    params: DidOpenTextDocumentParams
+    documentUri: Uri,
+    text: String,
   ): F[Unit]
 
   def didSave(
-    params: DidSaveTextDocumentParams
+    documentUri: Uri
   ): F[Unit]
 
   def didClose(
-    params: DidCloseTextDocumentParams
+    documentUri: Uri
   ): F[Unit]
 
   def formatting(
-    params: DocumentFormattingParams
-  ): F[List[TextEdit]]
+    params: lsp4j.DocumentFormattingParams
+  ): F[List[lsp4j.TextEdit]]
 
   def completion(
-    position: CompletionParams
-  ): F[Either[List[CompletionItem], CompletionList]]
+    position: lsp4j.CompletionParams
+  ): F[Either[List[lsp4j.CompletionItem], lsp4j.CompletionList]]
 
   def diagnostic(
-    params: DocumentDiagnosticParams
-  ): F[DocumentDiagnosticReport]
+    params: lsp4j.DocumentDiagnosticParams
+  ): F[lsp4j.DocumentDiagnosticReport]
 
   def codeLens(
-    params: CodeLensParams
-  ): F[List[CodeLens]]
+    params: lsp4j.CodeLensParams
+  ): F[List[lsp4j.CodeLens]]
 
   def documentSymbol(
-    params: DocumentSymbolParams
-  ): F[List[DocumentSymbol]]
+    params: lsp4j.DocumentSymbolParams
+  ): F[List[lsp4j.DocumentSymbol]]
 
   def didChangeWatchedFiles(
-    params: DidChangeWatchedFilesParams
+    params: lsp4j.DidChangeWatchedFilesParams
   ): F[Unit]
 
   def executeCommand(
-    params: ExecuteCommandParams
+    params: lsp4j.ExecuteCommandParams
   ): F[Unit]
 
   def runFile(
     params: RunFileParams
   ): F[Unit]
 
-  def shutdown: F[Unit]
-  def exit: F[Unit]
 }
 
 object LanguageServer {
@@ -151,30 +146,24 @@ object LanguageServer {
       )
 
       def initialize(
-        params: InitializeParams
-      ): F[InitializeResult] = {
-        val capabilities = new ServerCapabilities()
-          .tap(_.setTextDocumentSync(TextDocumentSyncKind.Full))
+        workspaceFolders: List[Uri]
+      ): F[lsp4j.InitializeResult] = {
+        val capabilities = new lsp4j.ServerCapabilities()
+          .tap(_.setTextDocumentSync(lsp4j.TextDocumentSyncKind.Full))
           .tap(_.setDocumentFormattingProvider(true))
-          .tap(_.setCompletionProvider(new CompletionOptions()))
-          .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
-          .tap(_.setCodeLensProvider(new CodeLensOptions()))
+          .tap(_.setCompletionProvider(new lsp4j.CompletionOptions()))
+          .tap(_.setDiagnosticProvider(new lsp4j.DiagnosticRegistrationOptions()))
+          .tap(_.setCodeLensProvider(new lsp4j.CodeLensOptions()))
           .tap(_.setDocumentSymbolProvider(true))
 
-        val serverInfo = new ServerInfo("Smithy Playground", BuildInfo.version)
-
-        val wsf = params
-          .getWorkspaceFolders()
-          .asScala
-          .toList
-          .map(converters.fromLSP.uri(_))
+        val serverInfo = new lsp4j.ServerInfo("Smithy Playground", BuildInfo.version)
 
         Feedback[F]
           .showInfoMessage(
             s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
           ) *>
           ServerLoader[F]
-            .prepare(wsf.some)
+            .prepare(workspaceFolders.some)
             .flatMap { prepped =>
               ServerLoader[F].perform(prepped.params).flatTap { stats =>
                 Feedback[F]
@@ -185,49 +174,37 @@ object LanguageServer {
             }
             .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
             .attempt
-            .as(new InitializeResult(capabilities, serverInfo))
+            .as(new lsp4j.InitializeResult(capabilities, serverInfo))
       }
-
-      def initialized(
-        params: InitializedParams
-      ): F[Unit] = Applicative[F].unit
-
-      def shutdown: F[Unit] = Applicative[F].unit
 
       def didChange(
-        params: DidChangeTextDocumentParams
-      ): F[Unit] = {
-        val changesAsList = params.getContentChanges.asScala.toList
-        if (changesAsList.isEmpty)
-          Applicative[F].unit
-        else
-          TextDocumentManager[F].put(
-            converters.fromLSP.uri(params.getTextDocument()),
-            changesAsList.head.getText(),
-          )
-      }
+        documentUri: Uri,
+        newText: String,
+      ): F[Unit] = TextDocumentManager[F].put(
+        documentUri,
+        newText,
+      )
 
       def didOpen(
-        params: DidOpenTextDocumentParams
+        documentUri: Uri,
+        text: String,
       ): F[Unit] = TextDocumentManager[F].put(
-        converters.fromLSP.uri(params.getTextDocument()),
-        params.getTextDocument().getText(),
+        documentUri,
+        text,
       )
 
       def didSave(
-        params: DidSaveTextDocumentParams
+        documentUri: Uri
       ): F[Unit] = TextDocumentManager[F]
-        .remove(converters.fromLSP.uri(params.getTextDocument()))
+        .remove(documentUri)
 
       def didClose(
-        params: DidCloseTextDocumentParams
-      ): F[Unit] = TextDocumentManager[F].remove(
-        converters.fromLSP.uri(params.getTextDocument())
-      )
+        documentUri: Uri
+      ): F[Unit] = TextDocumentManager[F].remove(documentUri)
 
       def formatting(
-        params: DocumentFormattingParams
-      ): F[List[TextEdit]] = {
+        params: lsp4j.DocumentFormattingParams
+      ): F[List[lsp4j.TextEdit]] = {
         val uri = converters.fromLSP.uri(params.getTextDocument())
 
         TextDocumentProvider[F].get(uri).flatMap { doc =>
@@ -236,8 +213,8 @@ object LanguageServer {
       }
 
       def completion(
-        position: CompletionParams
-      ): F[Either[List[CompletionItem], CompletionList]] = TextDocumentManager[F]
+        position: lsp4j.CompletionParams
+      ): F[Either[List[lsp4j.CompletionItem], lsp4j.CompletionList]] = TextDocumentManager[F]
         .get(converters.fromLSP.uri(position.getTextDocument))
         .map { documentText =>
           val map = LocationMap(documentText)
@@ -252,8 +229,8 @@ object LanguageServer {
         .map(Left(_))
 
       def diagnostic(
-        params: DocumentDiagnosticParams
-      ): F[DocumentDiagnosticReport] = {
+        params: lsp4j.DocumentDiagnosticParams
+      ): F[lsp4j.DocumentDiagnosticReport] = {
         val documentUri = converters.fromLSP.uri(params.getTextDocument())
         TextDocumentManager[F]
           .get(documentUri)
@@ -265,8 +242,8 @@ object LanguageServer {
 
             val map = LocationMap(documentText)
 
-            new DocumentDiagnosticReport(
-              new RelatedFullDocumentDiagnosticReport(
+            new lsp4j.DocumentDiagnosticReport(
+              new lsp4j.RelatedFullDocumentDiagnosticReport(
                 diags
                   .map(converters.toLSP.diagnostic(map, _))
                   .asJava
@@ -276,8 +253,8 @@ object LanguageServer {
       }
 
       def codeLens(
-        params: CodeLensParams
-      ): F[List[CodeLens]] = TextDocumentManager[F]
+        params: lsp4j.CodeLensParams
+      ): F[List[lsp4j.CodeLens]] = TextDocumentManager[F]
         .get(converters.fromLSP.uri(params.getTextDocument()))
         .map { documentText =>
           val map = LocationMap(documentText)
@@ -291,8 +268,8 @@ object LanguageServer {
         }
 
       def documentSymbol(
-        params: DocumentSymbolParams
-      ): F[List[DocumentSymbol]] = TextDocumentManager[F]
+        params: lsp4j.DocumentSymbolParams
+      ): F[List[lsp4j.DocumentSymbol]] = TextDocumentManager[F]
         .get(converters.fromLSP.uri(params.getTextDocument()))
         .map { text =>
           val map = LocationMap(text)
@@ -301,7 +278,7 @@ object LanguageServer {
         }
 
       def didChangeWatchedFiles(
-        params: DidChangeWatchedFilesParams
+        params: lsp4j.DidChangeWatchedFilesParams
       ): F[Unit] = ServerLoader[F]
         .prepare(workspaceFolders = None)
         .flatMap {
@@ -333,7 +310,7 @@ object LanguageServer {
         }
 
       def executeCommand(
-        params: ExecuteCommandParams
+        params: lsp4j.ExecuteCommandParams
       ): F[Unit] = params
         .getArguments()
         .asScala
@@ -347,12 +324,10 @@ object LanguageServer {
       def runFile(
         params: RunFileParams
       ): F[Unit] = executeCommand(
-        new ExecuteCommandParams()
+        new lsp4j.ExecuteCommandParams()
           .tap(_.setCommand(playground.language.Command.RUN_FILE))
           .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))
       )
-
-      def exit: F[Unit] = Applicative[F].unit
     }
 
   implicit val functorK: FunctorK[LanguageServer] = Derive.functorK[LanguageServer]

@@ -26,16 +26,6 @@ trait LanguageServerIntegrationTests {
     workspaceDir: Uri,
   )
 
-  def initParams(
-    workspaceDir: Uri
-  ): InitializeParams = new InitializeParams().tap(
-    _.setWorkspaceFolders(
-      List(
-        new WorkspaceFolder(workspaceDir.value, "test-workspace")
-      ).asJava
-    )
-  )
-
   def makeServer(
     workspaceDir: Uri
   ): Resource[IO, Fixture] = TestClient.forIO.toResource.flatMap { implicit client =>
@@ -48,7 +38,7 @@ trait LanguageServerIntegrationTests {
           workspaceDir = workspaceDir,
         )
 
-        server.initialize(initParams(workspaceDir)) *>
+        server.initialize(List(workspaceDir)) *>
           assertStartupEvents(client)
             .as(result)
       }
