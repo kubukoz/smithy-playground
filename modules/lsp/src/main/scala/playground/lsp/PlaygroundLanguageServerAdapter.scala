@@ -1,9 +1,10 @@
 package playground.lsp
 
-import cats.Functor
+import cats.effect.kernel.Sync
 import cats.effect.std.Dispatcher
 import cats.kernel.Semigroup
 import cats.syntax.all.*
+import com.google.gson.JsonElement
 import org.eclipse.lsp4j
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter
@@ -15,7 +16,7 @@ import util.chaining.*
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters.*
 
-final class PlaygroundLanguageServerAdapter[F[_]: Functor](
+final class PlaygroundLanguageServerAdapter[F[_]: Sync](
   impl: LanguageServer[F]
 )(
   implicit d: Dispatcher[F]
@@ -129,7 +130,11 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   def formatting(
     params: lsp4j.DocumentFormattingParams
   ): CompletableFuture[java.util.List[lsp4j.TextEdit]] = d.unsafeToCompletableFuture(
-    impl.formatting(params).map(_.asJava)
+    impl
+      .formatting(
+        documentUri = converters.fromLSP.uri(params.getTextDocument)
+      )
+      .map(_.asJava)
   )
 
   @JsonRequest("textDocument/completion")
@@ -165,14 +170,33 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   def codeLens(
     params: lsp4j.CodeLensParams
   ): CompletableFuture[java.util.List[lsp4j.CodeLens]] = d.unsafeToCompletableFuture(
-    impl.codeLens(params).map(_.asJava)
+    impl
+      .codeLens(
+        documentUri = converters.fromLSP.uri(params.getTextDocument)
+      )
+      .map(_.asJava)
   )
 
   @JsonRequest("workspace/executeCommand")
   def executeCommand(
     params: lsp4j.ExecuteCommandParams
   ): CompletableFuture[Object] = d.unsafeToCompletableFuture(
-    impl.executeCommand(params).as(null: Object)
+    Sync[F]
+      .defer {
+        impl
+          .executeCommand(
+            commandName = params.getCommand(),
+            arguments = params
+              .getArguments()
+              .asScala
+              .toList
+              .map {
+                case gson: JsonElement => converters.gsonToCirce(gson)
+                case s                 => throw new Throwable("Unsupported arg: " + s)
+              },
+          )
+      }
+      .as(null: Object)
   )
 
   @JsonNotification("workspace/didChangeWatchedFiles")

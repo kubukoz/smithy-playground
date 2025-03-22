@@ -62,9 +62,7 @@ object LanguageServerReloadIntegrationTests
             val getLenses = f
               .server
               .codeLens(
-                new CodeLensParams(
-                  new TextDocumentIdentifier((f.workspaceDir / "demo.smithyql").value)
-                )
+                documentUri = f.workspaceDir / "demo.smithyql"
               )
 
             val workspacePath = (testWorkspacesBase / "default").toPath

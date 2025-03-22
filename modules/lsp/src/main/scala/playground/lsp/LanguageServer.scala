@@ -11,8 +11,7 @@ import cats.tagless.Derive
 import cats.tagless.FunctorK
 import cats.tagless.implicits.*
 import cats.~>
-import com.google.gson.JsonElement
-import com.google.gson.JsonPrimitive
+import io.circe.Json
 import org.eclipse.lsp4j
 import playground.CompilationError
 import playground.CompilationFailed
@@ -39,7 +38,6 @@ import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
 import scala.jdk.CollectionConverters.*
-import scala.util.chaining.*
 
 // todo: independentize this from lsp4j and move to kernel
 trait LanguageServer[F[_]] {
@@ -65,7 +63,7 @@ trait LanguageServer[F[_]] {
   ): F[Unit]
 
   def formatting(
-    params: lsp4j.DocumentFormattingParams
+    documentUri: Uri
   ): F[List[lsp4j.TextEdit]]
 
   def completion(
@@ -78,7 +76,7 @@ trait LanguageServer[F[_]] {
   ): F[lsp4j.DocumentDiagnosticReport]
 
   def codeLens(
-    params: lsp4j.CodeLensParams
+    documentUri: Uri
   ): F[List[lsp4j.CodeLens]]
 
   def documentSymbol(
@@ -88,7 +86,8 @@ trait LanguageServer[F[_]] {
   def didChangeWatchedFiles: F[Unit]
 
   def executeCommand(
-    params: lsp4j.ExecuteCommandParams
+    commandName: String,
+    arguments: List[Json],
   ): F[Unit]
 
   def runFile(
@@ -203,13 +202,9 @@ object LanguageServer {
       ): F[Unit] = TextDocumentManager[F].remove(documentUri)
 
       def formatting(
-        params: lsp4j.DocumentFormattingParams
-      ): F[List[lsp4j.TextEdit]] = {
-        val uri = converters.fromLSP.uri(params.getTextDocument())
-
-        TextDocumentProvider[F].get(uri).flatMap { doc =>
-          formattingProvider(uri).map(_.map(converters.toLSP.textEdit(_, LocationMap(doc))))
-        }
+        documentUri: Uri
+      ): F[List[lsp4j.TextEdit]] = TextDocumentProvider[F].get(documentUri).flatMap { doc =>
+        formattingProvider(documentUri).map(_.map(converters.toLSP.textEdit(_, LocationMap(doc))))
       }
 
       def completion(
@@ -250,15 +245,15 @@ object LanguageServer {
         }
 
       def codeLens(
-        params: lsp4j.CodeLensParams
+        documentUri: Uri
       ): F[List[lsp4j.CodeLens]] = TextDocumentManager[F]
-        .get(converters.fromLSP.uri(params.getTextDocument()))
+        .get(documentUri)
         .map { documentText =>
           val map = LocationMap(documentText)
 
           lensProvider
             .provide(
-              documentUri = converters.fromLSP.uri(params.getTextDocument),
+              documentUri = documentUri,
               documentText = documentText,
             )
             .map(converters.toLSP.codeLens(map, _))
@@ -305,23 +300,17 @@ object LanguageServer {
         }
 
       def executeCommand(
-        params: lsp4j.ExecuteCommandParams
-      ): F[Unit] = params
-        .getArguments()
-        .asScala
-        .toList
-        .traverse {
-          case gson: JsonElement => converters.gsonToCirce(gson).as[String].liftTo[F]
-          case s                 => new Throwable("Unsupported arg: " + s).raiseError[F, String]
-        }
-        .flatMap(commandProvider.runCommand(params.getCommand(), _))
+        commandName: String,
+        args: List[Json],
+      ): F[Unit] = args
+        .traverse(_.as[String].liftTo[F])
+        .flatMap(commandProvider.runCommand(commandName, _))
 
       def runFile(
         params: RunFileParams
       ): F[Unit] = executeCommand(
-        new lsp4j.ExecuteCommandParams()
-          .tap(_.setCommand(playground.language.Command.RUN_FILE))
-          .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))
+        playground.language.Command.RUN_FILE,
+        List(Json.fromString(params.uri.value)),
       )
     }
 

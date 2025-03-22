@@ -83,11 +83,7 @@ object LanguageServerIntegrationTestSharedServer
   test("lens provider (run query)") { f =>
     f.server
       .codeLens(
-        new CodeLensParams(
-          new TextDocumentIdentifier(
-            Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value
-          )
-        )
+        documentUri = Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql")
       )
       .map { lenses =>
         assert.same(
