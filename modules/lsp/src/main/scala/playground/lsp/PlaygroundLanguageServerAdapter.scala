@@ -162,9 +162,17 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
   def diagnostic(
     params: lsp4j.DocumentDiagnosticParams
   ): CompletableFuture[lsp4j.DocumentDiagnosticReport] = d.unsafeToCompletableFuture(
-    impl.diagnostic(
-      documentUri = converters.fromLSP.uri(params.getTextDocument)
-    )
+    impl
+      .diagnostic(
+        documentUri = converters.fromLSP.uri(params.getTextDocument)
+      )
+      .map { diags =>
+        new lsp4j.DocumentDiagnosticReport(
+          new lsp4j.RelatedFullDocumentDiagnosticReport(
+            diags.map(converters.toLSP.diagnostic).asJava
+          )
+        )
+      }
   )
 
   @JsonRequest("textDocument/codeLens")
@@ -175,7 +183,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
       .codeLens(
         documentUri = converters.fromLSP.uri(params.getTextDocument)
       )
-      .map(_.asJava)
+      .map(_.map(converters.toLSP.codeLens).asJava)
   )
 
   @JsonRequest("workspace/executeCommand")
@@ -213,7 +221,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
     .unsafeToCompletableFuture(
       impl
         .documentSymbol(converters.fromLSP.uri(params.getTextDocument()))
-        .map(_.map(messages.Either.forRight(_)).asJava)
+        .map(_.map(converters.toLSP.documentSymbol).map(messages.Either.forRight(_)).asJava)
     )
 
   @JsonRequest("smithyql/runQuery")

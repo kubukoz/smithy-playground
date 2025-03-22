@@ -43,8 +43,12 @@ object converters {
         case MessageType.Info    => lsp4j.MessageType.Info
       }
 
-    @deprecated("should be private")
-    def documentSymbol(
+    def documentSymbol(sym: LSPDocumentSymbol): lsp4j.DocumentSymbol = documentSymbol(
+      sym.map,
+      sym.sym,
+    )
+
+    private def documentSymbol(
       map: LocationMap,
       sym: DocumentSymbol,
     ): lsp4j.DocumentSymbol =
@@ -151,8 +155,9 @@ object converters {
           new lsp4j.TextEdit(r, what)
       }
 
-    @deprecated("should be private")
-    def diagnostic(
+    def diagnostic(diag: LSPDiagnostic): lsp4j.Diagnostic = diagnostic(diag.map, diag.diagnostic)
+
+    private def diagnostic(
       map: LocationMap,
       diag: CompilationError,
     ): lsp4j.Diagnostic = new lsp4j.Diagnostic()
@@ -176,8 +181,9 @@ object converters {
         )
       )
 
-    @deprecated("should be private")
-    def codeLens(
+    def codeLens(lens: LSPCodeLens): lsp4j.CodeLens = codeLens(lens.map, lens.lens)
+
+    private def codeLens(
       map: LocationMap,
       lens: CodeLens,
     ): lsp4j.CodeLens = new lsp4j.CodeLens(range(map, lens.range))

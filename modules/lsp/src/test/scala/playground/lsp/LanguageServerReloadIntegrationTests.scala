@@ -136,12 +136,7 @@ object LanguageServerReloadIntegrationTests
               documentUri = f.workspaceDir / "input.smithyql"
             )
             .map { diags =>
-              val items = diags
-                .getRelatedFullDocumentDiagnosticReport()
-                .getItems()
-                .asScala
-                .toList
-                .map(_.getMessage())
+              val items = diags.map(_.diagnostic.err)
 
               assert(errorLogs.isEmpty) &&
               assert(items.isEmpty)

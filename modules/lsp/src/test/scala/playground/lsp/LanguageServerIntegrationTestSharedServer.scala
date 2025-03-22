@@ -3,22 +3,19 @@ package playground.lsp
 import cats.effect.IO
 import cats.effect.Resource
 import com.comcast.ip4s.*
-import org.eclipse.lsp4j.CodeLensParams
-import org.eclipse.lsp4j.Command
-import org.eclipse.lsp4j.CompletionParams
-import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.DocumentDiagnosticParams
-import org.eclipse.lsp4j.DocumentSymbolParams
-import org.eclipse.lsp4j.Position
-import org.eclipse.lsp4j.TextDocumentIdentifier
+import org.eclipse.lsp4j
 import org.http4s.HttpRoutes
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits.*
 import org.http4s.server.Server
+import playground.CompilationErrorDetails.ParseError
+import playground.DiagnosticSeverity
+import playground.language.Command
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient
+import playground.smithyql.parser.ParsingFailure
 import weaver.*
 
 import scala.concurrent.duration.*
@@ -59,12 +56,11 @@ object LanguageServerIntegrationTestSharedServer
         documentUri = Uri.fromPath(f.workspaceDir.toPath / "broken.smithyql")
       )
       .map { report =>
-        val diagnosticItems =
-          report.getRelatedFullDocumentDiagnosticReport().getItems().asScala.toList
+        val diagnosticItems = report
 
         assert(diagnosticItems.size == 1) &&
-        assert.same(diagnosticItems.head.getSeverity(), DiagnosticSeverity.Error) &&
-        assert(diagnosticItems.head.getMessage.contains("Parsing failure"))
+        assert.same(diagnosticItems.head.diagnostic.severity, DiagnosticSeverity.Error) &&
+        assert(diagnosticItems.head.diagnostic.err.isInstanceOf[ParseError])
       }
   }
 
@@ -74,7 +70,7 @@ object LanguageServerIntegrationTestSharedServer
         Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql")
       )
       .map { symbols =>
-        assert.eql(symbols.map(_.getName()), List("playground.std#Random", "NextUUID"))
+        assert.eql(symbols.map(_.sym.name), List("playground.std#Random", "NextUUID"))
       }
   }
 
@@ -85,14 +81,14 @@ object LanguageServerIntegrationTestSharedServer
       )
       .map { lenses =>
         assert.same(
-          lenses.map(_.getCommand()),
+          lenses.map(_.lens.command),
           List(
-            new Command(
+            Command(
               "Run SmithyQL file",
               "smithyql.runQuery",
               List(
-                Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value: Object
-              ).asJava,
+                Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value
+              ),
             )
           ),
         )

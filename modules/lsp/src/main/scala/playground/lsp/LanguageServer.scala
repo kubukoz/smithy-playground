@@ -12,7 +12,6 @@ import cats.tagless.FunctorK
 import cats.tagless.implicits.*
 import cats.~>
 import io.circe.Json
-import org.eclipse.lsp4j
 import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
@@ -21,12 +20,14 @@ import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.ServiceIndex
 import playground.language
+import playground.language.CodeLens
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
 import playground.language.CommandResultReporter
 import playground.language.CompletionItem
 import playground.language.CompletionProvider
 import playground.language.DiagnosticProvider
+import playground.language.DocumentSymbol
 import playground.language.DocumentSymbolProvider
 import playground.language.Feedback
 import playground.language.FormattingProvider
@@ -39,9 +40,7 @@ import playground.smithyql.SourceRange
 import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-import scala.jdk.CollectionConverters.*
-
-// todo: independentize this from lsp4j and move to kernel
+// todo: move to kernel
 trait LanguageServer[F[_]] {
 
   def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult]
@@ -75,15 +74,15 @@ trait LanguageServer[F[_]] {
 
   def diagnostic(
     documentUri: Uri
-  ): F[lsp4j.DocumentDiagnosticReport]
+  ): F[List[LSPDiagnostic]]
 
   def codeLens(
     documentUri: Uri
-  ): F[List[lsp4j.CodeLens]]
+  ): F[List[LSPCodeLens]]
 
   def documentSymbol(
     documentUri: Uri
-  ): F[List[lsp4j.DocumentSymbol]]
+  ): F[List[LSPDocumentSymbol]]
 
   def didChangeWatchedFiles: F[Unit]
 
@@ -228,7 +227,7 @@ object LanguageServer {
 
       def diagnostic(
         documentUri: Uri
-      ): F[lsp4j.DocumentDiagnosticReport] = TextDocumentManager[F]
+      ): F[List[LSPDiagnostic]] = TextDocumentManager[F]
         .get(documentUri)
         .map { documentText =>
           val diags = diagnosticProvider.getDiagnostics(
@@ -237,18 +236,13 @@ object LanguageServer {
 
           val map = LocationMap(documentText)
 
-          new lsp4j.DocumentDiagnosticReport(
-            new lsp4j.RelatedFullDocumentDiagnosticReport(
-              diags
-                .map(converters.toLSP.diagnostic(map, _))
-                .asJava
-            )
-          )
+          diags
+            .map(LSPDiagnostic(_, map))
         }
 
       def codeLens(
         documentUri: Uri
-      ): F[List[lsp4j.CodeLens]] = TextDocumentManager[F]
+      ): F[List[LSPCodeLens]] = TextDocumentManager[F]
         .get(documentUri)
         .map { documentText =>
           val map = LocationMap(documentText)
@@ -258,17 +252,17 @@ object LanguageServer {
               documentUri = documentUri,
               documentText = documentText,
             )
-            .map(converters.toLSP.codeLens(map, _))
+            .map(LSPCodeLens(_, map))
         }
 
       def documentSymbol(
         documentUri: Uri
-      ): F[List[lsp4j.DocumentSymbol]] = TextDocumentManager[F]
+      ): F[List[LSPDocumentSymbol]] = TextDocumentManager[F]
         .get(documentUri)
         .map { text =>
           val map = LocationMap(text)
 
-          DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(map, _))
+          DocumentSymbolProvider.make(text).map(LSPDocumentSymbol(_, map))
         }
 
       def didChangeWatchedFiles: F[Unit] = ServerLoader[F]
@@ -357,6 +351,9 @@ case class InitializeResult(
   serverInfo: ServerInfo,
 )
 
+case class LSPDiagnostic(diagnostic: CompilationError, map: LocationMap)
+case class LSPCodeLens(lens: CodeLens, map: LocationMap)
+case class LSPDocumentSymbol(sym: DocumentSymbol, map: LocationMap)
 case class LSPCompletionItem(item: CompletionItem, map: LocationMap)
 case class LSPTextEdit(textEdit: TextEdit, map: LocationMap)
 
