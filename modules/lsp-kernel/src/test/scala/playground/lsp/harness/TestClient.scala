@@ -6,9 +6,9 @@ import cats.effect.IOLocal
 import cats.syntax.all.*
 import cats.~>
 import io.circe.Json
-import org.eclipse.lsp4j.MessageType
 import playground.lsp.ConfigurationValue
 import playground.lsp.LanguageClient
+import playground.lsp.MessageType
 
 trait TestClient[F[_]] extends LanguageClient[F] {
   def getEvents: F[List[TestClient.Event]]
@@ -91,11 +91,10 @@ object TestClient {
             case MessageType.Error   => Console.MAGENTA
             case MessageType.Warning => Console.YELLOW
             case MessageType.Info    => Console.GREEN
-            case MessageType.Log     => ""
           }
 
         show(
-          s = s"${tpe.name().toUpperCase()} Message from server: $msg",
+          s = s"${tpe.name.toUpperCase()} Message from server: $msg",
           color = color,
         ) *> append(MessageLog(tpe, msg))
       }

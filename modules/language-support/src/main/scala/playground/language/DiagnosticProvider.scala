@@ -22,8 +22,7 @@ import playground.types.*
 trait DiagnosticProvider[F[_]] {
 
   def getDiagnostics(
-    fileName: String,
-    documentText: String,
+    documentText: String
   ): List[CompilationError]
 
 }
@@ -37,8 +36,7 @@ object DiagnosticProvider {
     new DiagnosticProvider[F] {
 
       def getDiagnostics(
-        fileName: String,
-        documentText: String,
+        documentText: String
       ): List[CompilationError] = compilationErrors(documentText).fold(
         _.toList,
         parsed => runnerErrors(parsed),

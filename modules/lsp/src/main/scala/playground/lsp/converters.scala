@@ -6,6 +6,9 @@ import com.google.gson.JsonElement
 import io.circe.Json
 import io.circe.JsonNumber
 import org.eclipse.lsp4j
+import org.eclipse.lsp4j.TextDocumentIdentifier
+import org.eclipse.lsp4j.TextDocumentItem
+import org.eclipse.lsp4j.WorkspaceFolder
 import playground.CompilationError
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
@@ -25,8 +28,27 @@ import scala.util.chaining.*
 object converters {
 
   object toLSP {
+    def serverInfo(serverInfo: ServerInfo): lsp4j.ServerInfo =
+      new lsp4j.ServerInfo(serverInfo.name, serverInfo.version)
 
-    def documentSymbol(
+    def textDocumentSyncKind(kind: TextDocumentSyncKind): lsp4j.TextDocumentSyncKind =
+      kind match {
+        case TextDocumentSyncKind.Full => lsp4j.TextDocumentSyncKind.Full
+      }
+
+    def messageType(tpe: MessageType): lsp4j.MessageType =
+      tpe match {
+        case MessageType.Error   => lsp4j.MessageType.Error
+        case MessageType.Warning => lsp4j.MessageType.Warning
+        case MessageType.Info    => lsp4j.MessageType.Info
+      }
+
+    def documentSymbol(sym: LSPDocumentSymbol): lsp4j.DocumentSymbol = documentSymbol(
+      sym.map,
+      sym.sym,
+    )
+
+    private def documentSymbol(
       map: LocationMap,
       sym: DocumentSymbol,
     ): lsp4j.DocumentSymbol =
@@ -47,7 +69,12 @@ object converters {
         case SymbolKind.Package  => lsp4j.SymbolKind.Package
       }
 
-    def completionItem(
+    def completionItem(item: LSPCompletionItem): lsp4j.CompletionItem = completionItem(
+      item.map,
+      item.item,
+    )
+
+    private def completionItem(
       map: LocationMap,
       item: CompletionItem,
     ): lsp4j.CompletionItem = {
@@ -111,7 +138,9 @@ object converters {
         .tap(_.setSortText(item.sortText.orNull))
     }
 
-    def textEdit(
+    def textEdit(edit: LSPTextEdit): lsp4j.TextEdit = textEdit(edit.textEdit, edit.map)
+
+    private def textEdit(
       edit: TextEdit,
       map: LocationMap,
     ): lsp4j.TextEdit =
@@ -126,7 +155,9 @@ object converters {
           new lsp4j.TextEdit(r, what)
       }
 
-    def diagnostic(
+    def diagnostic(diag: LSPDiagnostic): lsp4j.Diagnostic = diagnostic(diag.map, diag.diagnostic)
+
+    private def diagnostic(
       map: LocationMap,
       diag: CompilationError,
     ): lsp4j.Diagnostic = new lsp4j.Diagnostic()
@@ -150,7 +181,9 @@ object converters {
         )
       )
 
-    def codeLens(
+    def codeLens(lens: LSPCodeLens): lsp4j.CodeLens = codeLens(lens.map, lens.lens)
+
+    private def codeLens(
       map: LocationMap,
       lens: CodeLens,
     ): lsp4j.CodeLens = new lsp4j.CodeLens(range(map, lens.range))
@@ -163,12 +196,12 @@ object converters {
         )
       )
 
-    def range(
+    private def range(
       map: LocationMap,
       coreRange: SourceRange,
     ): lsp4j.Range = new lsp4j.Range(position(map, coreRange.start), position(map, coreRange.end))
 
-    def position(
+    private def position(
       map: LocationMap,
       pos: Position,
     ): lsp4j.Position = {
@@ -180,12 +213,16 @@ object converters {
 
   object fromLSP {
 
-    def position(
-      map: LocationMap,
-      pos: lsp4j.Position,
-    ): Position = Position(
-      map.toOffset(pos.getLine(), pos.getCharacter()).getOrElse(-1)
-    )
+    def uri(tdi: TextDocumentIdentifier)
+      : playground.language.Uri = playground.language.Uri.fromUriString(tdi.getUri())
+
+    def uri(tdi: TextDocumentItem)
+      : playground.language.Uri = playground.language.Uri.fromUriString(tdi.getUri())
+
+    def uri(wf: WorkspaceFolder)
+      : playground.language.Uri = playground.language.Uri.fromUriString(wf.getUri())
+
+    def position(pos: lsp4j.Position): LSPPosition = LSPPosition(pos.getLine(), pos.getCharacter())
 
   }
 

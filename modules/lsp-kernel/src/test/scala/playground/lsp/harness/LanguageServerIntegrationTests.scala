@@ -4,12 +4,10 @@ import cats.effect.IO
 import cats.effect.IOLocal
 import cats.effect.Resource
 import cats.syntax.all.*
-import org.eclipse.lsp4j.InitializeParams
-import org.eclipse.lsp4j.MessageType
-import org.eclipse.lsp4j.WorkspaceFolder
 import playground.language.Uri
 import playground.lsp.LanguageServer
 import playground.lsp.MainServer
+import playground.lsp.MessageType
 import playground.lsp.buildinfo.BuildInfo
 import weaver.SourceLocation
 
@@ -26,16 +24,6 @@ trait LanguageServerIntegrationTests {
     workspaceDir: Uri,
   )
 
-  def initParams(
-    workspaceDir: Uri
-  ): InitializeParams = new InitializeParams().tap(
-    _.setWorkspaceFolders(
-      List(
-        new WorkspaceFolder(workspaceDir.value, "test-workspace")
-      ).asJava
-    )
-  )
-
   def makeServer(
     workspaceDir: Uri
   ): Resource[IO, Fixture] = TestClient.forIO.toResource.flatMap { implicit client =>
@@ -48,7 +36,7 @@ trait LanguageServerIntegrationTests {
           workspaceDir = workspaceDir,
         )
 
-        server.initialize(initParams(workspaceDir)) *>
+        server.initialize(List(workspaceDir)) *>
           assertStartupEvents(client)
             .as(result)
       }
@@ -68,11 +56,10 @@ trait LanguageServerIntegrationTests {
     .getEvents
     .flatMap { events =>
       val initLogs = List(
-        TestClient
-          .MessageLog(
-            MessageType.Info,
-            s"Hello from Smithy Playground v${BuildInfo.version}! Loading project...",
-          ),
+        TestClient.MessageLog(
+          MessageType.Info,
+          s"Hello from Smithy Playground v${BuildInfo.version}! Loading project...",
+        ),
         TestClient.MessageLog(
           MessageType.Info,
           "Loaded Smithy Playground server with 2 source entries, 0 imports, 2 dependencies and 0 plugins",

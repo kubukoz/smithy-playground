@@ -15,7 +15,6 @@ import org.http4s.headers.Authorization
 import playground.FileRunner
 import playground.OperationRunner
 import playground.ServiceIndex
-import playground.TextDocumentManager
 import playground.language.CommandResultReporter
 import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment

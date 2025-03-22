@@ -195,23 +195,21 @@ lazy val core = module("core")
   )
 
 // LSP-like interfaces like CodeLensProvider, which are later adapted into actual lsp
+// but can be used in other, non-LSP contexts
 lazy val languageSupport = module("language-support")
   .dependsOn(core % "test->test;compile->compile", parser)
 
-// Adapters for language services to LSP, actual LSP server binding, entrypoint
-lazy val lsp = module("lsp")
+// LSP features that aren't specific to any given lsp library (lsp4j, langoustine)
+lazy val lspKernel = module("lsp-kernel")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.24.0",
       "io.circe" %% "circe-core" % "0.14.12",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
-      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
       ("io.get-coursier" % "coursier_2.13" % "2.1.24")
         .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
       "org.typelevel" %% "cats-tagless-core" % "0.16.3",
+      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
     ).pipe(jsoniterFix),
-    buildInfoPackage := "playground.lsp.buildinfo",
-    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
     (Test / test) := {
       (pluginCore / publishLocal).value
       (pluginSample / publishLocal).value
@@ -220,7 +218,19 @@ lazy val lsp = module("lsp")
     },
   )
   .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoPackage := "playground.lsp.buildinfo",
+    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
+  )
   .dependsOn(languageSupport)
+
+lazy val lsp = module("lsp")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.24.0"
+    )
+  )
+  .dependsOn(lspKernel)
 
 lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)
@@ -233,6 +243,7 @@ lazy val e2e = module("e2e")
           }
           // todo: replace with a full publishLocal before e2e in particular gets run (but not before tests run normally)
           .dependsOn(
+            lspKernel / publishLocal,
             lsp / publishLocal,
             languageSupport / publishLocal,
             core / publishLocal,
@@ -271,6 +282,7 @@ lazy val root = project
     parser,
     formatter,
     languageSupport,
+    lspKernel,
     lsp,
     protocol4s,
     pluginCore,
