@@ -28,6 +28,13 @@ import scala.util.chaining.*
 object converters {
 
   object toLSP {
+    def serverInfo(serverInfo: ServerInfo): lsp4j.ServerInfo =
+      new lsp4j.ServerInfo(serverInfo.name, serverInfo.version)
+
+    def textDocumentSyncKind(kind: TextDocumentSyncKind): lsp4j.TextDocumentSyncKind =
+      kind match {
+        case TextDocumentSyncKind.Full => lsp4j.TextDocumentSyncKind.Full
+      }
 
     def messageType(tpe: MessageType): lsp4j.MessageType =
       tpe match {

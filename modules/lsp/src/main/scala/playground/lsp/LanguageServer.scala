@@ -4,6 +4,7 @@ import cats.FlatMap
 import cats.MonadThrow
 import cats.data.Kleisli
 import cats.effect.kernel.Async
+import cats.kernel.Semigroup
 import cats.parse.LocationMap
 import cats.syntax.all.*
 import cats.tagless.Derive
@@ -41,9 +42,7 @@ import scala.util.chaining.*
 // todo: independentize this from lsp4j and move to kernel
 trait LanguageServer[F[_]] {
 
-  def initialize(
-    workspaceFolders: List[Uri]
-  ): F[lsp4j.InitializeResult]
+  def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult]
 
   def didChange(
     documentUri: Uri,
@@ -145,18 +144,18 @@ object LanguageServer {
         getFormatterWidth
       )
 
-      def initialize(
-        workspaceFolders: List[Uri]
-      ): F[lsp4j.InitializeResult] = {
-        val capabilities = new lsp4j.ServerCapabilities()
-          .tap(_.setTextDocumentSync(lsp4j.TextDocumentSyncKind.Full))
-          .tap(_.setDocumentFormattingProvider(true))
-          .tap(_.setCompletionProvider(new lsp4j.CompletionOptions()))
-          .tap(_.setDiagnosticProvider(new lsp4j.DiagnosticRegistrationOptions()))
-          .tap(_.setCodeLensProvider(new lsp4j.CodeLensOptions()))
-          .tap(_.setDocumentSymbolProvider(true))
+      def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult] = {
+        def capabilities(compiler: ServerCapabilitiesCompiler): compiler.Result = {
+          given Semigroup[compiler.Result] = compiler.semigroup
+          compiler.textDocumentSync(TextDocumentSyncKind.Full) |+|
+            compiler.documentFormattingProvider |+|
+            compiler.completionProvider |+|
+            compiler.diagnosticProvider |+|
+            compiler.codeLensProvider |+|
+            compiler.documentSymbolProvider
+        }
 
-        val serverInfo = new lsp4j.ServerInfo("Smithy Playground", BuildInfo.version)
+        val serverInfo = ServerInfo("Smithy Playground", BuildInfo.version)
 
         Feedback[F]
           .showInfoMessage(
@@ -174,7 +173,7 @@ object LanguageServer {
             }
             .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
             .attempt
-            .as(new lsp4j.InitializeResult(capabilities, serverInfo))
+            .as(InitializeResult(capabilities, serverInfo))
       }
 
       def didChange(
@@ -345,3 +344,28 @@ object LanguageServer {
     })
 
 }
+
+enum TextDocumentSyncKind {
+  case Full
+}
+
+// different encoding than usual, the main point is to force the caller to handle all methods
+// (not sure how well that'll work with langoustine, but we'll see - I guess a lot of copying)
+trait ServerCapabilitiesCompiler {
+  type Result
+  def semigroup: Semigroup[Result]
+
+  def textDocumentSync(kind: TextDocumentSyncKind): Result
+  def documentFormattingProvider: Result
+  def completionProvider: Result
+  def diagnosticProvider: Result
+  def codeLensProvider: Result
+  def documentSymbolProvider: Result
+}
+
+case class ServerInfo(name: String, version: String)
+
+case class InitializeResult(
+  serverCapabilities: (compiler: ServerCapabilitiesCompiler) => compiler.Result,
+  serverInfo: ServerInfo,
+)
