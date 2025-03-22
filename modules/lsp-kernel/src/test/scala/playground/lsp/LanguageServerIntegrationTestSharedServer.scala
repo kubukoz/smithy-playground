@@ -3,7 +3,6 @@ package playground.lsp
 import cats.effect.IO
 import cats.effect.Resource
 import com.comcast.ip4s.*
-import org.eclipse.lsp4j
 import org.http4s.HttpRoutes
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits.*

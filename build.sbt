@@ -208,7 +208,14 @@ lazy val lspKernel = module("lsp-kernel")
       ("io.get-coursier" % "coursier_2.13" % "2.1.24")
         .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
       "org.typelevel" %% "cats-tagless-core" % "0.16.3",
-    ).pipe(jsoniterFix)
+      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
+    ).pipe(jsoniterFix),
+    (Test / test) := {
+      (pluginCore / publishLocal).value
+      (pluginSample / publishLocal).value
+
+      (Test / test).value
+    },
   )
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -220,17 +227,10 @@ lazy val lspKernel = module("lsp-kernel")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.24.0",
-      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
-    ),
-    (Test / test) := {
-      (pluginCore / publishLocal).value
-      (pluginSample / publishLocal).value
-
-      (Test / test).value
-    },
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.24.0"
+    )
   )
-  .dependsOn(lspKernel % "test->test;compile->compile")
+  .dependsOn(lspKernel)
 
 lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)

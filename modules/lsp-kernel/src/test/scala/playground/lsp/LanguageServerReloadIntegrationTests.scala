@@ -4,11 +4,6 @@ import cats.effect.IO
 import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
-import org.eclipse.lsp4j.CodeLensParams
-import org.eclipse.lsp4j.DidChangeWatchedFilesParams
-import org.eclipse.lsp4j.DocumentDiagnosticParams
-import org.eclipse.lsp4j.MessageType
-import org.eclipse.lsp4j.TextDocumentIdentifier
 import playground.PlaygroundConfig
 import playground.language.Uri
 import playground.lsp.harness.LanguageServerIntegrationTests
