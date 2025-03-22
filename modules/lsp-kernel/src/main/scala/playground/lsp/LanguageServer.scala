@@ -91,6 +91,7 @@ trait LanguageServer[F[_]] {
     arguments: List[Json],
   ): F[Unit]
 
+  // custom smithyql/runQuery LSP request
   def runFile(
     params: RunFileParams
   ): F[Unit]

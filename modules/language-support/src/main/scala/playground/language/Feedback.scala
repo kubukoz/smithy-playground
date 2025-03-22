@@ -14,6 +14,7 @@ trait Feedback[F[_]] {
     msg: String
   ): F[Unit]
 
+  // custom smithyql/showOutputPanel notification in the client
   def showOutputPanel: F[Unit]
 
   def logOutput(

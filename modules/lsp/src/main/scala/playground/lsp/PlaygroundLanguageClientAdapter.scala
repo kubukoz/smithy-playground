@@ -4,6 +4,7 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j
+import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters.*
@@ -63,5 +64,13 @@ object PlaygroundLanguageClientAdapter {
       def refreshCodeLenses: F[Unit] = withClientF(_.refreshCodeLenses()).void
       def refreshDiagnostics: F[Unit] = withClientF(_.refreshDiagnostics()).void
     }
+
+}
+
+trait PlaygroundLanguageClient extends lsp4j.services.LanguageClient {
+
+  @JsonNotification("smithyql/showOutputPanel")
+  def showOutputPanel(
+  ): Unit
 
 }
