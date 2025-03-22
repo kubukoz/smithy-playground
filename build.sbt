@@ -230,7 +230,7 @@ lazy val lsp = module("lsp")
       (Test / test).value
     },
   )
-  .dependsOn(lspKernel)
+  .dependsOn(lspKernel % "test->test;compile->compile")
 
 lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)

@@ -10,7 +10,6 @@ import playground.lsp.ConfigurationValue
 import playground.lsp.LanguageClient
 import playground.lsp.MessageType
 
-// todo move to kernel
 trait TestClient[F[_]] extends LanguageClient[F] {
   def getEvents: F[List[TestClient.Event]]
 
