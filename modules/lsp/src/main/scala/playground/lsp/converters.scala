@@ -6,6 +6,9 @@ import com.google.gson.JsonElement
 import io.circe.Json
 import io.circe.JsonNumber
 import org.eclipse.lsp4j
+import org.eclipse.lsp4j.TextDocumentIdentifier
+import org.eclipse.lsp4j.TextDocumentItem
+import org.eclipse.lsp4j.WorkspaceFolder
 import playground.CompilationError
 import playground.DiagnosticSeverity
 import playground.DiagnosticTag
@@ -179,6 +182,15 @@ object converters {
   }
 
   object fromLSP {
+
+    def uri(tdi: TextDocumentIdentifier)
+      : playground.language.Uri = playground.language.Uri.fromUriString(tdi.getUri())
+
+    def uri(tdi: TextDocumentItem)
+      : playground.language.Uri = playground.language.Uri.fromUriString(tdi.getUri())
+
+    def uri(wf: WorkspaceFolder)
+      : playground.language.Uri = playground.language.Uri.fromUriString(wf.getUri())
 
     def position(
       map: LocationMap,
