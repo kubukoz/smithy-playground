@@ -8,9 +8,9 @@ import fs2.compression.Compression
 import fs2.io.file.Files
 import fs2.io.net.Network
 
-/** Entrypoint to the language server. This is later adapted to the lsp4j model and used in Main to
-  * launch. Anything workspace-related goes through this instance so this is what we use for some
-  * heavier testing too.
+/** Entrypoint to the language server. This is later adapted to the lsp framework's model and used
+  * in Main to launch. Anything workspace-related goes through this instance so this is what we use
+  * for some heavier testing too.
   */
 object MainServer {
 
