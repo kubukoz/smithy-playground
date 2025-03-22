@@ -140,7 +140,10 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   ] = d
     .unsafeToCompletableFuture(
       impl
-        .completion(params)
+        .completion(
+          documentUri = converters.fromLSP.uri(params.getTextDocument),
+          position = converters.fromLSP.position(params.getPosition),
+        )
         .map {
           _.leftMap(_.asJava).fold(
             messages.Either.forLeft(_),
@@ -153,7 +156,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   def diagnostic(
     params: lsp4j.DocumentDiagnosticParams
   ): CompletableFuture[lsp4j.DocumentDiagnosticReport] = d.unsafeToCompletableFuture(
-    impl.diagnostic(params)
+    impl.diagnostic(
+      documentUri = converters.fromLSP.uri(params.getTextDocument)
+    )
   )
 
   @JsonRequest("textDocument/codeLens")
@@ -173,7 +178,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
   @JsonNotification("workspace/didChangeWatchedFiles")
   def didChangeWatchedFiles(
     params: lsp4j.DidChangeWatchedFilesParams
-  ): Unit = handleNotification(impl.didChangeWatchedFiles(params))
+  ): Unit = handleNotification(impl.didChangeWatchedFiles)
 
   @JsonRequest("textDocument/documentSymbol")
   @ResponseJsonAdapter(classOf[DocumentSymbolResponseAdapter])
@@ -181,7 +186,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
     params: lsp4j.DocumentSymbolParams
   ): CompletableFuture[java.util.List[messages.Either[Nothing, lsp4j.DocumentSymbol]]] = d
     .unsafeToCompletableFuture(
-      impl.documentSymbol(params).map(_.map(messages.Either.forRight(_)).asJava)
+      impl
+        .documentSymbol(converters.fromLSP.uri(params.getTextDocument()))
+        .map(_.map(messages.Either.forRight(_)).asJava)
     )
 
   @JsonRequest("smithyql/runQuery")

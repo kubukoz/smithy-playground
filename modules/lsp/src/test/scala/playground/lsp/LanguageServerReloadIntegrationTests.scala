@@ -90,7 +90,7 @@ object LanguageServerReloadIntegrationTests
               assert(lensesBefore.isEmpty).failFast[IO]
             } *>
               addLibrary *>
-              f.server.didChangeWatchedFiles(new DidChangeWatchedFilesParams()) *>
+              f.server.didChangeWatchedFiles *>
               getLenses
           }
       }
@@ -110,7 +110,7 @@ object LanguageServerReloadIntegrationTests
                 base / "smithy-build.json",
                 PlaygroundConfig.encode(PlaygroundConfig.empty),
               ) *>
-                f.server.didChangeWatchedFiles(new DidChangeWatchedFilesParams())
+                f.server.didChangeWatchedFiles
             }
           }
       }
@@ -135,9 +135,7 @@ object LanguageServerReloadIntegrationTests
 
           f.server
             .diagnostic(
-              new DocumentDiagnosticParams(
-                new TextDocumentIdentifier((f.workspaceDir / "input.smithyql").value)
-              )
+              documentUri = f.workspaceDir / "input.smithyql"
             )
             .map { diags =>
               val items = diags

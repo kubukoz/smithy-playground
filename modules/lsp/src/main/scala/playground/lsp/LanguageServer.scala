@@ -33,6 +33,8 @@ import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
+import playground.smithyql.Position
+import playground.smithyql.SourceRange
 import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
@@ -67,11 +69,12 @@ trait LanguageServer[F[_]] {
   ): F[List[lsp4j.TextEdit]]
 
   def completion(
-    position: lsp4j.CompletionParams
+    documentUri: Uri,
+    position: LSPPosition,
   ): F[Either[List[lsp4j.CompletionItem], lsp4j.CompletionList]]
 
   def diagnostic(
-    params: lsp4j.DocumentDiagnosticParams
+    documentUri: Uri
   ): F[lsp4j.DocumentDiagnosticReport]
 
   def codeLens(
@@ -79,12 +82,10 @@ trait LanguageServer[F[_]] {
   ): F[List[lsp4j.CodeLens]]
 
   def documentSymbol(
-    params: lsp4j.DocumentSymbolParams
+    documentUri: Uri
   ): F[List[lsp4j.DocumentSymbol]]
 
-  def didChangeWatchedFiles(
-    params: lsp4j.DidChangeWatchedFilesParams
-  ): F[Unit]
+  def didChangeWatchedFiles: F[Unit]
 
   def executeCommand(
     params: lsp4j.ExecuteCommandParams
@@ -212,44 +213,41 @@ object LanguageServer {
       }
 
       def completion(
-        position: lsp4j.CompletionParams
+        documentUri: Uri,
+        position: LSPPosition,
       ): F[Either[List[lsp4j.CompletionItem], lsp4j.CompletionList]] = TextDocumentManager[F]
-        .get(converters.fromLSP.uri(position.getTextDocument))
+        .get(documentUri)
         .map { documentText =>
           val map = LocationMap(documentText)
 
           completionProvider
             .provide(
               documentText,
-              converters.fromLSP.position(map, position.getPosition()),
+              position.unwrap(map),
             )
             .map(converters.toLSP.completionItem(map, _))
         }
         .map(Left(_))
 
       def diagnostic(
-        params: lsp4j.DocumentDiagnosticParams
-      ): F[lsp4j.DocumentDiagnosticReport] = {
-        val documentUri = converters.fromLSP.uri(params.getTextDocument())
-        TextDocumentManager[F]
-          .get(documentUri)
-          .map { documentText =>
-            val diags = diagnosticProvider.getDiagnostics(
-              params.getTextDocument().getUri(),
-              documentText,
-            )
+        documentUri: Uri
+      ): F[lsp4j.DocumentDiagnosticReport] = TextDocumentManager[F]
+        .get(documentUri)
+        .map { documentText =>
+          val diags = diagnosticProvider.getDiagnostics(
+            documentText
+          )
 
-            val map = LocationMap(documentText)
+          val map = LocationMap(documentText)
 
-            new lsp4j.DocumentDiagnosticReport(
-              new lsp4j.RelatedFullDocumentDiagnosticReport(
-                diags
-                  .map(converters.toLSP.diagnostic(map, _))
-                  .asJava
-              )
+          new lsp4j.DocumentDiagnosticReport(
+            new lsp4j.RelatedFullDocumentDiagnosticReport(
+              diags
+                .map(converters.toLSP.diagnostic(map, _))
+                .asJava
             )
-          }
-      }
+          )
+        }
 
       def codeLens(
         params: lsp4j.CodeLensParams
@@ -267,18 +265,16 @@ object LanguageServer {
         }
 
       def documentSymbol(
-        params: lsp4j.DocumentSymbolParams
+        documentUri: Uri
       ): F[List[lsp4j.DocumentSymbol]] = TextDocumentManager[F]
-        .get(converters.fromLSP.uri(params.getTextDocument()))
+        .get(documentUri)
         .map { text =>
           val map = LocationMap(text)
 
           DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(map, _))
         }
 
-      def didChangeWatchedFiles(
-        params: lsp4j.DidChangeWatchedFilesParams
-      ): F[Unit] = ServerLoader[F]
+      def didChangeWatchedFiles: F[Unit] = ServerLoader[F]
         .prepare(workspaceFolders = None)
         .flatMap {
           case prepared if !prepared.isChanged =>
@@ -369,3 +365,29 @@ case class InitializeResult(
   serverCapabilities: (compiler: ServerCapabilitiesCompiler) => compiler.Result,
   serverInfo: ServerInfo,
 )
+
+case class LSPPosition(line: Int, character: Int) {
+
+  def unwrap(map: LocationMap): Position = Position(map.toOffset(line, character).getOrElse(-1))
+
+}
+
+object LSPPosition {
+
+  def from(position: Position, map: LocationMap): LSPPosition = {
+    val caret = map.toCaretUnsafe(position.index)
+    LSPPosition(caret.line, caret.col)
+  }
+
+}
+
+case class LSPRange(from: LSPPosition, to: LSPPosition)
+
+object LSPRange {
+
+  def from(range: SourceRange, map: LocationMap): LSPRange = LSPRange(
+    LSPPosition.from(range.start, map),
+    LSPPosition.from(range.end, map),
+  )
+
+}

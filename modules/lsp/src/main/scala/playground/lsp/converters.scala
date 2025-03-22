@@ -180,11 +180,13 @@ object converters {
         )
       )
 
+    @deprecated
     def range(
       map: LocationMap,
       coreRange: SourceRange,
     ): lsp4j.Range = new lsp4j.Range(position(map, coreRange.start), position(map, coreRange.end))
 
+    @deprecated
     def position(
       map: LocationMap,
       pos: Position,
@@ -206,12 +208,15 @@ object converters {
     def uri(wf: WorkspaceFolder)
       : playground.language.Uri = playground.language.Uri.fromUriString(wf.getUri())
 
+    @deprecated
     def position(
       map: LocationMap,
       pos: lsp4j.Position,
     ): Position = Position(
       map.toOffset(pos.getLine(), pos.getCharacter()).getOrElse(-1)
     )
+
+    def position(pos: lsp4j.Position): LSPPosition = LSPPosition(pos.getLine(), pos.getCharacter())
 
   }
 

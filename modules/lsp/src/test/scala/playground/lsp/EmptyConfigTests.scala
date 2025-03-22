@@ -16,7 +16,7 @@ object EmptyConfigTests extends IOSuite with LanguageServerIntegrationTests {
   test("server init produces logs consistent with the workspace folder") { f =>
     f.client
       .scoped {
-        f.server.didChangeWatchedFiles(new DidChangeWatchedFilesParams()) *>
+        f.server.didChangeWatchedFiles *>
           f.client.getEvents
       }
       .map { events =>

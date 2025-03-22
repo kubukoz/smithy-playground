@@ -37,12 +37,8 @@ object LanguageServerIntegrationTestSharedServer
   test("completions").apply { f =>
     f.server
       .completion(
-        new CompletionParams(
-          new TextDocumentIdentifier(
-            Uri.fromPath(f.workspaceDir.toPath / "empty.smithyql").value
-          ),
-          new Position(0, 0),
-        )
+        documentUri = Uri.fromPath(f.workspaceDir.toPath / "empty.smithyql"),
+        position = LSPPosition(0, 0),
       )
       .map {
         case Left(e) =>
@@ -62,11 +58,7 @@ object LanguageServerIntegrationTestSharedServer
   test("diagnostics") { f =>
     f.server
       .diagnostic(
-        new DocumentDiagnosticParams(
-          new TextDocumentIdentifier(
-            (f.workspaceDir.toPath / "broken.smithyql").toNioPath.toUri().toString()
-          )
-        )
+        documentUri = Uri.fromPath(f.workspaceDir.toPath / "broken.smithyql")
       )
       .map { report =>
         val diagnosticItems =
@@ -81,11 +73,7 @@ object LanguageServerIntegrationTestSharedServer
   test("document symbols") { f =>
     f.server
       .documentSymbol(
-        new DocumentSymbolParams(
-          new TextDocumentIdentifier(
-            Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql").value
-          )
-        )
+        Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql")
       )
       .map { symbols =>
         assert.eql(symbols.map(_.getName()), List("playground.std#Random", "NextUUID"))
