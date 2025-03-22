@@ -14,8 +14,6 @@ import cats.~>
 import com.google.gson.JsonElement
 import com.google.gson.JsonPrimitive
 import org.eclipse.lsp4j.*
-import org.eclipse.lsp4j.ServerCapabilities
-import org.eclipse.lsp4j.TextDocumentSyncKind
 import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
@@ -23,7 +21,6 @@ import playground.FileRunner
 import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.ServiceIndex
-import playground.TextDocumentManager
 import playground.language
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider

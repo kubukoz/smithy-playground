@@ -198,20 +198,30 @@ lazy val core = module("core")
 lazy val languageSupport = module("language-support")
   .dependsOn(core % "test->test;compile->compile", parser)
 
-// Adapters for language services to LSP, actual LSP server binding, entrypoint
+// LSP features that aren't specific to any given lsp library (lsp4j, langoustine)
+lazy val lspKernel = module("lsp-kernel")
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.circe" %% "circe-core" % "0.14.12",
+      "org.http4s" %% "http4s-ember-client" % "0.23.30",
+      ("io.get-coursier" % "coursier_2.13" % "2.1.24")
+        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
+      "org.typelevel" %% "cats-tagless-core" % "0.16.3",
+    ).pipe(jsoniterFix)
+  )
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoPackage := "playground.lsp.buildinfo",
+    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
+  )
+  .dependsOn(languageSupport)
+
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.24.0",
-      "io.circe" %% "circe-core" % "0.14.12",
-      "org.http4s" %% "http4s-ember-client" % "0.23.30",
       "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
-      ("io.get-coursier" % "coursier_2.13" % "2.1.24")
-        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
-      "org.typelevel" %% "cats-tagless-core" % "0.16.3",
-    ).pipe(jsoniterFix),
-    buildInfoPackage := "playground.lsp.buildinfo",
-    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
+    ),
     (Test / test) := {
       (pluginCore / publishLocal).value
       (pluginSample / publishLocal).value
@@ -219,8 +229,7 @@ lazy val lsp = module("lsp")
       (Test / test).value
     },
   )
-  .enablePlugins(BuildInfoPlugin)
-  .dependsOn(languageSupport)
+  .dependsOn(lspKernel)
 
 lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)

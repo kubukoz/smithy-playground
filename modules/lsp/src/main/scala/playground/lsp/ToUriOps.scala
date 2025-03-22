@@ -5,6 +5,7 @@ import org.eclipse.lsp4j.TextDocumentItem
 import org.eclipse.lsp4j.WorkspaceFolder
 import playground.language.Uri
 
+// todo: move to converters?
 object ToUriOps {
 
   implicit final class TextDocumentIdentifierToUriSyntax(
