@@ -242,6 +242,7 @@ lazy val e2e = module("e2e")
           }
           // todo: replace with a full publishLocal before e2e in particular gets run (but not before tests run normally)
           .dependsOn(
+            lspKernel / publishLocal,
             lsp / publishLocal,
             languageSupport / publishLocal,
             core / publishLocal,
@@ -280,6 +281,7 @@ lazy val root = project
     parser,
     formatter,
     languageSupport,
+    lspKernel,
     lsp,
     protocol4s,
     pluginCore,
