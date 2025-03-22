@@ -232,6 +232,14 @@ lazy val lsp = module("lsp")
   )
   .dependsOn(lspKernel)
 
+lazy val lsp2 = module("lsp2")
+  .settings(
+    libraryDependencies ++= Seq(
+      "tech.neander" %% "langoustine-app" % "0.0.22"
+    ).pipe(jsoniterFix)
+  )
+  .dependsOn(lspKernel)
+
 lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -245,6 +253,7 @@ lazy val e2e = module("e2e")
           .dependsOn(
             lspKernel / publishLocal,
             lsp / publishLocal,
+            lsp2 / publishLocal,
             languageSupport / publishLocal,
             core / publishLocal,
             parser / publishLocal,
@@ -284,6 +293,7 @@ lazy val root = project
     languageSupport,
     lspKernel,
     lsp,
+    lsp2,
     protocol4s,
     pluginCore,
     pluginSample,
