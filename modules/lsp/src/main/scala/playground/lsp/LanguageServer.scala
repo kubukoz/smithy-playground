@@ -24,12 +24,14 @@ import playground.language
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
 import playground.language.CommandResultReporter
+import playground.language.CompletionItem
 import playground.language.CompletionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbolProvider
 import playground.language.Feedback
 import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
+import playground.language.TextEdit
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.smithyql.Position
@@ -64,12 +66,12 @@ trait LanguageServer[F[_]] {
 
   def formatting(
     documentUri: Uri
-  ): F[List[lsp4j.TextEdit]]
+  ): F[List[LSPTextEdit]]
 
   def completion(
     documentUri: Uri,
     position: LSPPosition,
-  ): F[Either[List[lsp4j.CompletionItem], lsp4j.CompletionList]]
+  ): F[List[LSPCompletionItem]]
 
   def diagnostic(
     documentUri: Uri
@@ -203,14 +205,15 @@ object LanguageServer {
 
       def formatting(
         documentUri: Uri
-      ): F[List[lsp4j.TextEdit]] = TextDocumentProvider[F].get(documentUri).flatMap { doc =>
-        formattingProvider(documentUri).map(_.map(converters.toLSP.textEdit(_, LocationMap(doc))))
+      ): F[List[LSPTextEdit]] = TextDocumentProvider[F].get(documentUri).flatMap { doc =>
+        val map = LocationMap(doc)
+        formattingProvider(documentUri).map(_.map(LSPTextEdit(_, map)))
       }
 
       def completion(
         documentUri: Uri,
         position: LSPPosition,
-      ): F[Either[List[lsp4j.CompletionItem], lsp4j.CompletionList]] = TextDocumentManager[F]
+      ): F[List[LSPCompletionItem]] = TextDocumentManager[F]
         .get(documentUri)
         .map { documentText =>
           val map = LocationMap(documentText)
@@ -220,9 +223,8 @@ object LanguageServer {
               documentText,
               position.unwrap(map),
             )
-            .map(converters.toLSP.completionItem(map, _))
+            .map(LSPCompletionItem(_, map))
         }
-        .map(Left(_))
 
       def diagnostic(
         documentUri: Uri
@@ -354,6 +356,9 @@ case class InitializeResult(
   serverCapabilities: (compiler: ServerCapabilitiesCompiler) => compiler.Result,
   serverInfo: ServerInfo,
 )
+
+case class LSPCompletionItem(item: CompletionItem, map: LocationMap)
+case class LSPTextEdit(textEdit: TextEdit, map: LocationMap)
 
 case class LSPPosition(line: Int, character: Int) {
 

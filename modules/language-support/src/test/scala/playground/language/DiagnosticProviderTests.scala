@@ -95,13 +95,13 @@ object DiagnosticProviderTests extends SimpleIOSuite {
   )
 
   pureTest("empty file - no diagnostics") {
-    assertNoDiff(provider.getDiagnostics("test.smithyql", ""), Nil)
+    assertNoDiff(provider.getDiagnostics(""), Nil)
   }
 
   pureTest("file doesn't parse at all") {
     val input = "horrendous <parsing mistake>"
     assertNoDiff(
-      provider.getDiagnostics("test.smithyql", input),
+      provider.getDiagnostics(input),
       List(
         CompilationError(
           err = CompilationErrorDetails.ParseError(expectationString = "{"),
@@ -117,7 +117,7 @@ object DiagnosticProviderTests extends SimpleIOSuite {
     val input = "AnyOp {}"
 
     assertNoDiff(
-      provider.getDiagnostics("test.smithyql", input),
+      provider.getDiagnostics(input),
       List(
         CompilationError(
           err = CompilationErrorDetails.AmbiguousService(
@@ -138,8 +138,7 @@ object DiagnosticProviderTests extends SimpleIOSuite {
 
     assertNoDiff(
       provider.getDiagnostics(
-        "test.smithyql",
-        input,
+        input
       ),
       List(
         CompilationError.error(
@@ -165,7 +164,7 @@ object DiagnosticProviderTests extends SimpleIOSuite {
         |noop#NoRunnerService.Noop {}""".stripMargin
 
     assertNoDiff(
-      provider.getDiagnostics("test.smithyql", input),
+      provider.getDiagnostics(input),
       List(
         CompilationError.info(
           err = CompilationErrorDetails.UnsupportedProtocols(
@@ -184,7 +183,7 @@ object DiagnosticProviderTests extends SimpleIOSuite {
       """playground.std#Random.NextUUID {}
         |playground.std#Clock.CurrentTimestamp {}""".stripMargin
 
-    assertNoDiff(provider.getDiagnostics("test.smithyql", input), Nil)
+    assertNoDiff(provider.getDiagnostics(input), Nil)
   }
 
 }

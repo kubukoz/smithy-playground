@@ -43,6 +43,7 @@ object converters {
         case MessageType.Info    => lsp4j.MessageType.Info
       }
 
+    @deprecated("should be private")
     def documentSymbol(
       map: LocationMap,
       sym: DocumentSymbol,
@@ -64,7 +65,12 @@ object converters {
         case SymbolKind.Package  => lsp4j.SymbolKind.Package
       }
 
-    def completionItem(
+    def completionItem(item: LSPCompletionItem): lsp4j.CompletionItem = completionItem(
+      item.map,
+      item.item,
+    )
+
+    private def completionItem(
       map: LocationMap,
       item: CompletionItem,
     ): lsp4j.CompletionItem = {
@@ -128,7 +134,9 @@ object converters {
         .tap(_.setSortText(item.sortText.orNull))
     }
 
-    def textEdit(
+    def textEdit(edit: LSPTextEdit): lsp4j.TextEdit = textEdit(edit.textEdit, edit.map)
+
+    private def textEdit(
       edit: TextEdit,
       map: LocationMap,
     ): lsp4j.TextEdit =
@@ -143,6 +151,7 @@ object converters {
           new lsp4j.TextEdit(r, what)
       }
 
+    @deprecated("should be private")
     def diagnostic(
       map: LocationMap,
       diag: CompilationError,
@@ -167,6 +176,7 @@ object converters {
         )
       )
 
+    @deprecated("should be private")
     def codeLens(
       map: LocationMap,
       lens: CodeLens,
@@ -180,14 +190,12 @@ object converters {
         )
       )
 
-    @deprecated
-    def range(
+    private def range(
       map: LocationMap,
       coreRange: SourceRange,
     ): lsp4j.Range = new lsp4j.Range(position(map, coreRange.start), position(map, coreRange.end))
 
-    @deprecated
-    def position(
+    private def position(
       map: LocationMap,
       pos: Position,
     ): lsp4j.Position = {
@@ -207,14 +215,6 @@ object converters {
 
     def uri(wf: WorkspaceFolder)
       : playground.language.Uri = playground.language.Uri.fromUriString(wf.getUri())
-
-    @deprecated
-    def position(
-      map: LocationMap,
-      pos: lsp4j.Position,
-    ): Position = Position(
-      map.toOffset(pos.getLine(), pos.getCharacter()).getOrElse(-1)
-    )
 
     def position(pos: lsp4j.Position): LSPPosition = LSPPosition(pos.getLine(), pos.getCharacter())
 

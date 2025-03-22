@@ -134,7 +134,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
       .formatting(
         documentUri = converters.fromLSP.uri(params.getTextDocument)
       )
-      .map(_.asJava)
+      .map { edits =>
+        edits.map(converters.toLSP.textEdit).asJava
+      }
   )
 
   @JsonRequest("textDocument/completion")
@@ -150,10 +152,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
           position = converters.fromLSP.position(params.getPosition),
         )
         .map {
-          _.leftMap(_.asJava).fold(
-            messages.Either.forLeft(_),
-            messages.Either.forRight(_),
-          )
+          _.map(converters.toLSP.completionItem)
+            .asJava
+            .pipe(messages.Either.forLeft(_))
         }
     )
 

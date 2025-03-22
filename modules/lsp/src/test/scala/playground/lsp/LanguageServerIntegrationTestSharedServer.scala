@@ -40,18 +40,16 @@ object LanguageServerIntegrationTestSharedServer
         documentUri = Uri.fromPath(f.workspaceDir.toPath / "empty.smithyql"),
         position = LSPPosition(0, 0),
       )
-      .map {
-        case Left(e) =>
-          assert.same(
-            e.map(_.getLabel()),
-            List(
-              "NextUUID",
-              "GetWeather",
-              "Noop",
-              "CurrentTimestamp",
-            ),
-          )
-        case Right(v) => failure(s"Right was found, but Left was expected: $v")
+      .map { e =>
+        assert.same(
+          e.map(_.item.label),
+          List(
+            "NextUUID",
+            "GetWeather",
+            "Noop",
+            "CurrentTimestamp",
+          ),
+        )
       }
   }
 
