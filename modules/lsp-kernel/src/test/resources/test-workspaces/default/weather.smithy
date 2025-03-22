@@ -6,7 +6,9 @@ use alloy#simpleRestJson
 
 @simpleRestJson
 service WeatherService {
-    operations: [GetWeather]
+    operations: [
+        GetWeather
+    ]
 }
 
 @http(method: "GET", uri: "/weather/{city}")
@@ -17,6 +19,7 @@ operation GetWeather {
         @httpLabel
         city: String
     }
+
     output := {
         @required
         weather: Weather

@@ -3,7 +3,9 @@ $version: "2"
 namespace noop
 
 service NoRunnerService {
-    operations: [Noop]
+    operations: [
+        Noop
+    ]
 }
 
 @http(method: "GET", uri: "/")
