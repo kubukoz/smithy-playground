@@ -195,6 +195,7 @@ lazy val core = module("core")
   )
 
 // LSP-like interfaces like CodeLensProvider, which are later adapted into actual lsp
+// but can be used in other, non-LSP contexts
 lazy val languageSupport = module("language-support")
   .dependsOn(core % "test->test;compile->compile", parser)
 

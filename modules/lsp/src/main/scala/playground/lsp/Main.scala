@@ -54,7 +54,9 @@ object Main extends IOApp.Simple {
             .create()
 
           IO.println("connecting") *>
-            clientRef.complete(LanguageClient.adapt[IO](launcher.getRemoteProxy())) *>
+            clientRef.complete(
+              PlaygroundLanguageClientAdapter.adapt[IO](launcher.getRemoteProxy())
+            ) *>
             IO.println("Server connected")
               .as(launcher)
         }

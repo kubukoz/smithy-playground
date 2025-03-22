@@ -29,6 +29,13 @@ object converters {
 
   object toLSP {
 
+    def messageType(tpe: MessageType): lsp4j.MessageType =
+      tpe match {
+        case MessageType.Error   => lsp4j.MessageType.Error
+        case MessageType.Warning => lsp4j.MessageType.Warning
+        case MessageType.Info    => lsp4j.MessageType.Info
+      }
+
     def documentSymbol(
       map: LocationMap,
       sym: DocumentSymbol,

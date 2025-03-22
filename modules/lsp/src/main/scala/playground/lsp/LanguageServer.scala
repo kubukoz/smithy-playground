@@ -39,6 +39,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import scala.jdk.CollectionConverters.*
 import scala.util.chaining.*
 
+// todo: independentize this from lsp4j and move to kernel
 trait LanguageServer[F[_]] {
 
   def initialize(
@@ -306,7 +307,7 @@ object LanguageServer {
         .flatMap {
           case prepared if !prepared.isChanged =>
             Feedback[F].showInfoMessage(
-              LanguageClient.NoChangeDetected
+              "No change detected, not rebuilding server"
             )
           case prepared =>
             Feedback[F].showInfoMessage("Detected changes, will try to rebuild server...") *>

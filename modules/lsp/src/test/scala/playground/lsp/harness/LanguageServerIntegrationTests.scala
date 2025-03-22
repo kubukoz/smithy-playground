@@ -5,11 +5,11 @@ import cats.effect.IOLocal
 import cats.effect.Resource
 import cats.syntax.all.*
 import org.eclipse.lsp4j.InitializeParams
-import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.WorkspaceFolder
 import playground.language.Uri
 import playground.lsp.LanguageServer
 import playground.lsp.MainServer
+import playground.lsp.MessageType
 import playground.lsp.buildinfo.BuildInfo
 import weaver.SourceLocation
 
