@@ -188,8 +188,14 @@ object LangoustineServerAdapter {
       .handleRequest(smithyql.runQuery) { req =>
         server.runFile(RunFileParams(converters.fromLSP.uri(req.params.uri)))
       }
-      .handleNotification(exit)(_ => Applicative[F].unit)
-      .handleRequest(shutdown)(_ => Applicative[F].pure(null: shutdown.Out /* Anton wtf */ ))
+      .handleNotification(exit) { _ =>
+        println("we're in an exit now")
+        Applicative[F].unit
+      }
+      .handleRequest(shutdown) { _ =>
+        println("we're in a shutdown now")
+        Applicative[F].pure(null: shutdown.Out /* Anton wtf */ )
+      }
 
   object converters {
 

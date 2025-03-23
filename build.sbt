@@ -235,7 +235,7 @@ lazy val lsp = module("lsp")
 lazy val lsp2 = module("lsp2")
   .settings(
     libraryDependencies ++= Seq(
-      "tech.neander" %% "langoustine-app" % "0.0.22"
+      "tech.neander" %% "langoustine-app" % "0.0.22+2-9b9fac05+20250323-0105-SNAPSHOT"
     ).pipe(jsoniterFix)
   )
   .dependsOn(lspKernel)
@@ -268,7 +268,7 @@ lazy val e2e = module("e2e")
     publish / skip := true,
     Test / fork := true,
   )
-  .dependsOn(lsp)
+  .dependsOn(lsp, lsp2)
 
 val writeVersion = taskKey[Unit]("Writes the current version to the `.version` file")
 
