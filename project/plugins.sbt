@@ -1,5 +1,3 @@
-ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
-
 addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.5.11")
 addSbtPlugin("org.typelevel" % "sbt-tpolecat" % "0.5.2")
 
