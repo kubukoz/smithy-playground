@@ -4,11 +4,6 @@ import cats.effect.IO
 import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
-import org.eclipse.lsp4j.CodeLensParams
-import org.eclipse.lsp4j.DidChangeWatchedFilesParams
-import org.eclipse.lsp4j.DocumentDiagnosticParams
-import org.eclipse.lsp4j.MessageType
-import org.eclipse.lsp4j.TextDocumentIdentifier
 import playground.PlaygroundConfig
 import playground.language.Uri
 import playground.lsp.harness.LanguageServerIntegrationTests
@@ -62,9 +57,7 @@ object LanguageServerReloadIntegrationTests
             val getLenses = f
               .server
               .codeLens(
-                new CodeLensParams(
-                  new TextDocumentIdentifier((f.workspaceDir / "demo.smithyql").value)
-                )
+                documentUri = f.workspaceDir / "demo.smithyql"
               )
 
             val workspacePath = (testWorkspacesBase / "default").toPath
@@ -90,7 +83,7 @@ object LanguageServerReloadIntegrationTests
               assert(lensesBefore.isEmpty).failFast[IO]
             } *>
               addLibrary *>
-              f.server.didChangeWatchedFiles(new DidChangeWatchedFilesParams()) *>
+              f.server.didChangeWatchedFiles *>
               getLenses
           }
       }
@@ -110,7 +103,7 @@ object LanguageServerReloadIntegrationTests
                 base / "smithy-build.json",
                 PlaygroundConfig.encode(PlaygroundConfig.empty),
               ) *>
-                f.server.didChangeWatchedFiles(new DidChangeWatchedFilesParams())
+                f.server.didChangeWatchedFiles
             }
           }
       }
@@ -135,17 +128,10 @@ object LanguageServerReloadIntegrationTests
 
           f.server
             .diagnostic(
-              new DocumentDiagnosticParams(
-                new TextDocumentIdentifier((f.workspaceDir / "input.smithyql").value)
-              )
+              documentUri = f.workspaceDir / "input.smithyql"
             )
             .map { diags =>
-              val items = diags
-                .getRelatedFullDocumentDiagnosticReport()
-                .getItems()
-                .asScala
-                .toList
-                .map(_.getMessage())
+              val items = diags.map(_.diagnostic.err)
 
               assert(errorLogs.isEmpty) &&
               assert(items.isEmpty)

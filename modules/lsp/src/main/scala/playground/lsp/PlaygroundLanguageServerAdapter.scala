@@ -1,19 +1,22 @@
 package playground.lsp
 
-import cats.Functor
+import cats.effect.kernel.Sync
 import cats.effect.std.Dispatcher
+import cats.kernel.Semigroup
 import cats.syntax.all.*
-import org.eclipse.lsp4j.*
+import com.google.gson.JsonElement
+import org.eclipse.lsp4j
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter
 import org.eclipse.lsp4j.jsonrpc.messages
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
+import util.chaining.*
 
 import java.util.concurrent.CompletableFuture
 import scala.jdk.CollectionConverters.*
 
-final class PlaygroundLanguageServerAdapter[F[_]: Functor](
+final class PlaygroundLanguageServerAdapter[F[_]: Sync](
   impl: LanguageServer[F]
 )(
   implicit d: Dispatcher[F]
@@ -26,93 +29,199 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
 
   @JsonRequest("initialize")
   def initialize(
-    params: InitializeParams
-  ): CompletableFuture[InitializeResult] = d.unsafeToCompletableFuture(impl.initialize(params))
+    params: lsp4j.InitializeParams
+  ): CompletableFuture[lsp4j.InitializeResult] = d.unsafeToCompletableFuture(
+    impl
+      .initialize(
+        params
+          .getWorkspaceFolders()
+          .asScala
+          .map(converters.fromLSP.uri(_))
+          .toList
+      )
+      .map { result =>
+        new lsp4j.InitializeResult(
+          new lsp4j.ServerCapabilities().tap(
+            result.serverCapabilities(
+              new ServerCapabilitiesCompiler {
+                type Result = lsp4j.ServerCapabilities => Unit
+
+                val semigroup: Semigroup[Result] =
+                  (f1, f2) =>
+                    sc => {
+                      f1(sc)
+                      f2(sc)
+                    }
+
+                def textDocumentSync(kind: TextDocumentSyncKind): Result =
+                  _.setTextDocumentSync(converters.toLSP.textDocumentSyncKind(kind))
+
+                def documentFormattingProvider: Result = _.setDocumentFormattingProvider(true)
+
+                def completionProvider: Result =
+                  _.setCompletionProvider(new lsp4j.CompletionOptions())
+
+                def diagnosticProvider: Result =
+                  _.setDiagnosticProvider(new lsp4j.DiagnosticRegistrationOptions())
+
+                def codeLensProvider: Result = _.setCodeLensProvider(new lsp4j.CodeLensOptions())
+
+                def documentSymbolProvider: Result = _.setDocumentSymbolProvider(true)
+              }
+            )
+          ),
+          converters.toLSP.serverInfo(result.serverInfo),
+        )
+      }
+  )
 
   @JsonNotification("initialized")
   def initialize(
-    params: InitializedParams
-  ): Unit = handleNotification(impl.initialized(params))
+    params: lsp4j.InitializedParams
+  ): Unit = ()
 
   @JsonRequest("shutdown")
   def shutdown(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.shutdown.as(null: Object))
+  ): CompletableFuture[Object] = CompletableFuture.completedFuture(null)
 
   @JsonNotification("textDocument/didChange")
   def didChange(
-    params: DidChangeTextDocumentParams
-  ): Unit = handleNotification(impl.didChange(params))
+    params: lsp4j.DidChangeTextDocumentParams
+  ): Unit =
+    if (params.getContentChanges().isEmpty())
+      ()
+    else
+      handleNotification(
+        impl.didChange(
+          documentUri = converters.fromLSP.uri(params.getTextDocument),
+          newText = params.getContentChanges.asScala.head.getText(),
+        )
+      )
 
   @JsonNotification("textDocument/didOpen")
   def didOpen(
-    params: DidOpenTextDocumentParams
-  ): Unit = handleNotification(impl.didOpen(params))
+    params: lsp4j.DidOpenTextDocumentParams
+  ): Unit = handleNotification(
+    impl.didOpen(
+      documentUri = converters.fromLSP.uri(params.getTextDocument),
+      text = params.getTextDocument.getText,
+    )
+  )
 
   @JsonNotification("textDocument/didSave")
   def didSave(
-    params: DidSaveTextDocumentParams
-  ): Unit = handleNotification(impl.didSave(params))
+    params: lsp4j.DidSaveTextDocumentParams
+  ): Unit = handleNotification(
+    impl.didSave(
+      documentUri = converters.fromLSP.uri(params.getTextDocument)
+    )
+  )
 
   @JsonNotification("textDocument/didClose")
   def didClose(
-    params: DidCloseTextDocumentParams
-  ): Unit = handleNotification(impl.didClose(params))
+    params: lsp4j.DidCloseTextDocumentParams
+  ): Unit = handleNotification(
+    impl.didClose(
+      documentUri = converters.fromLSP.uri(params.getTextDocument)
+    )
+  )
 
   @JsonRequest("textDocument/formatting")
   def formatting(
-    params: DocumentFormattingParams
-  ): CompletableFuture[java.util.List[TextEdit]] = d.unsafeToCompletableFuture(
-    impl.formatting(params).map(_.asJava)
+    params: lsp4j.DocumentFormattingParams
+  ): CompletableFuture[java.util.List[lsp4j.TextEdit]] = d.unsafeToCompletableFuture(
+    impl
+      .formatting(
+        documentUri = converters.fromLSP.uri(params.getTextDocument)
+      )
+      .map { edits =>
+        edits.map(converters.toLSP.textEdit).asJava
+      }
   )
 
   @JsonRequest("textDocument/completion")
   def completion(
-    params: CompletionParams
-  ): CompletableFuture[messages.Either[java.util.List[CompletionItem], CompletionList]] = d
+    params: lsp4j.CompletionParams
+  ): CompletableFuture[
+    messages.Either[java.util.List[lsp4j.CompletionItem], lsp4j.CompletionList]
+  ] = d
     .unsafeToCompletableFuture(
       impl
-        .completion(params)
+        .completion(
+          documentUri = converters.fromLSP.uri(params.getTextDocument),
+          position = converters.fromLSP.position(params.getPosition),
+        )
         .map {
-          _.leftMap(_.asJava).fold(
-            messages.Either.forLeft(_),
-            messages.Either.forRight(_),
-          )
+          _.map(converters.toLSP.completionItem)
+            .asJava
+            .pipe(messages.Either.forLeft(_))
         }
     )
 
   @JsonRequest("textDocument/diagnostic")
   def diagnostic(
-    params: DocumentDiagnosticParams
-  ): CompletableFuture[DocumentDiagnosticReport] = d.unsafeToCompletableFuture(
-    impl.diagnostic(params)
+    params: lsp4j.DocumentDiagnosticParams
+  ): CompletableFuture[lsp4j.DocumentDiagnosticReport] = d.unsafeToCompletableFuture(
+    impl
+      .diagnostic(
+        documentUri = converters.fromLSP.uri(params.getTextDocument)
+      )
+      .map { diags =>
+        new lsp4j.DocumentDiagnosticReport(
+          new lsp4j.RelatedFullDocumentDiagnosticReport(
+            diags.map(converters.toLSP.diagnostic).asJava
+          )
+        )
+      }
   )
 
   @JsonRequest("textDocument/codeLens")
   def codeLens(
-    params: CodeLensParams
-  ): CompletableFuture[java.util.List[CodeLens]] = d.unsafeToCompletableFuture(
-    impl.codeLens(params).map(_.asJava)
+    params: lsp4j.CodeLensParams
+  ): CompletableFuture[java.util.List[lsp4j.CodeLens]] = d.unsafeToCompletableFuture(
+    impl
+      .codeLens(
+        documentUri = converters.fromLSP.uri(params.getTextDocument)
+      )
+      .map(_.map(converters.toLSP.codeLens).asJava)
   )
 
   @JsonRequest("workspace/executeCommand")
   def executeCommand(
-    params: ExecuteCommandParams
+    params: lsp4j.ExecuteCommandParams
   ): CompletableFuture[Object] = d.unsafeToCompletableFuture(
-    impl.executeCommand(params).as(null: Object)
+    Sync[F]
+      .defer {
+        impl
+          .executeCommand(
+            commandName = params.getCommand(),
+            arguments = params
+              .getArguments()
+              .asScala
+              .toList
+              .map {
+                case gson: JsonElement => converters.gsonToCirce(gson)
+                case s                 => throw new Throwable("Unsupported arg: " + s)
+              },
+          )
+      }
+      .as(null: Object)
   )
 
   @JsonNotification("workspace/didChangeWatchedFiles")
   def didChangeWatchedFiles(
-    params: DidChangeWatchedFilesParams
-  ): Unit = handleNotification(impl.didChangeWatchedFiles(params))
+    params: lsp4j.DidChangeWatchedFilesParams
+  ): Unit = handleNotification(impl.didChangeWatchedFiles)
 
   @JsonRequest("textDocument/documentSymbol")
   @ResponseJsonAdapter(classOf[DocumentSymbolResponseAdapter])
   def documentSymbol(
-    params: DocumentSymbolParams
-  ): CompletableFuture[java.util.List[messages.Either[Nothing, DocumentSymbol]]] = d
+    params: lsp4j.DocumentSymbolParams
+  ): CompletableFuture[java.util.List[messages.Either[Nothing, lsp4j.DocumentSymbol]]] = d
     .unsafeToCompletableFuture(
-      impl.documentSymbol(params).map(_.map(messages.Either.forRight(_)).asJava)
+      impl
+        .documentSymbol(converters.fromLSP.uri(params.getTextDocument()))
+        .map(_.map(converters.toLSP.documentSymbol).map(messages.Either.forRight(_)).asJava)
     )
 
   @JsonRequest("smithyql/runQuery")
@@ -122,6 +231,6 @@ final class PlaygroundLanguageServerAdapter[F[_]: Functor](
 
   @JsonRequest("exit")
   def exit(
-  ): CompletableFuture[Object] = d.unsafeToCompletableFuture(impl.exit.as(null: Object))
+  ): CompletableFuture[Object] = CompletableFuture.completedFuture(null)
 
 }

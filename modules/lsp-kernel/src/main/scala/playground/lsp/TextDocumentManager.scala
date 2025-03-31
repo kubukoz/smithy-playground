@@ -1,4 +1,4 @@
-package playground
+package playground.lsp
 
 import cats.data.OptionT
 import cats.effect.Concurrent

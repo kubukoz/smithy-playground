@@ -14,13 +14,13 @@ structure instant {}
 @deprecated(message: "don't use", since: "0.0.0")
 service DeprecatedService {
     version: "0.0.1"
-    operations: [DeprecatedOperation]
+    operations: [
+        DeprecatedOperation
+    ]
 }
 
 @deprecated(message: "don't use op", since: "0.0.0")
-operation DeprecatedOperation {
-
-}
+operation DeprecatedOperation {}
 
 @simpleRestJson
 service DemoService {
@@ -30,67 +30,83 @@ service DemoService {
         GetPowers
         CreateSubscription
     ]
-    errors: [GenericServerError]
+    errors: [
+        GenericServerError
+    ]
 }
 
 @simpleRestJson
 service DemoService2 {
     version: "0.0.1"
-    operations: [GetVersion, CreateSubscription]
+    operations: [
+        GetVersion
+        CreateSubscription
+    ]
 }
 
 @readonly
 @http(uri: "/version", method: "GET")
-operation GetVersion {
-
-}
+operation GetVersion {}
 
 @http(method: "POST", uri: "/heroes")
-@documentation("""
-Create a hero.
-""")
-@examples([{
-    title: "Valid input"
-    documentation: "This is a valid input"
-    input: {
-        hero: {
-            good: {
-                howGood: 10
+@documentation(
+    """
+    Create a hero.
+    """
+)
+@examples([
+    {
+        title: "Valid input"
+        documentation: "This is a valid input"
+        input: {
+            hero: {
+                good: { howGood: 10 }
             }
         }
     }
-}, {
-    title: "Valid input v2"
-    documentation: "This is also a valid input, but for a bad hero"
-    input: {
-        hero: {
-            bad: {
-                evilName: "Evil"
-                powerLevel: 10
+    {
+        title: "Valid input v2"
+        documentation: "This is also a valid input, but for a bad hero"
+        input: {
+            hero: {
+                bad: { evilName: "Evil", powerLevel: 10 }
             }
         }
     }
-}])
+])
 operation CreateHero {
     input: CreateHeroInput
     output: CreateHeroOutput
-    errors: [HeroIsBad]
+    errors: [
+        HeroIsBad
+    ]
 }
 
 structure CreateHeroInput {
     @required
     hero: Hero
+
     @httpQuery("verbose")
     verbose: Boolean
+
     powers: Powers
+
     powerMap: PowerMap
+
     friends: Friends
+
     intSet: IntSet
+
     friendSet: FriendSet
+
     hasNewtypes: HasNewtypes
+
     hasDeprecations: HasDeprecations
-    doc: Document,
-    sparse: SampleSparseList,
+
+    doc: Document
+
+    sparse: SampleSparseList
+
     sparseMap: SampleSparseMap
 }
 
@@ -111,7 +127,9 @@ structure CreateHeroOutput {
 
 union Hero {
     good: Good
+
     bad: Bad
+
     @deprecated(message: "No reason", since: "0.0.1")
     badder: Bad
 }
@@ -124,6 +142,7 @@ structure Good {
 structure Bad {
     @required
     evilName: String
+
     @required
     powerLevel: Integer
 }
@@ -177,15 +196,18 @@ intEnum PrivacyTier {
 
 @http(method: "PUT", uri: "/subscriptions")
 @idempotent
-@documentation("""
-Create a subscription.
-""")
+@documentation(
+    """
+    Create a subscription.
+    """
+)
 operation CreateSubscription {
     input := {
         @httpPayload
         @required
         subscription: Subscription
     }
+
     output := {
         @httpPayload
         @required
@@ -196,10 +218,15 @@ operation CreateSubscription {
 structure Subscription {
     @required
     id: String
+
     name: String
+
     createdAt: Timestamp
+
     status: SubscriptionStatus
+
     skus: Skus
+
     next: Subscription
 }
 
@@ -210,6 +237,7 @@ list Skus {
 structure Sku {
     @required
     id: Integer
+
     @required
     sku: String
 }
@@ -262,8 +290,8 @@ structure EnumStruct {
 }
 
 enum EnumABC {
-    A,
-    AB,
+    A
+    AB
     ABC
 }
 
@@ -283,9 +311,11 @@ structure HasConstraintFields {
 structure HasDeprecations {
     @deprecated(message: "Made-up reason")
     hasMessage: Boolean
+
     @deprecated(since: "0.1.0")
     @required
     hasSince: Boolean
+
     @deprecated(message: "Another reason", since: "1.0.0")
     @required
     hasBoth: Boolean
@@ -298,6 +328,7 @@ structure HasDefault {
 structure Person {
     @required
     name: String
+
     age: Integer
 }
 
@@ -311,7 +342,6 @@ structure HasMixin with [SampleMixin] {
     @required
     name: String
 }
-
 
 @sparse
 list SampleSparseList {

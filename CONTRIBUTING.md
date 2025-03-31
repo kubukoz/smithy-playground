@@ -28,7 +28,9 @@ You'll find these in [`modules/lsp/src/test`](modules/lsp/src/test), and they ru
 
 This doesn't exercise the standard I/O interface of the server, but it's still a decent way to test the composition of all the modules with a filesystem directory ([`modules/lsp/src/test/resources/test-workspaces`](modules/lsp/src/test/resources/test-workspaces)).
 
-To run integration tests, run `lsp/test`.
+These are working without any external LSP library like lsp4j or Langoustine.
+
+To run integration tests, run `lsp-kernel/test`.
 
 ## Extension integration tests
 

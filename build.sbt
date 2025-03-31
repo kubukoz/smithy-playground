@@ -16,10 +16,10 @@ inThisBuild(
   )
 )
 
-val ScalaLTS = "3.3.4"
-val ScalaNext = "3.6.3"
+val ScalaLTS = "3.3.5"
+val ScalaNext = "3.6.4"
 
-val jsoniterVersion = "2.33.0"
+val jsoniterVersion = "2.33.3"
 
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
@@ -128,9 +128,9 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "1.1.0",
-      "io.circe" %% "circe-generic" % "0.14.10" % Test,
-      "io.circe" %% "circe-parser" % "0.14.10" % Test,
-      "co.fs2" %% "fs2-io" % "3.11.0" % Test,
+      "io.circe" %% "circe-generic" % "0.14.12" % Test,
+      "io.circe" %% "circe-parser" % "0.14.12" % Test,
+      "co.fs2" %% "fs2-io" % "3.12.0" % Test,
     )
   )
   .dependsOn(
@@ -228,14 +228,14 @@ lazy val protocol4s = module("protocol4s")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.5.7",
+      "org.typelevel" %% "cats-effect" % "3.6.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % jsoniterVersion,
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.3.14" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.54.0" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.15" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.55.0" % Test,
     ).pipe(jsoniterFix)
   )
   .dependsOn(
@@ -250,23 +250,21 @@ lazy val core = module("core")
   )
 
 // LSP-like interfaces like CodeLensProvider, which are later adapted into actual lsp
+// but can be used in other, non-LSP contexts
 lazy val languageSupport = module("language-support")
   .dependsOn(core % "test->test;compile->compile", parser)
 
-// Adapters for language services to LSP, actual LSP server binding, entrypoint
-lazy val lsp = module("lsp")
+// LSP features that aren't specific to any given lsp library (lsp4j, langoustine)
+lazy val lspKernel = module("lsp-kernel")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.23.1",
-      "io.circe" %% "circe-core" % "0.14.10",
+      "io.circe" %% "circe-core" % "0.14.12",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
-      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
       ("io.get-coursier" % "coursier_2.13" % "2.1.24")
         .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
       "org.typelevel" %% "cats-tagless-core" % "0.16.3",
+      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
     ).pipe(jsoniterFix),
-    buildInfoPackage := "playground.lsp.buildinfo",
-    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
     (Test / test) := {
       (pluginCore / publishLocal).value
       (pluginSample / publishLocal).value
@@ -275,7 +273,19 @@ lazy val lsp = module("lsp")
     },
   )
   .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoPackage := "playground.lsp.buildinfo",
+    buildInfoKeys ++= Seq(version, scalaBinaryVersion),
+  )
   .dependsOn(languageSupport)
+
+lazy val lsp = module("lsp")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.24.0"
+    )
+  )
+  .dependsOn(lspKernel)
 
 lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)
@@ -288,6 +298,7 @@ lazy val e2e = module("e2e")
           }
           // todo: replace with a full publishLocal before e2e in particular gets run (but not before tests run normally)
           .dependsOn(
+            lspKernel / publishLocal,
             lsp / publishLocal,
             languageSupport / publishLocal,
             core / publishLocal,
@@ -328,6 +339,7 @@ lazy val root = project
     parsergen,
     formatter,
     languageSupport,
+    lspKernel,
     lsp,
     protocol4s,
     pluginCore,

@@ -71,6 +71,7 @@ case class CodeLens(
   command: Command,
 )
 
+// note: could be made a bit more type safe sometime
 case class Command(
   title: String,
   command: String,

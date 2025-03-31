@@ -1,20 +1,22 @@
 {
-  "version": "1.0",
-  "sources": [
-    "modules/examples/src/main/smithy",
-    "modules/parser-gen/src/main/smithy",
-    "modules/parser-gen/target/scala-3.5.2/src_managed/main/smithy",
-    "modules/examples/target/scala-3.5.2/src_managed/main/smithy",
-    "modules/protocol4s/src/main/smithy",
-    "modules/protocol4s/target/scala-3.5.2/src_managed/main/smithy"
-  ],
-  "maven": {
-    "dependencies": [
-      "com.disneystreaming.alloy:alloy-core:0.3.14",
-      "com.disneystreaming.smithy4s:smithy4s-protocol:0.18.27",
-      "software.amazon.smithy:smithy-aws-traits:1.54.0"
+    "version" : "1.0",
+    "sources" : [
+        "modules/parser-gen/src/main/smithy",
+        "modules/parser-gen/target/scala-3.6.4/src_managed/main/smithy",
+        "modules/examples/src/main/smithy",
+        "modules/examples/target/scala-3.6.4/src_managed/main/smithy",
+        "modules/protocol4s/src/main/smithy",
+        "modules/protocol4s/target/scala-3.6.4/src_managed/main/smithy"
     ],
-
-    "repositories": []
-  }
+    "maven" : {
+        "dependencies" : [
+            "com.disneystreaming.alloy:alloy-core:0.3.13",
+            "com.disneystreaming.smithy4s:smithy4s-protocol:0.18.31"
+        ],
+        "repositories" : [
+            {
+                "url" : "https://s01.oss.sonatype.org/content/repositories/snapshots"
+            }
+        ]
+    }
 }

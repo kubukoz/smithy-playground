@@ -1,22 +1,17 @@
 package playground.lsp
 
-import cats.Applicative
 import cats.FlatMap
 import cats.MonadThrow
 import cats.data.Kleisli
 import cats.effect.kernel.Async
+import cats.kernel.Semigroup
 import cats.parse.LocationMap
 import cats.syntax.all.*
 import cats.tagless.Derive
 import cats.tagless.FunctorK
-import cats.tagless.catsTaglessApplyKForIdK
 import cats.tagless.implicits.*
 import cats.~>
-import com.google.gson.JsonElement
-import com.google.gson.JsonPrimitive
-import org.eclipse.lsp4j.*
-import org.eclipse.lsp4j.ServerCapabilities
-import org.eclipse.lsp4j.TextDocumentSyncKind
+import io.circe.Json
 import playground.CompilationError
 import playground.CompilationFailed
 import playground.FileCompiler
@@ -24,87 +19,83 @@ import playground.FileRunner
 import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.ServiceIndex
-import playground.TextDocumentManager
 import playground.language
+import playground.language.CodeLens
 import playground.language.CodeLensProvider
 import playground.language.CommandProvider
 import playground.language.CommandResultReporter
+import playground.language.CompletionItem
 import playground.language.CompletionProvider
 import playground.language.DiagnosticProvider
+import playground.language.DocumentSymbol
 import playground.language.DocumentSymbolProvider
 import playground.language.Feedback
 import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
+import playground.language.TextEdit
 import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
+import playground.smithyql.Position
+import playground.smithyql.SourceRange
 import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-import scala.jdk.CollectionConverters.*
-import scala.util.chaining.*
-
-import ToUriOps.*
-
+// todo: move to kernel
 trait LanguageServer[F[_]] {
 
-  def initialize(
-    params: InitializeParams
-  ): F[InitializeResult]
-
-  def initialized(
-    params: InitializedParams
-  ): F[Unit]
+  def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult]
 
   def didChange(
-    params: DidChangeTextDocumentParams
+    documentUri: Uri,
+    newText: String,
   ): F[Unit]
 
   def didOpen(
-    params: DidOpenTextDocumentParams
+    documentUri: Uri,
+    text: String,
   ): F[Unit]
 
   def didSave(
-    params: DidSaveTextDocumentParams
+    documentUri: Uri
   ): F[Unit]
 
   def didClose(
-    params: DidCloseTextDocumentParams
+    documentUri: Uri
   ): F[Unit]
 
   def formatting(
-    params: DocumentFormattingParams
-  ): F[List[TextEdit]]
+    documentUri: Uri
+  ): F[List[LSPTextEdit]]
 
   def completion(
-    position: CompletionParams
-  ): F[Either[List[CompletionItem], CompletionList]]
+    documentUri: Uri,
+    position: LSPPosition,
+  ): F[List[LSPCompletionItem]]
 
   def diagnostic(
-    params: DocumentDiagnosticParams
-  ): F[DocumentDiagnosticReport]
+    documentUri: Uri
+  ): F[List[LSPDiagnostic]]
 
   def codeLens(
-    params: CodeLensParams
-  ): F[List[CodeLens]]
+    documentUri: Uri
+  ): F[List[LSPCodeLens]]
 
   def documentSymbol(
-    params: DocumentSymbolParams
-  ): F[List[DocumentSymbol]]
+    documentUri: Uri
+  ): F[List[LSPDocumentSymbol]]
 
-  def didChangeWatchedFiles(
-    params: DidChangeWatchedFilesParams
-  ): F[Unit]
+  def didChangeWatchedFiles: F[Unit]
 
   def executeCommand(
-    params: ExecuteCommandParams
+    commandName: String,
+    arguments: List[Json],
   ): F[Unit]
 
+  // custom smithyql/runQuery LSP request
   def runFile(
     params: RunFileParams
   ): F[Unit]
 
-  def shutdown: F[Unit]
-  def exit: F[Unit]
 }
 
 object LanguageServer {
@@ -155,31 +146,25 @@ object LanguageServer {
         getFormatterWidth
       )
 
-      def initialize(
-        params: InitializeParams
-      ): F[InitializeResult] = {
-        val capabilities = new ServerCapabilities()
-          .tap(_.setTextDocumentSync(TextDocumentSyncKind.Full))
-          .tap(_.setDocumentFormattingProvider(true))
-          .tap(_.setCompletionProvider(new CompletionOptions()))
-          .tap(_.setDiagnosticProvider(new DiagnosticRegistrationOptions()))
-          .tap(_.setCodeLensProvider(new CodeLensOptions()))
-          .tap(_.setDocumentSymbolProvider(true))
+      def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult] = {
+        def capabilities(compiler: ServerCapabilitiesCompiler): compiler.Result = {
+          given Semigroup[compiler.Result] = compiler.semigroup
+          compiler.textDocumentSync(TextDocumentSyncKind.Full) |+|
+            compiler.documentFormattingProvider |+|
+            compiler.completionProvider |+|
+            compiler.diagnosticProvider |+|
+            compiler.codeLensProvider |+|
+            compiler.documentSymbolProvider
+        }
 
-        val serverInfo = new ServerInfo("Smithy Playground", BuildInfo.version)
-
-        val wsf = params
-          .getWorkspaceFolders()
-          .asScala
-          .toList
-          .map(_.toUri)
+        val serverInfo = ServerInfo("Smithy Playground", BuildInfo.version)
 
         Feedback[F]
           .showInfoMessage(
             s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
           ) *>
           ServerLoader[F]
-            .prepare(wsf.some)
+            .prepare(workspaceFolders.some)
             .flatMap { prepped =>
               ServerLoader[F].perform(prepped.params).flatTap { stats =>
                 Feedback[F]
@@ -190,128 +175,103 @@ object LanguageServer {
             }
             .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
             .attempt
-            .as(new InitializeResult(capabilities, serverInfo))
+            .as(InitializeResult(capabilities, serverInfo))
       }
-
-      def initialized(
-        params: InitializedParams
-      ): F[Unit] = Applicative[F].unit
-
-      def shutdown: F[Unit] = Applicative[F].unit
 
       def didChange(
-        params: DidChangeTextDocumentParams
-      ): F[Unit] = {
-        val changesAsList = params.getContentChanges.asScala.toList
-        if (changesAsList.isEmpty)
-          Applicative[F].unit
-        else
-          TextDocumentManager[F].put(
-            params.getTextDocument().toUri,
-            changesAsList.head.getText(),
-          )
-      }
+        documentUri: Uri,
+        newText: String,
+      ): F[Unit] = TextDocumentManager[F].put(
+        documentUri,
+        newText,
+      )
 
       def didOpen(
-        params: DidOpenTextDocumentParams
+        documentUri: Uri,
+        text: String,
       ): F[Unit] = TextDocumentManager[F].put(
-        params.getTextDocument().toUri,
-        params.getTextDocument().getText(),
+        documentUri,
+        text,
       )
 
       def didSave(
-        params: DidSaveTextDocumentParams
+        documentUri: Uri
       ): F[Unit] = TextDocumentManager[F]
-        .remove(params.getTextDocument().toUri)
+        .remove(documentUri)
 
       def didClose(
-        params: DidCloseTextDocumentParams
-      ): F[Unit] = TextDocumentManager[F].remove(
-        params.getTextDocument().toUri
-      )
+        documentUri: Uri
+      ): F[Unit] = TextDocumentManager[F].remove(documentUri)
 
       def formatting(
-        params: DocumentFormattingParams
-      ): F[List[TextEdit]] = {
-        val uri = params.getTextDocument().toUri
-
-        TextDocumentProvider[F].get(uri).flatMap { doc =>
-          formattingProvider(uri).map(_.map(converters.toLSP.textEdit(_, LocationMap(doc))))
-        }
+        documentUri: Uri
+      ): F[List[LSPTextEdit]] = TextDocumentProvider[F].get(documentUri).flatMap { doc =>
+        val map = LocationMap(doc)
+        formattingProvider(documentUri).map(_.map(LSPTextEdit(_, map)))
       }
 
       def completion(
-        position: CompletionParams
-      ): F[Either[List[CompletionItem], CompletionList]] = TextDocumentManager[F]
-        .get(position.getTextDocument.toUri)
+        documentUri: Uri,
+        position: LSPPosition,
+      ): F[List[LSPCompletionItem]] = TextDocumentManager[F]
+        .get(documentUri)
         .map { documentText =>
           val map = LocationMap(documentText)
 
           completionProvider
             .provide(
               documentText,
-              converters.fromLSP.position(map, position.getPosition()),
+              position.unwrap(map),
             )
-            .map(converters.toLSP.completionItem(map, _))
+            .map(LSPCompletionItem(_, map))
         }
-        .map(Left(_))
 
       def diagnostic(
-        params: DocumentDiagnosticParams
-      ): F[DocumentDiagnosticReport] = {
-        val documentUri = params.getTextDocument().toUri
-        TextDocumentManager[F]
-          .get(documentUri)
-          .map { documentText =>
-            val diags = diagnosticProvider.getDiagnostics(
-              params.getTextDocument().getUri(),
-              documentText,
-            )
+        documentUri: Uri
+      ): F[List[LSPDiagnostic]] = TextDocumentManager[F]
+        .get(documentUri)
+        .map { documentText =>
+          val diags = diagnosticProvider.getDiagnostics(
+            documentText
+          )
 
-            val map = LocationMap(documentText)
+          val map = LocationMap(documentText)
 
-            new DocumentDiagnosticReport(
-              new RelatedFullDocumentDiagnosticReport(
-                diags
-                  .map(converters.toLSP.diagnostic(map, _))
-                  .asJava
-              )
-            )
-          }
-      }
+          diags
+            .map(LSPDiagnostic(_, map))
+        }
 
       def codeLens(
-        params: CodeLensParams
-      ): F[List[CodeLens]] = TextDocumentManager[F]
-        .get(params.getTextDocument().toUri)
+        documentUri: Uri
+      ): F[List[LSPCodeLens]] = TextDocumentManager[F]
+        .get(documentUri)
         .map { documentText =>
           val map = LocationMap(documentText)
 
           lensProvider
             .provide(
-              documentUri = params.getTextDocument.toUri,
+              documentUri = documentUri,
               documentText = documentText,
             )
-            .map(converters.toLSP.codeLens(map, _))
+            .map(LSPCodeLens(_, map))
         }
 
       def documentSymbol(
-        params: DocumentSymbolParams
-      ): F[List[DocumentSymbol]] = TextDocumentManager[F].get(params.getTextDocument().toUri).map {
-        text =>
+        documentUri: Uri
+      ): F[List[LSPDocumentSymbol]] = TextDocumentManager[F]
+        .get(documentUri)
+        .map { text =>
           val map = LocationMap(text)
 
-          DocumentSymbolProvider.make(text).map(converters.toLSP.documentSymbol(map, _))
-      }
+          DocumentSymbolProvider.make(text).map(LSPDocumentSymbol(_, map))
+        }
 
-      def didChangeWatchedFiles(
-        params: DidChangeWatchedFilesParams
-      ): F[Unit] = ServerLoader[F]
+      def didChangeWatchedFiles: F[Unit] = ServerLoader[F]
         .prepare(workspaceFolders = None)
         .flatMap {
           case prepared if !prepared.isChanged =>
             Feedback[F].showInfoMessage(
-              LanguageClient.NoChangeDetected
+              "No change detected, not rebuilding server"
             )
           case prepared =>
             Feedback[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
@@ -337,26 +297,18 @@ object LanguageServer {
         }
 
       def executeCommand(
-        params: ExecuteCommandParams
-      ): F[Unit] = params
-        .getArguments()
-        .asScala
-        .toList
-        .traverse {
-          case gson: JsonElement => converters.gsonToCirce(gson).as[String].liftTo[F]
-          case s                 => new Throwable("Unsupported arg: " + s).raiseError[F, String]
-        }
-        .flatMap(commandProvider.runCommand(params.getCommand(), _))
+        commandName: String,
+        args: List[Json],
+      ): F[Unit] = args
+        .traverse(_.as[String].liftTo[F])
+        .flatMap(commandProvider.runCommand(commandName, _))
 
       def runFile(
         params: RunFileParams
       ): F[Unit] = executeCommand(
-        new ExecuteCommandParams()
-          .tap(_.setCommand(playground.language.Command.RUN_FILE))
-          .tap(_.setArguments(List(new JsonPrimitive(params.uri.value): Object).asJava))
+        playground.language.Command.RUN_FILE,
+        List(Json.fromString(params.uri.value)),
       )
-
-      def exit: F[Unit] = Applicative[F].unit
     }
 
   implicit val functorK: FunctorK[LanguageServer] = Derive.functorK[LanguageServer]
@@ -372,5 +324,62 @@ object LanguageServer {
       ): F[A] = fa.flatMap(k.run)
 
     })
+
+}
+
+enum TextDocumentSyncKind {
+  case Full
+}
+
+// different encoding than usual, the main point is to force the caller to handle all methods
+// (not sure how well that'll work with langoustine, but we'll see - I guess a lot of copying)
+trait ServerCapabilitiesCompiler {
+  type Result
+  def semigroup: Semigroup[Result]
+
+  def textDocumentSync(kind: TextDocumentSyncKind): Result
+  def documentFormattingProvider: Result
+  def completionProvider: Result
+  def diagnosticProvider: Result
+  def codeLensProvider: Result
+  def documentSymbolProvider: Result
+}
+
+case class ServerInfo(name: String, version: String)
+
+case class InitializeResult(
+  serverCapabilities: (compiler: ServerCapabilitiesCompiler) => compiler.Result,
+  serverInfo: ServerInfo,
+)
+
+case class LSPDiagnostic(diagnostic: CompilationError, map: LocationMap)
+case class LSPCodeLens(lens: CodeLens, map: LocationMap)
+case class LSPDocumentSymbol(sym: DocumentSymbol, map: LocationMap)
+case class LSPCompletionItem(item: CompletionItem, map: LocationMap)
+case class LSPTextEdit(textEdit: TextEdit, map: LocationMap)
+
+case class LSPPosition(line: Int, character: Int) {
+
+  def unwrap(map: LocationMap): Position = Position(map.toOffset(line, character).getOrElse(-1))
+
+}
+
+object LSPPosition {
+
+  def from(position: Position, map: LocationMap): LSPPosition = {
+    val caret = map.toCaretUnsafe(position.index)
+    LSPPosition(caret.line, caret.col)
+  }
+
+}
+
+case class LSPRange(from: LSPPosition, to: LSPPosition)
+
+object LSPRange {
+
+  def from(range: SourceRange, map: LocationMap): LSPRange = LSPRange(
+    LSPPosition.from(range.start, map),
+    LSPPosition.from(range.end, map),
+  )
 
 }
