@@ -4,6 +4,7 @@ import cats.effect.implicits.*
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.std
+import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import fs2.compression.Compression
 import fs2.io.file.Files
@@ -35,8 +36,9 @@ object ServerBuilder {
     implicit F: ServerBuilder[F]
   ): ServerBuilder[F] = F
 
-  def instance[F[_]: Async: LanguageClient: BuildLoader: Files: Network: Compression: std.Console]
-    : Resource[F, ServerBuilder[F]] = {
+  def instance[
+    F[_]: Async: LanguageClient: BuildLoader: Files: Network: Compression: std.Console: UUIDGen
+  ]: Resource[F, ServerBuilder[F]] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
 
     implicit val stdlibRuntime: StdlibRuntime[F] = StdlibRuntime.instance[F]

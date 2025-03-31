@@ -4,6 +4,7 @@ import cats.effect.implicits.*
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.std
+import cats.effect.std.UUIDGen
 import fs2.compression.Compression
 import fs2.io.file.Files
 import fs2.io.net.Network
@@ -14,7 +15,7 @@ import fs2.io.net.Network
   */
 object MainServer {
 
-  def makeServer[F[_]: LanguageClient: Async: Files: Network: Compression: std.Console]
+  def makeServer[F[_]: LanguageClient: Async: Files: Network: Compression: std.Console: UUIDGen]
     : Resource[F, LanguageServer[F]] = TextDocumentManager
     .instance[F]
     .toResource
