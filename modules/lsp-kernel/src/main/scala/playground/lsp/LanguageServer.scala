@@ -40,10 +40,9 @@ import playground.smithyql.SourceRange
 import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-// todo: move to kernel
 trait LanguageServer[F[_]] {
 
-  def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult]
+  def initialize(workspaceFolders: List[Uri]): F[InitializeResult]
 
   def didChange(
     documentUri: Uri,
@@ -146,7 +145,7 @@ object LanguageServer {
         getFormatterWidth
       )
 
-      def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult] = {
+      def initialize(workspaceFolders: List[Uri]): F[InitializeResult] = {
         def capabilities(compiler: ServerCapabilitiesCompiler): compiler.Result = {
           given Semigroup[compiler.Result] = compiler.semigroup
           compiler.textDocumentSync(TextDocumentSyncKind.Full) |+|
@@ -343,6 +342,21 @@ trait ServerCapabilitiesCompiler {
   def diagnosticProvider: Result
   def codeLensProvider: Result
   def documentSymbolProvider: Result
+}
+
+object ServerCapabilitiesCompiler {
+
+  abstract class Default extends ServerCapabilitiesCompiler {
+    def default: Result
+
+    def textDocumentSync(kind: TextDocumentSyncKind): Result = default
+    def documentFormattingProvider: Result = default
+    def completionProvider: Result = default
+    def diagnosticProvider: Result = default
+    def codeLensProvider: Result = default
+    def documentSymbolProvider: Result = default
+  }
+
 }
 
 case class ServerInfo(name: String, version: String)
