@@ -35,7 +35,17 @@ object AddDynamicRefinements extends (Schema ~> Schema) {
 
     def reifyHint[B](
       using rp: RefinementProvider.Simple[B, A]
-    ): Schema[A] = schema.hints.get(rp.tag).fold(schema)(schema.validated(_)(void(rp)))
+    ): Schema[A] =
+      schema
+        .hints
+        .get(
+          using rp.tag
+        )
+        .fold(schema)(
+          schema.validated(_)(
+            using void(rp)
+          )
+        )
 
   }
 
