@@ -141,7 +141,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
         def from(
           b: Document
-        ): A = b.decode(decoder).toTry.get
+        ): A =
+          b.decode(
+            using decoder
+          ).toTry
+            .get
 
         def unsafe(
           a: A

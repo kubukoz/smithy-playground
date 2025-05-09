@@ -20,7 +20,12 @@ object Assertions extends Expectations.Helpers {
       case d if d.isIdentical => success
       case d =>
         val conf = ShowConfig.dark
-        val stringWithResets = d.show()(conf).linesWithSeparators.map(Console.RESET + _).mkString
+        val stringWithResets =
+          d.show()(
+            using conf
+          ).linesWithSeparators
+            .map(Console.RESET + _)
+            .mkString
 
         failure(
           s"Diff failed:\n${Console.RESET}(${conf.left("actual")}, ${conf.right("expected")})\n\n" + stringWithResets

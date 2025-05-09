@@ -80,7 +80,11 @@ object TestClient {
       ): IO[A] = state
         .get
         .flatMap(_.configuration.get(v.key).liftTo[IO](new Throwable(s"key not found: ${v.key}")))
-        .flatMap(_.as[A](v.codec).liftTo[IO])
+        .flatMap(
+          _.as[A](
+            using v.codec
+          ).liftTo[IO]
+        )
 
       def showMessage(
         tpe: MessageType,

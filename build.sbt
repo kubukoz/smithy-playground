@@ -15,7 +15,7 @@ inThisBuild(
 )
 
 val ScalaLTS = "3.3.5"
-val ScalaNext = "3.6.4"
+val ScalaNext = "3.7.0"
 
 val jsoniterVersion = "2.35.3"
 
@@ -76,7 +76,7 @@ val commonSettings = Seq(
   //
   scalacOptions += "-no-indent",
   scalacOptions ++= {
-    if (scalaVersion.value.startsWith("3.5") || scalaVersion.value.startsWith("3.6"))
+    if (scalaVersion.value.startsWith("3.7"))
       Seq(
         // for cats-tagless macros
         "-experimental"

@@ -175,7 +175,7 @@ object CompletionItem {
       kind = kind,
       label = label,
       insertText = insertText,
-      deprecated = schema.hints.get(smithy.api.Deprecated).isDefined,
+      deprecated = schema.hints.get[smithy.api.Deprecated].isDefined,
       detail = describeType(
         isField = isField,
         schema = schema,
@@ -206,7 +206,7 @@ object CompletionItem {
 
   private def isRequiredField(
     schema: Schema[?]
-  ): Boolean = schema.hints.has(smithy.api.Required)
+  ): Boolean = schema.hints.has[smithy.api.Required]
 
   private val describePrimitive: Primitive[?] => String = {
     import smithy4s.schema.Primitive.*
@@ -285,11 +285,11 @@ object CompletionItem {
 
   private def sparseTraitDescription(
     hints: Hints
-  ): Option[String] = hints.get(api.Sparse).as("@sparse")
+  ): Option[String] = hints.get[api.Sparse].as("@sparse")
 
   private def uniqueItemsTraitDescription(
     hints: Hints
-  ): Option[String] = hints.get(api.UniqueItems).as("@uniqueItems")
+  ): Option[String] = hints.get[api.UniqueItems].as("@uniqueItems")
 
   private def now(
     s: String
@@ -374,7 +374,7 @@ object CompletionItem {
       detail =
         s"$fromServiceHint: ${endpoint.input.shapeId.name} => ${endpoint.output.shapeId.name}",
       description = none,
-      deprecated = hints.get(smithy.api.Deprecated).isDefined,
+      deprecated = hints.get[smithy.api.Deprecated].isDefined,
       docs = buildDocumentation(hints, isField = false),
       extraTextEdits = useClauseOpt.toList,
 
@@ -468,12 +468,12 @@ object CompletionItem {
     isField: Boolean,
   ): Option[String] = {
 
-    val deprecatedNote = hints.get(smithy.api.Deprecated).map { info =>
+    val deprecatedNote = hints.get[smithy.api.Deprecated].map { info =>
       s"**Deprecated**${deprecationString(info)}"
     }
 
     val optionalNote =
-      hints.get(smithy.api.Required) match {
+      hints.get[smithy.api.Required] match {
         case None if isField => "**Optional**".some
         case _               => none
       }
@@ -481,11 +481,11 @@ object CompletionItem {
     List(
       deprecatedNote,
       optionalNote,
-      hints.get(smithy.api.Http).map { http =>
+      hints.get[smithy.api.Http].map { http =>
         show"HTTP ${http.method.value} ${http.uri.value} "
       },
-      hints.get(smithy.api.Documentation).map(_.value),
-      hints.get(smithy.api.ExternalDocumentation).map(_.value).map {
+      hints.get[smithy.api.Documentation].map(_.value),
+      hints.get[smithy.api.ExternalDocumentation].map(_.value).map {
         _.map { case (k, v) => show"""${k.value}: ${v.value}""" }.mkString("\n")
       },
     ).flatten.mkString("\n\n").some.filterNot(_.isEmpty)

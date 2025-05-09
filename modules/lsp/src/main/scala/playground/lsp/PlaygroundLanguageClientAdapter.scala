@@ -44,7 +44,11 @@ object PlaygroundLanguageClientAdapter {
           case e: JsonElement => converters.gsonToCirce(e)
           case e              => throw new RuntimeException(s"Unexpected configuration value: $e")
         }
-        .flatMap(_.as[A](v.codec).liftTo[F])
+        .flatMap(
+          _.as[A](
+            using v.codec
+          ).liftTo[F]
+        )
 
       def showMessage(
         tpe: MessageType,

@@ -42,7 +42,7 @@ object ServiceIndex {
               .map(_.name)
               .map(OperationName[Id](_))
               .toSet,
-            svc.service.hints.get(api.Deprecated).map(DeprecatedInfo.fromHint),
+            svc.service.hints.get[api.Deprecated].map(DeprecatedInfo.fromHint),
           )
       }.toMap
 
