@@ -15,9 +15,9 @@ inThisBuild(
 )
 
 val ScalaLTS = "3.3.6"
-val ScalaNext = "3.6.4"
+val ScalaNext = "3.7.0"
 
-val jsoniterVersion = "2.35.2"
+val jsoniterVersion = "2.35.3"
 
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
@@ -76,7 +76,7 @@ val commonSettings = Seq(
   //
   scalacOptions += "-no-indent",
   scalacOptions ++= {
-    if (scalaVersion.value.startsWith("3.5") || scalaVersion.value.startsWith("3.6"))
+    if (scalaVersion.value.startsWith("3.7"))
       Seq(
         // for cats-tagless macros
         "-experimental"
@@ -180,7 +180,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.3.19" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.20" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.57.1" % Test,
     ).pipe(jsoniterFix)
   )
