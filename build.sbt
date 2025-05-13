@@ -15,9 +15,9 @@ inThisBuild(
 )
 
 val ScalaLTS = "3.3.5"
-val ScalaNext = "3.6.4"
+val ScalaNext = "3.7.0"
 
-val jsoniterVersion = "2.33.3"
+val jsoniterVersion = "2.35.3"
 
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
@@ -76,7 +76,7 @@ val commonSettings = Seq(
   //
   scalacOptions += "-no-indent",
   scalacOptions ++= {
-    if (scalaVersion.value.startsWith("3.5") || scalaVersion.value.startsWith("3.6"))
+    if (scalaVersion.value.startsWith("3.7"))
       Seq(
         // for cats-tagless macros
         "-experimental"
@@ -125,9 +125,9 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "1.1.0",
-      "io.circe" %% "circe-generic" % "0.14.12" % Test,
-      "io.circe" %% "circe-parser" % "0.14.12" % Test,
-      "co.fs2" %% "fs2-io" % "3.11.0" % Test,
+      "io.circe" %% "circe-generic" % "0.14.13" % Test,
+      "io.circe" %% "circe-parser" % "0.14.13" % Test,
+      "co.fs2" %% "fs2-io" % "3.12.0" % Test,
     )
   )
   .dependsOn(
@@ -174,14 +174,14 @@ lazy val protocol4s = module("protocol4s")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.5.7",
+      "org.typelevel" %% "cats-effect" % "3.6.1",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % jsoniterVersion,
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.3.14" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.55.0" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.20" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.57.1" % Test,
     ).pipe(jsoniterFix)
   )
   .dependsOn(
@@ -203,7 +203,7 @@ lazy val languageSupport = module("language-support")
 lazy val lspKernel = module("lsp-kernel")
   .settings(
     libraryDependencies ++= Seq(
-      "io.circe" %% "circe-core" % "0.14.12",
+      "io.circe" %% "circe-core" % "0.14.13",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
       ("io.get-coursier" % "coursier_2.13" % "2.1.24")
         .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
