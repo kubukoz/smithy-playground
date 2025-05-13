@@ -15,7 +15,7 @@ object ServiceNameExtractor {
       .copy(name =
         service
           .hints
-          .get(api.Service)
+          .get[api.Service]
           .map(_.sdkId.replaceAll("\\s+", ""))
           .getOrElse(service.id.name)
       )
