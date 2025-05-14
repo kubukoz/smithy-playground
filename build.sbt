@@ -235,7 +235,7 @@ lazy val lsp = module("lsp")
 lazy val lsp2 = module("lsp2")
   .settings(
     libraryDependencies ++= Seq(
-      "tech.neander" %% "langoustine-app" % "0.0.23"
+      "tech.neander" %% "langoustine-app" % "0.0.23+3-8cfea919-SNAPSHOT"
     ).pipe(jsoniterFix)
   )
   .dependsOn(lspKernel)

@@ -26,7 +26,6 @@ import langoustine.lsp.structures.CompletionOptions
 import langoustine.lsp.structures.Diagnostic
 import langoustine.lsp.structures.DiagnosticOptions
 import langoustine.lsp.structures.DocumentSymbol
-import langoustine.lsp.structures.FullDocumentDiagnosticReport
 import langoustine.lsp.structures.InitializeResult
 import langoustine.lsp.structures.InitializeResult.ServerInfo
 import langoustine.lsp.structures.MarkupContent
@@ -54,6 +53,7 @@ object LangoustineServerAdapter {
   def adapt[F[_]: ApplicativeThrow](server: playground.lsp.LanguageServer[F])
     : LSPBuilder[F] => LSPBuilder[F] =
     _.handleRequest(initialize) { req =>
+      System.err.println("got initialize request")
       server
         .initialize(
           req.params.workspaceFolders.toOption.foldMap(_.toOption.orEmpty).toList.map {
@@ -189,11 +189,11 @@ object LangoustineServerAdapter {
         server.runFile(RunFileParams(converters.fromLSP.uri(req.params.uri)))
       }
       .handleNotification(exit) { _ =>
-        println("we're in an exit now")
+        System.err.println("we're in an exit now")
         Applicative[F].unit
       }
       .handleRequest(shutdown) { _ =>
-        println("we're in a shutdown now")
+        System.err.println("we're in a shutdown now")
         Applicative[F].pure(null: shutdown.Out /* Anton wtf */ )
       }
 

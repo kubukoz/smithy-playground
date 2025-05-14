@@ -4,11 +4,9 @@ import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
 import jsonrpclib.Channel
-import jsonrpclib.Endpoint
 import jsonrpclib.Monadic
 import jsonrpclib.fs2.given
 import langoustine.lsp.Communicate
-import langoustine.lsp.Invocation
 import langoustine.lsp.LSPBuilder
 import langoustine.lsp.app.LangoustineApp
 import langoustine.lsp.requests.LSPNotification
