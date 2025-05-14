@@ -15,15 +15,16 @@ import fs2.io.net.Network
   */
 object MainServer {
 
-  def makeServer[F[_]: LanguageClient: Async: Files: Network: Compression: std.Console: UUIDGen]
-    : Resource[F, LanguageServer[F]] = TextDocumentManager
+  def makeServer[F[_]: LanguageClient: Async: Files: Network: Compression: std.Console: UUIDGen](
+    bloop: jsonrpclib.Channel[F]
+  ): Resource[F, LanguageServer[F]] = TextDocumentManager
     .instance[F]
     .toResource
     .flatMap { implicit tdm =>
       implicit val buildLoader: BuildLoader[F] = BuildLoader.instance[F]
 
       ServerBuilder
-        .instance[F]
+        .instance[F](bloop)
         .evalMap { implicit builder =>
           ServerLoader.instance[F]
         }

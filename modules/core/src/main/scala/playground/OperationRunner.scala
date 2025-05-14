@@ -8,6 +8,7 @@ import aws.protocols.RestJson1
 import aws.protocols.RestXml
 import cats.Defer
 import cats.Id
+import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
@@ -17,6 +18,8 @@ import cats.effect.implicits.*
 import cats.effect.std
 import cats.syntax.all.*
 import fs2.compression.Compression
+import jsonrpclib.JsonRPC
+import jsonrpclib.fs2.*
 import org.http4s.Uri
 import org.http4s.client.Client
 import playground.plugins.PlaygroundPlugin
@@ -37,6 +40,7 @@ import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s.kinds.*
 import smithy4s.schema.Schema
+import smithy4sbsp.bsp4s.BSPCodecs
 import smithyql.syntax.*
 
 trait OperationRunner[F[_]] {
@@ -145,6 +149,7 @@ object OperationRunner {
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
+    bloop: jsonrpclib.Channel[F],
   ): Map[QualifiedIdentifier, Resolver[F]] = forServices(
     services = dsi.allServices.toList,
     getSchema = dsi.getSchema,
@@ -152,6 +157,7 @@ object OperationRunner {
     baseUri = baseUri,
     awsEnv = awsEnv,
     plugins = plugins,
+    bloop,
   )
 
   def forServices[F[_]: StdlibRuntime: Async: Compression: std.Console](
@@ -161,6 +167,7 @@ object OperationRunner {
     baseUri: F[Uri],
     awsEnv: Resource[F, AwsEnvironment[F]],
     plugins: List[PlaygroundPlugin],
+    bloop: jsonrpclib.Channel[F],
   ): Map[QualifiedIdentifier, Resolver[F]] =
     services.map { svc =>
       QualifiedIdentifier.forService(svc.service) ->
@@ -171,6 +178,7 @@ object OperationRunner {
           awsEnv,
           getSchema,
           plugins,
+          bloop,
         )
     }.toMap
 
@@ -205,6 +213,7 @@ object OperationRunner {
     awsEnv: Resource[F, AwsEnvironment[F]],
     schemaIndex: ShapeId => Option[Schema[?]],
     plugins: List[PlaygroundPlugin],
+    bloop: jsonrpclib.Channel[F],
   ): Resolver[F] =
     new Resolver[F] {
 
@@ -278,10 +287,19 @@ object OperationRunner {
         q.writeOutput.toNode(response)
       }
 
+      val jsonrpcInterpreter: IorNel[Issue, service.FunctorInterpreter[F]] =
+        if (service.hints.has[JsonRPC])
+          Ior.right(
+            service.toPolyFunction(BSPCodecs.clientStub[Alg, F](service, bloop))
+          )
+        else
+          Ior.leftNel(Issue.InvalidProtocol(JsonRPC.id, serviceProtocols))
+
       val runners: NonEmptyList[IorNel[Issue, OperationRunner[F]]] = NonEmptyList
         .of(
           simpleFromBuilder(SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)),
           awsInterpreter,
+          jsonrpcInterpreter,
         )
         .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder(_)))
         .append(stdlibRunner)

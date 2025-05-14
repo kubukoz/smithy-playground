@@ -22,6 +22,9 @@ val jsoniterVersion = "2.35.3"
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
 
+ThisBuild / resolvers ++= Resolver.sonatypeOssRepos("snapshots")
+ThisBuild / resolvers ++= Resolver.sonatypeOssRepos("releases")
+
 import scala.sys.process.*
 import scala.util.chaining.*
 
@@ -182,6 +185,8 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.20" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.57.1" % Test,
+      "org.polyvariant.smithy4s-bsp" %% "bsp4s" % "0.2.0",
+      "tech.neander" %% "jsonrpclib-fs2" % "0.0.7+27-4fdf7547-SNAPSHOT",
     ).pipe(jsoniterFix)
   )
   .dependsOn(
@@ -235,7 +240,7 @@ lazy val lsp = module("lsp")
 lazy val lsp2 = module("lsp2")
   .settings(
     libraryDependencies ++= Seq(
-      "tech.neander" %% "langoustine-app" % "0.0.23+3-8cfea919-SNAPSHOT"
+      "tech.neander" %% "langoustine-app" % "0.0.23+3-8cfea919+20250514-0343-SNAPSHOT"
     ).pipe(jsoniterFix)
   )
   .dependsOn(lspKernel)
