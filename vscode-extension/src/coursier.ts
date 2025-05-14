@@ -13,6 +13,10 @@ export type CoursierApp = {
 
 export const buildArgs = (underlying: CoursierCall): string[] => [
   "launch",
+  "--repository",
+  "sonatype-s01:snapshots",
+  "--repository",
+  "sonatype-s01:releases",
   `${underlying.app.maven.artifact}:${underlying.app.maven.version}`,
   ...underlying.coursierArgs,
   "--",
