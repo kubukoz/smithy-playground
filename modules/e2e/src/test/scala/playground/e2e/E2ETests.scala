@@ -50,7 +50,7 @@ object E2ETests extends SimpleIOSuite {
 
   }
 
-  private def runServer2: Resource[IO, Communicate[IO]] = Processes[IO]
+  private def runServer: Resource[IO, Communicate[IO]] = Processes[IO]
     .spawn(fs2.io.process.ProcessBuilder("cs", "launch", BuildInfo.lspArtifact))
     .flatMap { process =>
       val clientEndpoints: LSPBuilder[IO] => LSPBuilder[IO] =
@@ -125,7 +125,7 @@ object E2ETests extends SimpleIOSuite {
     )
 
   test("server startup and initialize") {
-    runServer2
+    runServer
       .use { ls =>
         file.Files[IO].tempDirectory.use { tempDirectory =>
           val initParams = initializeParams(workspaceFolders = List(tempDirectory))

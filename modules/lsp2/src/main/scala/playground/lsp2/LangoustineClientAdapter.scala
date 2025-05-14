@@ -37,7 +37,11 @@ object LangoustineClientAdapter {
         )
         .flatMap(_.headOption.liftTo[F](new Throwable("missing entry in the response")))
         .map(converters.fromLSP.json)
-        .flatMap(_.as[A](v.codec).liftTo[F])
+        .flatMap(
+          _.as[A](
+            using v.codec
+          ).liftTo[F]
+        )
 
       def refreshCodeLenses: F[Unit] = comms.request(workspace.codeLens.refresh(())).void
       def refreshDiagnostics: F[Unit] = comms.request(workspace.diagnostic.refresh(())).void
