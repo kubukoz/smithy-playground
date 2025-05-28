@@ -20,7 +20,7 @@ object FormattingProviderTests extends FunSuite {
   }
 
   test("formatting empty file") {
-    assert.same(
+    expect.same(
       provideForFile(""),
       List(
         TextEdit.Overwrite("\n", SourceRange.empty(Position.origin))
@@ -29,7 +29,7 @@ object FormattingProviderTests extends FunSuite {
   }
 
   test("formatting file with just whitespace") {
-    assert.same(
+    expect.same(
       provideForFile("    \n\n   "),
       List(
         TextEdit.Overwrite("\n", SourceRange.forEntireString("    \n\n   "))
@@ -38,11 +38,11 @@ object FormattingProviderTests extends FunSuite {
   }
 
   test("formatting non-parsing file") {
-    assert.same(provideForFile("!@(*$^%@&*"), Nil)
+    expect.same(provideForFile("!@(*$^%@&*"), Nil)
   }
 
   test("formatting a parseable file") {
-    assert.same(
+    expect.same(
       provideForFile("hello {}"),
       List(
         TextEdit.Overwrite(

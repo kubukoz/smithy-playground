@@ -8,7 +8,7 @@ import weaver.*
 object CommentParsingTests extends SimpleIOSuite {
 
   pureTest("Comments from entire query are retained while parsing") {
-    assert.eql(
+    expect.eql(
       SourceParser[SourceFile].parse(Examples.fullOfComments).map(WithSource.allSourceComments),
       Right(
         List(

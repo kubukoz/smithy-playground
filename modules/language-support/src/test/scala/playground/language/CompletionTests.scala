@@ -38,7 +38,7 @@ object CompletionTests extends FunSuite {
 
     val completions = getCompletions(Good.schema, NodeContext.EmptyPath)
 
-    assert(completions.isEmpty)
+    expect(completions.isEmpty)
   }
 
   test("completions on struct include all field names") {
@@ -47,8 +47,8 @@ object CompletionTests extends FunSuite {
 
     val fieldNames = completions.map(_.label)
 
-    assert.eql(fieldNames, List("howGood")) &&
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
+    expect.eql(fieldNames, List("howGood")) &&
+    expect(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
   }
 
   test("completions on struct describe the field types") {
@@ -59,7 +59,7 @@ object CompletionTests extends FunSuite {
       (field.label, field.detail)
     }
 
-    assert.eql(results, List("howGood" -> ": integer Integer"))
+    expect.eql(results, List("howGood" -> ": integer Integer"))
   }
 
   test("completions on struct add prefix/docs for optional fields") {
@@ -71,15 +71,15 @@ object CompletionTests extends FunSuite {
     val details = completions.map(_.detail)
     val docs = completions.map(_.docs)
 
-    assert.eql(details, List("?: string MyString")) &&
-    assert.eql(docs, List("**Optional**".some))
+    expect.eql(details, List("?: string MyString")) &&
+    expect.eql(docs, List("**Optional**".some))
   }
 
   test("completions on union are empty without StructBody") {
 
     val completions = getCompletions(Hero.schema, NodeContext.EmptyPath)
 
-    assert(completions.isEmpty)
+    expect(completions.isEmpty)
   }
 
   test("completions on union") {
@@ -90,9 +90,9 @@ object CompletionTests extends FunSuite {
     val details = completions.map(_.detail)
     val kinds = completions.map(_.kind)
 
-    assert.eql(fieldNames, List("good", "bad", "badder")) &&
-    assert(details == List(": structure Good", ": structure Bad", ": structure Bad")) &&
-    assert(kinds.forall(_ == CompletionItemKind.UnionMember))
+    expect.eql(fieldNames, List("good", "bad", "badder")) &&
+    expect(details == List(": structure Good", ": structure Bad", ": structure Bad")) &&
+    expect(kinds.forall(_ == CompletionItemKind.UnionMember))
   }
 
   test("completions on union case are the same as completions on the underlying structure") {
@@ -108,7 +108,7 @@ object CompletionTests extends FunSuite {
       NodeContext.EmptyPath.append(StructBody),
     ).map(_.label)
 
-    assert.eql(completionsOnAlt, completionsOnStruct)
+    expect.eql(completionsOnAlt, completionsOnStruct)
   }
 
   test("no completions on collection without entry") {
@@ -117,7 +117,7 @@ object CompletionTests extends FunSuite {
       NodeContext.EmptyPath,
     )
 
-    assert(completions.isEmpty)
+    expect(completions.isEmpty)
   }
 
   test("completions in sparse collection root contain null") {
@@ -156,7 +156,7 @@ object CompletionTests extends FunSuite {
 
     val fieldNames = completions.map(_.label)
 
-    assert.eql(fieldNames, List("howGood"))
+    expect.eql(fieldNames, List("howGood"))
   }
 
   test("completions on struct in sparse list are available") {
@@ -167,7 +167,7 @@ object CompletionTests extends FunSuite {
 
     val fieldNames = completions.map(_.label)
 
-    assert.eql(fieldNames, List("howGood"))
+    expect.eql(fieldNames, List("howGood"))
   }
 
   test("completions on enum without quotes have quotes") {
@@ -179,8 +179,8 @@ object CompletionTests extends FunSuite {
       .map(s => s"\"$s\"")
       .map(InsertText.JustString(_))
 
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
-    assert(inserts == expectedInserts)
+    expect(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
+    expect(inserts == expectedInserts)
   }
 
   test("completions on enum in quotes don't have quotes") {
@@ -190,8 +190,8 @@ object CompletionTests extends FunSuite {
     val expectedInserts = List("ICE", "FIRE", "LIGHTNING", "WIND")
       .map(InsertText.JustString(_))
 
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
-    assert(inserts == expectedInserts)
+    expect(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
+    expect(inserts == expectedInserts)
   }
 
   test("completions on enum don't have Optional docs") {
@@ -199,7 +199,7 @@ object CompletionTests extends FunSuite {
 
     val docs = completions.flatMap(_.docs)
 
-    assert(docs.isEmpty)
+    expect(docs.isEmpty)
   }
 
   test("completions on map keys that are enums") {
@@ -211,8 +211,8 @@ object CompletionTests extends FunSuite {
       .map(_ + " = ")
       .map(InsertText.JustString(_))
 
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
-    assert(inserts == expectedInserts)
+    expect(completions.map(_.kind).forall(_ == CompletionItemKind.EnumMember)) &&
+    expect(inserts == expectedInserts)
   }
 
   test("completions on map values (struct)") {
@@ -227,8 +227,8 @@ object CompletionTests extends FunSuite {
 
     val fieldNames = completions.map(_.label)
 
-    assert.eql(fieldNames, List("howGood")) &&
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
+    expect.eql(fieldNames, List("howGood")) &&
+    expect(completions.map(_.kind).forall(_ == CompletionItemKind.Field))
   }
 
   test("completions on timestamp without quotes have quotes") {
@@ -238,12 +238,12 @@ object CompletionTests extends FunSuite {
 
     val inserts = completions.map(_.insertText).foldMap {
       case InsertText.JustString(extractQuote(value)) =>
-        assert(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
+        expect(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
       case s => failure("unexpected insert text: " + s)
     }
 
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
-    assert.eql(completions.size, 1) &&
+    expect(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
+    expect.eql(completions.size, 1) &&
     inserts
   }
 
@@ -255,12 +255,12 @@ object CompletionTests extends FunSuite {
 
     val inserts = completions.map(_.insertText).foldMap {
       case InsertText.JustString(value) =>
-        assert(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
+        expect(Timestamp.parse(value, TimestampFormat.DATE_TIME).isDefined)
       case s => failure("unexpected insert text: " + s)
     }
 
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
-    assert.eql(completions.size, 1) &&
+    expect(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
+    expect.eql(completions.size, 1) &&
     inserts
   }
 
@@ -270,13 +270,13 @@ object CompletionTests extends FunSuite {
     val inserts = completions.map(_.insertText).foldMap {
       case InsertText.JustString(value) =>
         val parsed = Either.catchNonFatal(UUID.fromString(value))
-        assert(parsed.isRight)
+        expect(parsed.isRight)
 
       case s => failure("unexpected insert text: " + s)
     }
 
-    assert(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
-    assert.eql(completions.size, 1) &&
+    expect(completions.map(_.kind).forall(_ == CompletionItemKind.Constant)) &&
+    expect.eql(completions.size, 1) &&
     inserts
   }
 
@@ -286,8 +286,8 @@ object CompletionTests extends FunSuite {
 
     val results = completions.map(c => (c.label, c.docs)).toMap
 
-    assert.eql(results.keySet, Set("hasBoth", "hasMessage", "hasSince")) &&
-    assert.eql(
+    expect.eql(results.keySet, Set("hasBoth", "hasMessage", "hasSince")) &&
+    expect.eql(
       results,
       Map(
         "hasBoth" -> Some("**Deprecated** (since 1.0.0): Another reason"),
@@ -298,91 +298,91 @@ object CompletionTests extends FunSuite {
   }
 
   test("describe indexed seq") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(Ints.schema)(),
       "list Ints { member: integer Integer }",
     )
   }
 
   test("describe set of ints") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(IntSet.schema)(),
       "@uniqueItems list IntSet { member: integer Integer }",
     )
   }
 
   test("describe int newtype") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(MyInt.schema)(),
       "integer MyInt",
     )
   }
 
   test("describe string newtype") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(MyString.schema)(),
       "string MyString",
     )
   }
 
   test("describe enum") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(Power.schema)(),
       "enum Power",
     )
   }
 
   test("describe int enum") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(PrivacyTier.schema)(),
       "intEnum PrivacyTier",
     )
   }
 
   test("describe map") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(PowerMap.schema)(),
       "map PowerMap { key: enum Power, value: union Hero }",
     )
   }
 
   test("describe uuid") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(Schema.uuid)(),
       "uuid UUID",
     )
   }
 
   test("describe refinement") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeSchema(MyInstant.schema)(),
       "timestamp MyInstant",
     )
   }
 
   test("describe non-field: no optionality sign") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeType(isField = false, Schema.string),
       ": string String",
     )
   }
 
   test("describe required field: no optionality sign") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeType(isField = true, Schema.string.addHints(smithy.api.Required())),
       ": string String",
     )
   }
 
   test("describe optional field: optionality sign present") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeType(isField = true, Schema.string),
       "?: string String",
     )
   }
 
   test("describe sparse collection: sparse trait present") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeType(
         isField = false,
         SampleSparseList.schema,
@@ -392,7 +392,7 @@ object CompletionTests extends FunSuite {
   }
 
   test("describe sparse map: sparse trait present") {
-    assert.eql(
+    expect.eql(
       CompletionItem.describeType(
         isField = false,
         SampleSparseMap.schema,
@@ -407,7 +407,7 @@ object CompletionTests extends FunSuite {
       hints = Hints(smithy.api.Deprecated()),
     )
 
-    assert.eql(
+    expect.eql(
       doc,
       """**Deprecated**
         |

@@ -121,7 +121,7 @@ object E2ETests extends SimpleIOSuite {
           val initParams = initializeParams(workspaceFolders = List(tempDirectory))
 
           ls.initialize(initParams).map { result =>
-            assert.eql(
+            expect.eql(
               result.getServerInfo().getName(),
               "Smithy Playground",
             )
