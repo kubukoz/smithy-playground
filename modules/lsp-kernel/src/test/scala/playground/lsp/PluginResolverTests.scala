@@ -9,7 +9,7 @@ object PluginResolverTests extends SimpleIOSuite {
     PluginResolver
       .instance[IO]
       .resolve(PlaygroundConfig.empty)
-      .map(assert.same(_, Nil))
+      .map(expect.same(_, Nil))
   }
 
   test("Plugin resolver doesn't check maven dependencies") {
@@ -24,7 +24,7 @@ object PluginResolverTests extends SimpleIOSuite {
             )
           )
       )
-      .map(assert.same(_, Nil))
+      .map(expect.same(_, Nil))
   }
 
   test("Plugin resolver with a sample plugin artifact finds it") {
@@ -40,6 +40,6 @@ object PluginResolverTests extends SimpleIOSuite {
           )
       )
       .map(_.map(_.getClass().getName()))
-      .map(assert.same(_, List("playground.sample.SamplePlaygroundPlugin")))
+      .map(expect.same(_, List("playground.sample.SamplePlaygroundPlugin")))
   }
 }

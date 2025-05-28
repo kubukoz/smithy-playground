@@ -10,14 +10,14 @@ import weaver.*
 
 object ServiceNameExtractorTests extends FunSuite {
   test("extract name of service with an AWS hint") {
-    assert.eql(
+    expect.eql(
       ServiceNameExtractor.fromService(MyThing.service),
       QualifiedIdentifier(NonEmptyList.of("demo", "fake_aws"), "MyThing"),
     )
   }
 
   test("extract name of service with an AWS hint and whitespace") {
-    assert.eql(
+    expect.eql(
       ServiceNameExtractor.fromService(MyGoodThing.service),
       QualifiedIdentifier(NonEmptyList.of("demo", "fake_aws"), "MyGoodThing"),
     )
@@ -26,7 +26,7 @@ object ServiceNameExtractorTests extends FunSuite {
   test("aws hint dynamic") {
     val dsi = DynamicModel.discover()
 
-    assert.eql(
+    expect.eql(
       ServiceNameExtractor.fromService(
         dsi.getService(ShapeId("demo.fake_aws", "MyAwsService")).get.service
       ),
@@ -37,7 +37,7 @@ object ServiceNameExtractorTests extends FunSuite {
 
   test("extract name of demo service") {
 
-    assert.eql(
+    expect.eql(
       ServiceNameExtractor.fromService(DemoServiceGen.service),
       QualifiedIdentifier(NonEmptyList.of("demo", "smithy"), "DemoService"),
     )

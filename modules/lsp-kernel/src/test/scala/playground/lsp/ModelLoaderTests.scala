@@ -18,7 +18,7 @@ object ModelLoaderTests extends FunSuite {
         .map(_.getId())
         .toSet
 
-    assert.eql(result.map(_.getName()), Set("Random", "Clock"))
+    expect.eql(result.map(_.getName()), Set("Random", "Clock"))
   }
 
   test("Empty loader can only see smithy.api and playground.std namespaces") {
@@ -30,7 +30,7 @@ object ModelLoaderTests extends FunSuite {
         .map(_.getId().getNamespace())
         .toSet
 
-    assert.same(result, Set("smithy.api", "playground.std"))
+    expect.same(result, Set("smithy.api", "playground.std"))
   }
 
   test("Empty loader cannot see alloy without a dependency") {
@@ -40,7 +40,7 @@ object ModelLoaderTests extends FunSuite {
         .getShape(shapeId)
         .toScala
 
-    assert.same(result, None)
+    expect.same(result, None)
   }
 
   test("Loader with dependencies can see external shapes") {
@@ -54,7 +54,7 @@ object ModelLoaderTests extends FunSuite {
     )
       .expectShape(shapeId)
 
-    assert.same(result.getId(), shapeId)
+    expect.same(result.getId(), shapeId)
   }
 
   private def loadModel(
