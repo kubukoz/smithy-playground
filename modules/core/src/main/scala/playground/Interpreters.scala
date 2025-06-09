@@ -22,6 +22,9 @@ import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
 import smithy4s.schema.Schema
 
+/** Standard implementations of interpreters. More interpreters can be provided by instances of
+  * [[playground.plugins.PlaygroundPlugin]] (the plugin system).
+  */
 object Interpreters {
 
   def stdlib[F[_]: StdlibRuntime: MonadThrow]: Interpreter[F] =
@@ -31,10 +34,7 @@ object Interpreters {
         schemaIndex: ShapeId => Option[Schema[?]],
       ): IorNel[Interpreter.Issue, service.FunctorInterpreter[F]] =
         smithy4s
-          .checkProtocol(
-            service,
-            Stdlib.getTag,
-          )
+          .checkProtocol(service, Stdlib)
           .leftMap { e =>
             Interpreter
               .Issue
@@ -72,11 +72,11 @@ object Interpreters {
         }
         .map(liftFunctorInterpreterResource(_))
         .toIor
-        .leftMap(_ =>
+        .leftMap { _ =>
           NonEmptyList
             .of(AwsJson1_0.id, AwsJson1_1.id, RestJson1.id, AwsQuery.id, RestXml.id, Ec2Query.id)
             .map(Interpreter.Issue.InvalidProtocol(_, Interpreter.protocols(service, schemaIndex)))
-        )
+        }
     }
 
 }
