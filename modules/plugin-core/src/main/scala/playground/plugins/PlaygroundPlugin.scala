@@ -17,46 +17,17 @@ import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.schema.Schema
 
 import java.util.ServiceLoader
+import scala.annotation.nowarn
 import scala.jdk.CollectionConverters.*
-
-trait Environment[F[_]] {
-
-  def getK(k: Environment.Key): Option[k.Value[F]]
-  def requireK(k: Environment.Key): k.Value[F]
-}
-
-object Environment {
-
-  def apply[F[_]](
-    using F: Environment[F]
-  ): Environment[F] = F
-
-  trait Key {
-    type Value[F[_]]
-  }
-
-  object Key {
-    type Aux[Alg[_[_]]] = Key { type Value[F[_]] = Alg[F] }
-  }
-
-  val baseUri: Key.Aux[[F[_]] =>> F[Uri]] = k[[F[_]] =>> F[Uri]]
-  val httpClient: Key.Aux[Client] = k
-  val console: Key.Aux[Console] = k
-
-  private def k[Alg[_[_]]]: Key { type Value[F[_]] = Alg[F] } =
-    new Key {
-      type Value[F[_]] = Alg[F]
-    }
-
-}
 
 trait PlaygroundPlugin {
 
   @deprecated(
     "Implement interpreters instead (e.g. Interpreter.fromSimpleBuilder). This method will be removed in the future"
   )
-  def simpleBuilders: List[SimpleHttpBuilder]
+  def simpleBuilders: List[SimpleHttpBuilder] = Nil
 
+  @nowarn("cat=deprecation")
   def interpreters[F[_]: Environment: Async]: List[Interpreter[F]] = simpleBuilders.map(
     Interpreter.fromSimpleBuilder(_)
   )
@@ -105,6 +76,48 @@ object SimpleHttpBuilder {
 
 }
 
+trait Environment[F[_]] {
+
+  def getK(k: Environment.Key): Option[k.Value[F]]
+
+  def requireK(k: Environment.Key): k.Value[F] = getK(k).getOrElse(
+    sys.error(s"Required key $k not found in Environment")
+  )
+
+}
+
+object Environment {
+
+  def apply[F[_]](
+    using F: Environment[F]
+  ): Environment[F] = F
+
+  trait Key {
+    type Value[F[_]]
+
+    def require[F[_]](
+      using Environment[F]
+    ): Value[F] = Environment[F].requireK(this)
+
+  }
+
+  object Key {
+    type Aux[Alg[_[_]]] = Key { type Value[F[_]] = Alg[F] }
+  }
+
+  // todo: replace with some general config source
+  val baseUri: Key.Aux[[F[_]] =>> F[Uri]] = k[[F[_]] =>> F[Uri]]("baseUri")
+  val httpClient: Key.Aux[Client] = k("httpClient")
+  val console: Key.Aux[Console] = k("console")
+
+  private def k[Alg[_[_]]](name: String): Key { type Value[F[_]] = Alg[F] } =
+    new Key {
+      type Value[F[_]] = Alg[F]
+      override def toString(): String = s"Environment.Key($name)"
+    }
+
+}
+
 trait Interpreter[F[_]] {
 
   def provide[Alg[_[_, _, _, _, _]]](
@@ -120,8 +133,8 @@ object Interpreter {
     given Console[F] = Environment[F].requireK(Environment.console)
 
     http[F](
-      Environment[F].requireK(Environment.baseUri),
-      Environment[F].requireK(Environment.httpClient),
+      Environment.baseUri.require,
+      Environment.httpClient.require,
       sb,
     )
   }
