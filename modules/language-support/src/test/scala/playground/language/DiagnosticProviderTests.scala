@@ -22,6 +22,7 @@ import playground.DiagnosticSeverity
 import playground.Diffs.given
 import playground.FileCompiler
 import playground.FileRunner
+import playground.Interpreters
 import playground.OperationCompiler
 import playground.OperationRunner
 import playground.PreludeCompiler
