@@ -57,7 +57,7 @@ object E2ETests extends SimpleIOSuite {
         _.handleNotification(window.showMessage) { in =>
           val messageParams = in.params
           IO.println {
-            s"${Console.MAGENTA}Message from server: ${messageParams.message} (type: ${messageParams.`type`})${Console.RESET}"
+            s"${Console.MAGENTA}Message from server: ${messageParams.message} (type: ${messageParams.`type`.name})${Console.RESET}"
           }
         }
 
