@@ -8,6 +8,7 @@ import aws.protocols.RestJson1
 import aws.protocols.RestXml
 import cats.Defer
 import cats.Id
+import cats.MonadThrow
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
@@ -15,10 +16,13 @@ import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.effect.implicits.*
 import cats.effect.std
+import cats.kernel.Semigroup
 import cats.syntax.all.*
 import fs2.compression.Compression
 import org.http4s.Uri
 import org.http4s.client.Client
+import playground.plugins.Environment
+import playground.plugins.Interpreter
 import playground.plugins.PlaygroundPlugin
 import playground.plugins.SimpleHttpBuilder
 import playground.smithyql.InputNode
@@ -28,7 +32,6 @@ import playground.smithyql.Query
 import playground.smithyql.WithSource
 import playground.std.Stdlib
 import playground.std.StdlibRuntime
-import smithy.api.ProtocolDefinition
 import smithy4s.Service
 import smithy4s.ShapeId
 import smithy4s.aws.AwsClient
@@ -47,6 +50,65 @@ trait OperationRunner[F[_]] {
 
 }
 
+object Interpreters {
+
+  def stdlib[F[_]: StdlibRuntime: MonadThrow]: Interpreter[F] =
+    new {
+      def provide[Alg[_[_, _, _, _, _]]](
+        service: Service[Alg],
+        schemaIndex: ShapeId => Option[Schema[?]],
+      ): IorNel[Interpreter.Issue, service.FunctorInterpreter[F]] =
+        smithy4s
+          .checkProtocol(
+            service,
+            Stdlib.getTag,
+          )
+          .leftMap { e =>
+            Interpreter
+              .Issue
+              .InvalidProtocol(
+                e.protocolTag.id,
+                Interpreter.protocols(service, schemaIndex),
+              )
+          }
+          .toIor
+          .toIorNel *> {
+          val proxy = new DynamicServiceProxy[Alg, service.Operation](service)
+
+          NonEmptyList
+            .of(
+              proxy.tryProxy(StdlibRuntime[F].random),
+              proxy.tryProxy(StdlibRuntime[F].clock),
+            )
+            .reduceK // orElse
+            .toRightIor(Interpreter.Issue.Other(new Throwable("unknown standard service")))
+            .toIorNel
+        }
+    }
+
+  def aws[F[_]: Compression: Async](awsEnv: Resource[F, AwsEnvironment[F]]): Interpreter[F] =
+    new {
+      def provide[Alg[_[_, _, _, _, _]]](
+        service: Service[Alg],
+        schemaIndex: ShapeId => Option[Schema[?]],
+      ): IorNel[Interpreter.Issue, service.FunctorInterpreter[F]] = AwsClient
+        .prepare(service)
+        .map { builder =>
+          awsEnv
+            .map(builder.build(_))
+            .map(service.toPolyFunction(_))
+        }
+        .map(liftFunctorInterpreterResource(_))
+        .toIor
+        .leftMap(_ =>
+          NonEmptyList
+            .of(AwsJson1_0.id, AwsJson1_1.id, RestJson1.id, AwsQuery.id, RestXml.id, Ec2Query.id)
+            .map(Interpreter.Issue.InvalidProtocol(_, Interpreter.protocols(service, schemaIndex)))
+        )
+    }
+
+}
+
 object OperationRunner {
 
   trait Resolver[F[_]] {
@@ -61,6 +123,13 @@ object OperationRunner {
   sealed trait Issue extends Product with Serializable
 
   object Issue {
+
+    def fromPluginIssue(i: Interpreter.Issue): Issue =
+      i match {
+        case Interpreter.Issue.InvalidProtocol(supported, found) =>
+          InvalidProtocol(supported, found)
+        case Interpreter.Issue.Other(e) => Other(e)
+      }
 
     final case class InvalidProtocol(
       supported: ShapeId,
@@ -207,69 +276,34 @@ object OperationRunner {
     plugins: List[PlaygroundPlugin],
   ): Resolver[F] =
     new Resolver[F] {
-
-      val serviceProtocols = service
-        .hints
-        .all
-        .toList
-        .flatMap { binding =>
-          schemaIndex(binding.keyId).flatMap { schemaOfHint =>
-            schemaOfHint.hints.get(ProtocolDefinition).as(binding.keyId)
-          }
-        }
-
-      private def simpleFromBuilder(
-        builder: SimpleHttpBuilder
-      ): IorNel[Issue, FunctorInterpreter[service.Operation, F]] =
-        builder
-          .client(
-            service,
-            dynamicBaseUri[F](
-              baseUri.flatTap { uri =>
-                std.Console[F].println(s"Using base URI: $uri")
+      given Environment[F] =
+        new {
+          def getK(k: Environment.Key): Option[k.Value[F]] = {
+            val yolo: Option[Any] =
+              k match {
+                case Environment.httpClient => Some(client)
+                case Environment.baseUri    => Some(baseUri)
+                case Environment.console    => Some(std.Console[F])
+                case _                      => None
               }
-            ).apply(client),
-          )
-          .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols))
-          .map(service.toPolyFunction(_))
-          .toIor
-          .toIorNel
+            yolo.map(_.asInstanceOf[k.Value[F]])
+          }
 
-      private def stdlibRunner: IorNel[Issue, service.FunctorInterpreter[F]] =
-        smithy4s
-          .checkProtocol(
-            service,
-            Stdlib.getTag,
+          def requireK(k: Environment.Key): k.Value[F] = getK(k).getOrElse(
+            sys.error(s"Required key $k not found in Environment")
           )
-          .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, serviceProtocols): Issue)
-          .toIor
-          .toIorNel *> {
-          val proxy = new DynamicServiceProxy[Alg, service.Operation](service)
 
-          NonEmptyList
-            .of(
-              proxy.tryProxy(StdlibRuntime[F].random),
-              proxy.tryProxy(StdlibRuntime[F].clock),
-            )
-            .reduceK // orElse
-            .toRightIor(Issue.Other(new Throwable("unknown standard service")))
-            .toIorNel
         }
 
-      val awsInterpreter: IorNel[Issue, service.FunctorInterpreter[F]] = AwsClient
-        .prepare(service)
-        .map { builder =>
-          awsEnv
-            .map(builder.build(_))
-            .map(service.toPolyFunction(_))
-        }
-        .map(liftFunctorInterpreterResource(_))
-        .toIor
-        .leftMap(_ =>
-          NonEmptyList
-            .of(AwsJson1_0.id, AwsJson1_1.id, RestJson1.id, AwsQuery.id, RestXml.id, Ec2Query.id)
-            .map(Issue.InvalidProtocol(_, serviceProtocols))
+      private val interpreters = NonEmptyList
+        .of(
+          Interpreter.fromSimpleBuilder(
+            SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)
+          ),
+          Interpreters.aws(awsEnv),
         )
+        .concat(plugins.flatMap(_.interpreters))
+        .append(Interpreters.stdlib[F])
 
       private def perform[E, O](
         interpreter: FunctorInterpreter[service.Operation, F],
@@ -278,13 +312,8 @@ object OperationRunner {
         q.writeOutput.toNode(response)
       }
 
-      val runners: NonEmptyList[IorNel[Issue, OperationRunner[F]]] = NonEmptyList
-        .of(
-          simpleFromBuilder(SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)),
-          awsInterpreter,
-        )
-        .concat(plugins.flatMap(_.simpleBuilders).map(simpleFromBuilder(_)))
-        .append(stdlibRunner)
+      val runners: NonEmptyList[IorNel[Issue, OperationRunner[F]]] = interpreters
+        .map(_.provide(service, schemaIndex).leftMap(_.map(Issue.fromPluginIssue)))
         .map(
           _.map { interpreter =>
             new OperationRunner[F] {
@@ -300,7 +329,9 @@ object OperationRunner {
         )
 
       val getInternal: IorNel[Issue, OperationRunner[F]] = runners.reduce(
-        IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]](_, _)
+        using Semigroup.instance(
+          IorUtils.orElseCombine[NonEmptyList[Issue], OperationRunner[F]](_, _)
+        )
       )
 
       def get(
@@ -310,15 +341,15 @@ object OperationRunner {
 
     }
 
-  def liftFunctorInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
-    fir: Resource[F, FunctorInterpreter[Op, F]]
-  ): FunctorInterpreter[Op, F] =
-    new FunctorInterpreter[Op, F] {
-
-      def apply[I, E, O, SI, SO](
-        fa: Op[I, E, O, SI, SO]
-      ): F[O] = fir.use(_.apply(fa))
-
-    }
-
 }
+
+def liftFunctorInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
+  fir: Resource[F, FunctorInterpreter[Op, F]]
+): FunctorInterpreter[Op, F] =
+  new FunctorInterpreter[Op, F] {
+
+    def apply[I, E, O, SI, SO](
+      fa: Op[I, E, O, SI, SO]
+    ): F[O] = fir.use(_.apply(fa))
+
+  }
