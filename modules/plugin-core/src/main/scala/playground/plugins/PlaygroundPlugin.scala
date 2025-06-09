@@ -17,21 +17,10 @@ import smithy4s.http4s.SimpleProtocolBuilder
 import smithy4s.schema.Schema
 
 import java.util.ServiceLoader
-import scala.annotation.nowarn
 import scala.jdk.CollectionConverters.*
 
 trait PlaygroundPlugin {
-
-  @deprecated(
-    "Implement interpreters instead (e.g. Interpreter.fromSimpleBuilder). This method will be removed in the future"
-  )
-  def simpleBuilders: List[SimpleHttpBuilder] = Nil
-
-  @nowarn("cat=deprecation")
-  def interpreters[F[_]: Environment: Async]: List[Interpreter[F]] = simpleBuilders.map(
-    Interpreter.fromSimpleBuilder(_)
-  )
-
+  def interpreters[F[_]: Environment: Async]: List[Interpreter[F]]
 }
 
 object PlaygroundPlugin {
@@ -66,16 +55,19 @@ object SimpleHttpBuilder {
     builder: SimpleProtocolBuilder[?]
   ): SimpleHttpBuilder =
     new SimpleHttpBuilder {
-
       def client[Alg[_[_, _, _, _, _]], F[_]: Concurrent](
         service: Service[Alg],
         backend: Client[F],
-      ): Either[UnsupportedProtocolError, service.Impl[F]] = builder(service).client(backend).make
-
+      ): Either[UnsupportedProtocolError, service.Impl[F]] =
+        builder
+          .apply(service)
+          .client(backend)
+          .make
     }
 
 }
 
+// Note: new methods can be added without notice. Assume this is always provided by Playground.
 trait Environment[F[_]] {
 
   def getK(k: Environment.Key): Option[k.Value[F]]
@@ -129,7 +121,7 @@ trait Interpreter[F[_]] {
 
 object Interpreter {
 
-  def fromSimpleBuilder[F[_]: Environment: Async](sb: SimpleHttpBuilder): Interpreter[F] = {
+  def fromSimpleBuilder[F[_]: Environment: Concurrent](sb: SimpleHttpBuilder): Interpreter[F] = {
     given Console[F] = Environment[F].requireK(Environment.console)
 
     http[F](

@@ -58,9 +58,9 @@ object ServerBuilder {
           Logger[F](
             logHeaders = true,
             logBody = true,
-            logAction = Some(msg =>
+            logAction = Some { msg =>
               LanguageClient[F].logOutput(msg.linesWithSeparators.map("// " + _).mkString)
-            ),
+            },
           )
         )
 
@@ -72,7 +72,6 @@ object ServerBuilder {
       rep <- CommandResultReporter.instance[F].toResource
 
     } yield new ServerBuilder[F] {
-
       given Environment[F] =
         new {
           def getK(k: Environment.Key): Option[k.Value[F]] = {

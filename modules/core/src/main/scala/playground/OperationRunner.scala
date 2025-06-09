@@ -5,8 +5,6 @@ import cats.Id
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
-import cats.effect.MonadCancelThrow
-import cats.effect.Resource
 import cats.kernel.Semigroup
 import cats.syntax.all.*
 import playground.plugins.Interpreter
@@ -189,14 +187,3 @@ object OperationRunner {
     }
 
 }
-
-def liftFunctorInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
-  fir: Resource[F, FunctorInterpreter[Op, F]]
-): FunctorInterpreter[Op, F] =
-  new FunctorInterpreter[Op, F] {
-
-    def apply[I, E, O, SI, SO](
-      fa: Op[I, E, O, SI, SO]
-    ): F[O] = fir.use(_.apply(fa))
-
-  }

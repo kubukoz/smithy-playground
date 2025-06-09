@@ -10,6 +10,7 @@ import cats.MonadThrow
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
+import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.syntax.all.*
 import fs2.compression.Compression
@@ -20,6 +21,7 @@ import smithy4s.Service
 import smithy4s.ShapeId
 import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
+import smithy4s.kinds.FunctorInterpreter
 import smithy4s.schema.Schema
 
 /** Standard implementations of interpreters. More interpreters can be provided by instances of
@@ -80,3 +82,14 @@ object Interpreters {
     }
 
 }
+
+private def liftFunctorInterpreterResource[Op[_, _, _, _, _], F[_]: MonadCancelThrow](
+  fir: Resource[F, FunctorInterpreter[Op, F]]
+): FunctorInterpreter[Op, F] =
+  new FunctorInterpreter[Op, F] {
+
+    def apply[I, E, O, SI, SO](
+      fa: Op[I, E, O, SI, SO]
+    ): F[O] = fir.use(_.apply(fa))
+
+  }
