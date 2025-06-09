@@ -37,7 +37,7 @@ object LanguageServerIntegrationTestSharedServer
         position = LSPPosition(0, 0),
       )
       .map { e =>
-        assert.same(
+        expect.same(
           e.map(_.item.label),
           List(
             "NextUUID",
@@ -57,9 +57,9 @@ object LanguageServerIntegrationTestSharedServer
       .map { report =>
         val diagnosticItems = report
 
-        assert(diagnosticItems.size == 1) &&
-        assert.same(diagnosticItems.head.diagnostic.severity, DiagnosticSeverity.Error) &&
-        assert(diagnosticItems.head.diagnostic.err.isInstanceOf[ParseError])
+        expect(diagnosticItems.size == 1) &&
+        expect.same(diagnosticItems.head.diagnostic.severity, DiagnosticSeverity.Error) &&
+        expect(diagnosticItems.head.diagnostic.err.isInstanceOf[ParseError])
       }
   }
 
@@ -69,7 +69,7 @@ object LanguageServerIntegrationTestSharedServer
         Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql")
       )
       .map { symbols =>
-        assert.eql(symbols.map(_.sym.name), List("playground.std#Random", "NextUUID"))
+        expect.eql(symbols.map(_.sym.name), List("playground.std#Random", "NextUUID"))
       }
   }
 
@@ -79,7 +79,7 @@ object LanguageServerIntegrationTestSharedServer
         documentUri = Uri.fromPath(f.workspaceDir.toPath / "demo.smithyql")
       )
       .map { lenses =>
-        assert.same(
+        expect.same(
           lenses.map(_.lens.command),
           List(
             Command(
@@ -105,7 +105,7 @@ object LanguageServerIntegrationTestSharedServer
           ) *> f.client.getEvents
       }
       .map { evs =>
-        assert.same(
+        expect.same(
           evs,
           List(TestClient.MessageLog(MessageType.Warning, "No operations to run in file")),
         )
@@ -123,7 +123,7 @@ object LanguageServerIntegrationTestSharedServer
           ) *> f.client.getEvents
       }
       .map { evs =>
-        assert.same(
+        expect.same(
           evs,
           Nil,
         )
@@ -141,10 +141,10 @@ object LanguageServerIntegrationTestSharedServer
           ) *> f.client.getEvents
       }
       .map { evs =>
-        assert.eql(evs.size, 3) &&
-        assert.same(evs.head, TestClient.OutputPanelShow) &&
-        assert(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
-        assert(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID"))
+        expect.eql(evs.size, 3) &&
+        expect.same(evs.head, TestClient.OutputPanelShow) &&
+        expect(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
+        expect(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID"))
       }
   }
 
@@ -161,14 +161,14 @@ object LanguageServerIntegrationTestSharedServer
           ) *> f.client.getEvents
       }
       .map { evs =>
-        assert.eql(evs.size, 5) &&
-        assert.same(evs(0), TestClient.OutputPanelShow) &&
-        assert(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
-        assert(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID")) &&
-        assert(
+        expect.eql(evs.size, 5) &&
+        expect.same(evs(0), TestClient.OutputPanelShow) &&
+        expect(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
+        expect(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID")) &&
+        expect(
           evs(3).asInstanceOf[TestClient.OutputLog].text.contains("Calling CurrentTimestamp")
         ) &&
-        assert(
+        expect(
           evs(4).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded CurrentTimestamp")
         )
       }
@@ -185,9 +185,9 @@ object LanguageServerIntegrationTestSharedServer
           ) *> f.client.getEvents
       }
       .map { evs =>
-        assert.eql(evs.size, 1) &&
-        assert.same(evs(0).asInstanceOf[TestClient.MessageLog].tpe, MessageType.Error) &&
-        assert(
+        expect.eql(evs.size, 1) &&
+        expect.same(evs(0).asInstanceOf[TestClient.MessageLog].tpe, MessageType.Error) &&
+        expect(
           evs(0)
             .asInstanceOf[TestClient.MessageLog]
             .msg
@@ -247,7 +247,7 @@ object LanguageServerIntegrationTestSharedServer
           .collect { case l: TestClient.OutputLog => l }
           .exists(_.text.contains("Succeeded GetWeather"))
 
-        assert(hasMatchingLog)
+        expect(hasMatchingLog)
       }
   }
 
@@ -266,13 +266,13 @@ object LanguageServerIntegrationTestSharedServer
         ) *> f.client.getEvents
     }
       .map { events =>
-        assert.eql(events.length, 4) &&
-        assert.same(events(0), TestClient.OutputPanelShow) &&
-        assert(
+        expect.eql(events.length, 4) &&
+        expect.same(events(0), TestClient.OutputPanelShow) &&
+        expect(
           events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")
         ) &&
-        assert(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
-        assert(
+        expect(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
+        expect(
           events(3)
             .asInstanceOf[TestClient.OutputLog]
             .text

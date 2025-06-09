@@ -15,9 +15,9 @@ inThisBuild(
 )
 
 val ScalaLTS = "3.3.6"
-val ScalaNext = "3.7.0"
+val ScalaNext = "3.7.1"
 
-val jsoniterVersion = "2.35.3"
+val jsoniterVersion = "2.36.3"
 
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
@@ -56,9 +56,9 @@ val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-core" % "2.13.0",
     "org.typelevel" %% "cats-mtl" % "1.5.0",
-    "com.disneystreaming" %% "weaver-cats" % "0.8.4" % Test,
-    "com.disneystreaming" %% "weaver-discipline" % "0.8.4" % Test,
-    "com.disneystreaming" %% "weaver-scalacheck" % "0.8.4" % Test,
+    "org.typelevel" %% "weaver-cats" % "0.9.0" % Test,
+    "org.typelevel" %% "weaver-discipline" % "0.9.0" % Test,
+    "org.typelevel" %% "weaver-scalacheck" % "0.9.0" % Test,
     "com.softwaremill.diffx" %% "diffx-core" % "0.9.0" % Test,
     "com.softwaremill.diffx" %% "diffx-cats" % "0.9.0" % Test,
   ),
@@ -181,7 +181,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.20" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.57.1" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.58.0" % Test,
     ).pipe(jsoniterFix)
   )
   .dependsOn(

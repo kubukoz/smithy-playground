@@ -114,7 +114,7 @@ object CompletionProviderTests extends SimpleIOSuite {
       )
     )
 
-    assert(result == expected)
+    expect(result == expected)
   }
 
   pureTest(
@@ -161,7 +161,7 @@ object CompletionProviderTests extends SimpleIOSuite {
         )
         .map(cit => (cit.deprecated, cit.kind))
 
-      assert(result == List(true -> CompletionItemKind.Function))
+      expect(result == List(true -> CompletionItemKind.Function))
     }
 
     pureTest("completing use clause - one (deprecated) service exists") {
@@ -174,7 +174,7 @@ object CompletionProviderTests extends SimpleIOSuite {
         )
         .map(cit => (cit.deprecated, cit.kind))
 
-      assert(result == List(true -> CompletionItemKind.Module))
+      expect(result == List(true -> CompletionItemKind.Module))
     }
   }
 

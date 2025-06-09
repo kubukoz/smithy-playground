@@ -19,7 +19,7 @@ object EmptyConfigTests extends IOSuite with LanguageServerIntegrationTests {
           f.client.getEvents
       }
       .map { events =>
-        assert.same(
+        expect.same(
           events,
           List(
             TestClient.MessageLog(MessageType.Info, "No change detected, not rebuilding server")

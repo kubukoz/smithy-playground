@@ -26,7 +26,7 @@ object ScannerTests extends SimpleIOSuite with Checkers with ScannerSuite {
 
   arbTests("Scanning is lossless") { implicit arbString =>
     forall { (s: String) =>
-      assert.eql(scan(s).foldMap(_.text), s)
+      expect.eql(scan(s).foldMap(_.text), s)
     }
   }
   scanTest("{")(List(LBR("{")))
