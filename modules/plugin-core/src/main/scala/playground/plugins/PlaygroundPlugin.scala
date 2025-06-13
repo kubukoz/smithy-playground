@@ -9,7 +9,6 @@ import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import org.http4s.Uri
 import org.http4s.client.Client
-import smithy.api.ProtocolDefinition
 import smithy4s.Service
 import smithy4s.ShapeId
 import smithy4s.UnsupportedProtocolError
@@ -131,20 +130,6 @@ object Interpreter {
     )
   }
 
-  // todo: remove this from the Issue.InvalidProtocol structure, inject later, centralized
-  def protocols[Alg[_[_, _, _, _, _]]](
-    service: Service[Alg],
-    schemaIndex: ShapeId => Option[Schema[?]],
-  ) = service
-    .hints
-    .all
-    .toList
-    .flatMap { binding =>
-      schemaIndex(binding.keyId).flatMap { schemaOfHint =>
-        schemaOfHint.hints.get[ProtocolDefinition].as(binding.keyId)
-      }
-    }
-
   private def http[F[_]: cats.effect.std.Console: Concurrent](
     baseUri: F[Uri],
     client: Client[F],
@@ -164,7 +149,7 @@ object Interpreter {
               }
             ).apply(client),
           )
-          .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id, protocols(service, schemaIndex)))
+          .leftMap(e => Issue.InvalidProtocol(e.protocolTag.id))
           .map(service.toPolyFunction(_))
           .toIor
           .toIorNel
@@ -194,10 +179,7 @@ object Interpreter {
 
   enum Issue {
 
-    case InvalidProtocol(
-      supported: ShapeId,
-      found: List[ShapeId],
-    )
+    case InvalidProtocol(supported: ShapeId)
 
     case Other(e: Throwable)
 

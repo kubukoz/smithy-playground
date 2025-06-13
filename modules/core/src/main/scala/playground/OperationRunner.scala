@@ -13,6 +13,7 @@ import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.Query
 import playground.smithyql.WithSource
+import smithy.api.ProtocolDefinition
 import smithy4s.Service
 import smithy4s.ShapeId
 import smithy4s.dynamic.DynamicSchemaIndex
@@ -43,10 +44,27 @@ object OperationRunner {
 
   object Issue {
 
-    def fromPluginIssue(i: Interpreter.Issue): Issue =
+    private def findProtocols[Alg[_[_, _, _, _, _]]](
+      service: Service[Alg],
+      schemaIndex: ShapeId => Option[Schema[?]],
+    ) = service
+      .hints
+      .all
+      .toList
+      .flatMap { binding =>
+        schemaIndex(binding.keyId).flatMap { schemaOfHint =>
+          schemaOfHint.hints.get[ProtocolDefinition].as(binding.keyId)
+        }
+      }
+
+    def fromPluginIssue[Alg[_[_, _, _, _, _]]](
+      i: Interpreter.Issue,
+      service: Service[Alg],
+      schemaIndex: ShapeId => Option[Schema[?]],
+    ): Issue =
       i match {
-        case Interpreter.Issue.InvalidProtocol(supported, found) =>
-          InvalidProtocol(supported, found)
+        case Interpreter.Issue.InvalidProtocol(supported) =>
+          InvalidProtocol(supported, findProtocols(service, schemaIndex))
         case Interpreter.Issue.Other(e) => Other(e)
       }
 
@@ -157,8 +175,13 @@ object OperationRunner {
         q.writeOutput.toNode(response)
       }
 
+      val convertIssue = Issue.fromPluginIssue[Alg](_, service, schemaIndex)
+
       val runners: NonEmptyList[IorNel[Issue, OperationRunner[F]]] = interpreters
-        .map(_.provide(service, schemaIndex).leftMap(_.map(Issue.fromPluginIssue)))
+        .map(
+          _.provide(service, schemaIndex)
+            .leftMap(_.map(convertIssue))
+        )
         .map(
           _.map { interpreter =>
             new OperationRunner[F] {
