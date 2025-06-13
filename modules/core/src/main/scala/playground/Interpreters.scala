@@ -40,10 +40,7 @@ object Interpreters {
           .leftMap { e =>
             Interpreter
               .Issue
-              .InvalidProtocol(
-                e.protocolTag.id,
-                Interpreter.protocols(service, schemaIndex),
-              )
+              .InvalidProtocol(e.protocolTag.id)
           }
           .toIor
           .toIorNel *> {
@@ -77,7 +74,7 @@ object Interpreters {
         .leftMap { _ =>
           NonEmptyList
             .of(AwsJson1_0.id, AwsJson1_1.id, RestJson1.id, AwsQuery.id, RestXml.id, Ec2Query.id)
-            .map(Interpreter.Issue.InvalidProtocol(_, Interpreter.protocols(service, schemaIndex)))
+            .map(Interpreter.Issue.InvalidProtocol(_))
         }
     }
 
