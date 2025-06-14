@@ -80,12 +80,12 @@ object DiagnosticProviderTests extends SimpleIOSuite {
 
   given Environment[IO] =
     new {
-      def getK(k: Key): Option[k.Value[IO]] =
+      def getK[Value[_[_]]](k: Key[Value]): Option[Value[IO]] =
         k.match {
           case Environment.console    => Some(IO.consoleForIO)
           case Environment.httpClient => Some(client)
           case Environment.baseUri    => Some(IO.stub)
-        }.map(_.asInstanceOf[k.Value[IO]])
+        }
     }
 
   private val interpreters = NonEmptyList.of(
