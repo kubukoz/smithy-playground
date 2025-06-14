@@ -22,11 +22,16 @@ import playground.DiagnosticSeverity
 import playground.Diffs.given
 import playground.FileCompiler
 import playground.FileRunner
+import playground.Interpreters
 import playground.OperationCompiler
 import playground.OperationRunner
 import playground.PreludeCompiler
 import playground.ServiceIndex
 import playground.ServiceUtils.*
+import playground.plugins.Environment
+import playground.plugins.Environment.Key
+import playground.plugins.Interpreter
+import playground.plugins.SimpleHttpBuilder
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.SourceRange
 import playground.smithyql.StringRangeUtils.*
@@ -36,6 +41,7 @@ import playground.std.Stdlib
 import playground.std.StdlibRuntime
 import smithy4s.HasId
 import smithy4s.aws.AwsEnvironment
+import smithy4s.http4s.SimpleRestJsonBuilder
 import weaver.*
 
 object DiagnosticProviderTests extends SimpleIOSuite {
@@ -72,6 +78,24 @@ object DiagnosticProviderTests extends SimpleIOSuite {
     )
     .map(_.id)
 
+  given Environment[IO] =
+    new {
+      def getK(k: Key): Option[k.Value[IO]] =
+        k.match {
+          case Environment.console    => Some(IO.consoleForIO)
+          case Environment.httpClient => Some(client)
+          case Environment.baseUri    => Some(IO.stub)
+        }.map(_.asInstanceOf[k.Value[IO]])
+    }
+
+  private val interpreters = NonEmptyList.of(
+    Interpreter.fromSimpleBuilder(
+      SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)
+    ),
+    Interpreters.aws(awsEnv = Resource.eval(IO.stub: IO[AwsEnvironment[IO]])),
+    Interpreters.stdlib[IO],
+  )
+
   private val provider = DiagnosticProvider.instance(
     compiler = FileCompiler
       .instance(
@@ -84,10 +108,7 @@ object DiagnosticProviderTests extends SimpleIOSuite {
         OperationRunner.forServices[IO](
           services = services,
           getSchema = _ => None,
-          client = client,
-          baseUri = IO.stub,
-          awsEnv = Resource.eval(IO.stub: IO[AwsEnvironment[IO]]),
-          plugins = Nil,
+          interpreters = interpreters,
         ),
         ServiceIndex.fromServices(services),
       )

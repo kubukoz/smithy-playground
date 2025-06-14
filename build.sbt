@@ -17,7 +17,7 @@ inThisBuild(
 val ScalaLTS = "3.3.6"
 val ScalaNext = "3.7.1"
 
-val jsoniterVersion = "2.36.3"
+val jsoniterVersion = "2.36.4"
 
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
@@ -96,7 +96,7 @@ def module(
     commonSettings
   )
 
-// Plugin interface. Keeps binary compatibility guarantees (mostly tied to smithy4s's bincompat).
+// Plugin interface. Sometimes keeps binary compatibility guarantees (mostly tied to smithy4s's bincompat).
 lazy val pluginCore = module("plugin-core").settings(
   libraryDependencies ++= Seq(
     "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
@@ -180,7 +180,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.3.20" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.21" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.58.0" % Test,
     ).pipe(jsoniterFix)
   )
