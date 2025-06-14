@@ -28,8 +28,11 @@ object Main extends IOApp.Simple {
         launch(stdin_raw, stdout_raw)
     )
       .use { launcher =>
-        IO.interruptibleMany(launcher.startListening().get())
-      } *> IO.println("Server terminated without errors")
+        IO.interruptibleMany(launcher.startListening().get()).void
+      }
+      .guaranteeCase { oc =>
+        IO.println(s"Server terminated with result: $oc")
+      }
 
   def launch(
     in: InputStream,
