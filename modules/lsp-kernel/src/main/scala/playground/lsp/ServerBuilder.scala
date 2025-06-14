@@ -1,5 +1,6 @@
 package playground.lsp
 
+import cats.data.NonEmptyList
 import cats.effect.implicits.*
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
@@ -14,12 +15,17 @@ import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
 import playground.FileRunner
+import playground.Interpreters
 import playground.OperationRunner
 import playground.ServiceIndex
 import playground.language.CommandResultReporter
+import playground.plugins.Environment
+import playground.plugins.Interpreter
+import playground.plugins.SimpleHttpBuilder
 import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.kernel.AwsRegion
+import smithy4s.http4s.SimpleRestJsonBuilder
 
 trait ServerBuilder[F[_]] {
 
@@ -43,29 +49,32 @@ object ServerBuilder {
 
     implicit val stdlibRuntime: StdlibRuntime[F] = StdlibRuntime.instance[F]
 
-    val makeClient = EmberClientBuilder
-      .default[F]
-      .build
-      .map(middleware.AuthorizationHeader[F])
-      .map(
-        Logger[F](
-          logHeaders = true,
-          logBody = true,
-          logAction = Some(msg =>
-            LanguageClient[F].logOutput(msg.linesWithSeparators.map("// " + _).mkString)
-          ),
-        )
-      )
-
     for {
-      client <- makeClient
+      httpClient <- EmberClientBuilder
+        .default[F]
+        .build
+        .map(middleware.AuthorizationHeader[F])
+        .map(
+          Logger[F](
+            logHeaders = true,
+            logBody = true,
+            logAction = Some { msg =>
+              LanguageClient[F].logOutput(msg.linesWithSeparators.map("// " + _).mkString)
+            },
+          )
+        )
+
       awsEnv <-
         AwsEnvironment
-          .default(client, AwsRegion.US_EAST_1)
+          .default(httpClient, AwsRegion.US_EAST_1)
           .memoize
-      tdm <- TextDocumentManager.instance[F].toResource
+      given TextDocumentManager[F] <- TextDocumentManager.instance[F].toResource
+      rep <- CommandResultReporter.instance[F].toResource
+
     } yield new ServerBuilder[F] {
-      private implicit val textManager: TextDocumentManager[F] = tdm
+      given Environment[F] = LSPEnvironment.instance[F](using httpClient =
+        httpClient
+      )
 
       def build(
         buildInfo: BuildLoader.Loaded,
@@ -74,15 +83,22 @@ object ServerBuilder {
         for {
           dsi <- BuildLoader[F].buildSchemaIndex(buildInfo)
           plugins <- PluginResolver[F].resolve(buildInfo.config)
-          rep <- CommandResultReporter.instance[F]
         } yield {
+          val interpreters = NonEmptyList
+            .of(
+              Interpreter.fromSimpleBuilder(
+                SimpleHttpBuilder.fromSimpleProtocolBuilder(SimpleRestJsonBuilder)
+              ),
+              Interpreters.aws(awsEnv),
+              Interpreters.stdlib[F],
+            )
+            .concat(plugins.flatMap(_.interpreters))
+
           val runners = OperationRunner
-            .forSchemaIndex[F](
-              dsi = dsi,
-              client = client,
-              baseUri = LanguageClient[F].configuration(ConfigurationValue.baseUri),
-              awsEnv = awsEnv,
-              plugins = plugins,
+            .forServices[F](
+              services = dsi.allServices.toList,
+              getSchema = dsi.getSchema,
+              interpreters = interpreters,
             )
 
           val serviceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
