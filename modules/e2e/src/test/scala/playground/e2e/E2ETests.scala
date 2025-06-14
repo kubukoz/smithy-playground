@@ -50,18 +50,13 @@ object E2ETests extends SimpleIOSuite {
           chan
             .withEndpoints(clientEndpoints(LSPBuilder.create[IO]).build(comms))
             .flatMap { channel =>
-              fs2
-                .Stream
-                .eval(IO.never)
-                .concurrently(
-                  process
-                    .stdout
-                    // fs2.io.stdout seems to be printed repeatedly for some reason, could be a bug with sbt
-                    .observe(_.through(fs2.text.utf8.decode[IO]).debug("stdout: " + _).drain)
-                    .through(jsonrpclib.fs2.lsp.decodeMessages[IO])
-                    .through(channel.inputOrBounce)
-                    .onFinalize(IO.println("stdout stream finalized"))
-                )
+              process
+                .stdout
+                // fs2.io.stdout seems to be printed repeatedly for some reason, could be a bug with sbt
+                .observe(_.through(fs2.text.utf8.decode[IO]).debug("stdout: " + _).drain)
+                .through(jsonrpclib.fs2.lsp.decodeMessages[IO])
+                .through(channel.inputOrBounce)
+                .onFinalize(IO.println("stdout stream finalized"))
                 .concurrently(
                   channel
                     .output
