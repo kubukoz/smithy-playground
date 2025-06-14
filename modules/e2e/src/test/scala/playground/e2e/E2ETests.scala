@@ -16,18 +16,6 @@ import langoustine.lsp.requests.initialize
 import langoustine.lsp.requests.window
 import langoustine.lsp.runtime.Opt
 import langoustine.lsp.runtime.Uri
-import org.eclipse.lsp4j.ClientCapabilities
-import org.eclipse.lsp4j.InitializeParams
-import org.eclipse.lsp4j.InitializeResult
-import org.eclipse.lsp4j.MessageActionItem
-import org.eclipse.lsp4j.MessageParams
-import org.eclipse.lsp4j.PublishDiagnosticsParams
-import org.eclipse.lsp4j.ShowMessageRequestParams
-import org.eclipse.lsp4j.WorkspaceFolder
-import org.eclipse.lsp4j.launch.LSPLauncher
-import org.eclipse.lsp4j.services.LanguageServer
-import playground.e2e.E2ETests.LanguageServerAdapter
-import playground.lsp.PlaygroundLanguageClient
 import weaver.*
 
 import java.io.PrintWriter
@@ -39,16 +27,6 @@ import scala.jdk.CollectionConverters.*
 import scala.util.chaining.*
 
 object E2ETests extends SimpleIOSuite {
-
-  class LanguageServerAdapter(
-    val ls: LanguageServer
-  ) {
-
-    def initialize(
-      params: InitializeParams
-    ): IO[InitializeResult] = IO.fromCompletableFuture(IO(ls.initialize(params)))
-
-  }
 
   private def runServer: Resource[IO, Communicate[IO]] = Processes[IO]
     .spawn(fs2.io.process.ProcessBuilder("cs", "launch", BuildInfo.lspArtifact))

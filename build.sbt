@@ -268,7 +268,8 @@ lazy val e2e = module("e2e")
     publish / skip := true,
     Test / fork := true,
     libraryDependencies ++= Seq(
-      "tech.neander" %% "langoustine-lsp" % "0.0.25"
+      "tech.neander" %% "langoustine-lsp" % "0.0.25",
+      "tech.neander" %% "jsonrpclib-fs2" % "0.0.7",
     ).pipe(jsoniterFix),
   )
   .dependsOn(lspKernel)
