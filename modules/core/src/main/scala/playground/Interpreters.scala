@@ -6,7 +6,6 @@ import aws.protocols.AwsQuery
 import aws.protocols.Ec2Query
 import aws.protocols.RestJson1
 import aws.protocols.RestXml
-import cats.Monad
 import cats.MonadThrow
 import cats.data.Ior
 import cats.data.IorNel
@@ -19,7 +18,6 @@ import fs2.compression.Compression
 import jsonrpclib.Channel
 import jsonrpclib.JsonRPC
 import jsonrpclib.fs2.catsMonadic
-import playground.OperationRunner.Issue
 import playground.plugins.Interpreter
 import playground.std.Stdlib
 import playground.std.StdlibRuntime
