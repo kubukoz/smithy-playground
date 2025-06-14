@@ -11,17 +11,14 @@ object LSPEnvironment {
     using httpClient: Client[F]
   ): Environment[F] =
     new {
-      def getK(k: Environment.Key): Option[k.Value[F]] = {
-        val yolo: Option[Any] =
-          k match {
-            case Environment.httpClient => Some(httpClient)
-            case Environment.baseUri =>
-              Some(LanguageClient[F].configuration(ConfigurationValue.baseUri))
-            case Environment.console => Some(std.Console[F])
-            case _                   => None
-          }
-        yolo.map(_.asInstanceOf[k.Value[F]])
-      }
+      def getK[Value[_[_]]](k: Environment.Key[Value]): Option[Value[F]] =
+        k match {
+          case Environment.httpClient => Some(httpClient)
+          case Environment.baseUri =>
+            Some(LanguageClient[F].configuration(ConfigurationValue.baseUri))
+          case Environment.console => Some(std.Console[F])
+          case _                   => None
+        }
 
     }
 

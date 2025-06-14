@@ -69,10 +69,10 @@ object SimpleHttpBuilder {
 // Note: new methods can be added without notice. Assume this is always provided by Playground.
 trait Environment[F[_]] {
 
-  def getK(k: Environment.Key): Option[k.Value[F]]
+  def getK[Value[_[_]]](k: Environment.Key[Value]): Option[Value[F]]
 
-  def requireK(k: Environment.Key): k.Value[F] = getK(k).getOrElse(
-    sys.error(s"Required key $k not found in Environment")
+  def requireK[Value[_[_]]](k: Environment.Key[Value]): Value[F] = getK(k).getOrElse(
+    throw new NoSuchElementException(s"Environment key not found: $k")
   )
 
 }
@@ -83,8 +83,7 @@ object Environment {
     using F: Environment[F]
   ): Environment[F] = F
 
-  trait Key {
-    type Value[F[_]]
+  trait Key[Value[F[_]]] {
 
     def require[F[_]](
       using Environment[F]
@@ -92,16 +91,12 @@ object Environment {
 
   }
 
-  object Key {
-    type Aux[Alg[_[_]]] = Key { type Value[F[_]] = Alg[F] }
-  }
+  // note: might be replaced with some general config source in the future
+  val baseUri: Key[[F[_]] =>> F[Uri]] = k("baseUri")
+  val httpClient: Key[Client] = k("httpClient")
+  val console: Key[Console] = k("console")
 
-  // todo: replace with some general config source
-  val baseUri: Key.Aux[[F[_]] =>> F[Uri]] = k[[F[_]] =>> F[Uri]]("baseUri")
-  val httpClient: Key.Aux[Client] = k("httpClient")
-  val console: Key.Aux[Console] = k("console")
-
-  private def k[Alg[_[_]]](name: String): Key { type Value[F[_]] = Alg[F] } =
+  private def k[Alg[_[_]]](name: String): Key[Alg] =
     new Key {
       type Value[F[_]] = Alg[F]
       override def toString(): String = s"Environment.Key($name)"
