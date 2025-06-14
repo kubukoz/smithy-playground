@@ -2,12 +2,20 @@ package playground
 
 import cats.Defer
 import cats.Id
+import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
 import cats.kernel.Semigroup
 import cats.syntax.all.*
+import fs2.compression.Compression
+import jsonrpclib.JsonRPC
+import jsonrpclib.fs2.*
+import org.http4s.Uri
+import org.http4s.client.Client
 import playground.plugins.Interpreter
+import playground.plugins.PlaygroundPlugin
+import playground.plugins.SimpleHttpBuilder
 import playground.smithyql.InputNode
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
@@ -19,6 +27,7 @@ import smithy4s.ShapeId
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.kinds.*
 import smithy4s.schema.Schema
+import smithy4sbsp.bsp4s.BSPCodecs
 import smithyql.syntax.*
 
 trait OperationRunner[F[_]] {

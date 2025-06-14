@@ -10,6 +10,9 @@ import cats.syntax.all.*
 import fs2.compression.Compression
 import fs2.io.file.Files
 import fs2.io.net.Network
+import fs2.io.net.unixsocket.UnixSocketAddress
+import fs2.io.net.unixsocket.UnixSockets
+import jsonrpclib.Channel
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
@@ -44,7 +47,9 @@ object ServerBuilder {
 
   def instance[
     F[_]: Async: LanguageClient: BuildLoader: Files: Network: Compression: std.Console: UUIDGen
-  ]: Resource[F, ServerBuilder[F]] = {
+  ](
+    bloop: jsonrpclib.Channel[F]
+  ): Resource[F, ServerBuilder[F]] = {
     implicit val pluginResolver: PluginResolver[F] = PluginResolver.instance[F]
 
     implicit val stdlibRuntime: StdlibRuntime[F] = StdlibRuntime.instance[F]
@@ -91,6 +96,7 @@ object ServerBuilder {
               ),
               Interpreters.aws(awsEnv),
               Interpreters.stdlib[F],
+              Interpreters.bloop[F](bloop),
             )
             .concat(plugins.flatMap(_.interpreters))
 

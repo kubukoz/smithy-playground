@@ -7,6 +7,7 @@ import aws.protocols.Ec2Query
 import aws.protocols.RestJson1
 import aws.protocols.RestXml
 import cats.MonadThrow
+import cats.data.Ior
 import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.effect.Async
@@ -14,6 +15,9 @@ import cats.effect.MonadCancelThrow
 import cats.effect.Resource
 import cats.syntax.all.*
 import fs2.compression.Compression
+import jsonrpclib.Channel
+import jsonrpclib.JsonRPC
+import jsonrpclib.fs2.catsMonadic
 import playground.plugins.Interpreter
 import playground.std.Stdlib
 import playground.std.StdlibRuntime
@@ -23,6 +27,7 @@ import smithy4s.aws.AwsClient
 import smithy4s.aws.AwsEnvironment
 import smithy4s.kinds.FunctorInterpreter
 import smithy4s.schema.Schema
+import smithy4sbsp.bsp4s.BSPCodecs
 
 /** Standard implementations of interpreters. More interpreters can be provided by instances of
   * [[playground.plugins.PlaygroundPlugin]] (the plugin system).
@@ -76,6 +81,20 @@ object Interpreters {
             .of(AwsJson1_0.id, AwsJson1_1.id, RestJson1.id, AwsQuery.id, RestXml.id, Ec2Query.id)
             .map(Interpreter.Issue.InvalidProtocol(_))
         }
+    }
+
+  def bloop[F[_]: MonadThrow](bloop: Channel[F]): Interpreter[F] =
+    new {
+      def provide[Alg[_[_, _, _, _, _]]](
+        service: Service[Alg],
+        schemaIndex: ShapeId => Option[Schema[?]],
+      ): IorNel[Interpreter.Issue, service.FunctorInterpreter[F]] =
+        if (service.hints.has[JsonRPC])
+          Ior.right(
+            service.toPolyFunction(BSPCodecs.clientStub[Alg, F](service, bloop))
+          )
+        else
+          Ior.leftNel(Interpreter.Issue.InvalidProtocol(JsonRPC.id))
     }
 
 }

@@ -6,6 +6,8 @@ import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
+import fs2.io.file.Files
+import jsonrpclib.fs2.*
 import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.launch.LSPLauncher
 
@@ -43,7 +45,7 @@ object Main extends IOApp.Simple {
       implicit val lc: LanguageClient[IO] = LanguageClient.defer(clientRef.get)
 
       MainServer
-        .makeServer[IO]
+        .makeServer[IO](???)
         .flatMap { server =>
           Dispatcher.sequential[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
         }
