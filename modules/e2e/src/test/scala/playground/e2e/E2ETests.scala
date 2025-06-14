@@ -62,8 +62,10 @@ object E2ETests extends SimpleIOSuite {
           }
         }
 
-      FS2Channel
-        .resource[IO]()
+      FS2Channel[IO]()
+        .compile
+        .resource
+        .onlyOrError
         .onFinalize(IO.println("Channel finalized"))
         .flatMap { chan =>
           val comms = Communicate.channel(chan)
