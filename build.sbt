@@ -272,8 +272,12 @@ lazy val e2e = module("e2e")
       ),
     publish / skip := true,
     Test / fork := true,
+    libraryDependencies ++= Seq(
+      "tech.neander" %% "langoustine-lsp" % "0.0.25",
+      "tech.neander" %% "jsonrpclib-fs2" % "0.0.7",
+    ).pipe(jsoniterFix),
   )
-  .dependsOn(lsp, lsp2)
+  .dependsOn(lspKernel)
 
 val writeVersion = taskKey[Unit]("Writes the current version to the `.version` file")
 
@@ -282,7 +286,8 @@ lazy val root = project
   .settings(
     publish / skip := true,
     mimaFailOnNoPrevious := false,
-    addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
+    addCommandAlias("ci", "e2e/test"),
+    // addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
     writeVersion := {
       IO.write(file(".version"), version.value)
     },

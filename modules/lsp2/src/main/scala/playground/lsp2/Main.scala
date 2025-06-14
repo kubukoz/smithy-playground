@@ -1,6 +1,7 @@
 package playground.lsp2
 
 import bsp.BuildClient
+import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
@@ -24,6 +25,10 @@ import smithy4s.kinds.Kind5
 import smithy4sbsp.bsp4s.BSPCodecs
 
 object Main extends LangoustineApp {
+
+  override def run(args: List[String]): IO[ExitCode] = super
+    .run(args)
+    .guaranteeCase(ec => IO.println(s"Server terminated with result: $ec"))
 
   def server(args: List[String]): Resource[IO, LSPBuilder[IO]] = IO
     .deferred[playground.lsp.LanguageClient[IO]]

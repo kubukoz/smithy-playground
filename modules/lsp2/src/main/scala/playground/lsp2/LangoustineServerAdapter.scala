@@ -53,7 +53,6 @@ object LangoustineServerAdapter {
   def adapt[F[_]: ApplicativeThrow](server: playground.lsp.LanguageServer[F])
     : LSPBuilder[F] => LSPBuilder[F] =
     _.handleRequest(initialize) { req =>
-      System.err.println("got initialize request")
       server
         .initialize(
           req.params.workspaceFolders.toOption.foldMap(_.toOption.orEmpty).toList.map {
