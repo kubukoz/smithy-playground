@@ -68,8 +68,8 @@ trait ParserSuite extends SimpleIOSuite {
 
         val errors = scanned.filter(_.kind == TokenKind.Error)
         // non-empty inputs should parse to non-empty outputs
-        assert(input.isEmpty || scanned.nonEmpty) &&
-        assert(errors.isEmpty)
+        expect(input.isEmpty || scanned.nonEmpty) &&
+        expect(errors.isEmpty)
       }
     }
 

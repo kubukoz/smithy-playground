@@ -194,12 +194,12 @@ object CompletionItemTests extends FunSuite {
 
     val containsDocs = results.exists(_.docs.exists(_.contains("hello")))
 
-    assert(!containsDocs)
+    expect(!containsDocs)
   }
 
   test("describeSchema: recursive struct") {
     val result = CompletionItem.describeSchema(Subscription.schema)()
 
-    assert.eql(result, "structure Subscription")
+    expect.eql(result, "structure Subscription")
   }
 }

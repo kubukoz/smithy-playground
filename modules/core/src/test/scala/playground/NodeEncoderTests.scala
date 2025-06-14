@@ -30,7 +30,7 @@ object NodeEncoderTests extends FunSuite {
   ): Expectations = {
     val enc = NodeEncoder.derive(schema)
 
-    assert.eql(enc.toNode(value), expected)
+    expect.eql(enc.toNode(value), expected)
   }
 
   test("unit") {
