@@ -52,7 +52,7 @@ object E2ETests extends SimpleIOSuite {
             .flatMap { channel =>
               fs2
                 .Stream
-                .never[IO]
+                .eval(IO.never)
                 .concurrently(
                   process
                     .stdout
