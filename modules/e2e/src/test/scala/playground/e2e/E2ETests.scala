@@ -52,6 +52,7 @@ object E2ETests extends SimpleIOSuite {
 
   private def runServer: Resource[IO, Communicate[IO]] = Processes[IO]
     .spawn(fs2.io.process.ProcessBuilder("cs", "launch", BuildInfo.lspArtifact))
+    .onFinalize(IO.println("Server process finalized"))
     .flatMap { process =>
       val clientEndpoints: LSPBuilder[IO] => LSPBuilder[IO] =
         _.handleNotification(window.showMessage) { in =>
@@ -61,10 +62,9 @@ object E2ETests extends SimpleIOSuite {
           }
         }
 
-      FS2Channel[IO]()
-        .compile
-        .resource
-        .onlyOrError
+      FS2Channel
+        .resource[IO]()
+        .onFinalize(IO.println("Channel finalized"))
         .flatMap { chan =>
           val comms = Communicate.channel(chan)
           chan
@@ -89,10 +89,16 @@ object E2ETests extends SimpleIOSuite {
                     .through(process.stdin)
                 )
                 .concurrently(process.stderr.through(fs2.io.stderr[IO]))
+                .onFinalize(
+                  IO.println("stdio streams finalized")
+                )
                 .compile
                 .drain
                 .background
                 .as(comms)
+                .onFinalize(
+                  IO.println("Server process and channel finalized")
+                )
             }
         }
     }

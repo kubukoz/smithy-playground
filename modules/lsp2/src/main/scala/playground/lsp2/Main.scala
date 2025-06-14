@@ -1,5 +1,6 @@
 package playground.lsp2
 
+import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
@@ -13,6 +14,10 @@ import langoustine.lsp.requests.LSPNotification
 import langoustine.lsp.requests.LSPRequest
 
 object Main extends LangoustineApp {
+
+  override def run(args: List[String]): IO[ExitCode] = super
+    .run(args)
+    .guaranteeCase(ec => IO.println(s"Server terminated with result: $ec"))
 
   def server(args: List[String]): Resource[IO, LSPBuilder[IO]] = IO
     .deferred[playground.lsp.LanguageClient[IO]]
