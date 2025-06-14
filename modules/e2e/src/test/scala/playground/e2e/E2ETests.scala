@@ -60,6 +60,7 @@ object E2ETests extends SimpleIOSuite {
                     .observe(_.through(fs2.text.utf8.decode[IO]).debug("stdout: " + _).drain)
                     .through(jsonrpclib.fs2.lsp.decodeMessages[IO])
                     .through(channel.inputOrBounce)
+                    .onFinalize(IO.println("stdout stream finalized"))
                 )
                 .concurrently(
                   channel
@@ -67,8 +68,16 @@ object E2ETests extends SimpleIOSuite {
                     .through(jsonrpclib.fs2.lsp.encodeMessages[IO])
                     .observe(_.through(fs2.text.utf8.decode[IO]).debug("stdin: " + _).drain)
                     .through(process.stdin)
+                    .onFinalize(IO.println("stdin stream finalized"))
                 )
-                .concurrently(process.stderr.through(fs2.io.stderr[IO]))
+                .concurrently(
+                  process
+                    .stderr
+                    .through(fs2.io.stderr[IO])
+                    .onFinalize(
+                      IO.println("stderr stream finalized")
+                    )
+                )
                 .onFinalize(
                   IO.println("stdio streams finalized")
                 )
