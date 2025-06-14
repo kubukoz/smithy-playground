@@ -136,8 +136,8 @@ object E2ETests extends SimpleIOSuite {
               "Smithy Playground",
             )
           }
-        }
+        } <* IO.println("Finished inner test")
       }
-      .timeout(20.seconds)
+      .timeout(20.seconds) <* IO.println("Finished test and closed server")
   }
 }
