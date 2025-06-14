@@ -96,7 +96,7 @@ object ServerBuilder {
               ),
               Interpreters.aws(awsEnv),
               Interpreters.stdlib[F],
-              Interpreters.bloop[F](???),
+              Interpreters.bloop[F](bloop),
             )
             .concat(plugins.flatMap(_.interpreters))
 
