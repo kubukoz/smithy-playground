@@ -83,6 +83,9 @@ object E2ETests extends SimpleIOSuite {
                 )
                 .compile
                 .drain
+                .guarantee(
+                  IO.println("Finalizing server process fiber")
+                )
                 .background
                 .as(comms)
                 .onFinalize(
