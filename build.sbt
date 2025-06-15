@@ -125,8 +125,8 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "1.1.0",
-      "io.circe" %% "circe-generic" % "0.14.13" % Test,
-      "io.circe" %% "circe-parser" % "0.14.13" % Test,
+      "io.circe" %% "circe-generic" % "0.14.14" % Test,
+      "io.circe" %% "circe-parser" % "0.14.14" % Test,
       "co.fs2" %% "fs2-io" % "3.12.0" % Test,
     )
   )
@@ -203,7 +203,7 @@ lazy val languageSupport = module("language-support")
 lazy val lspKernel = module("lsp-kernel")
   .settings(
     libraryDependencies ++= Seq(
-      "io.circe" %% "circe-core" % "0.14.13",
+      "io.circe" %% "circe-core" % "0.14.14",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
       ("io.get-coursier" % "coursier_2.13" % "2.1.24")
         .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
