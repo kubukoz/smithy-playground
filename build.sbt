@@ -181,7 +181,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.21" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.59.0" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.60.0" % Test,
     ).pipe(jsoniterFix)
   )
   .dependsOn(
