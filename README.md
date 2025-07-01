@@ -13,20 +13,18 @@ Currently available as a LSP server with a client implementation for VS Code.
 ```jsonc
 {
   // This comes from https://github.com/aws/aws-sdk-js-v3/blob/main/codegen/sdk-codegen/aws-models/kinesis.json
-  "imports": ["/Users/kubukoz/projects/aws-sdk-js-v3/codegen/sdk-codegen/aws-models/kinesis.json"],
+  "sources": [
+    "/Users/kubukoz/projects/aws-sdk-js-v3/codegen/sdk-codegen/aws-models/kinesis.json"
+  ],
   // For Smithy specs exported in jars
-  "mavenDependencies": [
-    "com.kubukoz:service-api:0.0.1"
-  ],
-  // To access non-standard Maven repositories
-  "mavenRepositories": [
-    "https://<path-to-artifactory>"
-  ],
+  "maven": {
+    "dependencies": ["com.kubukoz:service-api:0.0.1"],
+    // To access non-standard Maven repositories
+    "repositories": ["https://<path-to-artifactory>"]
+  },
   // for Playground plugins
   "smithyPlayground": {
-    "extensions": [
-      "com.kubukoz::playground-extension:0.0.1"
-    ]
+    "extensions": ["com.kubukoz::playground-extension:0.0.1"]
   }
 }
 ```
