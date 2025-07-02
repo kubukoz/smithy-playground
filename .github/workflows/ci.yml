@@ -47,15 +47,15 @@ jobs:
       - name: Setup environment
         run: nix develop --command echo Environment ready
 
-      # - name: Server tests
-      #   run: nix develop --command sbt ci
+      - name: Server tests
+        run: nix develop --command sbt ci
 
-      # - name: VS Code extension tests
-      #   run: nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'
+      - name: VS Code extension tests
+        run: nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'
 
-      # - name: Show extension test logs
-      #   if: always() && job.status == 'failure'
-      #   run: cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000
+      - name: Show extension test logs
+        if: always() && job.status == 'failure'
+        run: cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000
 
       - name: release
         # if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
