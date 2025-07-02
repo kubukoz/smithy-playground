@@ -11,7 +11,7 @@ inThisBuild(
         url("https://kubukoz.com"),
       )
     ),
-    tlBaseVersion := "0.9",
+    tlBaseVersion := "0.10",
   )
 )
 
