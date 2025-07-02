@@ -60,4 +60,4 @@ jobs:
 
       - name: release
         # if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
-        run: nix develop --command sbt ci-release
+        run: nix develop --command sbt tlRelease
