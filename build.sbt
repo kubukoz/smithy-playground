@@ -1,6 +1,6 @@
 inThisBuild(
   List(
-    organization := "com.kubukoz",
+    organization := "com.kubukoz.playground",
     homepage := Some(url("https://github.com/kubukoz/smithy-playground")),
     licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
