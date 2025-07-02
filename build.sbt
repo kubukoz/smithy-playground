@@ -11,6 +11,7 @@ inThisBuild(
         url("https://kubukoz.com"),
       )
     ),
+    tlBaseVersion := "0.8",
   )
 )
 
@@ -47,9 +48,6 @@ val compilerPlugins =
           List(
             crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
           ))
-
-// For coursier's "latest.integration"
-ThisBuild / dynverSeparator := "-"
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
