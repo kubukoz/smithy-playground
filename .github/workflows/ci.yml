@@ -58,5 +58,5 @@ jobs:
         run: cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000
 
       - name: release
-        # if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
         run: nix develop --command sbt tlRelease
