@@ -5,8 +5,8 @@
     "modules/examples/target/scala-3.6.4/src_managed/main/smithy",
     "modules/protocol4s/src/main/smithy",
     "modules/protocol4s/target/scala-3.6.4/src_managed/main/smithy",
-    "modules/examples/target/scala-3.7.1/src_managed/main/smithy",
-    "modules/protocol4s/target/scala-3.7.1/src_managed/main/smithy"
+    "modules/examples/target/scala-3.7.2/src_managed/main/smithy",
+    "modules/protocol4s/target/scala-3.7.2/src_managed/main/smithy"
   ],
   "maven": {
     "dependencies": [
