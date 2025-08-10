@@ -3,7 +3,9 @@ package playground.e2e
 import buildinfo.BuildInfo
 import cats.effect.Concurrent
 import cats.effect.IO
+import cats.effect.IOHack
 import cats.effect.kernel.Resource
+import cats.effect.unsafe.IORuntime
 import cats.effect.unsafe.implicits.*
 import cats.syntax.all.*
 import fs2.io.file
@@ -118,19 +120,29 @@ object E2ETests extends SimpleIOSuite {
     )
 
   test("server startup and initialize") {
-    runServer
-      .use { ls =>
-        file.Files[IO].tempDirectory.use { tempDirectory =>
-          val initParams = initializeParams(workspaceFolders = List(tempDirectory))
+    val run =
+      runServer
+        .use { ls =>
+          file.Files[IO].tempDirectory.use { tempDirectory =>
+            val initParams = initializeParams(workspaceFolders = List(tempDirectory))
 
-          ls.request(initialize(initParams)).map { result =>
-            expect.eql(
-              result.serverInfo.toOption.get.name,
-              "Smithy Playground",
-            )
-          }
-        } <* IO.println("Finished inner test")
-      }
-      .timeout(20.seconds) <* IO.println("Finished test and closed server")
+            ls.request(initialize(initParams)).map { result =>
+              expect.eql(
+                result.serverInfo.toOption.get.name,
+                "Smithy Playground",
+              )
+            }
+          } <* IO.println("Finished inner test")
+        }
+        .timeout(20.seconds) <* IO.println("Finished test and closed server")
+
+    run
+      .race(
+        IO(triggerFiberSnapshot()).andWait(5.seconds).foreverM
+      )
+      .map(_.merge)
   }
+
+  def triggerFiberSnapshot(): Unit = IOHack.fiberSnapshot()
+
 }
