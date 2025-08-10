@@ -118,19 +118,31 @@ object E2ETests extends SimpleIOSuite {
     )
 
   test("server startup and initialize") {
-    runServer
-      .use { ls =>
-        file.Files[IO].tempDirectory.use { tempDirectory =>
-          val initParams = initializeParams(workspaceFolders = List(tempDirectory))
+    val impl =
+      runServer
+        .use { ls =>
+          file.Files[IO].tempDirectory.use { tempDirectory =>
+            val initParams = initializeParams(workspaceFolders = List(tempDirectory))
 
-          ls.request(initialize(initParams)).map { result =>
-            expect.eql(
-              result.serverInfo.toOption.get.name,
-              "Smithy Playground",
-            )
+            ls.request(initialize(initParams)).map { result =>
+              expect.eql(
+                result.serverInfo.toOption.get.name,
+                "Smithy Playground",
+              )
+            }
+          } <* IO.println("Finished inner test")
+        }
+        .timeout(20.seconds) <* IO.println("Finished test and closed server")
+
+    impl
+      .race(
+        IO
+          .trace
+          .flatMap { trace =>
+            IO.println(trace.pretty).andWait(5.seconds)
           }
-        } <* IO.println("Finished inner test")
-      }
-      .timeout(20.seconds) <* IO.println("Finished test and closed server")
+          .foreverM
+      )
+      .map(_.merge)
   }
 }
