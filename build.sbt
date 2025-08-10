@@ -1,6 +1,6 @@
 inThisBuild(
   List(
-    organization := "com.kubukoz",
+    organization := "com.kubukoz.playground",
     homepage := Some(url("https://github.com/kubukoz/smithy-playground")),
     licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
@@ -11,13 +11,14 @@ inThisBuild(
         url("https://kubukoz.com"),
       )
     ),
+    tlBaseVersion := "0.10",
   )
 )
 
 val ScalaLTS = "3.3.6"
 val ScalaNext = "3.7.1"
 
-val jsoniterVersion = "2.36.4"
+val jsoniterVersion = "2.36.6"
 
 ThisBuild / scalaVersion := ScalaNext
 ThisBuild / versionScheme := Some("early-semver")
@@ -48,17 +49,14 @@ val compilerPlugins =
             crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
           ))
 
-// For coursier's "latest.integration"
-ThisBuild / dynverSeparator := "-"
-
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-core" % "2.13.0",
     "org.typelevel" %% "cats-mtl" % "1.5.0",
-    "org.typelevel" %% "weaver-cats" % "0.9.0" % Test,
-    "org.typelevel" %% "weaver-discipline" % "0.9.0" % Test,
-    "org.typelevel" %% "weaver-scalacheck" % "0.9.0" % Test,
+    "org.typelevel" %% "weaver-cats" % "0.9.1" % Test,
+    "org.typelevel" %% "weaver-discipline" % "0.9.1" % Test,
+    "org.typelevel" %% "weaver-scalacheck" % "0.9.1" % Test,
     "com.softwaremill.diffx" %% "diffx-core" % "0.9.0" % Test,
     "com.softwaremill.diffx" %% "diffx-cats" % "0.9.0" % Test,
   ),
@@ -87,6 +85,7 @@ val commonSettings = Seq(
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions += "-release:11",
   mimaFailOnNoPrevious := false,
+  mimaPreviousArtifacts := Set.empty,
 )
 
 def module(
@@ -125,8 +124,8 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "1.1.0",
-      "io.circe" %% "circe-generic" % "0.14.13" % Test,
-      "io.circe" %% "circe-parser" % "0.14.13" % Test,
+      "io.circe" %% "circe-generic" % "0.14.14" % Test,
+      "io.circe" %% "circe-parser" % "0.14.14" % Test,
       "co.fs2" %% "fs2-io" % "3.12.0" % Test,
     )
   )
@@ -181,7 +180,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.21" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.58.0" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.60.3" % Test,
     ).pipe(jsoniterFix)
   )
   .dependsOn(
@@ -203,7 +202,7 @@ lazy val languageSupport = module("language-support")
 lazy val lspKernel = module("lsp-kernel")
   .settings(
     libraryDependencies ++= Seq(
-      "io.circe" %% "circe-core" % "0.14.13",
+      "io.circe" %% "circe-core" % "0.14.14",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
       ("io.get-coursier" % "coursier_2.13" % "2.1.24")
         .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
@@ -281,6 +280,7 @@ lazy val root = project
   .settings(
     publish / skip := true,
     mimaFailOnNoPrevious := false,
+    mimaPreviousArtifacts := Set.empty,
     addCommandAlias("ci", "e2e/test"),
     // addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
     writeVersion := {
