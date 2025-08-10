@@ -17,7 +17,7 @@ object Main extends LangoustineApp {
 
   override def run(args: List[String]): IO[ExitCode] = super
     .run(args)
-    .guaranteeCase(ec => IO.println(s"Server terminated with result: $ec"))
+    .guaranteeCase(ec => IO.consoleForIO.errorln(s"Server terminated with result: $ec"))
 
   def server(args: List[String]): Resource[IO, LSPBuilder[IO]] = IO
     .deferred[playground.lsp.LanguageClient[IO]]
@@ -33,6 +33,7 @@ object Main extends LangoustineApp {
         .map(LangoustineServerAdapter.adapt(_).apply(LSPBuilder.create[IO]))
         .map(bindClient(_, clientRef))
     }
+    .onFinalizeCase(ec => IO.consoleForIO.errorln("exiting server: " + ec))
 
   private def bindClient(
     lsp: LSPBuilder[IO],
