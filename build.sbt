@@ -73,9 +73,9 @@ ThisBuild / githubWorkflowGeneratedCI ~= (_.filterNot(_.id == "publish"))
 ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 
 val ScalaLTS = "3.3.6"
-val ScalaNext = "3.7.1"
+val ScalaNext = "3.7.2"
 
-val jsoniterVersion = "2.36.6"
+val jsoniterVersion = "2.36.7"
 
 ThisBuild / scalaVersion := ScalaNext
 
@@ -89,12 +89,7 @@ def crossPlugin(
 val compilerPlugins =
   libraryDependencies ++= List(
     crossPlugin("org.polyvariant" % "better-tostring" % "0.3.17")
-  ) ++ (if (scalaVersion.value.startsWith("3"))
-          Nil
-        else
-          List(
-            crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
-          ))
+  )
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
@@ -217,14 +212,14 @@ lazy val protocol4s = module("protocol4s")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.6.1",
+      "org.typelevel" %% "cats-effect" % "3.6.3",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % jsoniterVersion,
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.31" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.60.3" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.61.0" % Test,
     )
   )
   .dependsOn(
