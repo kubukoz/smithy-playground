@@ -2,6 +2,7 @@ package playground.language
 
 import cats.Id
 import fs2.io.file.Path
+import playground.Uri
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
 import weaver.*

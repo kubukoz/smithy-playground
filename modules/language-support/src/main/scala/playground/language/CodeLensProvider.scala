@@ -3,6 +3,7 @@ package playground.language
 import cats.syntax.all.*
 import playground.FileCompiler
 import playground.FileRunner
+import playground.Uri
 import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
 import playground.smithyql.WithSource

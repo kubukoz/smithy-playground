@@ -1,10 +1,13 @@
 package playground
 
 import cats.Id
-import cats.syntax.all.*
 import playground.smithyql.OperationName
+import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
+import playground.smithyql.SourceRange
+import playground.std.PlaygroundSourceLocation
 import smithy.api
+import smithy4s.Hints
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithyql.syntax.*
 
@@ -39,15 +42,39 @@ object ServiceIndex {
             svc
               .service
               .endpoints
-              .map(_.name)
-              .map(OperationName[Id](_))
+              .map { e =>
+                OperationMetadata(OperationName[Id](e.name), location = locationFromHints(e.hints))
+              }
               .toSet,
             svc.service.hints.get[api.Deprecated].map(DeprecatedInfo.fromHint),
+            location = locationFromHints(svc.service.hints),
           )
       }.toMap
 
     fromMappings(serviceMeta)
   }
+
+  def locationFromHints(hints: Hints): Option[Location] = hints
+    .get[PlaygroundSourceLocation]
+    .map { sourceLocation =>
+      Location(
+        document = Uri.fromUriString(sourceLocation.file match {
+          // special-casing for the Smithy LSP
+          case uri if uri.startsWith("jar:") => uri.replace("jar:", "smithyjar:")
+          case uri                           => uri
+        }),
+        range = SourceRange.InFile(
+          start = Position.InFile(
+            sourceLocation.line - 1,
+            sourceLocation.column - 1,
+          ),
+          end = Position.InFile(
+            sourceLocation.line - 1,
+            sourceLocation.column - 1,
+          ),
+        ),
+      )
+    }
 
   private[playground] def fromMappings(
     mappings: Map[QualifiedIdentifier, ServiceMetadata]
@@ -72,21 +99,30 @@ object ServiceIndex {
     }
 
   private[playground] case class ServiceMetadata(
-    operationNames: Set[OperationName[Id]],
+    operations: Set[OperationMetadata],
     deprecated: Option[DeprecatedInfo],
+    location: Option[Location],
   )
+
+  private[playground] case class OperationMetadata(
+    name: OperationName[Id],
+    location: Option[Location],
+  ) extends ServiceIndexOperationEntry
 
 }
 
 trait ServiceIndexEntry {
   def id: QualifiedIdentifier
+  def getOperation(name: OperationName[Id]): Option[ServiceIndexOperationEntry]
   def operationNames: Set[OperationName[Id]]
 
   def hasOperation(
     op: OperationName[Id]
-  ): Boolean
+  ): Boolean = getOperation(op).isDefined
 
   def deprecated: Option[DeprecatedInfo]
+
+  def location: Option[Location]
 }
 
 object ServiceIndexEntry {
@@ -95,13 +131,33 @@ object ServiceIndexEntry {
     id: QualifiedIdentifier,
     metadata: ServiceIndex.ServiceMetadata,
   ) extends ServiceIndexEntry {
-    def operationNames: Set[OperationName[Id]] = metadata.operationNames
+    def operationNames: Set[OperationName[Id]] = metadata.operations.map(_.name)
 
-    def hasOperation(
-      op: OperationName[Id]
-    ): Boolean = operationNames.contains_(op)
+    def getOperation(name: OperationName[Id]): Option[ServiceIndexOperationEntry] = metadata
+      .operations
+      .find(_.name == name)
 
-    def deprecated: Option[DeprecatedInfo] = metadata.deprecated
+    export metadata.deprecated
+    export metadata.location
   }
+
+}
+
+trait ServiceIndexOperationEntry {
+  def name: OperationName[Id]
+  def location: Option[Location]
+}
+
+case class Location(document: Uri, range: SourceRange.InFile)
+
+object Location {
+
+  val Empty: Location = Location(
+    document = Uri.fromUriString("file://N/A"),
+    range = SourceRange.InFile(
+      start = Position.InFile(0, 0),
+      end = Position.InFile(0, 0),
+    ),
+  )
 
 }

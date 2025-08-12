@@ -222,14 +222,13 @@ object converters {
 
   object fromLSP {
 
-    def uri(tdi: TextDocumentIdentifier)
-      : playground.language.Uri = playground.language.Uri.fromUriString(tdi.getUri())
+    def uri(tdi: TextDocumentIdentifier): playground.Uri = playground
+      .Uri
+      .fromUriString(tdi.getUri())
 
-    def uri(tdi: TextDocumentItem)
-      : playground.language.Uri = playground.language.Uri.fromUriString(tdi.getUri())
+    def uri(tdi: TextDocumentItem): playground.Uri = playground.Uri.fromUriString(tdi.getUri())
 
-    def uri(wf: WorkspaceFolder)
-      : playground.language.Uri = playground.language.Uri.fromUriString(wf.getUri())
+    def uri(wf: WorkspaceFolder): playground.Uri = playground.Uri.fromUriString(wf.getUri())
 
     def position(pos: lsp4j.Position): LSPPosition = LSPPosition(pos.getLine(), pos.getCharacter())
 

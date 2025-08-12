@@ -5,8 +5,8 @@ import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
 import playground.PlaygroundConfig
+import playground.Uri
 import playground.language.TextDocumentProvider
-import playground.language.Uri
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {

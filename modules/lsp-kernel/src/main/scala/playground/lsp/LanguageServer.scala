@@ -19,6 +19,7 @@ import playground.FileRunner
 import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.ServiceIndex
+import playground.Uri
 import playground.language
 import playground.language.CodeLens
 import playground.language.CodeLensProvider
@@ -34,7 +35,6 @@ import playground.language.Feedback
 import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
 import playground.language.TextEdit
-import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
@@ -151,7 +151,7 @@ object LanguageServer {
         getFormatterWidth
       )
 
-      val definitionProvider = DefinitionProvider.instance[F](dsi, serviceIndex)
+      val definitionProvider = DefinitionProvider.instance[F](serviceIndex)
 
       def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult] = {
         def capabilities(compiler: ServerCapabilitiesCompiler): compiler.Result = {

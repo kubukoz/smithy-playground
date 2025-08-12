@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
 import playground.PlaygroundConfig
-import playground.language.Uri
+import playground.Uri
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient.MessageLog
 import weaver.*

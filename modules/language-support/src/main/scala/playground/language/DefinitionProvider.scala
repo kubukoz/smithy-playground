@@ -2,18 +2,15 @@ package playground.language
 
 import cats.Monad
 import cats.syntax.all.*
+import playground.Location
 import playground.MultiServiceResolver
 import playground.ServiceIndex
-import playground.language.Uri
+import playground.Uri
 import playground.smithyql.Position
 import playground.smithyql.RunQuery
 import playground.smithyql.SourceFile
-import playground.smithyql.SourceRange
+import playground.smithyql.WithSource
 import playground.smithyql.parser.SourceParser
-import playground.std.PlaygroundSourceLocation
-import smithy4s.Hints
-import smithy4s.ShapeId
-import smithy4s.dynamic.DynamicSchemaIndex
 
 trait DefinitionProvider[F[_]] {
 
@@ -23,102 +20,58 @@ trait DefinitionProvider[F[_]] {
 object DefinitionProvider {
 
   def instance[F[_]: TextDocumentProvider: Monad](
-    dsi: DynamicSchemaIndex,
-    serviceIndex: ServiceIndex,
-  ): DefinitionProvider[F] = {
-    def locationFromHints(hints: Hints): Option[Location] = hints
-      .get[PlaygroundSourceLocation]
-      .map { sourceLocation =>
-        Location(
-          document = Uri.fromUriString(sourceLocation.file match {
-            // special-casing for the Smithy LSP
-            case uri if uri.startsWith("jar:") => uri.replace("jar:", "smithyjar:")
-            case uri                           => uri
-          }),
-          range = SourceRange.InFile(
-            start = Position.InFile(
-              sourceLocation.line - 1,
-              sourceLocation.column - 1,
-            ),
-            end = Position.InFile(
-              sourceLocation.line - 1,
-              sourceLocation.column - 1,
-            ),
-          ),
-        )
+    serviceIndex: ServiceIndex
+  ): DefinitionProvider[F] = { (documentUri, position) =>
+    TextDocumentProvider[F]
+      .get(documentUri)
+      .map { text =>
+        SourceParser[SourceFile]
+          .parse(text)
+          .map { sf =>
+            val runQueries = sf
+              .statements
+              .value
+              .collect { case RunQuery(query) => query.value.operationName }
+
+            val forServiceName = List
+              .concat(
+                runQueries.flatMap(_.value.identifier),
+                sf.prelude.useClauses.map(_.value.identifier),
+              )
+              .filter(_.range.contains(position))
+              .map(_.value)
+              .flatMap(serviceIndex.getService(_).flatMap(_.location))
+
+            val forOperationName = runQueries
+              .filter(_.value.operationName.range.contains(position))
+              .flatMap { opName =>
+                MultiServiceResolver
+                  .resolveService(
+                    queryOperationName = opName.value,
+                    serviceIndex = serviceIndex,
+                    useClauses = sf.prelude.useClauses.map(_.value),
+                  )
+                  .map { serviceId =>
+                    List(
+                      serviceId -> opName.value.operationName.value.mapK(WithSource.unwrap)
+                    )
+                  }
+                  .getOrElse(Nil)
+              }
+              .flatMap { case (serviceId, opName) =>
+                serviceIndex
+                  .getService(serviceId)
+                  .flatMap(_.getOperation(opName))
+                  .flatMap(_.location)
+
+              }
+
+            forServiceName ++
+              forOperationName
+          }
       }
-
-    (documentUri, position) =>
-      TextDocumentProvider[F]
-        .get(documentUri)
-        .map { text =>
-          SourceParser[SourceFile]
-            .parse(text)
-            .map { sf =>
-              val runQueries = sf
-                .statements
-                .value
-                .collect { case RunQuery(query) => query.value.operationName }
-
-              val forServiceName = List
-                .concat(
-                  runQueries.flatMap(_.value.identifier),
-                  sf.prelude.useClauses.map(_.value.identifier),
-                )
-                .filter(_.range.contains(position))
-                .map(_.value)
-                .flatMap { serviceId =>
-                  val srv = ShapeId(serviceId.renderNamespace, serviceId.selection)
-
-                  dsi
-                    .getService(srv)
-                    .toList
-                    .map(_.service)
-                    .flatMap { service =>
-                      locationFromHints(service.hints)
-                    }
-                }
-
-              val forOperationName = runQueries
-                .filter(_.value.operationName.range.contains(position))
-                .flatMap { opName =>
-                  MultiServiceResolver
-                    .resolveService(
-                      queryOperationName = opName.value,
-                      serviceIndex = serviceIndex,
-                      useClauses = sf.prelude.useClauses.map(_.value),
-                    )
-                    .map { serviceId =>
-                      List(
-                        serviceId -> opName.value.operationName.value.text
-                      )
-                    }
-                    .getOrElse(Nil)
-                }
-                .flatMap { case (serviceId, opName) =>
-                  dsi
-                    .getService(
-                      ShapeId(serviceId.renderNamespace, serviceId.selection)
-                    )
-                    .toList
-                    .map(_.service)
-                    .flatMap { srv =>
-                      srv.endpoints.find(_.name == opName)
-                    }
-                    .flatMap { endpoint =>
-                      locationFromHints(endpoint.hints)
-                    }
-
-                }
-
-              forServiceName ++
-                forOperationName
-            }
-        }
-        .map(_.getOrElse(Nil))
+      .map(_.getOrElse(Nil))
 
   }
 
 }
-
-case class Location(document: Uri, range: SourceRange.InFile)
