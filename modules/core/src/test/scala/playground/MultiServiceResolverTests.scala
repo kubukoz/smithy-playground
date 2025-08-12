@@ -160,7 +160,7 @@ object MultiServiceResolverTests extends FunSuite {
       ),
     )
 
-    assert(result.isRight)
+    expect(result.isRight)
   }
 
   test(

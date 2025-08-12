@@ -141,7 +141,11 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
         def from(
           b: Document
-        ): A = b.decode(decoder).toTry.get
+        ): A =
+          b.decode(
+            using decoder
+          ).toTry
+            .get
 
         def unsafe(
           a: A
@@ -151,7 +155,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("unit") {
-    assert(
+    expect(
       compile {
         WithSource.liftId(struct().mapK(WithSource.liftId))
       }(
@@ -161,7 +165,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("unit - doesn't accept string") {
-    assert(
+    expect(
       compile {
         WithSource.liftId("test".mapK(WithSource.liftId))
       }(
@@ -171,7 +175,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("unit - doesn't accept struct with a field present") {
-    assert(
+    expect(
       compile {
         WithSource.liftId(struct("test" -> 42).mapK(WithSource.liftId))
       }(
@@ -181,7 +185,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("string") {
-    assert(
+    expect(
       compile {
         WithSource.liftId("foo".mapK(WithSource.liftId))
       }(
@@ -191,7 +195,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("string with length constraint - fail") {
-    assert(
+    expect(
       compile[StringWithLength] {
         WithSource.liftId("".mapK(WithSource.liftId))
       }.isLeft
@@ -208,7 +212,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
       .leftMap(_.map(_.err.asInstanceOf[CompilationErrorDetails.RefinementFailure]))
 
-    assert(
+    expect(
       result.isLeft
     )
   }
@@ -223,13 +227,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
       .leftMap(_.map(_.err.asInstanceOf[CompilationErrorDetails.RefinementFailure]))
 
-    assert(
+    expect(
       result.isLeft
     )
   }
 
   pureTest("string - got int instead") {
-    assert(
+    expect(
       compile {
         WithSource.liftId(42.mapK(WithSource.liftId))
       }(
@@ -260,7 +264,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("long - out of range") {
-    assert(
+    expect(
       compile {
         WithSource.liftId((BigInt(Long.MaxValue) + 1).mapK(WithSource.liftId))
       }(
@@ -281,7 +285,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("int - out of range") {
-    assert(
+    expect(
       compile {
         WithSource.liftId((Int.MaxValue.toLong + 1L).mapK(WithSource.liftId))
       }(
@@ -302,7 +306,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("int with exponential syntax - in range, but not an integer") {
-    assert(
+    expect(
       compile {
         WithSource.liftId(IntLiteral("10.1e0").mapK(WithSource.liftId))
       }(
@@ -323,7 +327,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("short - out of range") {
-    assert(
+    expect(
       compile {
         WithSource.liftId((Short.MaxValue + 1).mapK(WithSource.liftId))
       }(
@@ -355,7 +359,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("byte - out of range") {
-    assert(
+    expect(
       compile {
         WithSource.liftId((Byte.MaxValue + 1).mapK(WithSource.liftId))
       }(
@@ -376,7 +380,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("float") {
-    assert.same(
+    expect.same(
       compile {
         WithSource.liftId(Float.MaxValue.mapK(WithSource.liftId))
       }(
@@ -387,7 +391,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("float - out of range") {
-    assert(
+    expect(
       compile {
         WithSource.liftId(Double.MaxValue.toString.mapK(WithSource.liftId))
       }(
@@ -454,7 +458,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("bigint - not accepting floats") {
-    assert(
+    expect(
       compile {
         WithSource.liftId("40.50".mapK(WithSource.liftId))
       }(
@@ -488,7 +492,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("bigdecimal - not a number") {
-    assert(
+    expect(
       compile {
         WithSource.liftId("AAAA".mapK(WithSource.liftId))
       }(
@@ -531,7 +535,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("null doesn't work as anything like a string") {
-    assert(
+    expect(
       compile {
         WithSource.liftId(NullLiteral[WithSource]())
       }(
@@ -552,7 +556,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("blob - invalid") {
-    assert(
+    expect(
       compile {
         WithSource.liftId("XYI519274n91lasdf/a'\'...,,".mapK(WithSource.liftId))
       }(
@@ -608,7 +612,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("struct with default field") {
     val result = compile[HasDefault](WithSource.liftId(struct().mapK(WithSource.liftId)))
 
-    assert(result == Ior.right(HasDefault()))
+    expect(result == Ior.right(HasDefault()))
   }
 
   pureTest("dynamic struct with default field") {
@@ -618,7 +622,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
       )
 
     // Object is empty here, but the server shall deserialize it providing the default
-    assert(result == Ior.right(Document.obj()))
+    expect(result == Ior.right(Document.obj()))
   }
 
   pureTest("Missing fields in struct") {
@@ -704,7 +708,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
   }
   pureTest("union") {
-    assert(
+    expect(
       compile[Hero] {
         WithSource.liftId {
           struct(
@@ -738,7 +742,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
         .deprecated
 
     assertNoDiff(result.void.left, warning.pure[NonEmptyChain].some) &&
-    assert(
+    expect(
       result.right == Some(
         Hero.BadderCase(Bad("Vader", 9001))
       )
@@ -802,13 +806,13 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   pureTest("enum - OK") {
     val result = compile[Power](WithSource.liftId("WIND".mapK(WithSource.liftId)))
 
-    assert(
+    expect(
       result == Ior.right(Power.WIND)
     )
   }
 
   pureTest("enum - length validation (dynamic, OK)") {
-    assert.same(
+    expect.same(
       Ior.right(Document.obj("enumWithLength" -> Document.fromString("AB"))),
       compile(
         WithSource.liftId(struct("enumWithLength" -> "AB").mapK(WithSource.liftId))
@@ -819,7 +823,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("enum - length validation (dynamic, fail)") {
-    assert(
+    expect(
       compile(
         WithSource.liftId(struct("enumWithLength" -> "ABC").mapK(WithSource.liftId))
       )(
@@ -829,7 +833,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("enum - range validation (dynamic, OK)") {
-    assert.same(
+    expect.same(
       Ior.right(Document.obj("intEnumWithRange" -> Document.fromInt(2))),
       compile(
         WithSource.liftId(struct("intEnumWithRange" -> "QUEEN").mapK(WithSource.liftId))
@@ -840,7 +844,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("enum - range validation (dynamic, fail)") {
-    assert(
+    expect(
       compile(
         WithSource.liftId(struct("intEnumWithRange" -> "KING").mapK(WithSource.liftId))
       )(
@@ -850,7 +854,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("enum - pattern validation (dynamic, OK)") {
-    assert.same(
+    expect.same(
       Ior.right(Document.obj("enumWithPattern" -> Document.fromString("AB"))),
       compile(
         WithSource.liftId(struct("enumWithPattern" -> "AB").mapK(WithSource.liftId))
@@ -861,7 +865,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("enum - pattern validation (dynamic, fail)") {
-    assert(
+    expect(
       compile(
         WithSource.liftId(struct("enumWithPattern" -> "ABC").mapK(WithSource.liftId))
       )(
@@ -913,7 +917,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("list of ints") {
-    assert(
+    expect(
       compile[Ints](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
         Ints(IndexedSeq(1, 2, 3))
       )
@@ -934,7 +938,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("sparse list of ints - dynamic") {
-    assert.same(
+    expect.same(
       compile(
         WithSource.liftId(List[InputNode[Id]](1, NullLiteral(), 3).mapK(WithSource.liftId))
       )(
@@ -953,7 +957,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
   }
 
   pureTest("set of ints") {
-    assert(
+    expect(
       compile[IntSet](WithSource.liftId(List(1, 2, 3).mapK(WithSource.liftId))) == Ior.right(
         IntSet(Set(1, 2, 3))
       )
@@ -981,7 +985,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           )
         )
 
-        assert(
+        expect(
           actual == Ior.both(
             NonEmptyChain(
               CompilationError.warning(
@@ -1023,7 +1027,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
             using dynamicSchemaFor[IntSet]
           )
 
-        assert(
+        expect(
           actual == Ior.both(
             NonEmptyChain(
               CompilationError.warning(
@@ -1054,7 +1058,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     )
       .leftMap(_.map(_.err))
 
-    assert(
+    expect(
       compiledFailures == Ior.both(
         NonEmptyChain(CompilationErrorDetails.DuplicateItem, CompilationErrorDetails.DuplicateItem),
         Set(Hero.GoodCase(Good(42))),
@@ -1138,7 +1142,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
   test("anything to document matches") {
     forall((wast: QueryCompiler.WAST) =>
-      assert(
+      expect(
         compile[Document](wast)(
           using Schema.document
         ).isRight
@@ -1178,7 +1182,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
 
     val result = compile[MyInstant](WithSource.liftId(s.mapK(WithSource.liftId)))
 
-    assert(result == Ior.right(ts))
+    expect(result == Ior.right(ts))
   }
 
   pureTest("a use clause is present") {
@@ -1188,7 +1192,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           |NextUUID {}""".stripMargin
       ).toEither
 
-    assert(result.isRight)
+    expect(result.isRight)
   }
 
   pureTest("a use clause is present - it doesn't refer to a known service") {
@@ -1215,7 +1219,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           |NextUUID {}""".stripMargin
       ).toEither
 
-    assert(result.isRight)
+    expect(result.isRight)
   }
 
   pureTest("multiple use clauses are present, multiple queries") {
@@ -1228,7 +1232,7 @@ object CompilationTests extends SimpleIOSuite with Checkers {
           |NextUUID {}""".stripMargin
       ).toEither
 
-    assert(result.isRight)
+    expect(result.isRight)
   }
 
   pureTest("deprecated service's use clause") {

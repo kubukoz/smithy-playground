@@ -14,6 +14,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import util.chaining.*
 
 import java.util.concurrent.CompletableFuture
+import scala.annotation.nowarn
 import scala.jdk.CollectionConverters.*
 
 final class PlaygroundLanguageServerAdapter[F[_]: Sync](
@@ -210,6 +211,7 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
 
   @JsonNotification("workspace/didChangeWatchedFiles")
   def didChangeWatchedFiles(
+    @nowarn("msg=unused")
     params: lsp4j.DidChangeWatchedFilesParams
   ): Unit = handleNotification(impl.didChangeWatchedFiles)
 

@@ -1,10 +1,6 @@
 package playground.lsp
 
-import coursier.*
-import coursier.cache.FileCache
-import coursier.parse.DependencyParser
-import coursier.parse.RepositoryParser
-import coursier.util.Task
+import coursierapi.*
 import playground.PlaygroundConfig
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
@@ -122,35 +118,16 @@ object ModelLoader {
     dependencies: List[String],
     repositories: List[String],
   ): List[File] = {
-    val maybeRepos = RepositoryParser.repositories(repositories).either
-    val maybeDeps =
-      DependencyParser
-        .dependencies(
-          dependencies,
-          defaultScalaVersion = BuildInfo.scalaBinaryVersion,
-        )
-        .either
-    val repos =
-      maybeRepos match {
-        case Left(errorMessages) =>
-          throw new IllegalArgumentException(
-            s"Failed to parse repositories with error: $errorMessages"
-          )
-        case Right(r) => r
-      }
-    val deps =
-      maybeDeps match {
-        case Left(errorMessages) =>
-          throw new IllegalArgumentException(
-            s"Failed to parse dependencies with errors: $errorMessages"
-          )
-        case Right(d) => d
-      }
+    val repos = repositories.map(MavenRepository.of)
+    val deps = dependencies
+      .map(Dependency.parse(_, ScalaVersion.of(BuildInfo.scalaBinaryVersion)))
 
-    Fetch(FileCache[Task]().withTtl(1.hour))
+    Fetch
+      .create
       .addRepositories(repos*)
       .addDependencies(deps*)
-      .run()
+      .fetch()
+      .asScala
       .toList
   }
 

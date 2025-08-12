@@ -29,7 +29,7 @@ object FormattingTests extends SimpleIOSuite with Checkers {
       // not using assertNoDiff because of
       // https://github.com/softwaremill/diffx/issues/422
       // which can result in false negatives (different strings considered equal and passing the test).
-      assert.eql(result, expected).traced(SourceLocation.fromContext) &&
+      expect.eql(result, expected).traced(SourceLocation.fromContext) &&
       ParserSuite
         .assertParses(result)
         .fold(failure(_), _ => success)

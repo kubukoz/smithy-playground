@@ -80,7 +80,7 @@ object LanguageServerReloadIntegrationTests
               }
 
             getLenses.flatMap { lensesBefore =>
-              assert(lensesBefore.isEmpty).failFast[IO]
+              expect(lensesBefore.isEmpty).failFast[IO]
             } *>
               addLibrary *>
               f.server.didChangeWatchedFiles *>
@@ -88,7 +88,7 @@ object LanguageServerReloadIntegrationTests
           }
       }
       .use { lensesAfter =>
-        assert(lensesAfter.length == 1).pure[IO]
+        expect(lensesAfter.length == 1).pure[IO]
       }
   }
 
@@ -116,7 +116,7 @@ object LanguageServerReloadIntegrationTests
       .use(_.client.getEvents)
       .map { events =>
         val errorLogs = events.collect { case MessageLog(MessageType.Error, msg) => msg }
-        assert(errorLogs.isEmpty)
+        expect(errorLogs.isEmpty)
       }
   }
 
@@ -133,8 +133,8 @@ object LanguageServerReloadIntegrationTests
             .map { diags =>
               val items = diags.map(_.diagnostic.err)
 
-              assert(errorLogs.isEmpty) &&
-              assert(items.isEmpty)
+              expect(errorLogs.isEmpty) &&
+              expect(items.isEmpty)
             }
         }
       }
