@@ -33,6 +33,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
+      - name: Checkout current branch (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: cachix/install-nix-action@v23
 
       - uses: cachix/cachix-action@v12
@@ -81,6 +86,11 @@ jobs:
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Checkout current branch (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: cachix/install-nix-action@v23
 
       - uses: cachix/cachix-action@v12
@@ -134,6 +144,11 @@ jobs:
         java: [temurin@8]
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Checkout current branch (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: cachix/install-nix-action@v23
 
       - uses: cachix/cachix-action@v12

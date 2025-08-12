@@ -35,7 +35,10 @@ inThisBuild(
 
 ThisBuild / githubWorkflowSbtCommand := "nix develop --command sbt"
 
-ThisBuild / githubWorkflowJobSetup := List(
+ThisBuild / githubWorkflowJobSetup ~= (_.filter(
+  _.name.exists(_.contains("Checkout current branch"))
+))
+ThisBuild / githubWorkflowJobSetup ++= List(
   WorkflowStep.Use(
     ref = UseRef.Public("cachix", "install-nix-action", "v23")
   ),
