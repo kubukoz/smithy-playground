@@ -168,9 +168,6 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
     messages.Either[java.util.List[lsp4j.Location], java.util.List[lsp4j.LocationLink]]
   ] = d
     .unsafeToCompletableFuture {
-      params.getTextDocument()
-      params.getPosition()
-
       impl
         .definition(
           documentUri = converters.fromLSP.uri(params.getTextDocument),
