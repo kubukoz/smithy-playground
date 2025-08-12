@@ -15,13 +15,59 @@ inThisBuild(
   )
 )
 
+/*
+
+      # This step isn't strictly necessary, but separating it means we can inspect its run time more easily.
+      - name: Setup environment
+        run: nix develop --command echo Environment ready
+
+      - name: Server tests
+        run: nix develop --command sbt ci
+
+      - name: VS Code extension tests
+        run: nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'
+
+      - name: Show extension test logs
+        if: always() && job.status == 'failure'
+        run: cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000
+
+ */
+
+ThisBuild / githubWorkflowSbtCommand := "nix develop --command sbt"
+
+ThisBuild / githubWorkflowJobSetup := List(
+  WorkflowStep.Run(
+    name = Some("Setup environment"),
+    commands = "nix develop --command echo Environment ready" :: Nil,
+  )
+)
+
+ThisBuild / githubWorkflowBuild := List(
+  WorkflowStep.Sbt(
+    name = Some("Server tests"),
+    commands = "ci" :: Nil,
+  ),
+  WorkflowStep.Run(
+    name = Some("VS Code extension tests"),
+    commands =
+      "nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'" :: Nil,
+  ),
+  WorkflowStep.Run(
+    name = Some("Show extension test logs"),
+    cond = Some("always() && job.status == 'failure'"),
+    commands = "cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000" :: Nil,
+  ),
+)
+
+// wrap release in nix develop --command
+// ThisBuild / githubWorkflowPublish ~=
+
 val ScalaLTS = "3.3.6"
 val ScalaNext = "3.7.1"
 
 val jsoniterVersion = "2.36.6"
 
 ThisBuild / scalaVersion := ScalaNext
-ThisBuild / versionScheme := Some("early-semver")
 
 import scala.sys.process.*
 import scala.util.chaining.*
@@ -74,13 +120,10 @@ val commonSettings = Seq(
   //
   scalacOptions += "-no-indent",
   scalacOptions ++= {
-    if (scalaVersion.value.startsWith("3.7"))
-      Seq(
-        // for cats-tagless macros
-        "-experimental"
-      )
-    else
-      Nil
+    Seq(
+      // for cats-tagless macros
+      "-experimental"
+    )
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions += "-release:11",
@@ -96,14 +139,16 @@ def module(
   )
 
 // Plugin interface. Sometimes keeps binary compatibility guarantees (mostly tied to smithy4s's bincompat).
-lazy val pluginCore = module("plugin-core").settings(
-  libraryDependencies ++= Seq(
-    "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
-  ).pipe(jsoniterFix),
-  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
-  mimaPreviousArtifacts := Set.empty,
-  scalaVersion := ScalaLTS,
-)
+lazy val pluginCore = module("plugin-core")
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
+    ).pipe(jsoniterFix),
+    // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
+    mimaPreviousArtifacts := Set.empty,
+    scalaVersion := ScalaLTS,
+  )
+  .enablePlugins(TypelevelMimaPlugin)
 
 lazy val pluginSample = module("plugin-sample")
   .dependsOn(pluginCore)
@@ -267,8 +312,6 @@ lazy val root = project
   .in(file("."))
   .settings(
     publish / skip := true,
-    mimaFailOnNoPrevious := false,
-    mimaPreviousArtifacts := Set.empty,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
     writeVersion := {
       IO.write(file(".version"), version.value)

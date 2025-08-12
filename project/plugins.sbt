@@ -1,6 +1,6 @@
 ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 
-addSbtPlugin("org.typelevel" % "sbt-typelevel-ci-release" % "0.8.0")
+addSbtPlugin("org.typelevel" % "sbt-typelevel" % "0.8.0")
 addSbtPlugin("org.typelevel" % "sbt-tpolecat" % "0.5.2")
 
 addSbtPlugin("com.disneystreaming.smithy4s" % "smithy4s-sbt-codegen" % "0.18.37")
