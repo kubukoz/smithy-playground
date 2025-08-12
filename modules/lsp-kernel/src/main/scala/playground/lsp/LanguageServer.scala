@@ -173,7 +173,7 @@ object LanguageServer {
                   )
               }
             }
-            .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
+            .onError { case e => LanguageClient[F].showErrorMessage("Failed to reload project") }
             .attempt
             .as(InitializeResult(capabilities, serverInfo))
       }
