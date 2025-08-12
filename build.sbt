@@ -36,10 +36,20 @@ inThisBuild(
 ThisBuild / githubWorkflowSbtCommand := "nix develop --command sbt"
 
 ThisBuild / githubWorkflowJobSetup := List(
+  WorkflowStep.Use(
+    ref = UseRef.Public("cachix", "install-nix-action", "v23")
+  ),
+  WorkflowStep.Use(
+    ref = UseRef.Public("cachix", "cachix-action", "v12"),
+    params = Map(
+      "name" -> "kubukoz",
+      "authToken" -> "${{ secrets.CACHIX_AUTH_TOKEN }}",
+    ),
+  ),
   WorkflowStep.Run(
     name = Some("Setup environment"),
     commands = "nix develop --command echo Environment ready" :: Nil,
-  )
+  ),
 )
 
 ThisBuild / githubWorkflowBuild := List(
