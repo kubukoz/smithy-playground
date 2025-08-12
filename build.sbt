@@ -40,21 +40,20 @@ ThisBuild / githubWorkflowJobSetup ++= List(
 )
 
 ThisBuild / githubWorkflowBuild := List(
-  // todo restore
-  // WorkflowStep.Sbt(
-  //   name = Some("Server tests"),
-  //   commands = "ci" :: Nil,
-  // ),
-  // WorkflowStep.Run(
-  //   name = Some("VS Code extension tests"),
-  //   commands =
-  //     "nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'" :: Nil,
-  // ),
+  WorkflowStep.Sbt(
+    name = Some("Server tests"),
+    commands = "ci" :: Nil,
+  ),
+  WorkflowStep.Run(
+    name = Some("VS Code extension tests"),
+    commands =
+      "nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'" :: Nil,
+  ),
   WorkflowStep.Run(
     name = Some("Show extension test logs"),
     cond = Some("always() && job.status == 'failure'"),
     commands = "cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000" :: Nil,
-  )
+  ),
 ) ++ {
   val publishSteps =
     (ThisBuild / githubWorkflowPublishPreamble).value ++ (ThisBuild / githubWorkflowPublish).value
