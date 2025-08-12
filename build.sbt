@@ -78,16 +78,23 @@ ThisBuild / githubWorkflowGeneratedCI += WorkflowJob(
   id = "build-parser",
   name = "Build parser",
   oses = List("ubuntu-latest", "macos-latest", "macos-13"),
+  scalas = Nil,
   timeoutMinutes = Some(10),
-  steps = List(
-    WorkflowStep.Checkout,
-    WorkflowStep.SetupSbt,
-    WorkflowStep.Sbt(
-      name = Some("Parser tests"),
-      // intentionally not setting up nix
-      commands = "treesitter/test" :: Nil,
-    ),
-  ),
+  steps =
+    List(
+      WorkflowStep.Checkout
+    ) ++
+      WorkflowStep
+        .SetupJava(githubWorkflowJavaVersions.value.toList, enableCaching = false)
+      ++ List(
+        WorkflowStep.SetupSbt,
+        // intentionally not using WorkflowStep.Sbt so that we don't set up Nix
+        // as this should work without it (native libs shall be pre-built by contributors)
+        WorkflowStep.Run(
+          name = Some("Parser tests"),
+          commands = "sbt treesitter/test" :: Nil,
+        ),
+      ),
 )
 
 ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
