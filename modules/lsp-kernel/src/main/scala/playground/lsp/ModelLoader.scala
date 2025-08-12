@@ -3,10 +3,18 @@ package playground.lsp
 import coursierapi.*
 import playground.PlaygroundConfig
 import playground.lsp.buildinfo.BuildInfo
+import playground.std.PlaygroundSourceLocation
+import smithy4s.ShapeId
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
 import software.amazon.smithy.model.loader.ModelDiscovery
 import software.amazon.smithy.model.loader.ModelManifestException
+import software.amazon.smithy.model.node.Node
+import software.amazon.smithy.model.shapes.AbstractShapeBuilder
+import software.amazon.smithy.model.shapes.Shape
+import software.amazon.smithy.model.shapes.ShapeId as SmithyShapeId
+import software.amazon.smithy.model.traits.DynamicTrait
+import software.amazon.smithy.model.transform.ModelTransformer
 
 import java.io.File
 import java.net.URL
@@ -41,14 +49,45 @@ object ModelLoader {
   def load(
     specs: Set[File],
     jars: List[File],
-  ): Model = Model
-    .assembler()
-    .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
-    .pipe(addJarModels(jars))
-    .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
-    .pipe(addFileImports(specs))
-    .assemble()
-    .unwrap()
+  ): Model = {
+    val m = Model
+      .assembler()
+      .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
+      .pipe(addJarModels(jars))
+      .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
+      .pipe(addFileImports(specs))
+      .assemble()
+      .unwrap()
+
+    val sourceLocTraitId = {
+      val shp = PlaygroundSourceLocation.id
+      SmithyShapeId.from(shp.show)
+    }
+
+    ModelTransformer
+      .create()
+      .mapShapes(
+        m,
+        shp => {
+          val b = Shape.shapeToBuilder(shp): AbstractShapeBuilder[?, ? <: Shape]
+
+          val loc = shp.getSourceLocation()
+
+          b.addTrait(
+            new DynamicTrait(
+              sourceLocTraitId,
+              Node
+                .objectNode()
+                .withMember("file", loc.getFilename())
+                .withMember("line", loc.getLine())
+                .withMember("column", loc.getColumn()),
+            )
+          )
+
+          b.build()
+        },
+      )
+  }
 
   // Credits: myself, in smithy4s 0.17.5
   private def addJarModels(

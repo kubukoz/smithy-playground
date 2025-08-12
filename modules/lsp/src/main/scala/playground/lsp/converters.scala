@@ -146,8 +146,8 @@ object converters {
     ): lsp4j.TextEdit =
       edit match {
         case TextEdit.Insert(what, where) =>
-          val pos = converters.toLSP.position(map, where)
-          new lsp4j.TextEdit(new lsp4j.Range(pos, pos), what)
+          val r = converters.toLSP.range(map, SourceRange(where, where))
+          new lsp4j.TextEdit(r, what)
 
         case TextEdit.Overwrite(what, range) =>
           val r = converters.toLSP.range(map, range)
@@ -181,7 +181,8 @@ object converters {
         )
       )
 
-    def location(loc: LSPLocation): lsp4j.Location = ???
+    def location(loc: LSPLocation): lsp4j.Location =
+      new lsp4j.Location(loc.document.value, range(loc.range))
 
     def codeLens(lens: LSPCodeLens): lsp4j.CodeLens = codeLens(lens.map, lens.lens)
 
@@ -196,6 +197,12 @@ object converters {
             .tap(_.setCommand(lens.command.command))
             .tap(_.setArguments(lens.command.args.widen[Object].asJava))
         )
+      )
+
+    private def range(r: LSPRange): lsp4j.Range =
+      new lsp4j.Range(
+        new lsp4j.Position(r.from.line, r.from.character),
+        new lsp4j.Position(r.to.line, r.to.character),
       )
 
     private def range(

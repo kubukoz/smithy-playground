@@ -178,7 +178,6 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
         )
         .map { locations =>
           locations.map(converters.toLSP.location).asJava.pipe(messages.Either.forLeft(_))
-          ???
         }
     }
 

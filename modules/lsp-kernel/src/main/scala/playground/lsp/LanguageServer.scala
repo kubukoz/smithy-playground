@@ -150,6 +150,8 @@ object LanguageServer {
         getFormatterWidth
       )
 
+      val definitionProvider = DefinitionProvider.instance[F](dsi, serviceIndex)
+
       def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult] = {
         def capabilities(compiler: ServerCapabilitiesCompiler): compiler.Result = {
           given Semigroup[compiler.Result] = compiler.semigroup
@@ -158,7 +160,8 @@ object LanguageServer {
             compiler.completionProvider |+|
             compiler.diagnosticProvider |+|
             compiler.codeLensProvider |+|
-            compiler.documentSymbolProvider
+            compiler.documentSymbolProvider |+|
+            compiler.definitionProvider
         }
 
         val serverInfo = ServerInfo("Smithy Playground", BuildInfo.version)
@@ -245,7 +248,8 @@ object LanguageServer {
             .map(LSPDiagnostic(_, map))
         }
 
-      def definition(documentUri: Uri, position: LSPPosition): F[List[LSPLocation]] = ???
+      def definition(documentUri: Uri, position: LSPPosition): F[List[LSPLocation]] =
+        definitionProvider.definition(documentUri, position)
 
       def codeLens(
         documentUri: Uri
