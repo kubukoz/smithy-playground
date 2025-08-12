@@ -26,6 +26,7 @@ import playground.language.CommandProvider
 import playground.language.CommandResultReporter
 import playground.language.CompletionItem
 import playground.language.CompletionProvider
+import playground.language.DefinitionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbol
 import playground.language.DocumentSymbolProvider
@@ -249,7 +250,22 @@ object LanguageServer {
         }
 
       def definition(documentUri: Uri, position: LSPPosition): F[List[LSPLocation]] =
-        definitionProvider.definition(documentUri, position)
+        TextDocumentManager[F]
+          .get(documentUri)
+          .flatMap { documentText =>
+            val map = LocationMap(documentText)
+
+            definitionProvider
+              .definition(documentUri, position.unwrap(map))
+              .map {
+                _.map { loc =>
+                  LSPLocation(
+                    document = loc.document,
+                    range = LSPRange.from(loc.range),
+                  )
+                }
+              }
+          }
 
       def codeLens(
         documentUri: Uri
@@ -392,6 +408,11 @@ object LSPRange {
   def from(range: SourceRange, map: LocationMap): LSPRange = LSPRange(
     LSPPosition.from(range.start, map),
     LSPPosition.from(range.end, map),
+  )
+
+  def from(range: SourceRange.InFile): LSPRange = LSPRange(
+    LSPPosition(range.start.lineOneIndexed, range.start.columnOneIndexed),
+    LSPPosition(range.end.lineOneIndexed, range.end.columnOneIndexed),
   )
 
 }

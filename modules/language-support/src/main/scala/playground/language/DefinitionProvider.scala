@@ -1,46 +1,46 @@
-package playground.lsp
+package playground.language
 
 import cats.Monad
-import cats.parse.LocationMap
 import cats.syntax.all.*
 import playground.MultiServiceResolver
 import playground.ServiceIndex
 import playground.language.Uri
+import playground.smithyql.Position
 import playground.smithyql.RunQuery
 import playground.smithyql.SourceFile
+import playground.smithyql.SourceRange
 import playground.smithyql.parser.SourceParser
 import playground.std.PlaygroundSourceLocation
 import smithy4s.Hints
 import smithy4s.ShapeId
 import smithy4s.dynamic.DynamicSchemaIndex
 
-// todo move to language-support
 trait DefinitionProvider[F[_]] {
 
-  def definition(documentUri: Uri, position: LSPPosition): F[List[LSPLocation]]
+  def definition(documentUri: Uri, position: Position): F[List[Location]]
 }
 
 object DefinitionProvider {
 
-  def instance[F[_]: TextDocumentManager: Monad](
+  def instance[F[_]: TextDocumentProvider: Monad](
     dsi: DynamicSchemaIndex,
     serviceIndex: ServiceIndex,
   ): DefinitionProvider[F] = {
-    def locationFromHints(hints: Hints): Option[LSPLocation] = hints
+    def locationFromHints(hints: Hints): Option[Location] = hints
       .get[PlaygroundSourceLocation]
       .map { sourceLocation =>
-        LSPLocation(
+        Location(
           document = Uri.fromUriString(sourceLocation.file match {
             // special-casing for the Smithy LSP
             case uri if uri.startsWith("jar:") => uri.replace("jar:", "smithyjar:")
             case uri                           => uri
           }),
-          range = LSPRange(
-            from = LSPPosition(
+          range = SourceRange.InFile(
+            start = Position.InFile(
               sourceLocation.line - 1,
               sourceLocation.column - 1,
             ),
-            to = LSPPosition(
+            end = Position.InFile(
               sourceLocation.line - 1,
               sourceLocation.column - 1,
             ),
@@ -49,13 +49,9 @@ object DefinitionProvider {
       }
 
     (documentUri, position) =>
-      TextDocumentManager[F]
+      TextDocumentProvider[F]
         .get(documentUri)
         .map { text =>
-          val map = LocationMap(text)
-
-          val pos = position.unwrap(map)
-
           SourceParser[SourceFile]
             .parse(text)
             .map { sf =>
@@ -69,7 +65,7 @@ object DefinitionProvider {
                   runQueries.flatMap(_.value.identifier),
                   sf.prelude.useClauses.map(_.value.identifier),
                 )
-                .filter(_.range.contains(pos))
+                .filter(_.range.contains(position))
                 .map(_.value)
                 .flatMap { serviceId =>
                   val srv = ShapeId(serviceId.renderNamespace, serviceId.selection)
@@ -84,7 +80,7 @@ object DefinitionProvider {
                 }
 
               val forOperationName = runQueries
-                .filter(_.value.operationName.range.contains(pos))
+                .filter(_.value.operationName.range.contains(position))
                 .flatMap { opName =>
                   MultiServiceResolver
                     .resolveService(
@@ -124,3 +120,5 @@ object DefinitionProvider {
   }
 
 }
+
+case class Location(document: Uri, range: SourceRange.InFile)

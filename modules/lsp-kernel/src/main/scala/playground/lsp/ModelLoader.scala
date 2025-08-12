@@ -4,7 +4,6 @@ import coursierapi.*
 import playground.PlaygroundConfig
 import playground.lsp.buildinfo.BuildInfo
 import playground.std.PlaygroundSourceLocation
-import smithy4s.ShapeId
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
 import software.amazon.smithy.model.loader.ModelDiscovery
@@ -21,7 +20,6 @@ import java.net.URL
 import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Files
-import scala.concurrent.duration.*
 import scala.jdk.CollectionConverters.*
 import scala.util.Using
 import scala.util.chaining.*
