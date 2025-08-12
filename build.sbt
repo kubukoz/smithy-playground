@@ -82,15 +82,6 @@ ThisBuild / scalaVersion := ScalaNext
 import scala.sys.process.*
 import scala.util.chaining.*
 
-// Workaround for https://github.com/coursier/coursier/issues/2001
-// from https://github.com/coursier/coursier/issues/2001#issuecomment-2556556628
-def jsoniterFix(deps: Seq[ModuleID]) =
-  deps.map(
-    _.exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_3")
-  ) ++ Seq(
-    "com.github.plokhotnyuk.jsoniter-scala" % "jsoniter-scala-core_2.13" % jsoniterVersion
-  )
-
 def crossPlugin(
   x: sbt.librarymanagement.ModuleID
 ) = compilerPlugin(x.cross(CrossVersion.full))
@@ -151,7 +142,7 @@ lazy val pluginCore = module("plugin-core")
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
-    ).pipe(jsoniterFix),
+    ),
     // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
     mimaPreviousArtifacts := Set.empty,
     scalaVersion := ScalaLTS,
@@ -234,7 +225,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.31" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.60.3" % Test,
-    ).pipe(jsoniterFix)
+    )
   )
   .dependsOn(
     protocol4s,
@@ -257,11 +248,10 @@ lazy val lspKernel = module("lsp-kernel")
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-core" % "0.14.14",
       "org.http4s" %% "http4s-ember-client" % "0.23.30",
-      ("io.get-coursier" % "coursier_2.13" % "2.1.24")
-        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
+      "io.get-coursier" % "interface" % "1.0.28",
       "org.typelevel" %% "cats-tagless-core" % "0.16.3",
       "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
-    ).pipe(jsoniterFix),
+    ),
     (Test / test) := {
       (pluginCore / publishLocal).value
       (pluginSample / publishLocal).value
