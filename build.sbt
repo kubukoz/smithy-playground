@@ -12,6 +12,7 @@ inThisBuild(
       )
     ),
     tlBaseVersion := "0.10",
+    tlJdkRelease := Some(11),
   )
 )
 
@@ -121,7 +122,6 @@ val commonSettings = Seq(
     )
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
-  scalacOptions += "-release:11",
   tlFatalWarnings := false,
 )
 
