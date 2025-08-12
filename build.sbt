@@ -54,7 +54,21 @@ ThisBuild / githubWorkflowBuild := List(
     cond = Some("always() && job.status == 'failure'"),
     commands = "cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000" :: Nil,
   ),
-)
+) ++ {
+  val publishSteps =
+    (ThisBuild / githubWorkflowPublishPreamble).value ++ (ThisBuild / githubWorkflowPublish).value
+
+  publishSteps.map(
+    _.withCond(
+      Some(
+        "github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')"
+      )
+    )
+  )
+}
+
+ThisBuild / githubWorkflowArtifactUpload := false
+ThisBuild / githubWorkflowGeneratedCI ~= (_.filterNot(_.id == "publish"))
 
 ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 
