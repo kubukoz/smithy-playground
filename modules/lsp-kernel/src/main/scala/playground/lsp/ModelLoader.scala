@@ -49,16 +49,17 @@ object ModelLoader {
   def load(
     specs: Set[File],
     jars: List[File],
-  ): Model = {
-    val m = Model
-      .assembler()
-      .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
-      .pipe(addJarModels(jars))
-      .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
-      .pipe(addFileImports(specs))
-      .assemble()
-      .unwrap()
+  ): Model = Model
+    .assembler()
+    .putProperty(ModelAssembler.DISABLE_JAR_CACHE, true)
+    .pipe(addJarModels(jars))
+    .pipe(addPlaygroundModels(this.getClass().getClassLoader()))
+    .pipe(addFileImports(specs))
+    .assemble()
+    .unwrap()
+    .pipe(addSourceLocationHints)
 
+  private def addSourceLocationHints(model: Model): Model = {
     val sourceLocTraitId = {
       val shp = PlaygroundSourceLocation.id
       SmithyShapeId.from(shp.show)
@@ -67,7 +68,7 @@ object ModelLoader {
     ModelTransformer
       .create()
       .mapShapes(
-        m,
+        model,
         shp => {
           val b = Shape.shapeToBuilder(shp): AbstractShapeBuilder[?, ? <: Shape]
 
