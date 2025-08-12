@@ -181,6 +181,8 @@ object converters {
         )
       )
 
+    def location(loc: LSPLocation): lsp4j.Location = ???
+
     def codeLens(lens: LSPCodeLens): lsp4j.CodeLens = codeLens(lens.map, lens.lens)
 
     private def codeLens(

@@ -40,7 +40,6 @@ import playground.smithyql.SourceRange
 import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-// todo: move to kernel
 trait LanguageServer[F[_]] {
 
   def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult]
@@ -90,6 +89,11 @@ trait LanguageServer[F[_]] {
     commandName: String,
     arguments: List[Json],
   ): F[Unit]
+
+  def definition(
+    documentUri: Uri,
+    position: LSPPosition,
+  ): F[List[LSPLocation]]
 
   // custom smithyql/runQuery LSP request
   def runFile(
@@ -241,6 +245,8 @@ object LanguageServer {
             .map(LSPDiagnostic(_, map))
         }
 
+      def definition(documentUri: Uri, position: LSPPosition): F[List[LSPLocation]] = ???
+
       def codeLens(
         documentUri: Uri
       ): F[List[LSPCodeLens]] = TextDocumentManager[F]
@@ -343,6 +349,7 @@ trait ServerCapabilitiesCompiler {
   def diagnosticProvider: Result
   def codeLensProvider: Result
   def documentSymbolProvider: Result
+  def definitionProvider: Result
 }
 
 case class ServerInfo(name: String, version: String)
@@ -357,6 +364,7 @@ case class LSPCodeLens(lens: CodeLens, map: LocationMap)
 case class LSPDocumentSymbol(sym: DocumentSymbol, map: LocationMap)
 case class LSPCompletionItem(item: CompletionItem, map: LocationMap)
 case class LSPTextEdit(textEdit: TextEdit, map: LocationMap)
+case class LSPLocation(document: Uri, range: LSPRange)
 
 case class LSPPosition(line: Int, character: Int) {
 
