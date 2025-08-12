@@ -15,29 +15,12 @@ inThisBuild(
   )
 )
 
-/*
-
-      # This step isn't strictly necessary, but separating it means we can inspect its run time more easily.
-      - name: Setup environment
-        run: nix develop --command echo Environment ready
-
-      - name: Server tests
-        run: nix develop --command sbt ci
-
-      - name: VS Code extension tests
-        run: nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'
-
-      - name: Show extension test logs
-        if: always() && job.status == 'failure'
-        run: cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000
-
- */
-
 ThisBuild / githubWorkflowSbtCommand := "nix develop --command sbt"
 
 ThisBuild / githubWorkflowJobSetup ~= (_.filter(
   _.name.exists(_.contains("Checkout current branch"))
 ))
+
 ThisBuild / githubWorkflowJobSetup ++= List(
   WorkflowStep.Use(
     ref = UseRef.Public("cachix", "install-nix-action", "v23")
@@ -72,8 +55,7 @@ ThisBuild / githubWorkflowBuild := List(
   ),
 )
 
-// wrap release in nix develop --command
-// ThisBuild / githubWorkflowPublish ~=
+ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 
 val ScalaLTS = "3.3.6"
 val ScalaNext = "3.7.1"
