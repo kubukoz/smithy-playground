@@ -126,6 +126,7 @@ val commonSettings = Seq(
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   tlFatalWarnings := false,
+  tlCiMimaBinaryIssueCheck := false,
 )
 
 def module(
@@ -141,8 +142,7 @@ lazy val pluginCore = module("plugin-core")
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
     ),
-    // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
-    mimaPreviousArtifacts := Set.empty,
+    tlCiMimaBinaryIssueCheck := true,
     scalaVersion := ScalaLTS,
   )
   .enablePlugins(TypelevelMimaPlugin)
@@ -297,7 +297,7 @@ lazy val e2e = module("e2e")
           .taskValue
           .named("lspArtifact")
       ),
-    publish / skip := true,
+    publishArtifact := false,
     Test / fork := true,
   )
   .dependsOn(lsp)
@@ -307,7 +307,7 @@ val writeVersion = taskKey[Unit]("Writes the current version to the `.version` f
 lazy val root = project
   .in(file("."))
   .settings(
-    publish / skip := true,
+    publishArtifact := false,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
     writeVersion := {
       IO.write(file(".version"), version.value)
