@@ -82,7 +82,16 @@ object ServerBuilder {
       ): F[LanguageServer[F]] =
         for {
           dsi <- BuildLoader[F].buildSchemaIndex(buildInfo)
-          plugins <- PluginResolver[F].resolve(buildInfo.config)
+          plugins <- PluginResolver[F]
+            .resolve(buildInfo.config)
+            .onError(std.Console[F].printStackTrace(_))
+            .orElse {
+              LanguageClient[F]
+                .showErrorMessage(
+                  "Failed to resolve plugins, see server log for details. Falling back to no plugins"
+                )
+                .as(Nil)
+            }
         } yield {
           val interpreters = NonEmptyList
             .of(

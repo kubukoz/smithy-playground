@@ -195,7 +195,7 @@ lazy val examples = module("examples")
       "com.disneystreaming.smithy4s" %% "smithy4s-core" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-kernel" % smithy4sVersion.value,
     ),
-    publish := false,
+    publishArtifact := false,
     // generated code
     scalacOptions += "-Wconf:cat=deprecation:silent",
   )

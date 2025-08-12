@@ -27,6 +27,7 @@ object PluginResolver {
       ): F[List[PlaygroundPlugin]] = Sync[F]
         .interruptibleMany(ModelLoader.makeClassLoaderForPlugins(config))
         .map(PlaygroundPlugin.getAllPlugins(_))
+        .adaptErr(new Exception("Failed to resolve plugins", _))
 
     }
 
