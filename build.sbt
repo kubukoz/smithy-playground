@@ -122,8 +122,7 @@ val commonSettings = Seq(
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   scalacOptions += "-release:11",
-  mimaFailOnNoPrevious := false,
-  mimaPreviousArtifacts := Set.empty,
+  tlFatalWarnings := false,
 )
 
 def module(
