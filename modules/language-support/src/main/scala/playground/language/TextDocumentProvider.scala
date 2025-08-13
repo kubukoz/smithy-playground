@@ -2,6 +2,7 @@ package playground.language
 
 import cats.Applicative
 import cats.syntax.all.*
+import playground.Uri
 
 trait TextDocumentProvider[F[_]] {
 

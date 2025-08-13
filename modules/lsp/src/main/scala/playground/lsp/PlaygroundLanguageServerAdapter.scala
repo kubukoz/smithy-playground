@@ -68,6 +68,8 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
                 def codeLensProvider: Result = _.setCodeLensProvider(new lsp4j.CodeLensOptions())
 
                 def documentSymbolProvider: Result = _.setDocumentSymbolProvider(true)
+
+                def definitionProvider: Result = _.setDefinitionProvider(true)
               }
             )
           ),
@@ -158,6 +160,23 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
             .pipe(messages.Either.forLeft(_))
         }
     )
+
+  @JsonRequest("textDocument/definition")
+  def definition(
+    params: lsp4j.DefinitionParams
+  ): CompletableFuture[
+    messages.Either[java.util.List[lsp4j.Location], java.util.List[lsp4j.LocationLink]]
+  ] = d
+    .unsafeToCompletableFuture {
+      impl
+        .definition(
+          documentUri = converters.fromLSP.uri(params.getTextDocument),
+          position = converters.fromLSP.position(params.getPosition),
+        )
+        .map { locations =>
+          locations.map(converters.toLSP.location).asJava.pipe(messages.Either.forLeft(_))
+        }
+    }
 
   @JsonRequest("textDocument/diagnostic")
   def diagnostic(

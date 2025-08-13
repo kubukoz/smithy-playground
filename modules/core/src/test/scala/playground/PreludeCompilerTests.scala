@@ -6,6 +6,7 @@ import cats.data.IorNel
 import cats.data.NonEmptyList
 import cats.syntax.all.*
 import com.softwaremill.diffx.cats.*
+import playground.ServiceIndex.OperationMetadata
 import playground.smithyql.OperationName
 import playground.smithyql.Prelude
 import playground.smithyql.QualifiedIdentifier
@@ -28,7 +29,11 @@ object PreludeCompilerTests extends FunSuite {
   private def metadata(
     operationNames: Set[OperationName[Id]] = Set.empty,
     deprecated: Option[DeprecatedInfo] = None,
-  ): ServiceIndex.ServiceMetadata = ServiceIndex.ServiceMetadata(operationNames, deprecated)
+  ): ServiceIndex.ServiceMetadata = ServiceIndex.ServiceMetadata(
+    operationNames.map(opName => OperationMetadata(opName, none)),
+    deprecated,
+    location = None,
+  )
 
   test("Prelude compiler with no services validates empty prelude") {
     val result = compile(

@@ -150,7 +150,8 @@ val commonSettings = Seq(
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   tlFatalWarnings := false,
-  tlCiMimaBinaryIssueCheck := false,
+  mimaPreviousArtifacts := Set.empty,
+  mimaFailOnNoPrevious := false,
   resolvers += "Sonatype S01 snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
 )
 
@@ -167,7 +168,7 @@ lazy val pluginCore = module("plugin-core")
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
     ),
-    tlCiMimaBinaryIssueCheck := true,
+    mimaPreviousArtifacts := tlMimaPreviousVersions.value.map(organization.value %% name.value % _),
     scalaVersion := ScalaLTS,
   )
   .enablePlugins(TypelevelMimaPlugin)
@@ -271,7 +272,7 @@ lazy val examples = module("examples")
       "com.disneystreaming.smithy4s" %% "smithy4s-core" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-kernel" % smithy4sVersion.value,
     ),
-    publish := false,
+    publishArtifact := false,
     // generated code
     scalacOptions += "-Wconf:cat=deprecation:silent",
   )

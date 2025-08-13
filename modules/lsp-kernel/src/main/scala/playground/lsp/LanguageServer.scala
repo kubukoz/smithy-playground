@@ -19,6 +19,7 @@ import playground.FileRunner
 import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.ServiceIndex
+import playground.Uri
 import playground.language
 import playground.language.CodeLens
 import playground.language.CodeLensProvider
@@ -26,6 +27,7 @@ import playground.language.CommandProvider
 import playground.language.CommandResultReporter
 import playground.language.CompletionItem
 import playground.language.CompletionProvider
+import playground.language.DefinitionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbol
 import playground.language.DocumentSymbolProvider
@@ -33,14 +35,12 @@ import playground.language.Feedback
 import playground.language.FormattingProvider
 import playground.language.TextDocumentProvider
 import playground.language.TextEdit
-import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
 import playground.types.*
 import smithy4s.dynamic.DynamicSchemaIndex
 
-// todo: move to kernel
 trait LanguageServer[F[_]] {
 
   def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult]
@@ -90,6 +90,11 @@ trait LanguageServer[F[_]] {
     commandName: String,
     arguments: List[Json],
   ): F[Unit]
+
+  def definition(
+    documentUri: Uri,
+    position: LSPPosition,
+  ): F[List[LSPLocation]]
 
   // custom smithyql/runQuery LSP request
   def runFile(
@@ -146,6 +151,8 @@ object LanguageServer {
         getFormatterWidth
       )
 
+      val definitionProvider = DefinitionProvider.instance[F](serviceIndex)
+
       def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult] = {
         def capabilities(compiler: ServerCapabilitiesCompiler): compiler.Result = {
           given Semigroup[compiler.Result] = compiler.semigroup
@@ -154,7 +161,8 @@ object LanguageServer {
             compiler.completionProvider |+|
             compiler.diagnosticProvider |+|
             compiler.codeLensProvider |+|
-            compiler.documentSymbolProvider
+            compiler.documentSymbolProvider |+|
+            compiler.definitionProvider
         }
 
         val serverInfo = ServerInfo("Smithy Playground", BuildInfo.version)
@@ -173,7 +181,7 @@ object LanguageServer {
                   )
               }
             }
-            .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
+            .onError { case e => LanguageClient[F].showErrorMessage("Failed to reload project") }
             .attempt
             .as(InitializeResult(capabilities, serverInfo))
       }
@@ -240,6 +248,24 @@ object LanguageServer {
           diags
             .map(LSPDiagnostic(_, map))
         }
+
+      def definition(documentUri: Uri, position: LSPPosition): F[List[LSPLocation]] =
+        TextDocumentManager[F]
+          .get(documentUri)
+          .flatMap { documentText =>
+            val map = LocationMap(documentText)
+
+            definitionProvider
+              .definition(documentUri, position.unwrap(map))
+              .map {
+                _.map { loc =>
+                  LSPLocation(
+                    document = loc.document,
+                    range = LSPRange.from(loc.range),
+                  )
+                }
+              }
+          }
 
       def codeLens(
         documentUri: Uri
@@ -343,6 +369,7 @@ trait ServerCapabilitiesCompiler {
   def diagnosticProvider: Result
   def codeLensProvider: Result
   def documentSymbolProvider: Result
+  def definitionProvider: Result
 }
 
 case class ServerInfo(name: String, version: String)
@@ -357,6 +384,7 @@ case class LSPCodeLens(lens: CodeLens, map: LocationMap)
 case class LSPDocumentSymbol(sym: DocumentSymbol, map: LocationMap)
 case class LSPCompletionItem(item: CompletionItem, map: LocationMap)
 case class LSPTextEdit(textEdit: TextEdit, map: LocationMap)
+case class LSPLocation(document: Uri, range: LSPRange)
 
 case class LSPPosition(line: Int, character: Int) {
 
@@ -380,6 +408,11 @@ object LSPRange {
   def from(range: SourceRange, map: LocationMap): LSPRange = LSPRange(
     LSPPosition.from(range.start, map),
     LSPPosition.from(range.end, map),
+  )
+
+  def from(range: SourceRange.InFile): LSPRange = LSPRange(
+    LSPPosition(range.start.lineOneIndexed, range.start.columnOneIndexed),
+    LSPPosition(range.end.lineOneIndexed, range.end.columnOneIndexed),
   )
 
 }

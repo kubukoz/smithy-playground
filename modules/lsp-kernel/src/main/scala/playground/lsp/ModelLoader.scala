@@ -3,17 +3,23 @@ package playground.lsp
 import coursierapi.*
 import playground.PlaygroundConfig
 import playground.lsp.buildinfo.BuildInfo
+import playground.std.PlaygroundSourceLocation
 import software.amazon.smithy.model.Model
 import software.amazon.smithy.model.loader.ModelAssembler
 import software.amazon.smithy.model.loader.ModelDiscovery
 import software.amazon.smithy.model.loader.ModelManifestException
+import software.amazon.smithy.model.node.Node
+import software.amazon.smithy.model.shapes.AbstractShapeBuilder
+import software.amazon.smithy.model.shapes.Shape
+import software.amazon.smithy.model.shapes.ShapeId as SmithyShapeId
+import software.amazon.smithy.model.traits.DynamicTrait
+import software.amazon.smithy.model.transform.ModelTransformer
 
 import java.io.File
 import java.net.URL
 import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Files
-import scala.concurrent.duration.*
 import scala.jdk.CollectionConverters.*
 import scala.util.Using
 import scala.util.chaining.*
@@ -49,6 +55,38 @@ object ModelLoader {
     .pipe(addFileImports(specs))
     .assemble()
     .unwrap()
+    .pipe(addSourceLocationHints)
+
+  private def addSourceLocationHints(model: Model): Model = {
+    val sourceLocTraitId = {
+      val shp = PlaygroundSourceLocation.id
+      SmithyShapeId.from(shp.show)
+    }
+
+    ModelTransformer
+      .create()
+      .mapShapes(
+        model,
+        shp => {
+          val b = Shape.shapeToBuilder(shp): AbstractShapeBuilder[?, ? <: Shape]
+
+          val loc = shp.getSourceLocation()
+
+          b.addTrait(
+            new DynamicTrait(
+              sourceLocTraitId,
+              Node
+                .objectNode()
+                .withMember("file", loc.getFilename())
+                .withMember("line", loc.getLine())
+                .withMember("column", loc.getColumn()),
+            )
+          )
+
+          b.build()
+        },
+      )
+  }
 
   // Credits: myself, in smithy4s 0.17.5
   private def addJarModels(

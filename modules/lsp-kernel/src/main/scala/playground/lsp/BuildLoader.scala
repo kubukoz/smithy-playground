@@ -5,8 +5,8 @@ import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
 import playground.PlaygroundConfig
+import playground.Uri
 import playground.language.TextDocumentProvider
-import playground.language.Uri
 import smithy4s.dynamic.DynamicSchemaIndex
 
 trait BuildLoader[F[_]] {
@@ -84,6 +84,7 @@ object BuildLoader {
               .map(BuildLoader.Loaded.apply(_, filePath))
           }
       }
+        .adaptErr(new Exception("Failed to load build configuration", _))
 
       def buildSchemaIndex(
         loaded: BuildLoader.Loaded
@@ -107,6 +108,7 @@ object BuildLoader {
           dsi = DynamicSchemaIndex.loadModel(model)
         } yield dsi
       }
+        .adaptErr(new Exception("Failed to load schema index", _))
 
       private def loadModel(
         specs: Set[Path],
