@@ -2,23 +2,11 @@ package playground.smithyql
 
 import playground.Assertions.*
 import playground.Diffs.given
+import playground.TestTextUtils.*
 import playground.smithyql.parser.SourceParser
 import weaver.*
 
 object AtPositionTests extends FunSuite {
-
-  val CURSOR = """<<HERE>>"""
-
-  def extractCursor(
-    s: String
-  ): (
-    String,
-    Position,
-  ) = {
-    val cursor = Position(s.indexOf(CURSOR))
-
-    (s.replace(CURSOR, ""), cursor)
-  }
 
   def locateAtCursor(
     text: String

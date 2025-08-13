@@ -54,7 +54,7 @@ object ServiceIndex {
     fromMappings(serviceMeta)
   }
 
-  def locationFromHints(hints: Hints): Option[Location] = hints
+  private def locationFromHints(hints: Hints): Option[Location] = hints
     .get[PlaygroundSourceLocation]
     .map { sourceLocation =>
       Location(
