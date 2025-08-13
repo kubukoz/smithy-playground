@@ -113,6 +113,7 @@ object LanguageServer {
     F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
   ](
     dsi: DynamicSchemaIndex,
+    serviceIndex: ServiceIndex,
     runner: FileRunner.Resolver[F],
   ): LanguageServer[F] =
     new LanguageServer[F] {
@@ -126,18 +127,17 @@ object LanguageServer {
 
         }
 
-      // see if we can pass this everywhere
-      // https://github.com/kubukoz/smithy-playground/issues/164
-      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
-
       val compiler: FileCompiler[IorThrow] = FileCompiler
         .instance(
           PreludeCompiler.instance[CompilationError.InIorNel](serviceIndex),
-          OperationCompiler.fromSchemaIndex(dsi),
+          OperationCompiler.fromSchemaIndex(dsi, serviceIndex),
         )
         .mapK(CompilationFailed.wrapK)
 
-      val completionProvider: CompletionProvider = CompletionProvider.forSchemaIndex(dsi)
+      val completionProvider: CompletionProvider = CompletionProvider.forSchemaIndex(
+        dsi,
+        serviceIndex,
+      )
       val diagnosticProvider: DiagnosticProvider[F] = DiagnosticProvider.instance(compiler, runner)
       val lensProvider: CodeLensProvider[F] = CodeLensProvider.instance(compiler, runner)
 

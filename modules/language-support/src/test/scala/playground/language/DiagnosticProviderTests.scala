@@ -96,11 +96,13 @@ object DiagnosticProviderTests extends SimpleIOSuite {
     Interpreters.stdlib[IO],
   )
 
+  private val serviceIndex = ServiceIndex.fromServices(services)
+
   private val provider = DiagnosticProvider.instance(
     compiler = FileCompiler
       .instance(
-        PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
-        OperationCompiler.fromServices(services),
+        PreludeCompiler.instance[CompilationError.InIorNel](serviceIndex),
+        OperationCompiler.fromServices(services, serviceIndex),
       )
       .mapK(CompilationFailed.wrapK),
     fileRunner = FileRunner.instance(
@@ -110,7 +112,7 @@ object DiagnosticProviderTests extends SimpleIOSuite {
           getSchema = _ => None,
           interpreters = interpreters,
         ),
-        ServiceIndex.fromServices(services),
+        serviceIndex,
       )
     ),
   )

@@ -86,11 +86,13 @@ object OperationCompiler {
   }
 
   def fromSchemaIndex(
-    dsi: DynamicSchemaIndex
-  ): OperationCompiler[Eff] = fromServices(dsi.allServices.toList)
+    dsi: DynamicSchemaIndex,
+    serviceIndex: ServiceIndex,
+  ): OperationCompiler[Eff] = fromServices(dsi.allServices.toList, serviceIndex)
 
   def fromServices(
-    services: List[DynamicSchemaIndex.ServiceWrapper]
+    services: List[DynamicSchemaIndex.ServiceWrapper],
+    serviceIndex: ServiceIndex,
   ): OperationCompiler[Eff] = {
     val compilers: Map[QualifiedIdentifier, OperationCompiler[IorNel[CompilationError, *]]] =
       services.map { svc =>
@@ -100,7 +102,7 @@ object OperationCompiler {
 
     new MultiServiceCompiler(
       compilers,
-      ServiceIndex.fromServices(services),
+      serviceIndex,
     )
   }
 
@@ -199,7 +201,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
       .flatMap { ref =>
         service
           .hints
-          .get(api.Deprecated)
+          .get[api.Deprecated]
           .map(DeprecatedInfo.fromHint)
           .map(CompilationError.deprecation(_, ref.range))
       }
@@ -211,7 +213,7 @@ private class ServiceCompiler[Alg[_[_, _, _, _, _]]](
     endpointHints: Hints,
   ): IorNel[CompilationError, Unit] =
     endpointHints
-      .get(api.Deprecated)
+      .get[api.Deprecated]
       .map { info =>
         CompilationError.deprecation(
           DeprecatedInfo.fromHint(info),

@@ -33,19 +33,19 @@ trait CompletionProvider {
 object CompletionProvider {
 
   def forSchemaIndex(
-    dsi: DynamicSchemaIndex
-  ): CompletionProvider = forServices(dsi.allServices.toList)
+    dsi: DynamicSchemaIndex,
+    serviceIndex: ServiceIndex,
+  ): CompletionProvider = forServices(dsi.allServices.toList, serviceIndex)
 
   def forServices(
-    allServices: List[DynamicSchemaIndex.ServiceWrapper]
+    allServices: List[DynamicSchemaIndex.ServiceWrapper],
+    serviceIndex: ServiceIndex,
   ): CompletionProvider = {
     // long-term, it'd be nice to get rid of this (too low level)
     val servicesById =
       allServices.map { service =>
         QualifiedIdentifier.forService(service.service) -> service
       }.toMap
-
-    val serviceIndex = ServiceIndex.fromServices(allServices)
 
     // Completions for the service's operations.
     // Uses a list of imported services (use clauses) to determine whether a new use clause is needed to use this service's operations.
