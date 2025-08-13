@@ -28,6 +28,15 @@ object DefinitionProvider {
         SourceParser[SourceFile]
           .parse(text)
           .map { sf =>
+            // Note: there's a bit of relatedness/duplication here and in the following:
+            // - DocumentSymbolProvider
+            // - RangeIndex
+            // They all have different purposes in the end, but they pretty much navigate around the structure the same way.
+            // Notably, DefinitionProvider is the only one that requires some semantic connection to the model, i.e. a ServiceIndex
+            // and the other two are purely syntactic.
+            // This one is also not indexed, i.e. we compute just the item we're interested in, and don't precompute all the symbols or ranges.
+            // still, if Playground actually was a well written compiler, we could share a lot of logic here.
+
             val runQueries = sf
               .statements
               .value
