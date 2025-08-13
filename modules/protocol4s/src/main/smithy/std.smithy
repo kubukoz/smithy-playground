@@ -39,3 +39,15 @@ operation CurrentTimestamp {
         value: Timestamp
     }
 }
+
+@trait
+structure PlaygroundSourceLocation {
+    @required
+    file: String
+
+    @required
+    line: Integer
+
+    @required
+    column: Integer
+}

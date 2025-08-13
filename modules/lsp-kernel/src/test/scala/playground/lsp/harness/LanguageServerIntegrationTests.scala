@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.IOLocal
 import cats.effect.Resource
 import cats.syntax.all.*
-import playground.language.Uri
+import playground.Uri
 import playground.lsp.LanguageServer
 import playground.lsp.MainServer
 import playground.lsp.MessageType

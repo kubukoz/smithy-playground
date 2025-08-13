@@ -10,6 +10,7 @@ import playground.CompiledInput
 import playground.FileCompiler
 import playground.FileRunner
 import playground.OperationRunner
+import playground.Uri
 import playground.smithyql.Query
 import playground.smithyql.SourceFile
 import playground.smithyql.WithSource

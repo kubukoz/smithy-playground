@@ -2,6 +2,7 @@ package playground.language
 
 import cats.FlatMap
 import cats.syntax.all.*
+import playground.Uri
 import playground.smithyql.SourceFile
 import playground.smithyql.SourceRange
 import playground.smithyql.format.Formatter

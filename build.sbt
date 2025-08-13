@@ -126,7 +126,8 @@ val commonSettings = Seq(
   },
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   tlFatalWarnings := false,
-  tlCiMimaBinaryIssueCheck := false,
+  mimaPreviousArtifacts := Set.empty,
+  mimaFailOnNoPrevious := false,
 )
 
 def module(
@@ -142,7 +143,7 @@ lazy val pluginCore = module("plugin-core")
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
     ),
-    tlCiMimaBinaryIssueCheck := true,
+    mimaPreviousArtifacts := tlMimaPreviousVersions.value.map(organization.value %% name.value % _),
     scalaVersion := ScalaLTS,
   )
   .enablePlugins(TypelevelMimaPlugin)

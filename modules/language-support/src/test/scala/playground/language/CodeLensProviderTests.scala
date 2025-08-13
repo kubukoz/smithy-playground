@@ -12,6 +12,7 @@ import playground.OperationRunner
 import playground.PreludeCompiler
 import playground.ServiceIndex
 import playground.ServiceUtils.*
+import playground.Uri
 import playground.language.Diffs.given
 import playground.smithyql.StringRangeUtils.*
 import playground.std.RandomGen

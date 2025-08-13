@@ -4,7 +4,7 @@ import cats.MonadThrow
 import cats.effect.kernel.Ref
 import cats.syntax.all.*
 import playground.PlaygroundConfig
-import playground.language.Uri
+import playground.Uri
 
 trait ServerLoader[F[_]] {
   type Params

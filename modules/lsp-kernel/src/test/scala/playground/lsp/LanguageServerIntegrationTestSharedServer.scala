@@ -9,8 +9,8 @@ import org.http4s.implicits.*
 import org.http4s.server.Server
 import playground.CompilationErrorDetails.ParseError
 import playground.DiagnosticSeverity
+import playground.Uri
 import playground.language.Command
-import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient

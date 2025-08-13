@@ -5,8 +5,8 @@ import cats.effect.Concurrent
 import cats.effect.kernel.Ref
 import cats.syntax.all.*
 import fs2.io.file.Files
+import playground.Uri
 import playground.language.TextDocumentProvider
-import playground.language.Uri
 
 trait TextDocumentManager[F[_]] extends TextDocumentProvider[F] {
 
