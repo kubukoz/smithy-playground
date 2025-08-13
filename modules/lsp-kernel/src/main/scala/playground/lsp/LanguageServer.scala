@@ -174,12 +174,14 @@ object LanguageServer {
           ServerLoader[F]
             .prepare(workspaceFolders.some)
             .flatMap { prepped =>
-              ServerLoader[F].perform(prepped.params).flatTap { stats =>
-                Feedback[F]
-                  .showInfoMessage(
-                    s"Loaded Smithy Playground server with ${stats.render}"
-                  )
-              }
+              Feedback[F]
+                .showInfoMessage(s"Loaded build: $prepped...") *>
+                ServerLoader[F].perform(prepped.params).flatTap { stats =>
+                  Feedback[F]
+                    .showInfoMessage(
+                      s"Loaded Smithy Playground server with ${stats.render}"
+                    )
+                }
             }
             .onError { case e => LanguageClient[F].showErrorMessage("Failed to reload project") }
             .attempt
