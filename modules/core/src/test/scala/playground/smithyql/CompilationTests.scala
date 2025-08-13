@@ -94,14 +94,18 @@ object CompilationTests extends SimpleIOSuite with Checkers {
     services: List[DynamicSchemaIndex.ServiceWrapper]
   )(
     q: SourceFile[WithSource]
-  ): IorThrow[List[CompiledInput]] = playground
-    .FileCompiler
-    .instance(
-      PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
-      OperationCompiler.fromServices(services),
-    )
-    .mapK(CompilationFailed.wrapK)
-    .compile(q)
+  ): IorThrow[List[CompiledInput]] = {
+    val serviceIndex = ServiceIndex.fromServices(services)
+
+    playground
+      .FileCompiler
+      .instance(
+        PreludeCompiler.instance[CompilationError.InIorNel](serviceIndex),
+        OperationCompiler.fromServices(services, serviceIndex),
+      )
+      .mapK(CompilationFailed.wrapK)
+      .compile(q)
+  }
 
   val dynamicModel: DynamicSchemaIndex = DynamicModel.discover()
 

@@ -32,11 +32,13 @@ object CodeLensProviderTests extends FunSuite {
 
   private val services = List(wrapService(RandomGen))
 
+  private val serviceIndex = ServiceIndex.fromServices(services)
+
   private val provider = CodeLensProvider.instance(
     FileCompiler
       .instance(
-        PreludeCompiler.instance[CompilationError.InIorNel](ServiceIndex.fromServices(services)),
-        OperationCompiler.fromServices(services),
+        PreludeCompiler.instance[CompilationError.InIorNel](serviceIndex),
+        OperationCompiler.fromServices(services, serviceIndex),
       )
       // this shouldn't be here (it's a responsibility of file compiler)
       .mapK(CompilationFailed.wrapK),

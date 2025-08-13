@@ -117,7 +117,11 @@ object ServerBuilder {
           implicit val reporter: CommandResultReporter[F] = rep
 
           LanguageServer
-            .instance[F](dsi, FileRunner.instance(OperationRunner.merge[F](runners, serviceIndex)))
+            .instance[F](
+              dsi = dsi,
+              serviceIndex = serviceIndex,
+              runner = FileRunner.instance(OperationRunner.merge[F](runners, serviceIndex)),
+            )
         }
     }
   }
