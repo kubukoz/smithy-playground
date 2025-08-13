@@ -5,9 +5,7 @@ import playground.smithyql.OperationName
 import playground.smithyql.Position
 import playground.smithyql.QualifiedIdentifier
 import playground.smithyql.SourceRange
-import playground.std.PlaygroundSourceLocation
 import smithy.api
-import smithy4s.Hints
 import smithy4s.dynamic.DynamicSchemaIndex
 import smithyql.syntax.*
 
@@ -32,49 +30,33 @@ object ServiceIndex {
   val empty: ServiceIndex = fromServices(Nil)
 
   def fromServices(
-    services: List[DynamicSchemaIndex.ServiceWrapper]
+    services: List[DynamicSchemaIndex.ServiceWrapper],
+    getLocation: QualifiedIdentifier => Option[Location] = Function.const(None),
   ): ServiceIndex = {
 
     val serviceMeta: Map[QualifiedIdentifier, ServiceMetadata] =
       services.map { svc =>
-        QualifiedIdentifier.forService(svc.service) ->
+        val ident = QualifiedIdentifier.forService(svc.service)
+
+        ident ->
           ServiceMetadata(
             svc
               .service
               .endpoints
               .map { e =>
-                OperationMetadata(OperationName[Id](e.name), location = locationFromHints(e.hints))
+                OperationMetadata(
+                  OperationName[Id](e.name),
+                  location = getLocation(QualifiedIdentifier.fromShapeId(e.id)),
+                )
               }
               .toSet,
             svc.service.hints.get[api.Deprecated].map(DeprecatedInfo.fromHint),
-            location = locationFromHints(svc.service.hints),
+            location = getLocation(ident),
           )
       }.toMap
 
     fromMappings(serviceMeta)
   }
-
-  private def locationFromHints(hints: Hints): Option[Location] = hints
-    .get[PlaygroundSourceLocation]
-    .map { sourceLocation =>
-      Location(
-        document = Uri.fromUriString(sourceLocation.file match {
-          // special-casing for the Smithy LSP
-          case uri if uri.startsWith("jar:") => uri.replace("jar:", "smithyjar:")
-          case uri                           => uri
-        }),
-        range = SourceRange.InFile(
-          start = Position.InFile(
-            sourceLocation.line - 1,
-            sourceLocation.column - 1,
-          ),
-          end = Position.InFile(
-            sourceLocation.line - 1,
-            sourceLocation.column - 1,
-          ),
-        ),
-      )
-    }
 
   private[playground] def fromMappings(
     mappings: Map[QualifiedIdentifier, ServiceMetadata]
