@@ -4,6 +4,7 @@ import cats.FlatMap
 import cats.MonadThrow
 import cats.data.Kleisli
 import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
 import cats.kernel.Semigroup
 import cats.parse.LocationMap
 import cats.syntax.all.*
@@ -33,6 +34,7 @@ import playground.language.DocumentSymbol
 import playground.language.DocumentSymbolProvider
 import playground.language.Feedback
 import playground.language.FormattingProvider
+import playground.language.Progress
 import playground.language.TextDocumentProvider
 import playground.language.TextEdit
 import playground.lsp.buildinfo.BuildInfo
@@ -43,7 +45,11 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 trait LanguageServer[F[_]] {
 
-  def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult]
+  def initialize[A](
+    workspaceFolders: List[Uri],
+    progressToken: Option[String],
+    clientCapabilities: ClientCapabilities,
+  ): F[InitializeResult]
 
   def didChange(
     documentUri: Uri,
@@ -110,7 +116,8 @@ object LanguageServer {
   )
 
   def instance[
-    F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
+    F[_]: {Async, TextDocumentManager, LanguageClient, ServerLoader, CommandResultReporter,
+      Progress.Make}
   ](
     dsi: DynamicSchemaIndex,
     serviceIndex: ServiceIndex,
@@ -153,7 +160,11 @@ object LanguageServer {
 
       val definitionProvider = DefinitionProvider.instance[F](serviceIndex)
 
-      def initialize[A](workspaceFolders: List[Uri]): F[InitializeResult] = {
+      def initialize[A](
+        workspaceFolders: List[Uri],
+        progressToken: Option[String],
+        clientCapabilities: ClientCapabilities,
+      ): F[InitializeResult] = {
         def capabilities(compiler: ServerCapabilitiesCompiler): compiler.Result = {
           given Semigroup[compiler.Result] = compiler.semigroup
           compiler.textDocumentSync(TextDocumentSyncKind.Full) |+|
@@ -167,21 +178,34 @@ object LanguageServer {
 
         val serverInfo = ServerInfo("Smithy Playground", BuildInfo.version)
 
-        Feedback[F]
-          .showInfoMessage(
-            s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
-          ) *>
+        val mkProgress = progressToken
+          .traverse { token =>
+            Progress
+              .fromToken(token = token, title = "Loading project", message = None)
+          }
+          .map(_.getOrElse(Progress.fallback[F]))
+
+        LanguageClient[F]
+          .enableProgressCapability
+          .whenA(clientCapabilities.windowProgress) *>
+          Feedback[F]
+            .showInfoMessage(
+              s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
+            ) *>
           ServerLoader[F]
             .prepare(workspaceFolders.some)
             .flatMap { prepped =>
-              Feedback[F]
-                .showInfoMessage("Loaded build definition from workspace...") *>
-                ServerLoader[F].perform(prepped.params).flatTap { stats =>
-                  Feedback[F]
-                    .showInfoMessage(
-                      s"Loaded Smithy Playground server with ${stats.render}"
-                    )
-                }
+              mkProgress.use { progress =>
+                progress.report(message = "Loaded build definition from workspace...".some) *>
+                  ServerLoader[F]
+                    .perform(prepped.params, progress)
+                    .flatTap { stats =>
+                      Feedback[F]
+                        .showInfoMessage(
+                          s"Loaded Smithy Playground server with ${stats.render}"
+                        )
+                    }
+              }
             }
             .onError { case e => LanguageClient[F].showErrorMessage("Failed to reload project") }
             .attempt
@@ -303,8 +327,12 @@ object LanguageServer {
             )
           case prepared =>
             Feedback[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
-              ServerLoader[F]
-                .perform(prepared.params)
+              Progress
+                .create(title = "Rebuilding server", message = None)
+                .use {
+                  ServerLoader[F]
+                    .perform(prepared.params, _)
+                }
                 .onError { case e =>
                   LanguageClient[F].showErrorMessage(
                     "Couldn't reload server: " + e.getMessage
@@ -373,6 +401,8 @@ trait ServerCapabilitiesCompiler {
   def documentSymbolProvider: Result
   def definitionProvider: Result
 }
+
+case class ClientCapabilities(windowProgress: Boolean)
 
 case class ServerInfo(name: String, version: String)
 

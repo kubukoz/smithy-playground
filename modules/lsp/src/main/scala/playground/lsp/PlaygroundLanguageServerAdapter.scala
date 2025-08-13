@@ -34,11 +34,21 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
   ): CompletableFuture[lsp4j.InitializeResult] = d.unsafeToCompletableFuture(
     impl
       .initialize(
-        params
-          .getWorkspaceFolders()
-          .asScala
-          .map(converters.fromLSP.uri(_))
-          .toList
+        workspaceFolders =
+          params
+            .getWorkspaceFolders()
+            .asScala
+            .map(converters.fromLSP.uri(_))
+            .toList,
+        progressToken = Option(params.getWorkDoneToken()).map {
+          converters
+            .fromLSP
+            .either(_)
+            .fold(identity, _.toString)
+        },
+        clientCapabilities = ClientCapabilities(
+          windowProgress = params.getCapabilities().getWindow().getWorkDoneProgress()
+        ),
       )
       .map { result =>
         new lsp4j.InitializeResult(

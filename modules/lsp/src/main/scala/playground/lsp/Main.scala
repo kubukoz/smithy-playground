@@ -48,17 +48,21 @@ object Main extends IOApp.Simple {
             .traceMessages(logWriter)
             .create()
 
-          given LanguageClient[IO] = PlaygroundLanguageClientAdapter.adapt[IO](
-            launcher.getRemoteProxy()
-          )
+          PlaygroundLanguageClientAdapter
+            .adapt[IO](
+              launcher.getRemoteProxy()
+            )
+            .toResource
+            .flatMap { case given LanguageClient[IO] =>
+              // Start listening, in the meantime construct a server
+              IO.interruptibleMany(launcher.startListening().get()).background.map(_.void) <&
+                MainServer
+                  .makeServer[IO]
+                  .evalMap { server =>
+                    serverRef.complete(server).void
+                  }
 
-          // Start listening, in the meantime construct a server
-          IO.interruptibleMany(launcher.startListening().get()).background.map(_.void) <&
-            MainServer
-              .makeServer[IO]
-              .evalMap { server =>
-                serverRef.complete(server).void
-              }
+            }
         }
     }
 
