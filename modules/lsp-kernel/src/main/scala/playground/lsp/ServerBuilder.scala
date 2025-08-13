@@ -93,13 +93,17 @@ object ServerBuilder {
       ): F[LanguageServer[F]] =
         for {
           model <- BuildLoader[F].buildModel(buildInfo)
-          _ <- Feedback[F].showInfoMessage(
-            s"Loaded model... (${model.getShapeIds().size()} shapes)"
-          )
+          _ <- Feedback[F]
+            .showInfoMessage(
+              s"Loaded model... (${model.getShapeIds().size()} shapes)"
+            )
+            .whenA(buildInfo != BuildLoader.Loaded.default)
           dsi = DynamicSchemaIndex.loadModel(model)
-          _ <- Feedback[F].showInfoMessage(
-            s"Built DSI... (${dsi.allServices.size} services, ${dsi.allSchemas.size} schema)"
-          )
+          _ <- Feedback[F]
+            .showInfoMessage(
+              s"Built DSI... (${dsi.allServices.size} services, ${dsi.allSchemas.size} schemas)"
+            )
+            .whenA(buildInfo != BuildLoader.Loaded.default)
           plugins <- PluginResolver[F]
             .resolve(buildInfo.config)
             .onError(std.Console[F].printStackTrace(_))
@@ -110,9 +114,11 @@ object ServerBuilder {
                 )
                 .as(Nil)
             }
-          _ <- Feedback[F].showInfoMessage(
-            s"Loaded ${plugins.size} plugins..."
-          )
+          _ <- Feedback[F]
+            .showInfoMessage(
+              s"Loaded ${plugins.size} plugins..."
+            )
+            .whenA(buildInfo != BuildLoader.Loaded.default)
         } yield {
           val interpreters = NonEmptyList
             .of(

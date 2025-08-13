@@ -175,7 +175,7 @@ object LanguageServer {
             .prepare(workspaceFolders.some)
             .flatMap { prepped =>
               Feedback[F]
-                .showInfoMessage(s"Loaded build: $prepped...") *>
+                .showInfoMessage("Loaded build definition from workspace...") *>
                 ServerLoader[F].perform(prepped.params).flatTap { stats =>
                   Feedback[F]
                     .showInfoMessage(
