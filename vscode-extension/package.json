@@ -100,15 +100,15 @@
   "main": "./out/extension",
   "dependencies": {
     "semver": "^7.5.2",
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^8.0.2"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.0",
     "@types/node": "^18.6.2",
-    "@types/vscode": "^1.102.0",
+    "@types/vscode": "^1.94.0",
     "@vscode/test-electron": "^2.2.0",
-    "@vscode/vsce": "^3.2.1",
     "mocha": "^10.1.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "@vscode/vsce": "^3.2.1"
   }
 }
