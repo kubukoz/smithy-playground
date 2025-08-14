@@ -87,6 +87,14 @@ pull_request_rules:
       add:
       - parser
       remove: []
+- name: Label parser-gen PRs
+  conditions:
+  - files~=^modules/parser-gen/
+  actions:
+    label:
+      add:
+      - parser-gen
+      remove: []
 - name: Label plugin-core PRs
   conditions:
   - files~=^modules/plugin-core/
@@ -118,4 +126,12 @@ pull_request_rules:
     label:
       add:
       - source
+      remove: []
+- name: Label treesitter PRs
+  conditions:
+  - files~=^modules/treesitter/
+  actions:
+    label:
+      add:
+      - treesitter
       remove: []

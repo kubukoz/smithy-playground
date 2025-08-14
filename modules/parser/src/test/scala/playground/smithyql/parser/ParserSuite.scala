@@ -8,6 +8,8 @@ import fs2.io.file.Path
 import io.circe.Codec
 import io.circe.Decoder
 import io.circe.syntax.*
+import org.polyvariant.treesitter4s.Node
+import org.polyvariant.treesitter4s.TreeSitterAPI
 import playground.Assertions.*
 import playground.smithyql.*
 import playground.smithyql.parser.v2.scanner.Scanner
@@ -19,6 +21,8 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Paths
 
 trait ParserSuite extends SimpleIOSuite {
+
+  def treeSitterWrap(fileSource: String): String = fileSource
 
   def loadParserTests[Alg[_[_]]: SourceParser](
     prefix: String,
@@ -56,6 +60,7 @@ trait ParserSuite extends SimpleIOSuite {
     }
 
     validTokensTest(testCase, trimWhitespace)
+    treeSitterTest(testCase, trimWhitespace)
   }
 
   private def validTokensTest(
@@ -70,6 +75,27 @@ trait ParserSuite extends SimpleIOSuite {
         // non-empty inputs should parse to non-empty outputs
         expect(input.isEmpty || scanned.nonEmpty) &&
         expect(errors.isEmpty)
+      }
+    }
+
+  private def treeSitterTest(
+    testCase: TestCase,
+    trimWhitespace: Boolean,
+  ) =
+    test(testCase.name + " (tree-sitter no errors)") {
+      testCase.readInput(trimWhitespace).map { input =>
+        val src = treeSitterWrap(input)
+        val scanned = TreeSitterAPI.make("smithyql").parse(src).rootNode.get
+
+        val errors = scanned
+          .fold[List[Node]](_ :: _.flatten.toList)
+          .filter(_.isError)
+          .map { node =>
+            s"${node.source} (${node.startByte} to ${node.endByte}, ${node.selfAndParents.map(_.tpe).mkString(" -> ")})"
+          }
+          .mkString("\n")
+
+        assert(errors.isEmpty) || failure("error in file: " + testCase.base) || failure(src)
       }
     }
 
@@ -91,7 +117,22 @@ trait ParserSuite extends SimpleIOSuite {
     if (!invalidTokens)
       validTokensTest(testCase, trimWhitespace)
 
+    treeSitterNegativeTest(testCase, trimWhitespace)
   }
+
+  private def treeSitterNegativeTest(
+    testCase: TestCase,
+    trimWhitespace: Boolean,
+  ) =
+    test(testCase.name + " (tree-sitter require errors)") {
+      testCase.readInput(trimWhitespace).map { input =>
+        val scanned = TreeSitterAPI.make("smithyql").parse(input).rootNode.get
+
+        val errors = scanned.fold[List[Node]](_ :: _.flatten.toList).find(_.isError)
+
+        assert(errors.nonEmpty)
+      }
+    }
 
   private def readText(
     path: Path
@@ -144,11 +185,12 @@ trait ParserSuite extends SimpleIOSuite {
     outputExtension: String,
   ) {
 
+    private val inputPath = base / "input.smithyql-test"
     private val outputPath = base / s"output$outputExtension"
 
     def readInput(
       trimWhitespace: Boolean
-    ): IO[String] = readText(base / "input.smithyql-test").map(
+    ): IO[String] = readText(inputPath).map(
       if (trimWhitespace)
         _.strip
       else

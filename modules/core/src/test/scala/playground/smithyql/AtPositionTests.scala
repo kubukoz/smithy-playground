@@ -1,5 +1,7 @@
 package playground.smithyql
 
+import cats.syntax.all.*
+import org.polyvariant.treesitter4s.TreeSitterAPI
 import playground.Assertions.*
 import playground.Diffs.given
 import playground.TestTextUtils.*
@@ -12,15 +14,16 @@ object AtPositionTests extends FunSuite {
     text: String
   ): NodeContext = {
     val (extracted, position) = extractCursor(text)
-    val parsed =
-      SourceParser[SourceFile]
-        .parse(extracted)
-        .toTry
-        .get
+    val parsedTs = playground
+      .generated
+      .nodes
+      .SourceFile
+      .unsafeApply(TreeSitterAPI.make("smithyql").parse(extracted).rootNode.get)
 
     RangeIndex
-      .build(parsed)
+      .build(parsedTs)
       .findAtPosition(position)
+      .getOrElse(NodeContext.EmptyPath)
   }
 
   // tests for before/after/between queries
