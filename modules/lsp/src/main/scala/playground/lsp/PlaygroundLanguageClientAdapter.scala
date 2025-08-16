@@ -1,9 +1,16 @@
 package playground.lsp
 
 import cats.effect.kernel.Async
+import cats.effect.kernel.Ref
 import cats.syntax.all.*
 import com.google.gson.JsonElement
 import org.eclipse.lsp4j
+import org.eclipse.lsp4j.ProgressParams
+import org.eclipse.lsp4j.WorkDoneProgressBegin
+import org.eclipse.lsp4j.WorkDoneProgressCreateParams
+import org.eclipse.lsp4j.WorkDoneProgressEnd
+import org.eclipse.lsp4j.WorkDoneProgressNotification
+import org.eclipse.lsp4j.WorkDoneProgressReport
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 
 import java.util.concurrent.CompletableFuture
@@ -14,6 +21,11 @@ object PlaygroundLanguageClientAdapter {
 
   def adapt[F[_]: Async](
     client: PlaygroundLanguageClient
+  ): F[LanguageClient[F]] = Ref[F].of(false).map(adaptInternal(client, _))
+
+  private def adaptInternal[F[_]: Async](
+    client: PlaygroundLanguageClient,
+    progressCapabilityState: Ref[F, Boolean],
   ): LanguageClient[F] =
     new LanguageClient[F] {
 
@@ -49,6 +61,47 @@ object PlaygroundLanguageClientAdapter {
             using v.codec
           ).liftTo[F]
         )
+
+      def enableProgressCapability: F[Unit] = progressCapabilityState.set(true)
+      def hasProgressCapability: F[Boolean] = progressCapabilityState.get
+
+      def createWorkDoneProgress(token: String): F[Unit] =
+        withClientF(
+          _.createProgress(
+            new WorkDoneProgressCreateParams(
+              converters.toLSP.either(token.asLeft)
+            )
+          )
+        ).void
+
+      def beginProgress(token: String, title: String, message: Option[String]): F[Unit] = progress(
+        token,
+        new WorkDoneProgressBegin()
+          .tap(_.setTitle(title))
+          .tap(_.setMessage(message.orNull)),
+      )
+
+      def reportProgress(token: String, message: Option[String]): F[Unit] = progress(
+        token,
+        new WorkDoneProgressReport()
+          .tap(_.setMessage(message.orNull)),
+      )
+
+      def endProgress(token: String, message: Option[String]): F[Unit] = progress(
+        token,
+        new WorkDoneProgressEnd().tap(_.setMessage(message.orNull)),
+      )
+
+      private def progress(token: String, progress: WorkDoneProgressNotification) = withClientSync(
+        _.notifyProgress(
+          new ProgressParams(
+            converters.toLSP.either(Left(token)),
+            converters
+              .toLSP
+              .either(progress.asLeft),
+          )
+        )
+      )
 
       def showMessage(
         tpe: MessageType,
