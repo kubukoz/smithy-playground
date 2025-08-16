@@ -1,5 +1,8 @@
 import { commands, ExtensionContext, window, workspace } from "vscode";
-import { LanguageClient } from "vscode-languageclient/node";
+import {
+  LanguageClient,
+  RevealOutputChannelOn,
+} from "vscode-languageclient/node";
 import { buildArgs, CoursierCall, withDebug, withTracer } from "./coursier";
 
 export function activate(context: ExtensionContext) {
@@ -55,6 +58,7 @@ export function activate(context: ExtensionContext) {
         ),
       },
       outputChannel,
+      progressOnInitialization: true,
     }
   );
 
