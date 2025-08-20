@@ -100,7 +100,7 @@ val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-core" % "2.13.0",
-    "org.typelevel" %% "cats-mtl" % "1.5.0",
+    "org.typelevel" %% "cats-mtl" % "1.6.0",
     "org.typelevel" %% "weaver-cats" % "0.9.1" % Test,
     "org.typelevel" %% "weaver-discipline" % "0.9.1" % Test,
     "org.typelevel" %% "weaver-scalacheck" % "0.9.1" % Test,
