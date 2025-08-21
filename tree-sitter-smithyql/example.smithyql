@@ -1,0 +1,25 @@
+use service a.b#C
+
+hello {
+  a = 42,
+  b = 50,
+  c = {
+    d = "foo",
+    e = false,
+    f = true,
+    list = [
+         50,
+         100,
+         100,
+         [
+             null,
+             false,
+             true,
+             null,
+             "a",
+             40,
+          ],
+      ],
+  },
+  nul = null,
+}

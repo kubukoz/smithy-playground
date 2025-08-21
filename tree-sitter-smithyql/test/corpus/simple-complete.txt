@@ -1,0 +1,44 @@
+================================================================================
+Simple complete valid example
+================================================================================
+use service foo.bar#baz
+Hello { a = 42, b = "false", c = true }
+--------------------------------------------------------------------------------
+(source_file
+    (use_clause
+      (whitespace)
+      (whitespace)
+      (qualified_identifier
+        (identifier)
+        (identifier)
+        (identifier)))
+    (whitespace)
+    (top_level_statement
+      (operation_call
+        (operation_name
+          (identifier))
+        (whitespace)
+        (struct
+          (whitespace)
+          (bindings
+            (binding
+              (identifier)
+              (whitespace)
+              (whitespace)
+              (input_node
+                (number)))
+            (whitespace)
+            (binding
+              (identifier)
+              (whitespace)
+              (whitespace)
+              (input_node
+                (string)))
+            (whitespace)
+            (binding
+              (identifier)
+              (whitespace)
+              (whitespace)
+              (input_node
+                (boolean))))
+          (whitespace)))))
