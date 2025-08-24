@@ -21,6 +21,8 @@ import playground.OperationRunner
 import playground.ServiceIndex
 import playground.Uri
 import playground.language.CommandResultReporter
+import playground.language.Feedback
+import playground.language.Progress
 import playground.plugins.Environment
 import playground.plugins.Interpreter
 import playground.plugins.SimpleHttpBuilder
@@ -42,6 +44,7 @@ trait ServerBuilder[F[_]] {
   def build(
     buildInfo: BuildLoader.Loaded,
     loader: ServerLoader[F],
+    progress: Progress[F],
   ): F[LanguageServer[F]]
 
 }
@@ -86,13 +89,22 @@ object ServerBuilder {
         httpClient
       )
 
-      def build(
+      override def build(
         buildInfo: BuildLoader.Loaded,
         loader: ServerLoader[F],
+        progress: Progress[F],
       ): F[LanguageServer[F]] =
         for {
           model <- BuildLoader[F].buildModel(buildInfo)
+          _ <- progress.report(
+            message = s"Loaded model... (${model.getShapeIds().size()} shapes)".some
+          )
+
           dsi = DynamicSchemaIndex.loadModel(model)
+          _ <- progress
+            .report(message =
+              s"Built DSI... (${dsi.allServices.size} services, ${dsi.allSchemas.size} schemas)".some
+            )
           plugins <- PluginResolver[F]
             .resolve(buildInfo.config)
             .onError(std.Console[F].printStackTrace(_))
@@ -103,6 +115,13 @@ object ServerBuilder {
                 )
                 .as(Nil)
             }
+          _ <- progress.report(message = Some("Loaded plugins"))
+          _ <- Feedback[F]
+            .showInfoMessage(
+              s"Loaded ${plugins.size} plugins"
+            )
+            .whenA(plugins.nonEmpty)
+
         } yield {
           val interpreters = NonEmptyList
             .of(

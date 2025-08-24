@@ -62,6 +62,22 @@ trait LanguageServerIntegrationTests {
         ),
         TestClient.MessageLog(
           MessageType.Info,
+          "Loaded build definition from workspace...",
+        ),
+        TestClient.MessageLog(
+          MessageType.Info,
+          "Loaded model... (379 shapes)",
+        ),
+        TestClient.MessageLog(
+          MessageType.Info,
+          "Built DSI... (4 services, 114 schemas)",
+        ),
+        TestClient.MessageLog(
+          MessageType.Info,
+          "Loaded 0 plugins...",
+        ),
+        TestClient.MessageLog(
+          MessageType.Info,
           "Loaded Smithy Playground server with 2 source entries, 0 imports, 2 dependencies and 0 plugins",
         ),
       )
@@ -72,7 +88,7 @@ trait LanguageServerIntegrationTests {
         )
         require(
           events == initLogs,
-          "Events were not as expected, got: " + events,
+          "Events were not as expected, got: " + events.mkString("\n"),
         )
       }
     }

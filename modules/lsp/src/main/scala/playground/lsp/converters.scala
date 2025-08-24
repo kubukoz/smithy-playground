@@ -218,6 +218,11 @@ object converters {
       new lsp4j.Position(caret.line, caret.col)
     }
 
+    def either[L, R](e: Either[L, R]): org.eclipse.lsp4j.jsonrpc.messages.Either[L, R] = e.fold(
+      org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft,
+      org.eclipse.lsp4j.jsonrpc.messages.Either.forRight,
+    )
+
   }
 
   object fromLSP {
@@ -231,6 +236,14 @@ object converters {
     def uri(wf: WorkspaceFolder): playground.Uri = playground.Uri.fromUriString(wf.getUri())
 
     def position(pos: lsp4j.Position): LSPPosition = LSPPosition(pos.getLine(), pos.getCharacter())
+
+    def either[A, B](
+      e: org.eclipse.lsp4j.jsonrpc.messages.Either[A, B]
+    ): Either[A, B] =
+      if (e.isLeft())
+        Left(e.getLeft())
+      else
+        Right(e.getRight())
 
   }
 

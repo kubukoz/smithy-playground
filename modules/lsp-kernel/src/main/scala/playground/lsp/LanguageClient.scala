@@ -35,6 +35,7 @@ trait LanguageClient[F[_]] extends Feedback[F] {
     msg: String
   ): F[Unit] = showMessage(MessageType.Error, msg)
 
+  def enableProgressCapability: F[Unit]
 }
 
 object LanguageClient {
