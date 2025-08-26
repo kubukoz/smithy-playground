@@ -24,10 +24,10 @@ ThisBuild / githubWorkflowJobSetup ~= (_.filter(
 
 ThisBuild / githubWorkflowJobSetup ++= List(
   WorkflowStep.Use(
-    ref = UseRef.Public("cachix", "install-nix-action", "v23")
+    ref = UseRef.Public("cachix", "install-nix-action", "v31")
   ),
   WorkflowStep.Use(
-    ref = UseRef.Public("cachix", "cachix-action", "v12"),
+    ref = UseRef.Public("cachix", "cachix-action", "v15"),
     params = Map(
       "name" -> "kubukoz",
       "authToken" -> "${{ secrets.CACHIX_AUTH_TOKEN }}",
