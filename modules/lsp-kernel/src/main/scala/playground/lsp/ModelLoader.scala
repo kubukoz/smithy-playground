@@ -9,6 +9,7 @@ import software.amazon.smithy.model.loader.ModelDiscovery
 import software.amazon.smithy.model.loader.ModelManifestException
 
 import java.io.File
+import java.net.URI
 import java.net.URL
 import java.net.URLClassLoader
 import java.nio.file.FileSystems
@@ -117,7 +118,10 @@ object ModelLoader {
     dependencies: List[String],
     repositories: List[String],
   ): List[File] = {
-    val repos = repositories.map(MavenRepository.of)
+    val creds = coursierCredentialsByHost()
+
+    val repos = repositories.map(MavenRepository.of).map(addCredsToRepo(_, creds))
+
     val deps = dependencies
       .map(Dependency.parse(_, ScalaVersion.of(BuildInfo.scalaBinaryVersion)))
 
@@ -128,6 +132,27 @@ object ModelLoader {
       .fetch()
       .asScala
       .toList
+  }
+
+  // todo: add support for file credentials and other formats.
+  // coursier-interface currently offers no way to access the standard credentials,
+  // and I only needed support fro env vars, so here it is.
+  private def coursierCredentialsByHost(): Map[String, Credentials] =
+    sys
+      .env
+      .get("COURSIER_CREDENTIALS")
+      .flatMap {
+        case s"$host($_) $u:$p" => Some(host -> coursierapi.Credentials.of(u, p))
+        // untested
+        case s"$host $u:$p" => Some(host -> coursierapi.Credentials.of(u, p))
+        case _              => None
+      }
+      .toMap
+
+  private def addCredsToRepo(repo: MavenRepository, credsByHost: Map[String, Credentials])
+    : MavenRepository = {
+    val host = URI.create(repo.getBase()).getHost()
+    credsByHost.get(host).foldLeft(repo)(_.withCredentials(_))
   }
 
 }

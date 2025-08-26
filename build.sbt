@@ -80,7 +80,7 @@ ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 val ScalaLTS = "3.3.6"
 val ScalaNext = "3.7.2"
 
-val jsoniterVersion = "2.37.4"
+val jsoniterVersion = "2.37.6"
 
 ThisBuild / scalaVersion := ScalaNext
 
@@ -100,7 +100,7 @@ val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-core" % "2.13.0",
-    "org.typelevel" %% "cats-mtl" % "1.5.0",
+    "org.typelevel" %% "cats-mtl" % "1.6.0",
     "org.typelevel" %% "weaver-cats" % "0.9.1" % Test,
     "org.typelevel" %% "weaver-discipline" % "0.9.1" % Test,
     "org.typelevel" %% "weaver-scalacheck" % "0.9.1" % Test,
@@ -224,7 +224,7 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.3.31" % Test,
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.32" % Test,
       "software.amazon.smithy" % "smithy-aws-traits" % "1.61.0" % Test,
     )
   )
