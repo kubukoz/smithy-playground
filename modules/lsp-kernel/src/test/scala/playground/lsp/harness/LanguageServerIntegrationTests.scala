@@ -21,6 +21,8 @@ trait LanguageServerIntegrationTests {
 
   protected def checkStartupLogs: Boolean = false
 
+  private val progressToken = "init-progress"
+
   case class Fixture(
     server: LanguageServer[IO],
     client: TestClient[IO],
@@ -41,7 +43,7 @@ trait LanguageServerIntegrationTests {
 
         server.initialize(
           List(workspaceDir),
-          progressToken = None,
+          progressToken = Some("init-progress"),
           clientCapabilities = ClientCapabilities(windowProgress = true),
         ) *>
           assertStartupEvents(client)
@@ -67,26 +69,28 @@ trait LanguageServerIntegrationTests {
           MessageType.Info,
           s"Hello from Smithy Playground v${BuildInfo.version}! Loading project...",
         ),
-        Event.MessageLog(
-          MessageType.Info,
+        Event.BeginProgress(token = progressToken, title = "Loading project", message = None),
+        Event.ReportProgress(
+          progressToken,
           "Loaded build definition from workspace...",
         ),
-        Event.MessageLog(
-          MessageType.Info,
+        Event.ReportProgress(
+          progressToken,
           "Loaded model... (379 shapes)",
         ),
-        Event.MessageLog(
-          MessageType.Info,
+        Event.ReportProgress(
+          progressToken,
           "Built DSI... (4 services, 114 schemas)",
         ),
-        Event.MessageLog(
-          MessageType.Info,
+        Event.ReportProgress(
+          progressToken,
           "Loaded plugins",
         ),
         Event.MessageLog(
           MessageType.Info,
           "Loaded Smithy Playground server with 2 source entries, 0 imports, 2 dependencies and 0 plugins",
         ),
+        Event.EndProgress(token = progressToken, message = Some("completed")),
       )
       IO {
         require(

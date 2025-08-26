@@ -38,7 +38,7 @@ object TestClient {
       text: String
     )
 
-    case CreateWorkDoneProgress
+    case CreateWorkDoneProgress(token: String)
 
     case BeginProgress(
       token: String,
@@ -158,7 +158,9 @@ object TestClient {
 
       def enableProgressCapability: IO[Unit] = IO.unit
       def hasProgressCapability: IO[Boolean] = IO.pure(true)
-      def createWorkDoneProgress(token: String): IO[Unit] = append(Event.CreateWorkDoneProgress)
+      def createWorkDoneProgress(token: String): IO[Unit] = append(
+        Event.CreateWorkDoneProgress(token)
+      )
 
       def beginProgress(token: String, title: String, message: Option[String]): IO[Unit] = append(
         Event.BeginProgress(token, title, message)
