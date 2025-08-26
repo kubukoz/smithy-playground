@@ -14,6 +14,7 @@ import playground.language.Command
 import playground.lsp.buildinfo.BuildInfo
 import playground.lsp.harness.LanguageServerIntegrationTests
 import playground.lsp.harness.TestClient
+import playground.lsp.harness.TestClient.Event
 import playground.smithyql.parser.ParsingFailure
 import weaver.*
 
@@ -107,7 +108,7 @@ object LanguageServerIntegrationTestSharedServer
       .map { evs =>
         expect.same(
           evs,
-          List(TestClient.MessageLog(MessageType.Warning, "No operations to run in file")),
+          List(Event.MessageLog(MessageType.Warning, "No operations to run in file")),
         )
       }
   }
@@ -142,9 +143,9 @@ object LanguageServerIntegrationTestSharedServer
       }
       .map { evs =>
         expect.eql(evs.size, 3) &&
-        expect.same(evs.head, TestClient.OutputPanelShow) &&
-        expect(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
-        expect(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID"))
+        expect.same(evs.head, Event.OutputPanelShow) &&
+        expect(evs(1).asInstanceOf[Event.OutputLog].text.contains("Calling NextUUID")) &&
+        expect(evs(2).asInstanceOf[Event.OutputLog].text.contains("Succeeded NextUUID"))
       }
   }
 
@@ -162,14 +163,14 @@ object LanguageServerIntegrationTestSharedServer
       }
       .map { evs =>
         expect.eql(evs.size, 5) &&
-        expect.same(evs(0), TestClient.OutputPanelShow) &&
-        expect(evs(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling NextUUID")) &&
-        expect(evs(2).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded NextUUID")) &&
+        expect.same(evs(0), Event.OutputPanelShow) &&
+        expect(evs(1).asInstanceOf[Event.OutputLog].text.contains("Calling NextUUID")) &&
+        expect(evs(2).asInstanceOf[Event.OutputLog].text.contains("Succeeded NextUUID")) &&
         expect(
-          evs(3).asInstanceOf[TestClient.OutputLog].text.contains("Calling CurrentTimestamp")
+          evs(3).asInstanceOf[Event.OutputLog].text.contains("Calling CurrentTimestamp")
         ) &&
         expect(
-          evs(4).asInstanceOf[TestClient.OutputLog].text.contains("Succeeded CurrentTimestamp")
+          evs(4).asInstanceOf[Event.OutputLog].text.contains("Succeeded CurrentTimestamp")
         )
       }
   }
@@ -186,10 +187,10 @@ object LanguageServerIntegrationTestSharedServer
       }
       .map { evs =>
         expect.eql(evs.size, 1) &&
-        expect.same(evs(0).asInstanceOf[TestClient.MessageLog].tpe, MessageType.Error) &&
+        expect.same(evs(0).asInstanceOf[Event.MessageLog].tpe, MessageType.Error) &&
         expect(
           evs(0)
-            .asInstanceOf[TestClient.MessageLog]
+            .asInstanceOf[Event.MessageLog]
             .msg
             .startsWith("At least 1 service in the file uses an unsupported protocol.")
         )
@@ -244,7 +245,7 @@ object LanguageServerIntegrationTestSharedServer
       }
       .map { events =>
         val hasMatchingLog = events
-          .collect { case l: TestClient.OutputLog => l }
+          .collect { case l: Event.OutputLog => l }
           .exists(_.text.contains("Succeeded GetWeather"))
 
         expect(hasMatchingLog)
@@ -267,14 +268,14 @@ object LanguageServerIntegrationTestSharedServer
     }
       .map { events =>
         expect.eql(events.length, 4) &&
-        expect.same(events(0), TestClient.OutputPanelShow) &&
+        expect.same(events(0), Event.OutputPanelShow) &&
         expect(
-          events(1).asInstanceOf[TestClient.OutputLog].text.contains("Calling GetWeather")
+          events(1).asInstanceOf[Event.OutputLog].text.contains("Calling GetWeather")
         ) &&
-        expect(events(2).asInstanceOf[TestClient.OutputLog].text.contains("// HTTP/1.1 GET")) &&
+        expect(events(2).asInstanceOf[Event.OutputLog].text.contains("// HTTP/1.1 GET")) &&
         expect(
           events(3)
-            .asInstanceOf[TestClient.OutputLog]
+            .asInstanceOf[Event.OutputLog]
             .text
             .matches("// ERROR .* Connection refused")
         )

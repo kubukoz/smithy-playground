@@ -3,7 +3,7 @@ package playground.lsp
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import playground.lsp.harness.LanguageServerIntegrationTests
-import playground.lsp.harness.TestClient
+import playground.lsp.harness.TestClient.Event
 import weaver.*
 
 object EmptyConfigTests extends IOSuite with LanguageServerIntegrationTests {
@@ -22,7 +22,7 @@ object EmptyConfigTests extends IOSuite with LanguageServerIntegrationTests {
         expect.same(
           events,
           List(
-            TestClient.MessageLog(MessageType.Info, "No change detected, not rebuilding server")
+            Event.MessageLog(MessageType.Info, "No change detected, not rebuilding server")
           ),
         )
       }
