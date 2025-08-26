@@ -7,7 +7,7 @@ import fs2.io.file.Path
 import playground.PlaygroundConfig
 import playground.Uri
 import playground.lsp.harness.LanguageServerIntegrationTests
-import playground.lsp.harness.TestClient.MessageLog
+import playground.lsp.harness.TestClient.Event
 import weaver.*
 
 import scala.jdk.CollectionConverters.*
@@ -115,7 +115,7 @@ object LanguageServerReloadIntegrationTests
     makeServer(testWorkspacesBase / "non-model-jsons")
       .use(_.client.getEvents)
       .map { events =>
-        val errorLogs = events.collect { case MessageLog(MessageType.Error, msg) => msg }
+        val errorLogs = events.collect { case Event.MessageLog(MessageType.Error, msg) => msg }
         expect(errorLogs.isEmpty)
       }
   }
@@ -124,7 +124,7 @@ object LanguageServerReloadIntegrationTests
     makeServer(testWorkspacesBase / "json-models")
       .use { f =>
         f.client.getEvents.flatMap { events =>
-          val errorLogs = events.collect { case MessageLog(MessageType.Error, msg) => msg }
+          val errorLogs = events.collect { case Event.MessageLog(MessageType.Error, msg) => msg }
 
           f.server
             .diagnostic(

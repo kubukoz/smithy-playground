@@ -22,20 +22,41 @@ trait TestClient[F[_]] extends LanguageClient[F] {
 }
 
 object TestClient {
-  sealed trait Event
 
-  case class MessageLog(
-    tpe: MessageType,
-    msg: String,
-  ) extends Event
+  enum Event {
 
-  case object OutputPanelShow extends Event
-  case object RefreshCodeLenses extends Event
-  case object RefreshDiagnostics extends Event
+    case MessageLog(
+      tpe: MessageType,
+      msg: String,
+    )
 
-  case class OutputLog(
-    text: String
-  ) extends Event
+    case OutputPanelShow
+    case RefreshCodeLenses
+    case RefreshDiagnostics
+
+    case OutputLog(
+      text: String
+    )
+
+    case CreateWorkDoneProgress
+
+    case BeginProgress(
+      token: String,
+      title: String,
+      message: Option[String],
+    )
+
+    case ReportProgress(
+      token: String,
+      message: String,
+    )
+
+    case EndProgress(
+      token: String,
+      message: Option[String],
+    )
+
+  }
 
   final case class State(
     log: Chain[Event],
@@ -69,11 +90,11 @@ object TestClient {
         color: String = "",
       ) = IO.println(color + s + Console.RESET)
 
-      def showOutputPanel: IO[Unit] = show("showing output panel") *> append(OutputPanelShow)
+      def showOutputPanel: IO[Unit] = show("showing output panel") *> append(Event.OutputPanelShow)
 
       def logOutput(
         msg: String
-      ): IO[Unit] = show(s"logging output: $msg") *> append(OutputLog(msg))
+      ): IO[Unit] = show(s"logging output: $msg") *> append(Event.OutputLog(msg))
 
       def configuration[A](
         v: ConfigurationValue[A]
@@ -100,13 +121,13 @@ object TestClient {
         show(
           s = s"${tpe.name.toUpperCase()} Message from server: $msg",
           color = color,
-        ) *> append(MessageLog(tpe, msg))
+        ) *> append(Event.MessageLog(tpe, msg))
       }
       def refreshDiagnostics: IO[Unit] =
-        show("Refreshing diagnostics...") *> append(RefreshDiagnostics)
+        show("Refreshing diagnostics...") *> append(Event.RefreshDiagnostics)
 
       def refreshCodeLenses: IO[Unit] =
-        show("Refreshing code lenses...") *> append(RefreshCodeLenses)
+        show("Refreshing code lenses...") *> append(Event.RefreshCodeLenses)
 
       def getEvents: IO[List[Event]] = state.get.map(_.log.toList)
 
@@ -134,6 +155,22 @@ object TestClient {
               }
               .bracket(_ => fa)(state.set)
         }
+
+      def enableProgressCapability: IO[Unit] = IO.unit
+      def hasProgressCapability: IO[Boolean] = IO.pure(true)
+      def createWorkDoneProgress(token: String): IO[Unit] = append(Event.CreateWorkDoneProgress)
+
+      def beginProgress(token: String, title: String, message: Option[String]): IO[Unit] = append(
+        Event.BeginProgress(token, title, message)
+      )
+
+      def endProgress(token: String, message: Option[String]): IO[Unit] = append(
+        Event.EndProgress(token, message)
+      )
+
+      def reportProgress(token: String, message: Option[String]): IO[Unit] = append(
+        Event.ReportProgress(token, message.getOrElse(""))
+      )
     }
   }
 

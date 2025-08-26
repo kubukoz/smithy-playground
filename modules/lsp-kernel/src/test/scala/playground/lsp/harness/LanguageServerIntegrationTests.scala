@@ -5,6 +5,7 @@ import cats.effect.IOLocal
 import cats.effect.Resource
 import cats.syntax.all.*
 import playground.Uri
+import playground.lsp.ClientCapabilities
 import playground.lsp.LanguageServer
 import playground.lsp.MainServer
 import playground.lsp.MessageType
@@ -13,6 +14,8 @@ import weaver.SourceLocation
 
 import scala.jdk.CollectionConverters.*
 import scala.util.chaining.*
+
+import TestClient.Event
 
 trait LanguageServerIntegrationTests {
 
@@ -36,7 +39,11 @@ trait LanguageServerIntegrationTests {
           workspaceDir = workspaceDir,
         )
 
-        server.initialize(List(workspaceDir)) *>
+        server.initialize(
+          List(workspaceDir),
+          progressToken = None,
+          clientCapabilities = ClientCapabilities(windowProgress = true),
+        ) *>
           assertStartupEvents(client)
             .as(result)
       }
@@ -56,27 +63,27 @@ trait LanguageServerIntegrationTests {
     .getEvents
     .flatMap { events =>
       val initLogs = List(
-        TestClient.MessageLog(
+        Event.MessageLog(
           MessageType.Info,
           s"Hello from Smithy Playground v${BuildInfo.version}! Loading project...",
         ),
-        TestClient.MessageLog(
+        Event.MessageLog(
           MessageType.Info,
           "Loaded build definition from workspace...",
         ),
-        TestClient.MessageLog(
+        Event.MessageLog(
           MessageType.Info,
           "Loaded model... (379 shapes)",
         ),
-        TestClient.MessageLog(
+        Event.MessageLog(
           MessageType.Info,
           "Built DSI... (4 services, 114 schemas)",
         ),
-        TestClient.MessageLog(
+        Event.MessageLog(
           MessageType.Info,
-          "Loaded 0 plugins...",
+          "Loaded plugins",
         ),
-        TestClient.MessageLog(
+        Event.MessageLog(
           MessageType.Info,
           "Loaded Smithy Playground server with 2 source entries, 0 imports, 2 dependencies and 0 plugins",
         ),
