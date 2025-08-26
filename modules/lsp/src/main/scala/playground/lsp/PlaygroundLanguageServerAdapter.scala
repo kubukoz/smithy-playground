@@ -47,7 +47,12 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
             .fold(identity, _.toString)
         },
         clientCapabilities = ClientCapabilities(
-          windowProgress = params.getCapabilities().getWindow().getWorkDoneProgress()
+          windowProgress = Option(params.getCapabilities())
+            .flatMap(c =>
+              Option(c.getWindow())
+                .flatMap(w => Option(w.getWorkDoneProgress(): Boolean))
+            )
+            .getOrElse(false)
         ),
       )
       .map { result =>
