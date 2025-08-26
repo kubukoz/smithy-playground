@@ -353,7 +353,7 @@
   resolved "https://registry.yarnpkg.com/@types/sarif/-/sarif-2.1.7.tgz#dab4d16ba7568e9846c454a8764f33c5d98e5524"
   integrity sha512-kRz0VEkJqWLf1LLVN4pT1cg1Z9wAuvI6L97V3m2f5B76Tg8d413ddvLBPTEHAZJlnn4XSvu0FkZtViCQGVyrXQ==
 
-"@types/vscode@^1.103.0":
+"@types/vscode@^1.94.0":
   version "1.103.0"
   resolved "https://registry.yarnpkg.com/@types/vscode/-/vscode-1.103.0.tgz#4a0d9777d952992c9ebdbe8dad067032d2fbc1fb"
   integrity sha512-o4hanZAQdNfsKecexq9L3eHICd0AAvdbLk6hA60UzGXbGH/q8b/9xv2RgR7vV3ZcHuyKVq7b37IGd/+gM4Tu+Q==
