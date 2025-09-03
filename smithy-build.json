@@ -10,7 +10,7 @@
   ],
   "maven": {
     "dependencies": [
-      "com.disneystreaming.alloy:alloy-core:0.3.32",
+      "com.disneystreaming.alloy:alloy-core:0.3.33",
       "com.disneystreaming.smithy4s:smithy4s-protocol:0.18.37"
     ],
     "repositories": []
