@@ -80,7 +80,7 @@ ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 val ScalaLTS = "3.3.6"
 val ScalaNext = "3.7.2"
 
-val jsoniterVersion = "2.37.6"
+val jsoniterVersion = "2.37.8"
 
 ThisBuild / scalaVersion := ScalaNext
 
@@ -120,12 +120,11 @@ val commonSettings = Seq(
   Test / scalacOptions -= "-Wunused:privates",
   //
   scalacOptions += "-no-indent",
-  scalacOptions ++= {
+  scalacOptions ++=
     Seq(
       // for cats-tagless macros
       "-experimental"
-    )
-  },
+    ),
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   tlFatalWarnings := false,
   mimaPreviousArtifacts := Set.empty,
@@ -279,7 +278,9 @@ lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     buildInfoKeys ++=
-      Seq[BuildInfoKey.Entry[_]]( // do you know how to simplify this? let me know please!
+      Seq[
+        BuildInfoKey.Entry[_]
+      ]( // do you know how to simplify this? let me know please!
         Def
           .task {
             s"""${(lsp / organization).value}::${(lsp / moduleName).value}:${(lsp / version).value}"""
@@ -312,9 +313,8 @@ lazy val root = project
   .settings(
     publishArtifact := false,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
-    writeVersion := {
-      IO.write(file(".version"), version.value)
-    },
+    writeVersion :=
+      IO.write(file(".version"), version.value),
   )
   .aggregate(
     ast,
