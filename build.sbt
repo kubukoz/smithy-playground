@@ -120,12 +120,11 @@ val commonSettings = Seq(
   Test / scalacOptions -= "-Wunused:privates",
   //
   scalacOptions += "-no-indent",
-  scalacOptions ++= {
+  scalacOptions ++=
     Seq(
       // for cats-tagless macros
       "-experimental"
-    )
-  },
+    ),
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
   tlFatalWarnings := false,
   mimaPreviousArtifacts := Set.empty,
@@ -171,7 +170,7 @@ lazy val parser = module("parser")
       "org.typelevel" %% "cats-parse" % "1.1.0",
       "io.circe" %% "circe-generic" % "0.14.14" % Test,
       "io.circe" %% "circe-parser" % "0.14.14" % Test,
-      "co.fs2" %% "fs2-io" % "3.12.0" % Test,
+      "co.fs2" %% "fs2-io" % "3.12.2" % Test,
     )
   )
   .dependsOn(
@@ -279,7 +278,9 @@ lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     buildInfoKeys ++=
-      Seq[BuildInfoKey.Entry[_]]( // do you know how to simplify this? let me know please!
+      Seq[
+        BuildInfoKey.Entry[_]
+      ]( // do you know how to simplify this? let me know please!
         Def
           .task {
             s"""${(lsp / organization).value}::${(lsp / moduleName).value}:${(lsp / version).value}"""
@@ -312,9 +313,8 @@ lazy val root = project
   .settings(
     publishArtifact := false,
     addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
-    writeVersion := {
-      IO.write(file(".version"), version.value)
-    },
+    writeVersion :=
+      IO.write(file(".version"), version.value),
   )
   .aggregate(
     ast,
