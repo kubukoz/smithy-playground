@@ -247,10 +247,10 @@ lazy val lspKernel = module("lsp-kernel")
   .settings(
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-core" % "0.14.14",
-      "org.http4s" %% "http4s-ember-client" % "0.23.30",
+      "org.http4s" %% "http4s-ember-client" % "0.23.31",
       "io.get-coursier" % "interface" % "1.0.28",
       "org.typelevel" %% "cats-tagless-core" % "0.16.3",
-      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
+      "org.http4s" %% "http4s-ember-server" % "0.23.31" % Test,
     ),
     (Test / test) := {
       (pluginCore / publishLocal).value
