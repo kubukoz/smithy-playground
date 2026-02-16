@@ -5,9 +5,9 @@ import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
 import playground.PlaygroundConfig
+import playground.Uri
 import playground.language.TextDocumentProvider
-import playground.language.Uri
-import smithy4s.dynamic.DynamicSchemaIndex
+import software.amazon.smithy.model.Model
 
 trait BuildLoader[F[_]] {
 
@@ -15,9 +15,9 @@ trait BuildLoader[F[_]] {
     workspaceFolders: List[Uri]
   ): F[BuildLoader.Loaded]
 
-  def buildSchemaIndex(
+  def buildModel(
     info: BuildLoader.Loaded
-  ): F[DynamicSchemaIndex]
+  ): F[Model]
 
 }
 
@@ -84,10 +84,11 @@ object BuildLoader {
               .map(BuildLoader.Loaded.apply(_, filePath))
           }
       }
+        .adaptErr(new Exception("Failed to load build configuration", _))
 
-      def buildSchemaIndex(
+      def buildModel(
         loaded: BuildLoader.Loaded
-      ): F[DynamicSchemaIndex] = {
+      ): F[Model] = {
         // This has to be lazy, because for the default, "no imports" config, the file path points to the filesystem root.
         lazy val workspaceBase = loaded
           .configFilePath
@@ -104,9 +105,9 @@ object BuildLoader {
         for {
           specs <- filterImports(rawImportPaths)
           model <- loadModel(specs, loaded.config)
-          dsi = DynamicSchemaIndex.loadModel(model)
-        } yield dsi
+        } yield model
       }
+        .adaptErr(new Exception("Failed to load model", _))
 
       private def loadModel(
         specs: Set[Path],

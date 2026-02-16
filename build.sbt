@@ -12,28 +12,80 @@ inThisBuild(
       )
     ),
     tlBaseVersion := "0.10",
+    tlJdkRelease := Some(11),
   )
 )
 
-val ScalaLTS = "3.3.6"
-val ScalaNext = "3.7.1"
+ThisBuild / githubWorkflowSbtCommand := "nix develop --command sbt"
 
-val jsoniterVersion = "2.36.6"
+ThisBuild / githubWorkflowJobSetup ~= (_.filter(
+  _.name.exists(_.contains("Checkout current branch"))
+))
+
+ThisBuild / githubWorkflowJobSetup ++= List(
+  WorkflowStep.Use(
+    ref = UseRef.Public("cachix", "install-nix-action", "v31")
+  ),
+  WorkflowStep.Use(
+    ref = UseRef.Public("cachix", "cachix-action", "v15"),
+    params = Map(
+      "name" -> "kubukoz",
+      "authToken" -> "${{ secrets.CACHIX_AUTH_TOKEN }}",
+    ),
+  ),
+  WorkflowStep.Run(
+    name = Some("Setup environment"),
+    commands = "nix develop --command echo Environment ready" :: Nil,
+  ),
+)
+
+ThisBuild / githubWorkflowBuild := {
+
+  val runTests = List(
+    WorkflowStep.Sbt(
+      name = Some("Server tests"),
+      commands = "ci" :: Nil,
+    ),
+    WorkflowStep.Run(
+      name = Some("VS Code extension tests"),
+      commands =
+        "nix develop --command bash -c 'cd vscode-extension && yarn && SERVER_VERSION=$(cat ../.version) xvfb-run --auto-servernum yarn test'" :: Nil,
+    ),
+    WorkflowStep.Run(
+      name = Some("Show extension test logs"),
+      cond = Some("always() && job.status == 'failure'"),
+      commands = "cat vscode-extension/fixture/smithyql-log.txt | tail --lines 1000" :: Nil,
+    ),
+  )
+
+  def addPublishCond(step: WorkflowStep) = step.withCond {
+    Some {
+      val suffix =
+        "github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')"
+
+      step.cond.foldRight(suffix)(_ + " && " + _)
+    }
+  }
+
+  (ThisBuild / githubWorkflowPublishPreamble).value.map(addPublishCond) ++
+    runTests ++
+    (ThisBuild / githubWorkflowPublish).value.map(addPublishCond)
+
+}
+ThisBuild / githubWorkflowArtifactUpload := false
+ThisBuild / githubWorkflowGeneratedCI ~= (_.filterNot(_.id == "publish"))
+
+ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
+
+val ScalaLTS = "3.3.7"
+val ScalaNext = "3.7.4"
+
+val jsoniterVersion = "2.38.8"
 
 ThisBuild / scalaVersion := ScalaNext
-ThisBuild / versionScheme := Some("early-semver")
 
 import scala.sys.process.*
 import scala.util.chaining.*
-
-// Workaround for https://github.com/coursier/coursier/issues/2001
-// from https://github.com/coursier/coursier/issues/2001#issuecomment-2556556628
-def jsoniterFix(deps: Seq[ModuleID]) =
-  deps.map(
-    _.exclude("com.github.plokhotnyuk.jsoniter-scala", "jsoniter-scala-core_3")
-  ) ++ Seq(
-    "com.github.plokhotnyuk.jsoniter-scala" % "jsoniter-scala-core_2.13" % jsoniterVersion
-  )
 
 def crossPlugin(
   x: sbt.librarymanagement.ModuleID
@@ -42,18 +94,13 @@ def crossPlugin(
 val compilerPlugins =
   libraryDependencies ++= List(
     crossPlugin("org.polyvariant" % "better-tostring" % "0.3.17")
-  ) ++ (if (scalaVersion.value.startsWith("3"))
-          Nil
-        else
-          List(
-            crossPlugin("org.typelevel" % "kind-projector" % "0.13.3")
-          ))
+  )
 
 val commonSettings = Seq(
   organization := "com.kubukoz.playground",
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-core" % "2.13.0",
-    "org.typelevel" %% "cats-mtl" % "1.5.0",
+    "org.typelevel" %% "cats-mtl" % "1.6.0",
     "org.typelevel" %% "weaver-cats" % "0.9.1" % Test,
     "org.typelevel" %% "weaver-discipline" % "0.9.1" % Test,
     "org.typelevel" %% "weaver-scalacheck" % "0.9.1" % Test,
@@ -73,19 +120,15 @@ val commonSettings = Seq(
   Test / scalacOptions -= "-Wunused:privates",
   //
   scalacOptions += "-no-indent",
-  scalacOptions ++= {
-    if (scalaVersion.value.startsWith("3.7"))
-      Seq(
-        // for cats-tagless macros
-        "-experimental"
-      )
-    else
-      Nil
-  },
+  scalacOptions ++=
+    Seq(
+      // for cats-tagless macros
+      "-experimental"
+    ),
   Test / scalacOptions += "-Wconf:cat=deprecation:silent,msg=Specify both message and version:silent",
-  scalacOptions += "-release:11",
-  mimaFailOnNoPrevious := false,
+  tlFatalWarnings := false,
   mimaPreviousArtifacts := Set.empty,
+  mimaFailOnNoPrevious := false,
 )
 
 def module(
@@ -96,14 +139,15 @@ def module(
   )
 
 // Plugin interface. Sometimes keeps binary compatibility guarantees (mostly tied to smithy4s's bincompat).
-lazy val pluginCore = module("plugin-core").settings(
-  libraryDependencies ++= Seq(
-    "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
-  ).pipe(jsoniterFix),
-  // mimaPreviousArtifacts := Set(organization.value %% name.value % "0.7.0"),
-  mimaPreviousArtifacts := Set.empty,
-  scalaVersion := ScalaLTS,
-)
+lazy val pluginCore = module("plugin-core")
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
+    ),
+    mimaPreviousArtifacts := tlMimaPreviousVersions.value.map(organization.value %% name.value % _),
+    scalaVersion := ScalaLTS,
+  )
+  .enablePlugins(TypelevelMimaPlugin)
 
 lazy val pluginSample = module("plugin-sample")
   .dependsOn(pluginCore)
@@ -124,9 +168,9 @@ lazy val parser = module("parser")
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-parse" % "1.1.0",
-      "io.circe" %% "circe-generic" % "0.14.14" % Test,
-      "io.circe" %% "circe-parser" % "0.14.14" % Test,
-      "co.fs2" %% "fs2-io" % "3.12.0" % Test,
+      "io.circe" %% "circe-generic" % "0.14.15" % Test,
+      "io.circe" %% "circe-parser" % "0.14.15" % Test,
+      "co.fs2" %% "fs2-io" % "3.12.2" % Test,
     )
   )
   .dependsOn(
@@ -153,7 +197,7 @@ lazy val examples = module("examples")
       "com.disneystreaming.smithy4s" %% "smithy4s-core" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-kernel" % smithy4sVersion.value,
     ),
-    publish := false,
+    publishArtifact := false,
     // generated code
     scalacOptions += "-Wconf:cat=deprecation:silent",
   )
@@ -173,15 +217,15 @@ lazy val protocol4s = module("protocol4s")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.6.1",
+      "org.typelevel" %% "cats-effect" % "3.6.3",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % jsoniterVersion,
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
-      "com.disneystreaming.alloy" % "alloy-core" % "0.3.21" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.60.3" % Test,
-    ).pipe(jsoniterFix)
+      "com.disneystreaming.alloy" % "alloy-core" % "0.3.32" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.67.0" % Test,
+    )
   )
   .dependsOn(
     protocol4s,
@@ -202,13 +246,12 @@ lazy val languageSupport = module("language-support")
 lazy val lspKernel = module("lsp-kernel")
   .settings(
     libraryDependencies ++= Seq(
-      "io.circe" %% "circe-core" % "0.14.14",
-      "org.http4s" %% "http4s-ember-client" % "0.23.30",
-      ("io.get-coursier" % "coursier_2.13" % "2.1.24")
-        .exclude("org.scala-lang.modules", "scala-collection-compat_2.13"),
-      "org.typelevel" %% "cats-tagless-core" % "0.16.3",
-      "org.http4s" %% "http4s-ember-server" % "0.23.30" % Test,
-    ).pipe(jsoniterFix),
+      "io.circe" %% "circe-core" % "0.14.15",
+      "org.http4s" %% "http4s-ember-client" % "0.23.33",
+      "io.get-coursier" % "interface" % "1.0.28",
+      "org.typelevel" %% "cats-tagless-core" % "0.16.4",
+      "org.http4s" %% "http4s-ember-server" % "0.23.33" % Test,
+    ),
     (Test / test) := {
       (pluginCore / publishLocal).value
       (pluginSample / publishLocal).value
@@ -243,7 +286,9 @@ lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)
   .settings(
     buildInfoKeys ++=
-      Seq[BuildInfoKey.Entry[_]]( // do you know how to simplify this? let me know please!
+      Seq[
+        BuildInfoKey.Entry[_]
+      ]( // do you know how to simplify this? let me know please!
         Def
           .task {
             s"""${(lsp2 / organization).value}::${(lsp2 / moduleName).value}:${(lsp2 / version).value}"""
@@ -264,7 +309,7 @@ lazy val e2e = module("e2e")
           .taskValue
           .named("lspArtifact")
       ),
-    publish / skip := true,
+    publishArtifact := false,
     Test / fork := true,
     libraryDependencies ++= Seq(
       "tech.neander" %% "langoustine-lsp" % "0.0.25",
@@ -278,14 +323,11 @@ val writeVersion = taskKey[Unit]("Writes the current version to the `.version` f
 lazy val root = project
   .in(file("."))
   .settings(
-    publish / skip := true,
-    mimaFailOnNoPrevious := false,
-    mimaPreviousArtifacts := Set.empty,
+    publishArtifact := false,
     addCommandAlias("ci", "e2e/test"),
     // addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
-    writeVersion := {
-      IO.write(file(".version"), version.value)
-    },
+    writeVersion :=
+      IO.write(file(".version"), version.value),
   )
   .aggregate(
     ast,

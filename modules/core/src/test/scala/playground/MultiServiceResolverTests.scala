@@ -4,6 +4,7 @@ import cats.Id
 import cats.syntax.all.*
 import com.softwaremill.diffx.cats.*
 import playground.Diffs.given
+import playground.ServiceIndex.OperationMetadata
 import playground.smithyql.Diffs.given
 import playground.smithyql.OperationName
 import playground.smithyql.Prelude
@@ -25,7 +26,13 @@ object MultiServiceResolverTests extends FunSuite {
       Set[OperationName[Id]],
     )*
   ): ServiceIndex = ServiceIndex.fromMappings(
-    servicesToOps.map(_.map(ServiceMetadata(_, deprecated = None))).toMap
+    servicesToOps
+      .map(
+        _.map { ops =>
+          ServiceMetadata(ops.map(OperationMetadata(_, None)), deprecated = None, location = None)
+        }
+      )
+      .toMap
   )
 
   private def resolveService(

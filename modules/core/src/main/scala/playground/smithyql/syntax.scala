@@ -24,4 +24,8 @@ object syntax {
 
   }
 
+  extension (qi: QualifiedIdentifier) {
+    def toShapeId: ShapeId = ShapeId(qi.renderNamespace, qi.selection)
+  }
+
 }

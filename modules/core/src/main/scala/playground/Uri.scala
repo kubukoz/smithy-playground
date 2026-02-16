@@ -1,4 +1,4 @@
-package playground.language
+package playground
 
 import fs2.io.file.Path
 

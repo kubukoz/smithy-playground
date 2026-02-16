@@ -4,6 +4,7 @@ import demo.smithy.DemoService
 import demo.smithy.DemoServiceGen
 import demo.smithy.DeprecatedServiceGen
 import playground.Assertions.*
+import playground.ServiceIndex
 import playground.ServiceUtils.*
 import playground.language.Diffs.given
 import playground.smithyql.Position
@@ -20,7 +21,10 @@ object CompletionProviderTests extends SimpleIOSuite {
 
   pureTest("completing empty file - one service exists") {
     val random = wrapService(RandomGen)
-    val provider = CompletionProvider.forServices(List(random))
+    val provider = CompletionProvider.forServices(
+      List(random),
+      serviceIndex = ServiceIndex.fromServices(List(random)),
+    )
 
     val result = provider.provide(
       "",
@@ -48,7 +52,10 @@ object CompletionProviderTests extends SimpleIOSuite {
     val clock = wrapService(ClockGen)
     val random = wrapService(RandomGen)
 
-    val provider = CompletionProvider.forServices(List(clock, random))
+    val provider = CompletionProvider.forServices(
+      List(clock, random),
+      serviceIndex = ServiceIndex.fromServices(List(clock, random)),
+    )
 
     val result = provider.provide(
       "",
@@ -76,7 +83,10 @@ object CompletionProviderTests extends SimpleIOSuite {
   pureTest("completing existing operation name doesn't insert struct") {
     val service = wrapService(RandomGen)
 
-    val provider = CompletionProvider.forServices(List(service))
+    val provider = CompletionProvider.forServices(
+      List(service),
+      serviceIndex = ServiceIndex.fromServices(List(service)),
+    )
 
     val input = """playground.std#Random.NextUUID {}""".stripMargin
     val result = provider.provide(
@@ -99,7 +109,10 @@ object CompletionProviderTests extends SimpleIOSuite {
   pureTest("completing existing use clause") {
     val service = wrapService(DemoServiceGen)
 
-    val provider = CompletionProvider.forServices(List(service))
+    val provider = CompletionProvider.forServices(
+      List(service),
+      serviceIndex = ServiceIndex.fromServices(List(service)),
+    )
 
     val result = provider.provide(
       """use service a#B
@@ -121,7 +134,8 @@ object CompletionProviderTests extends SimpleIOSuite {
     "the file has a use clause - completing operations shows results from that clause, but also others"
   ) {
     val provider = CompletionProvider.forServices(
-      List(wrapService(ClockGen), wrapService(RandomGen))
+      List(wrapService(ClockGen), wrapService(RandomGen)),
+      serviceIndex = ServiceIndex.fromServices(List(wrapService(ClockGen), wrapService(RandomGen))),
     )
     val input =
       """use service playground.std#Clock
@@ -152,7 +166,10 @@ object CompletionProviderTests extends SimpleIOSuite {
 
   locally {
     pureTest("completing empty file - one (deprecated) service exists") {
-      val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
+      val provider = CompletionProvider.forServices(
+        List(wrapService(DeprecatedServiceGen)),
+        serviceIndex = ServiceIndex.fromServices(List(wrapService(DeprecatedServiceGen))),
+      )
 
       val result = provider
         .provide(
@@ -165,7 +182,10 @@ object CompletionProviderTests extends SimpleIOSuite {
     }
 
     pureTest("completing use clause - one (deprecated) service exists") {
-      val provider = CompletionProvider.forServices(List(wrapService(DeprecatedServiceGen)))
+      val provider = CompletionProvider.forServices(
+        List(wrapService(DeprecatedServiceGen)),
+        serviceIndex = ServiceIndex.fromServices(List(wrapService(DeprecatedServiceGen))),
+      )
 
       val result = provider
         .provide(
@@ -181,7 +201,10 @@ object CompletionProviderTests extends SimpleIOSuite {
   pureTest("completing operation - multiple services available") {
     val clock = wrapService(ClockGen)
     val random = wrapService(RandomGen)
-    val provider = CompletionProvider.forServices(List(clock, random))
+    val provider = CompletionProvider.forServices(
+      List(clock, random),
+      serviceIndex = ServiceIndex.fromServices(List(clock, random)),
+    )
 
     val input =
       """use service playground.std#Clock
@@ -212,7 +235,10 @@ object CompletionProviderTests extends SimpleIOSuite {
   }
 
   pureTest("completing operation examples - input examples get used") {
-    val provider = CompletionProvider.forServices(List(wrapService(DemoService)))
+    val provider = CompletionProvider.forServices(
+      List(wrapService(DemoService)),
+      serviceIndex = ServiceIndex.fromServices(List(wrapService(DemoService))),
+    )
 
     val input =
       s"""use service ${DemoService.id}

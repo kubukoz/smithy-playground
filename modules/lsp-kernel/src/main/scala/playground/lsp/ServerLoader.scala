@@ -4,7 +4,9 @@ import cats.MonadThrow
 import cats.effect.kernel.Ref
 import cats.syntax.all.*
 import playground.PlaygroundConfig
-import playground.language.Uri
+import playground.Uri
+import playground.language.Feedback
+import playground.language.Progress
 
 trait ServerLoader[F[_]] {
   type Params
@@ -14,7 +16,8 @@ trait ServerLoader[F[_]] {
   ): F[ServerLoader.PrepareResult[Params]]
 
   def perform(
-    params: Params
+    params: Params,
+    progress: Progress[F],
   ): F[ServerLoader.WorkspaceStats]
 
   def server: LanguageServer[F]
@@ -58,7 +61,7 @@ object ServerLoader {
 
   }
 
-  def instance[F[_]: ServerBuilder: BuildLoader: Ref.Make: MonadThrow]
+  def instance[F[_]: ServerBuilder: BuildLoader: Feedback: Ref.Make: MonadThrow]
     : F[ServerLoader.Aux[F, BuildLoader.Loaded]] = {
     case class State(
       currentServer: LanguageServer[F],
@@ -81,7 +84,7 @@ object ServerLoader {
           new ServerLoader[F] {
             type Params = BuildLoader.Loaded
 
-            def prepare(
+            override def prepare(
               workspaceFolders: Option[List[Uri]]
             ): F[PrepareResult[Params]] = workspaceFoldersRef
               .modify { oldFolders =>
@@ -103,10 +106,11 @@ object ServerLoader {
                     }
                 }
               }
-            def perform(
-              params: Params
+            override def perform(
+              params: Params,
+              progress: Progress[F],
             ): F[WorkspaceStats] = ServerBuilder[F]
-              .build(params, this)
+              .build(params, this, progress)
               .map(server => State(server, Some(params)))
               .flatMap(stateRef.set)
               .as(WorkspaceStats.fromPlaygroundConfig(params.config))
@@ -116,7 +120,7 @@ object ServerLoader {
       }
       .flatTap { serverLoader =>
         // loading with dummy config to initialize server without dependencies
-        serverLoader.perform(BuildLoader.Loaded.default)
+        serverLoader.perform(BuildLoader.Loaded.default, Progress.ignored[F])
       }
   }
 

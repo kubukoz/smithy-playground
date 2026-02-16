@@ -6,7 +6,6 @@ import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
-import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.launch.LSPLauncher
 
 import java.io.File
@@ -22,32 +21,27 @@ object Main extends IOApp.Simple {
   private val stdin_raw = System.in
   private val stdout_raw = System.out
 
-  def run: IO[Unit] =
-    (
-      IO(System.setOut(logOut)).toResource *>
-        launch(stdin_raw, stdout_raw)
-    )
-      .use { launcher =>
-        IO.interruptibleMany(launcher.startListening().get()).void
-      }
-      .guaranteeCase { oc =>
-        IO.println(s"Server terminated with result: $oc")
-      }
+  def run: IO[Unit] = {
+    IO(System.setOut(logOut)) *>
+      launch(stdin_raw, stdout_raw).useEval
+  }.guaranteeCase { oc =>
+    IO.println(s"Server terminated with result: $oc")
+  }
 
   def launch(
     in: InputStream,
     out: OutputStream,
-  ): Resource[IO, Launcher[PlaygroundLanguageClient]] = Deferred[IO, LanguageClient[IO]]
+  ): Resource[IO, IO[Unit]] = Deferred[IO, LanguageServer[IO]]
     .toResource
-    .flatMap { clientRef =>
-      implicit val lc: LanguageClient[IO] = LanguageClient.defer(clientRef.get)
+    .flatMap { serverRef =>
+      given LanguageServer[IO] = LanguageServer.defer(
+        serverRef.get
+      )
 
-      MainServer
-        .makeServer[IO]
-        .flatMap { server =>
-          Dispatcher.sequential[IO].map(implicit d => new PlaygroundLanguageServerAdapter(server))
-        }
-        .evalMap { serverAdapter =>
+      Dispatcher
+        .sequential[IO]
+        .map(implicit d => new PlaygroundLanguageServerAdapter(summon[LanguageServer[IO]]))
+        .flatMap { serverAdapter =>
           val launcher = new LSPLauncher.Builder[PlaygroundLanguageClient]()
             .setLocalService(serverAdapter)
             .setRemoteInterface(classOf[PlaygroundLanguageClient])
@@ -56,12 +50,21 @@ object Main extends IOApp.Simple {
             .traceMessages(logWriter)
             .create()
 
-          IO.println("connecting") *>
-            clientRef.complete(
-              PlaygroundLanguageClientAdapter.adapt[IO](launcher.getRemoteProxy())
-            ) *>
-            IO.println("Server connected")
-              .as(launcher)
+          PlaygroundLanguageClientAdapter
+            .adapt[IO](
+              launcher.getRemoteProxy()
+            )
+            .toResource
+            .flatMap { case given LanguageClient[IO] =>
+              // Start listening, in the meantime construct a server
+              IO.interruptibleMany(launcher.startListening().get()).background.map(_.void) <&
+                MainServer
+                  .makeServer[IO]
+                  .evalMap { server =>
+                    serverRef.complete(server).void
+                  }
+
+            }
         }
     }
 

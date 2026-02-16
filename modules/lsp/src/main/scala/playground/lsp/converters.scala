@@ -146,8 +146,8 @@ object converters {
     ): lsp4j.TextEdit =
       edit match {
         case TextEdit.Insert(what, where) =>
-          val pos = converters.toLSP.position(map, where)
-          new lsp4j.TextEdit(new lsp4j.Range(pos, pos), what)
+          val r = converters.toLSP.range(map, SourceRange(where, where))
+          new lsp4j.TextEdit(r, what)
 
         case TextEdit.Overwrite(what, range) =>
           val r = converters.toLSP.range(map, range)
@@ -181,6 +181,9 @@ object converters {
         )
       )
 
+    def location(loc: LSPLocation): lsp4j.Location =
+      new lsp4j.Location(loc.document.value, range(loc.range))
+
     def codeLens(lens: LSPCodeLens): lsp4j.CodeLens = codeLens(lens.map, lens.lens)
 
     private def codeLens(
@@ -196,6 +199,12 @@ object converters {
         )
       )
 
+    private def range(r: LSPRange): lsp4j.Range =
+      new lsp4j.Range(
+        new lsp4j.Position(r.from.line, r.from.character),
+        new lsp4j.Position(r.to.line, r.to.character),
+      )
+
     private def range(
       map: LocationMap,
       coreRange: SourceRange,
@@ -209,20 +218,32 @@ object converters {
       new lsp4j.Position(caret.line, caret.col)
     }
 
+    def either[L, R](e: Either[L, R]): org.eclipse.lsp4j.jsonrpc.messages.Either[L, R] = e.fold(
+      org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft,
+      org.eclipse.lsp4j.jsonrpc.messages.Either.forRight,
+    )
+
   }
 
   object fromLSP {
 
-    def uri(tdi: TextDocumentIdentifier)
-      : playground.language.Uri = playground.language.Uri.fromUriString(tdi.getUri())
+    def uri(tdi: TextDocumentIdentifier): playground.Uri = playground
+      .Uri
+      .fromUriString(tdi.getUri())
 
-    def uri(tdi: TextDocumentItem)
-      : playground.language.Uri = playground.language.Uri.fromUriString(tdi.getUri())
+    def uri(tdi: TextDocumentItem): playground.Uri = playground.Uri.fromUriString(tdi.getUri())
 
-    def uri(wf: WorkspaceFolder)
-      : playground.language.Uri = playground.language.Uri.fromUriString(wf.getUri())
+    def uri(wf: WorkspaceFolder): playground.Uri = playground.Uri.fromUriString(wf.getUri())
 
     def position(pos: lsp4j.Position): LSPPosition = LSPPosition(pos.getLine(), pos.getCharacter())
+
+    def either[A, B](
+      e: org.eclipse.lsp4j.jsonrpc.messages.Either[A, B]
+    ): Either[A, B] =
+      if (e.isLeft())
+        Left(e.getLeft())
+      else
+        Right(e.getRight())
 
   }
 

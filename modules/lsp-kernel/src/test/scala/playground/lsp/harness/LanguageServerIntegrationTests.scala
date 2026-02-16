@@ -4,7 +4,8 @@ import cats.effect.IO
 import cats.effect.IOLocal
 import cats.effect.Resource
 import cats.syntax.all.*
-import playground.language.Uri
+import playground.Uri
+import playground.lsp.ClientCapabilities
 import playground.lsp.LanguageServer
 import playground.lsp.MainServer
 import playground.lsp.MessageType
@@ -14,9 +15,13 @@ import weaver.SourceLocation
 import scala.jdk.CollectionConverters.*
 import scala.util.chaining.*
 
+import TestClient.Event
+
 trait LanguageServerIntegrationTests {
 
   protected def checkStartupLogs: Boolean = false
+
+  private val progressToken = "init-progress"
 
   case class Fixture(
     server: LanguageServer[IO],
@@ -36,7 +41,11 @@ trait LanguageServerIntegrationTests {
           workspaceDir = workspaceDir,
         )
 
-        server.initialize(List(workspaceDir)) *>
+        server.initialize(
+          List(workspaceDir),
+          progressToken = Some("init-progress"),
+          clientCapabilities = ClientCapabilities(windowProgress = true),
+        ) *>
           assertStartupEvents(client)
             .as(result)
       }
@@ -56,14 +65,32 @@ trait LanguageServerIntegrationTests {
     .getEvents
     .flatMap { events =>
       val initLogs = List(
-        TestClient.MessageLog(
+        Event.MessageLog(
           MessageType.Info,
           s"Hello from Smithy Playground v${BuildInfo.version}! Loading project...",
         ),
-        TestClient.MessageLog(
+        Event.BeginProgress(token = progressToken, title = "Loading project", message = None),
+        Event.ReportProgress(
+          progressToken,
+          "Loaded build definition from workspace...",
+        ),
+        Event.ReportProgress(
+          progressToken,
+          "Loaded model... (379 shapes)",
+        ),
+        Event.ReportProgress(
+          progressToken,
+          "Built DSI... (4 services, 114 schemas)",
+        ),
+        Event.ReportProgress(
+          progressToken,
+          "Loaded plugins",
+        ),
+        Event.MessageLog(
           MessageType.Info,
           "Loaded Smithy Playground server with 2 source entries, 0 imports, 2 dependencies and 0 plugins",
         ),
+        Event.EndProgress(token = progressToken, message = Some("completed")),
       )
       IO {
         require(
@@ -72,7 +99,7 @@ trait LanguageServerIntegrationTests {
         )
         require(
           events == initLogs,
-          "Events were not as expected, got: " + events,
+          "Events were not as expected, got: " + events.mkString("\n"),
         )
       }
     }

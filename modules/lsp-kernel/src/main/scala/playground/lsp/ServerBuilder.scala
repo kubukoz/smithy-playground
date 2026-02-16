@@ -16,22 +16,35 @@ import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.Authorization
 import playground.FileRunner
 import playground.Interpreters
+import playground.Location
 import playground.OperationRunner
 import playground.ServiceIndex
+import playground.Uri
 import playground.language.CommandResultReporter
+import playground.language.Feedback
+import playground.language.Progress
 import playground.plugins.Environment
 import playground.plugins.Interpreter
 import playground.plugins.SimpleHttpBuilder
+import playground.smithyql.Position
+import playground.smithyql.SourceRange
+import playground.smithyql.syntax.*
 import playground.std.StdlibRuntime
 import smithy4s.aws.AwsEnvironment
 import smithy4s.aws.kernel.AwsRegion
+import smithy4s.dynamic.DynamicSchemaIndex
 import smithy4s.http4s.SimpleRestJsonBuilder
+import software.amazon.smithy.model.SourceLocation
+import software.amazon.smithy.model.shapes.ShapeId as SmithyShapeId
+
+import scala.jdk.OptionConverters.*
 
 trait ServerBuilder[F[_]] {
 
   def build(
     buildInfo: BuildLoader.Loaded,
     loader: ServerLoader[F],
+    progress: Progress[F],
   ): F[LanguageServer[F]]
 
 }
@@ -76,13 +89,39 @@ object ServerBuilder {
         httpClient
       )
 
-      def build(
+      override def build(
         buildInfo: BuildLoader.Loaded,
         loader: ServerLoader[F],
+        progress: Progress[F],
       ): F[LanguageServer[F]] =
         for {
-          dsi <- BuildLoader[F].buildSchemaIndex(buildInfo)
-          plugins <- PluginResolver[F].resolve(buildInfo.config)
+          model <- BuildLoader[F].buildModel(buildInfo)
+          _ <- progress.report(
+            message = s"Loaded model... (${model.getShapeIds().size()} shapes)".some
+          )
+
+          dsi = DynamicSchemaIndex.loadModel(model)
+          _ <- progress
+            .report(message =
+              s"Built DSI... (${dsi.allServices.size} services, ${dsi.allSchemas.size} schemas)".some
+            )
+          plugins <- PluginResolver[F]
+            .resolve(buildInfo.config)
+            .onError(std.Console[F].printStackTrace(_))
+            .orElse {
+              LanguageClient[F]
+                .showErrorMessage(
+                  "Failed to resolve plugins, see server log for details. Falling back to no plugins"
+                )
+                .as(Nil)
+            }
+          _ <- progress.report(message = Some("Loaded plugins"))
+          _ <- Feedback[F]
+            .showInfoMessage(
+              s"Loaded ${plugins.size} plugins"
+            )
+            .whenA(plugins.nonEmpty)
+
         } yield {
           val interpreters = NonEmptyList
             .of(
@@ -101,17 +140,48 @@ object ServerBuilder {
               interpreters = interpreters,
             )
 
-          val serviceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
+          val serviceIndex = ServiceIndex.fromServices(
+            dsi.allServices.toList,
+            getLocation =
+              ident =>
+                model
+                  .getShape(SmithyShapeId.from(ident.toShapeId.show))
+                  .toScala
+                  .map(_.getSourceLocation)
+                  .map(convertLocation),
+          )
 
           implicit val sl: ServerLoader[F] = loader
 
           implicit val reporter: CommandResultReporter[F] = rep
 
           LanguageServer
-            .instance[F](dsi, FileRunner.instance(OperationRunner.merge[F](runners, serviceIndex)))
+            .instance[F](
+              dsi = dsi,
+              serviceIndex = serviceIndex,
+              runner = FileRunner.instance(OperationRunner.merge[F](runners, serviceIndex)),
+            )
         }
     }
   }
+
+  private def convertLocation(sourceLocation: SourceLocation): Location = Location(
+    document = Uri.fromUriString(sourceLocation.getFilename match {
+      // special-casing for the Smithy LSP
+      case uri if uri.startsWith("jar:") => uri.replace("jar:", "smithyjar:")
+      case uri                           => uri
+    }),
+    range = SourceRange.InFile(
+      start = Position.InFile(
+        sourceLocation.getLine - 1,
+        sourceLocation.getColumn - 1,
+      ),
+      end = Position.InFile(
+        sourceLocation.getLine - 1,
+        sourceLocation.getColumn - 1,
+      ),
+    ),
+  )
 
   private object middleware {
 

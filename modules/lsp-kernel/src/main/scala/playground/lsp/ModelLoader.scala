@@ -1,10 +1,6 @@
 package playground.lsp
 
-import coursier.*
-import coursier.cache.FileCache
-import coursier.parse.DependencyParser
-import coursier.parse.RepositoryParser
-import coursier.util.Task
+import coursierapi.*
 import playground.PlaygroundConfig
 import playground.lsp.buildinfo.BuildInfo
 import software.amazon.smithy.model.Model
@@ -13,11 +9,11 @@ import software.amazon.smithy.model.loader.ModelDiscovery
 import software.amazon.smithy.model.loader.ModelManifestException
 
 import java.io.File
+import java.net.URI
 import java.net.URL
 import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Files
-import scala.concurrent.duration.*
 import scala.jdk.CollectionConverters.*
 import scala.util.Using
 import scala.util.chaining.*
@@ -122,36 +118,41 @@ object ModelLoader {
     dependencies: List[String],
     repositories: List[String],
   ): List[File] = {
-    val maybeRepos = RepositoryParser.repositories(repositories).either
-    val maybeDeps =
-      DependencyParser
-        .dependencies(
-          dependencies,
-          defaultScalaVersion = BuildInfo.scalaBinaryVersion,
-        )
-        .either
-    val repos =
-      maybeRepos match {
-        case Left(errorMessages) =>
-          throw new IllegalArgumentException(
-            s"Failed to parse repositories with error: $errorMessages"
-          )
-        case Right(r) => r
-      }
-    val deps =
-      maybeDeps match {
-        case Left(errorMessages) =>
-          throw new IllegalArgumentException(
-            s"Failed to parse dependencies with errors: $errorMessages"
-          )
-        case Right(d) => d
-      }
+    val creds = coursierCredentialsByHost()
 
-    Fetch(FileCache[Task]().withTtl(1.hour))
+    val repos = repositories.map(MavenRepository.of).map(addCredsToRepo(_, creds))
+
+    val deps = dependencies
+      .map(Dependency.parse(_, ScalaVersion.of(BuildInfo.scalaBinaryVersion)))
+
+    Fetch
+      .create
       .addRepositories(repos*)
       .addDependencies(deps*)
-      .run()
+      .fetch()
+      .asScala
       .toList
+  }
+
+  // todo: add support for file credentials and other formats.
+  // coursier-interface currently offers no way to access the standard credentials,
+  // and I only needed support fro env vars, so here it is.
+  private def coursierCredentialsByHost(): Map[String, Credentials] =
+    sys
+      .env
+      .get("COURSIER_CREDENTIALS")
+      .flatMap {
+        case s"$host($_) $u:$p" => Some(host -> coursierapi.Credentials.of(u, p))
+        // untested
+        case s"$host $u:$p" => Some(host -> coursierapi.Credentials.of(u, p))
+        case _              => None
+      }
+      .toMap
+
+  private def addCredsToRepo(repo: MavenRepository, credsByHost: Map[String, Credentials])
+    : MavenRepository = {
+    val host = URI.create(repo.getBase()).getHost()
+    credsByHost.get(host).foldLeft(repo)(_.withCredentials(_))
   }
 
 }

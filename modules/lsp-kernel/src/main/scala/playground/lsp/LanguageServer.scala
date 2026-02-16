@@ -4,6 +4,7 @@ import cats.FlatMap
 import cats.MonadThrow
 import cats.data.Kleisli
 import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
 import cats.kernel.Semigroup
 import cats.parse.LocationMap
 import cats.syntax.all.*
@@ -19,6 +20,7 @@ import playground.FileRunner
 import playground.OperationCompiler
 import playground.PreludeCompiler
 import playground.ServiceIndex
+import playground.Uri
 import playground.language
 import playground.language.CodeLens
 import playground.language.CodeLensProvider
@@ -26,14 +28,15 @@ import playground.language.CommandProvider
 import playground.language.CommandResultReporter
 import playground.language.CompletionItem
 import playground.language.CompletionProvider
+import playground.language.DefinitionProvider
 import playground.language.DiagnosticProvider
 import playground.language.DocumentSymbol
 import playground.language.DocumentSymbolProvider
 import playground.language.Feedback
 import playground.language.FormattingProvider
+import playground.language.Progress
 import playground.language.TextDocumentProvider
 import playground.language.TextEdit
-import playground.language.Uri
 import playground.lsp.buildinfo.BuildInfo
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
@@ -42,7 +45,11 @@ import smithy4s.dynamic.DynamicSchemaIndex
 
 trait LanguageServer[F[_]] {
 
-  def initialize(workspaceFolders: List[Uri]): F[InitializeResult]
+  def initialize[A](
+    workspaceFolders: List[Uri],
+    progressToken: Option[String],
+    clientCapabilities: ClientCapabilities,
+  ): F[InitializeResult]
 
   def didChange(
     documentUri: Uri,
@@ -90,6 +97,11 @@ trait LanguageServer[F[_]] {
     arguments: List[Json],
   ): F[Unit]
 
+  def definition(
+    documentUri: Uri,
+    position: LSPPosition,
+  ): F[List[LSPLocation]]
+
   // custom smithyql/runQuery LSP request
   def runFile(
     params: RunFileParams
@@ -104,9 +116,11 @@ object LanguageServer {
   )
 
   def instance[
-    F[_]: Async: TextDocumentManager: LanguageClient: ServerLoader: CommandResultReporter
+    F[_]: {Async, TextDocumentManager, LanguageClient, ServerLoader, CommandResultReporter,
+      Progress.Make}
   ](
     dsi: DynamicSchemaIndex,
+    serviceIndex: ServiceIndex,
     runner: FileRunner.Resolver[F],
   ): LanguageServer[F] =
     new LanguageServer[F] {
@@ -120,18 +134,17 @@ object LanguageServer {
 
         }
 
-      // see if we can pass this everywhere
-      // https://github.com/kubukoz/smithy-playground/issues/164
-      val serviceIndex: ServiceIndex = ServiceIndex.fromServices(dsi.allServices.toList)
-
       val compiler: FileCompiler[IorThrow] = FileCompiler
         .instance(
           PreludeCompiler.instance[CompilationError.InIorNel](serviceIndex),
-          OperationCompiler.fromSchemaIndex(dsi),
+          OperationCompiler.fromSchemaIndex(dsi, serviceIndex),
         )
         .mapK(CompilationFailed.wrapK)
 
-      val completionProvider: CompletionProvider = CompletionProvider.forSchemaIndex(dsi)
+      val completionProvider: CompletionProvider = CompletionProvider.forSchemaIndex(
+        dsi,
+        serviceIndex,
+      )
       val diagnosticProvider: DiagnosticProvider[F] = DiagnosticProvider.instance(compiler, runner)
       val lensProvider: CodeLensProvider[F] = CodeLensProvider.instance(compiler, runner)
 
@@ -145,7 +158,13 @@ object LanguageServer {
         getFormatterWidth
       )
 
-      def initialize(workspaceFolders: List[Uri]): F[InitializeResult] = {
+      val definitionProvider = DefinitionProvider.instance[F](serviceIndex)
+
+      def initialize[A](
+        workspaceFolders: List[Uri],
+        progressToken: Option[String],
+        clientCapabilities: ClientCapabilities,
+      ): F[InitializeResult] = {
         def capabilities(compiler: ServerCapabilitiesCompiler): compiler.Result = {
           given Semigroup[compiler.Result] = compiler.semigroup
           compiler.textDocumentSync(TextDocumentSyncKind.Full) |+|
@@ -153,26 +172,42 @@ object LanguageServer {
             compiler.completionProvider |+|
             compiler.diagnosticProvider |+|
             compiler.codeLensProvider |+|
-            compiler.documentSymbolProvider
+            compiler.documentSymbolProvider |+|
+            compiler.definitionProvider
         }
 
         val serverInfo = ServerInfo("Smithy Playground", BuildInfo.version)
 
-        Feedback[F]
-          .showInfoMessage(
-            s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
-          ) *>
+        val mkProgress = progressToken
+          .traverse { token =>
+            Progress
+              .fromToken(token = token, title = "Loading project", message = None)
+          }
+          .map(_.getOrElse(Progress.fallback[F]))
+
+        LanguageClient[F]
+          .enableProgressCapability
+          .whenA(clientCapabilities.windowProgress) *>
+          Feedback[F]
+            .showInfoMessage(
+              s"Hello from Smithy Playground v${BuildInfo.version}! Loading project..."
+            ) *>
           ServerLoader[F]
             .prepare(workspaceFolders.some)
             .flatMap { prepped =>
-              ServerLoader[F].perform(prepped.params).flatTap { stats =>
-                Feedback[F]
-                  .showInfoMessage(
-                    s"Loaded Smithy Playground server with ${stats.render}"
-                  )
+              mkProgress.use { progress =>
+                progress.report(message = "Loaded build definition from workspace...".some) *>
+                  ServerLoader[F]
+                    .perform(prepped.params, progress)
+                    .flatTap { stats =>
+                      Feedback[F]
+                        .showInfoMessage(
+                          s"Loaded Smithy Playground server with ${stats.render}"
+                        )
+                    }
               }
             }
-            .onError { case e => LanguageClient[F].showErrorMessage(e.getMessage()) }
+            .onError { case e => LanguageClient[F].showErrorMessage("Failed to reload project") }
             .attempt
             .as(InitializeResult(capabilities, serverInfo))
       }
@@ -240,6 +275,24 @@ object LanguageServer {
             .map(LSPDiagnostic(_, map))
         }
 
+      def definition(documentUri: Uri, position: LSPPosition): F[List[LSPLocation]] =
+        TextDocumentManager[F]
+          .get(documentUri)
+          .flatMap { documentText =>
+            val map = LocationMap(documentText)
+
+            definitionProvider
+              .definition(documentUri, position.unwrap(map))
+              .map {
+                _.map { loc =>
+                  LSPLocation(
+                    document = loc.document,
+                    range = LSPRange.from(loc.range),
+                  )
+                }
+              }
+          }
+
       def codeLens(
         documentUri: Uri
       ): F[List[LSPCodeLens]] = TextDocumentManager[F]
@@ -274,8 +327,12 @@ object LanguageServer {
             )
           case prepared =>
             Feedback[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
-              ServerLoader[F]
-                .perform(prepared.params)
+              Progress
+                .create(title = "Rebuilding server", message = None)
+                .use {
+                  ServerLoader[F]
+                    .perform(prepared.params, _)
+                }
                 .onError { case e =>
                   LanguageClient[F].showErrorMessage(
                     "Couldn't reload server: " + e.getMessage
@@ -342,6 +399,7 @@ trait ServerCapabilitiesCompiler {
   def diagnosticProvider: Result
   def codeLensProvider: Result
   def documentSymbolProvider: Result
+  def definitionProvider: Result
 }
 
 object ServerCapabilitiesCompiler {
@@ -359,6 +417,8 @@ object ServerCapabilitiesCompiler {
 
 }
 
+case class ClientCapabilities(windowProgress: Boolean)
+
 case class ServerInfo(name: String, version: String)
 
 case class InitializeResult(
@@ -371,6 +431,7 @@ case class LSPCodeLens(lens: CodeLens, map: LocationMap)
 case class LSPDocumentSymbol(sym: DocumentSymbol, map: LocationMap)
 case class LSPCompletionItem(item: CompletionItem, map: LocationMap)
 case class LSPTextEdit(textEdit: TextEdit, map: LocationMap)
+case class LSPLocation(document: Uri, range: LSPRange)
 
 case class LSPPosition(line: Int, character: Int) {
 
@@ -394,6 +455,11 @@ object LSPRange {
   def from(range: SourceRange, map: LocationMap): LSPRange = LSPRange(
     LSPPosition.from(range.start, map),
     LSPPosition.from(range.end, map),
+  )
+
+  def from(range: SourceRange.InFile): LSPRange = LSPRange(
+    LSPPosition(range.start.lineOneIndexed, range.start.columnOneIndexed),
+    LSPPosition(range.end.lineOneIndexed, range.end.columnOneIndexed),
   )
 
 }

@@ -41,6 +41,9 @@ object Position {
   ): Position = Position(s.length)
 
   implicit val ord: Order[Position] = Order.by(_.index)
+
+  case class InFile(lineOneIndexed: Int, columnOneIndexed: Int)
+
 }
 
 final case class SourceRange(
@@ -84,6 +87,7 @@ object SourceRange {
     s: String
   ): SourceRange = SourceRange(Position.origin, Position.lastInString(s))
 
+  case class InFile(start: Position.InFile, end: Position.InFile)
 }
 
 final case class WithSource[+A](
