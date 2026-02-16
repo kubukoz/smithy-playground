@@ -278,7 +278,7 @@ lazy val lsp2 = module("lsp2")
   .settings(
     libraryDependencies ++= Seq(
       "tech.neander" %% "langoustine-app" % "0.0.25"
-    ).pipe(jsoniterFix)
+    )
   )
   .dependsOn(lspKernel)
 
@@ -314,7 +314,7 @@ lazy val e2e = module("e2e")
     libraryDependencies ++= Seq(
       "tech.neander" %% "langoustine-lsp" % "0.0.25",
       "tech.neander" %% "jsonrpclib-fs2" % "0.0.7",
-    ).pipe(jsoniterFix),
+    ),
   )
   .dependsOn(lspKernel)
 
