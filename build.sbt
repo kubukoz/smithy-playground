@@ -78,7 +78,7 @@ ThisBuild / githubWorkflowGeneratedCI ~= (_.filterNot(_.id == "publish"))
 ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 
 val ScalaLTS = "3.3.7"
-val ScalaNext = "3.7.4"
+val ScalaNext = "3.8.2"
 
 val jsoniterVersion = "2.38.9"
 
