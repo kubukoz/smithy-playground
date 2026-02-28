@@ -402,6 +402,21 @@ trait ServerCapabilitiesCompiler {
   def definitionProvider: Result
 }
 
+object ServerCapabilitiesCompiler {
+
+  abstract class Default extends ServerCapabilitiesCompiler {
+    def default: Result
+
+    def textDocumentSync(kind: TextDocumentSyncKind): Result = default
+    def documentFormattingProvider: Result = default
+    def completionProvider: Result = default
+    def diagnosticProvider: Result = default
+    def codeLensProvider: Result = default
+    def documentSymbolProvider: Result = default
+  }
+
+}
+
 case class ClientCapabilities(windowProgress: Boolean)
 
 case class ServerInfo(name: String, version: String)
