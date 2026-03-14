@@ -170,7 +170,7 @@ lazy val parser = module("parser")
       "org.typelevel" %% "cats-parse" % "1.1.0",
       "io.circe" %% "circe-generic" % "0.14.15" % Test,
       "io.circe" %% "circe-parser" % "0.14.15" % Test,
-      "co.fs2" %% "fs2-io" % "3.12.2" % Test,
+      "co.fs2" %% "fs2-io" % "3.13.0" % Test,
     )
   )
   .dependsOn(
