@@ -35,9 +35,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
     impl
       .initialize(
         workspaceFolders =
-          params
-            .getWorkspaceFolders()
-            .asScala
+          Option(params.getWorkspaceFolders())
+            .toList
+            .flatMap(_.asScala)
             .map(converters.fromLSP.uri(_))
             .toList,
         progressToken = Option(params.getWorkDoneToken()).map {
@@ -47,11 +47,11 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
             .fold(identity, _.toString)
         },
         clientCapabilities = ClientCapabilities(
-          windowProgress = Option(params.getCapabilities())
-            .flatMap(c =>
-              Option(c.getWindow())
-                .flatMap(w => Option(w.getWorkDoneProgress(): Boolean))
-            )
+          windowProgress = {
+            val c = params.getCapabilities()
+            Option(c.getWindow())
+              .flatMap(w => Option(w.getWorkDoneProgress(): Boolean))
+          }
             .getOrElse(false)
         ),
       )
