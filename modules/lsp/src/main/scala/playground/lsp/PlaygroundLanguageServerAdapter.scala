@@ -47,11 +47,9 @@ final class PlaygroundLanguageServerAdapter[F[_]: Sync](
             .fold(identity, _.toString)
         },
         clientCapabilities = ClientCapabilities(
-          windowProgress = {
-            val c = params.getCapabilities()
-            Option(c.getWindow())
-              .flatMap(w => Option(w.getWorkDoneProgress(): Boolean))
-          }
+          windowProgress = Option(params.getCapabilities())
+            .flatMap(c => Option(c.getWindow()))
+            .flatMap(w => Option(w.getWorkDoneProgress(): Boolean))
             .getOrElse(false)
         ),
       )
