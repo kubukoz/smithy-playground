@@ -80,7 +80,7 @@ ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 val ScalaLTS = "3.3.7"
 val ScalaNext = "3.7.4"
 
-val jsoniterVersion = "2.38.8"
+val jsoniterVersion = "2.38.9"
 
 ThisBuild / scalaVersion := ScalaNext
 
@@ -170,7 +170,7 @@ lazy val parser = module("parser")
       "org.typelevel" %% "cats-parse" % "1.1.0",
       "io.circe" %% "circe-generic" % "0.14.15" % Test,
       "io.circe" %% "circe-parser" % "0.14.15" % Test,
-      "co.fs2" %% "fs2-io" % "3.12.2" % Test,
+      "co.fs2" %% "fs2-io" % "3.13.0" % Test,
     )
   )
   .dependsOn(
@@ -217,14 +217,14 @@ lazy val protocol4s = module("protocol4s")
 lazy val core = module("core")
   .settings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.6.3",
+      "org.typelevel" %% "cats-effect" % "3.7.0",
       "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % jsoniterVersion,
       "com.disneystreaming.smithy4s" %% "smithy4s-dynamic" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.32" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.67.0" % Test,
+      "software.amazon.smithy" % "smithy-aws-traits" % "1.68.0" % Test,
     )
   )
   .dependsOn(
@@ -249,7 +249,7 @@ lazy val lspKernel = module("lsp-kernel")
       "io.circe" %% "circe-core" % "0.14.15",
       "org.http4s" %% "http4s-ember-client" % "0.23.33",
       "io.get-coursier" % "interface" % "1.0.28",
-      "org.typelevel" %% "cats-tagless-core" % "0.16.4",
+      "org.typelevel" %% "cats-tagless-core" % "0.16.5",
       "org.http4s" %% "http4s-ember-server" % "0.23.33" % Test,
     ),
     (Test / test) := {
