@@ -79,6 +79,14 @@ pull_request_rules:
       add:
       - lsp-kernel
       remove: []
+- name: Label lsp2 PRs
+  conditions:
+  - files~=^modules/lsp2/
+  actions:
+    label:
+      add:
+      - lsp2
+      remove: []
 - name: Label parser PRs
   conditions:
   - files~=^modules/parser/
