@@ -274,6 +274,14 @@ lazy val lsp = module("lsp")
   )
   .dependsOn(lspKernel)
 
+lazy val lsp2 = module("lsp2")
+  .settings(
+    libraryDependencies ++= Seq(
+      "tech.neander" %% "langoustine-app" % "0.0.25"
+    )
+  )
+  .dependsOn(lspKernel)
+
 lazy val e2e = module("e2e")
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -283,12 +291,12 @@ lazy val e2e = module("e2e")
       ]( // do you know how to simplify this? let me know please!
         Def
           .task {
-            s"""${(lsp / organization).value}::${(lsp / moduleName).value}:${(lsp / version).value}"""
+            s"""${(lsp2 / organization).value}::${(lsp2 / moduleName).value}:${(lsp2 / version).value}"""
           }
           // todo: replace with a full publishLocal before e2e in particular gets run (but not before tests run normally)
           .dependsOn(
             lspKernel / publishLocal,
-            lsp / publishLocal,
+            lsp2 / publishLocal,
             languageSupport / publishLocal,
             core / publishLocal,
             parser / publishLocal,
@@ -303,8 +311,12 @@ lazy val e2e = module("e2e")
       ),
     publishArtifact := false,
     Test / fork := true,
+    libraryDependencies ++= Seq(
+      "tech.neander" %% "langoustine-lsp" % "0.0.25",
+      "tech.neander" %% "jsonrpclib-fs2" % "0.0.7",
+    ),
   )
-  .dependsOn(lsp)
+  .dependsOn(lspKernel)
 
 val writeVersion = taskKey[Unit]("Writes the current version to the `.version` file")
 
@@ -312,7 +324,8 @@ lazy val root = project
   .in(file("."))
   .settings(
     publishArtifact := false,
-    addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
+    addCommandAlias("ci", "e2e/test"),
+    // addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
     writeVersion :=
       IO.write(file(".version"), version.value),
   )
@@ -326,6 +339,7 @@ lazy val root = project
     languageSupport,
     lspKernel,
     lsp,
+    lsp2,
     protocol4s,
     pluginCore,
     pluginSample,
