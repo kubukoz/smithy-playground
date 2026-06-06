@@ -80,7 +80,7 @@ ThisBuild / mergifyStewardConfig ~= (_.map(_.withMergeMinors(true)))
 val ScalaLTS = "3.3.7"
 val ScalaNext = "3.7.4"
 
-val jsoniterVersion = "2.38.12"
+val jsoniterVersion = "2.38.14"
 
 ThisBuild / scalaVersion := ScalaNext
 
