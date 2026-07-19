@@ -83,10 +83,11 @@ object ServerBuilder {
           .memoize
       given TextDocumentManager[F] <- TextDocumentManager.instance[F].toResource
       rep <- CommandResultReporter.instance[F].toResource
+      given ServerLoader.Queue[F] <- ServerLoader.Queue.createCancelable[F]
 
     } yield new ServerBuilder[F] {
-      given Environment[F] = LSPEnvironment.instance[F](using httpClient =
-        httpClient
+      given Environment[F] = LSPEnvironment.instance[F](
+        using httpClient = httpClient
       )
 
       override def build(
