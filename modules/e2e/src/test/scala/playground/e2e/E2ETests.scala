@@ -1,21 +1,23 @@
 package playground.e2e
 
 import buildinfo.BuildInfo
+import cats.effect.Concurrent
 import cats.effect.IO
+import cats.effect.IOHack
 import cats.effect.kernel.Resource
+import cats.effect.unsafe.IORuntime
 import cats.effect.unsafe.implicits.*
 import cats.syntax.all.*
 import fs2.io.file
-import org.eclipse.lsp4j.InitializeParams
-import org.eclipse.lsp4j.InitializeResult
-import org.eclipse.lsp4j.MessageActionItem
-import org.eclipse.lsp4j.MessageParams
-import org.eclipse.lsp4j.PublishDiagnosticsParams
-import org.eclipse.lsp4j.ShowMessageRequestParams
-import org.eclipse.lsp4j.WorkspaceFolder
-import org.eclipse.lsp4j.launch.LSPLauncher
-import org.eclipse.lsp4j.services.LanguageServer
-import playground.lsp.PlaygroundLanguageClient
+import fs2.io.process.Processes
+import jsonrpclib.fs2.FS2Channel
+import jsonrpclib.fs2.given
+import langoustine.lsp.Communicate
+import langoustine.lsp.LSPBuilder
+import langoustine.lsp.requests.initialize
+import langoustine.lsp.requests.window
+import langoustine.lsp.runtime.Opt
+import langoustine.lsp.runtime.Uri
 import weaver.*
 
 import java.io.PrintWriter
@@ -28,107 +30,119 @@ import scala.util.chaining.*
 
 object E2ETests extends SimpleIOSuite {
 
-  class LanguageServerAdapter(
-    ls: LanguageServer
-  ) {
-
-    def initialize(
-      params: InitializeParams
-    ): IO[InitializeResult] = IO.fromCompletableFuture(IO(ls.initialize(params)))
-
-  }
-
-  private def runServer: Resource[IO, LanguageServerAdapter] = {
-
-    val client: PlaygroundLanguageClient =
-      new PlaygroundLanguageClient {
-
-        override def telemetryEvent(
-          `object`: Object
-        ): Unit = ()
-
-        override def publishDiagnostics(
-          diagnostics: PublishDiagnosticsParams
-        ): Unit = ()
-
-        override def showMessage(
-          messageParams: MessageParams
-        ): Unit = println(
-          s"${Console.MAGENTA}Message from server: ${messageParams
-              .getMessage()} (type: ${messageParams.getType()})${Console.RESET}"
-        )
-
-        override def showMessageRequest(
-          requestParams: ShowMessageRequestParams
-        ): CompletableFuture[MessageActionItem] = (IO.stub: IO[MessageActionItem])
-          .unsafeToCompletableFuture()
-
-        override def logMessage(
-          message: MessageParams
-        ): Unit = ()
-
-        override def showOutputPanel(
-        ): Unit = ()
-
-      }
-
-    val builder =
-      new ProcessBuilder(
-        "cs",
-        "launch",
-        BuildInfo.lspArtifact,
-      )
-        // Watch process stderr in test runner
-        .redirectError(Redirect.INHERIT)
-
-    Resource
-      .make(IO.interruptibleMany(builder.start()))(p => IO(p.destroy()).void)
-      .flatMap { process =>
-        val launcher = new LSPLauncher.Builder[LanguageServer]()
-          .setLocalService(client)
-          .setRemoteInterface(classOf[LanguageServer])
-          .setInput(process.getInputStream())
-          .setOutput(process.getOutputStream())
-          .traceMessages(new PrintWriter(System.err))
-          .create()
-
-        Resource
-          .make(IO(launcher.startListening()).timeout(5.seconds))(f =>
-            IO(f.cancel(true): @nowarn("msg=discarded non-Unit"))
-          )
-          .as(new LanguageServerAdapter(launcher.getRemoteProxy()))
-      }
-  }
-
-  private def initializeParams(
-    workspaceFolders: List[file.Path]
-  ): InitializeParams = new InitializeParams()
-    .tap(
-      _.setWorkspaceFolders(
-        workspaceFolders
-          .zipWithIndex
-          .map { case (path, i) =>
-            new WorkspaceFolder(path.toNioPath.toUri().toString(), s"test-workspace-$i")
-          }
-          .asJava
-      )
-    )
-
-  test("server startup and initialize") {
-    runServer
-      .use { ls =>
-        file.Files[IO].tempDirectory.use { tempDirectory =>
-          val initParams = initializeParams(workspaceFolders = List(tempDirectory))
-
-          ls.initialize(initParams).map { result =>
-            expect.eql(
-              result.getServerInfo().getName(),
-              "Smithy Playground",
-            )
+  private def runServer: Resource[IO, Communicate[IO]] = Processes[IO]
+    .spawn(fs2.io.process.ProcessBuilder("cs", "launch", BuildInfo.lspArtifact))
+    .onFinalize(IO.println("Server process finalized"))
+    .flatMap { process =>
+      val clientEndpoints: LSPBuilder[IO] => LSPBuilder[IO] =
+        _.handleNotification(window.showMessage) { in =>
+          val messageParams = in.params
+          IO.println {
+            s"${Console.MAGENTA}Message from server: ${messageParams.message} (type: ${messageParams.`type`.name})${Console.RESET}"
           }
         }
 
-      }
-      .timeout(20.seconds)
+      FS2Channel[IO]()
+        .compile
+        .resource
+        .onlyOrError
+        .onFinalize(IO.println("Channel finalized"))
+        .flatMap { chan =>
+          val comms = Communicate.channel(chan)
+          chan
+            .withEndpoints(clientEndpoints(LSPBuilder.create[IO]).build(comms))
+            .flatMap { channel =>
+              process
+                .stdout
+                // fs2.io.stdout seems to be printed repeatedly for some reason, could be a bug with sbt
+                .observe(_.through(fs2.text.utf8.decode[IO]).debug("stdout: " + _).drain)
+                .through(jsonrpclib.fs2.lsp.decodeMessages[IO])
+                .through(channel.inputOrBounce)
+                .onFinalize(IO.println("stdout stream finalized"))
+                .concurrently(
+                  channel
+                    .output
+                    .through(jsonrpclib.fs2.lsp.encodeMessages[IO])
+                    .observe(_.through(fs2.text.utf8.decode[IO]).debug("stdin: " + _).drain)
+                    .through(process.stdin)
+                    .onFinalize(IO.println("stdin stream finalized"))
+                )
+                .concurrently(
+                  process
+                    .stderr
+                    .through(fs2.io.stderr[IO])
+                    .onFinalize(
+                      IO.println("stderr stream finalized")
+                    )
+                )
+                .onFinalize(
+                  IO.println("stdio streams finalized")
+                )
+                .compile
+                .drain
+                .guarantee(
+                  IO.println("Finalizing server process fiber")
+                )
+                .background
+                .as(comms)
+                .onFinalize(
+                  IO.println("Server process and channel finalized")
+                )
+            }
+        }
+    }
+
+  private def initializeParams(
+    workspaceFolders: List[file.Path]
+  ): langoustine.lsp.structures.InitializeParams = langoustine
+    .lsp
+    .structures
+    .InitializeParams(
+      processId = Opt.empty,
+      rootUri = Opt.empty,
+      capabilities = langoustine.lsp.structures.ClientCapabilities(),
+      workspaceFolders = Opt(
+        Opt(
+          workspaceFolders
+            .zipWithIndex
+            .map { case (path, i) =>
+              langoustine
+                .lsp
+                .structures
+                .WorkspaceFolder(
+                  uri = Uri(path.toNioPath.toUri().toString),
+                  name = s"test-workspace-$i",
+                )
+            }
+            .toVector
+        )
+      ),
+    )
+
+  test("server startup and initialize") {
+    val run =
+      runServer
+        .use { ls =>
+          file.Files[IO].tempDirectory.use { tempDirectory =>
+            val initParams = initializeParams(workspaceFolders = List(tempDirectory))
+
+            ls.request(initialize(initParams)).map { result =>
+              expect.eql(
+                result.serverInfo.toOption.get.name,
+                "Smithy Playground",
+              )
+            }
+          } <* IO.println("Finished inner test")
+        }
+        .timeout(20.seconds) <* IO.println("Finished test and closed server")
+
+    run
+      .race(
+        IO(triggerFiberSnapshot()).andWait(5.seconds).foreverM
+      )
+      .map(_.merge)
   }
+
+  def triggerFiberSnapshot(): Unit = IOHack.fiberSnapshot()
+
 }
