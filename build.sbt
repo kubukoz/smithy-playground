@@ -269,7 +269,7 @@ lazy val lspKernel = module("lsp-kernel")
 lazy val lsp = module("lsp")
   .settings(
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.24.0"
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "1.0.0"
     )
   )
   .dependsOn(lspKernel)
