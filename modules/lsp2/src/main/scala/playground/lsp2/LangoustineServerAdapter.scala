@@ -7,6 +7,7 @@ import cats.parse.LocationMap
 import cats.syntax.all.*
 import io.circe.Json
 import langoustine.lsp.LSPBuilder
+import langoustine.lsp.aliases.Definition
 import langoustine.lsp.aliases.DocumentDiagnosticReport
 import langoustine.lsp.aliases.TextDocumentContentChangeEvent
 import langoustine.lsp.enumerations.CompletionItemKind
@@ -18,7 +19,6 @@ import langoustine.lsp.requests.initialize
 import langoustine.lsp.requests.shutdown
 import langoustine.lsp.requests.textDocument
 import langoustine.lsp.requests.workspace
-import langoustine.lsp.aliases.Definition
 import langoustine.lsp.runtime.DocumentUri
 import langoustine.lsp.runtime.Opt
 import langoustine.lsp.structures.CodeLens
@@ -37,8 +37,8 @@ import langoustine.lsp.structures.RelatedFullDocumentDiagnosticReport
 import langoustine.lsp.structures.ServerCapabilities
 import langoustine.lsp.structures.TextEdit
 import playground.CompilationError
-import playground.language.InsertText
 import playground.Uri
+import playground.language.InsertText
 import playground.lsp.LSPCodeLens
 import playground.lsp.LSPCompletionItem
 import playground.lsp.LSPDiagnostic
@@ -58,22 +58,28 @@ object LangoustineServerAdapter {
     _.handleRequest(initialize) { req =>
       server
         .initialize(
-          workspaceFolders =
-            req.params.workspaceFolders.toOption.foldMap(_.toOption.orEmpty).toList.map {
-              workspaceFolder =>
-                playground.Uri.fromUriString(workspaceFolder.uri.value)
+          workspaceFolders = req
+            .params
+            .workspaceFolders
+            .toOption
+            .foldMap(_.toOption.orEmpty)
+            .toList
+            .map { workspaceFolder =>
+              playground.Uri.fromUriString(workspaceFolder.uri.value)
             },
           // langoustine's InitializeParams doesn't expose workDoneToken
           progressToken = None,
-          clientCapabilities = playground.lsp.ClientCapabilities(
-            windowProgress = req
-              .params
-              .capabilities
-              .window
-              .toOption
-              .flatMap(_.workDoneProgress.toOption)
-              .getOrElse(false)
-          ),
+          clientCapabilities = playground
+            .lsp
+            .ClientCapabilities(
+              windowProgress = req
+                .params
+                .capabilities
+                .window
+                .toOption
+                .flatMap(_.workDoneProgress.toOption)
+                .getOrElse(false)
+            ),
         )
         .map { result =>
           InitializeResult(
@@ -213,20 +219,20 @@ object LangoustineServerAdapter {
       .handleRequest(smithyql.runQuery) { req =>
         server.runFile(RunFileParams(converters.fromLSP.uri(req.params.uri)))
       }
-      .handleNotification(exit) { _ =>
-        System.err.println("we're in an exit now")
-        Applicative[F].unit
-      }
+      // without this, the server process never terminates: unlike lsp4j, langoustine
+      // doesn't stop on stdin EOF - only when its shutdown action is run.
+      .handleNotification(exit)((_, comms) => comms.shutdown)
       .handleRequest(shutdown) { _ =>
-        System.err.println("we're in a shutdown now")
         Applicative[F].pure(null: shutdown.Out /* Anton wtf */ )
       }
 
   object converters {
 
     object fromLSP {
-      def uri(uri: langoustine.lsp.runtime.DocumentUri)
-        : Uri = playground.Uri.fromUriString(uri.value)
+
+      def uri(uri: langoustine.lsp.runtime.DocumentUri): Uri = playground
+        .Uri
+        .fromUriString(uri.value)
 
       def json(u: ujson.Value): Json =
         u match {

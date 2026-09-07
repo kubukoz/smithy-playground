@@ -1,12 +1,8 @@
 package playground.e2e
 
 import buildinfo.BuildInfo
-import cats.effect.Concurrent
 import cats.effect.IO
-import cats.effect.IOHack
 import cats.effect.kernel.Resource
-import cats.effect.unsafe.IORuntime
-import cats.effect.unsafe.implicits.*
 import cats.syntax.all.*
 import fs2.io.file
 import fs2.io.process.Processes
@@ -14,25 +10,20 @@ import jsonrpclib.fs2.FS2Channel
 import jsonrpclib.fs2.given
 import langoustine.lsp.Communicate
 import langoustine.lsp.LSPBuilder
+import langoustine.lsp.requests.exit
 import langoustine.lsp.requests.initialize
+import langoustine.lsp.requests.shutdown
 import langoustine.lsp.requests.window
 import langoustine.lsp.runtime.Opt
 import langoustine.lsp.runtime.Uri
 import weaver.*
 
-import java.io.PrintWriter
-import java.lang.ProcessBuilder.Redirect
-import java.util.concurrent.CompletableFuture
-import scala.annotation.nowarn
 import scala.concurrent.duration.*
-import scala.jdk.CollectionConverters.*
-import scala.util.chaining.*
 
 object E2ETests extends SimpleIOSuite {
 
   private def runServer: Resource[IO, Communicate[IO]] = Processes[IO]
     .spawn(fs2.io.process.ProcessBuilder("cs", "launch", BuildInfo.lspArtifact))
-    .onFinalize(IO.println("Server process finalized"))
     .flatMap { process =>
       val clientEndpoints: LSPBuilder[IO] => LSPBuilder[IO] =
         _.handleNotification(window.showMessage) { in =>
@@ -46,7 +37,6 @@ object E2ETests extends SimpleIOSuite {
         .compile
         .resource
         .onlyOrError
-        .onFinalize(IO.println("Channel finalized"))
         .flatMap { chan =>
           val comms = Communicate.channel(chan)
           chan
@@ -54,43 +44,56 @@ object E2ETests extends SimpleIOSuite {
             .flatMap { channel =>
               process
                 .stdout
-                // fs2.io.stdout seems to be printed repeatedly for some reason, could be a bug with sbt
-                .observe(_.through(fs2.text.utf8.decode[IO]).debug("stdout: " + _).drain)
                 .through(jsonrpclib.fs2.lsp.decodeMessages[IO])
                 .through(channel.inputOrBounce)
-                .onFinalize(IO.println("stdout stream finalized"))
                 .concurrently(
                   channel
                     .output
                     .through(jsonrpclib.fs2.lsp.encodeMessages[IO])
-                    .observe(_.through(fs2.text.utf8.decode[IO]).debug("stdin: " + _).drain)
                     .through(process.stdin)
-                    .onFinalize(IO.println("stdin stream finalized"))
                 )
                 .concurrently(
                   process
                     .stderr
                     .through(fs2.io.stderr[IO])
-                    .onFinalize(
-                      IO.println("stderr stream finalized")
-                    )
-                )
-                .onFinalize(
-                  IO.println("stdio streams finalized")
                 )
                 .compile
                 .drain
-                .guarantee(
-                  IO.println("Finalizing server process fiber")
-                )
                 .background
-                .as(comms)
-                .onFinalize(
-                  IO.println("Server process and channel finalized")
-                )
+                .as((comms, channel))
             }
         }
+        // fs2's process finalizer is `destroy(); waitFor()`, which blocks forever if the
+        // server ignores SIGTERM. Ask it to exit first, and don't wait for it indefinitely.
+        .flatMap { case (comms, channel) =>
+          Resource
+            .onFinalize {
+              comms
+                .request(shutdown(()))
+                .attempt
+                .productR(sendExit(channel).attempt)
+                .productR(process.exitValue.void)
+                .timeoutTo(10.seconds, IO.unit)
+            }
+            .as(comms)
+        }
     }
+
+  // Langoustine's `exit(())` serializes its Unit params as `null`, which jsonrpclib parses
+  // back as `None` - and its own decoder rejects that with "missing payload". The failure
+  // lands in `FS2Channel.reportError`, which is `???`, killing the server before it can
+  // shut down. Sending `{}` instead decodes as `Some`, which reads back as Unit just fine.
+  private def sendExit(channel: FS2Channel[IO]): IO[Unit] = {
+    given jsonrpclib.Codec[Unit] =
+      new jsonrpclib.Codec[Unit] {
+        def encode(a: Unit): jsonrpclib.Payload = jsonrpclib.Payload("{}".getBytes)
+
+        def decode(payload: Option[jsonrpclib.Payload]): Either[jsonrpclib.ProtocolError, Unit] =
+          Right(())
+      }
+
+    channel.notificationStub[Unit](exit.notificationMethod).apply(())
+  }
 
   private def initializeParams(
     workspaceFolders: List[file.Path]
@@ -120,29 +123,20 @@ object E2ETests extends SimpleIOSuite {
     )
 
   test("server startup and initialize") {
-    val run =
-      runServer
-        .use { ls =>
-          file.Files[IO].tempDirectory.use { tempDirectory =>
-            val initParams = initializeParams(workspaceFolders = List(tempDirectory))
+    runServer
+      .use { ls =>
+        file.Files[IO].tempDirectory.use { tempDirectory =>
+          val initParams = initializeParams(workspaceFolders = List(tempDirectory))
 
-            ls.request(initialize(initParams)).map { result =>
-              expect.eql(
-                result.serverInfo.toOption.get.name,
-                "Smithy Playground",
-              )
-            }
-          } <* IO.println("Finished inner test")
+          ls.request(initialize(initParams)).map { result =>
+            expect.eql(
+              result.serverInfo.toOption.get.name,
+              "Smithy Playground",
+            )
+          }
         }
-        .timeout(20.seconds) <* IO.println("Finished test and closed server")
-
-    run
-      .race(
-        IO(triggerFiberSnapshot()).andWait(5.seconds).foreverM
-      )
-      .map(_.merge)
+      }
+      .timeout(60.seconds)
   }
-
-  def triggerFiberSnapshot(): Unit = IOHack.fiberSnapshot()
 
 }

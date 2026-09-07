@@ -324,8 +324,7 @@ lazy val root = project
   .in(file("."))
   .settings(
     publishArtifact := false,
-    addCommandAlias("ci", "e2e/test"),
-    // addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
+    addCommandAlias("ci", "+test;+mimaReportBinaryIssues;+publishLocal;writeVersion"),
     writeVersion :=
       IO.write(file(".version"), version.value),
   )

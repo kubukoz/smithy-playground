@@ -4,8 +4,8 @@ import cats.effect.kernel.Ref
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import langoustine.lsp.Communicate
-import langoustine.lsp.enumerations.MessageType
 import langoustine.lsp.aliases.ProgressToken
+import langoustine.lsp.enumerations.MessageType
 import langoustine.lsp.requests.window
 import langoustine.lsp.requests.workspace
 import langoustine.lsp.runtime.Opt
@@ -79,29 +79,44 @@ object LangoustineClientAdapter {
       def enableProgressCapability: F[Unit] = progressCapabilityState.set(true)
       def hasProgressCapability: F[Boolean] = progressCapabilityState.get
 
-      def createWorkDoneProgress(token: String): F[Unit] = comms
-        .request(window.workDoneProgress.create(WorkDoneProgressCreateParams(token = ProgressToken(token))))
-        .void
+      def createWorkDoneProgress(token: String): F[Unit] =
+        comms
+          .request(
+            window
+              .workDoneProgress
+              .create(WorkDoneProgressCreateParams(token = ProgressToken(token)))
+          )
+          .void
 
       def beginProgress(token: String, title: String, message: Option[String]): F[Unit] = progress(
         token,
-        upickle.default.writeJs(
-          WorkDoneProgressBegin(kind = "begin", title = title, message = Opt.fromOption(message))
-        ),
+        upickle
+          .default
+          .writeJs(
+            WorkDoneProgressBegin(kind = "begin", title = title, message = Opt.fromOption(message))
+          ),
       )
 
       def reportProgress(token: String, message: Option[String]): F[Unit] = progress(
         token,
-        upickle.default.writeJs(WorkDoneProgressReport(kind = "report", message = Opt.fromOption(message))),
+        upickle
+          .default
+          .writeJs(WorkDoneProgressReport(kind = "report", message = Opt.fromOption(message))),
       )
 
       def endProgress(token: String, message: Option[String]): F[Unit] = progress(
         token,
-        upickle.default.writeJs(WorkDoneProgressEnd(kind = "end", message = Opt.fromOption(message))),
+        upickle
+          .default
+          .writeJs(WorkDoneProgressEnd(kind = "end", message = Opt.fromOption(message))),
       )
 
       private def progress(token: String, value: ujson.Value): F[Unit] = comms.notification(
-        langoustine.lsp.requests.$DOLLAR.progress(ProgressParams(token = ProgressToken(token), value = value))
+        langoustine
+          .lsp
+          .requests
+          .$DOLLAR
+          .progress(ProgressParams(token = ProgressToken(token), value = value))
       )
     }
 
