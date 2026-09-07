@@ -18,6 +18,8 @@ import langoustine.lsp.requests.initialize
 import langoustine.lsp.requests.shutdown
 import langoustine.lsp.requests.textDocument
 import langoustine.lsp.requests.workspace
+import langoustine.lsp.aliases.Definition
+import langoustine.lsp.runtime.DocumentUri
 import langoustine.lsp.runtime.Opt
 import langoustine.lsp.structures.CodeLens
 import langoustine.lsp.structures.CodeLensOptions
@@ -28,6 +30,7 @@ import langoustine.lsp.structures.DiagnosticOptions
 import langoustine.lsp.structures.DocumentSymbol
 import langoustine.lsp.structures.InitializeResult
 import langoustine.lsp.structures.InitializeResult.ServerInfo
+import langoustine.lsp.structures.Location
 import langoustine.lsp.structures.MarkupContent
 import langoustine.lsp.structures.Position
 import langoustine.lsp.structures.RelatedFullDocumentDiagnosticReport
@@ -35,7 +38,7 @@ import langoustine.lsp.structures.ServerCapabilities
 import langoustine.lsp.structures.TextEdit
 import playground.CompilationError
 import playground.language.InsertText
-import playground.language.Uri
+import playground.Uri
 import playground.lsp.LSPCodeLens
 import playground.lsp.LSPCompletionItem
 import playground.lsp.LSPDiagnostic
@@ -55,10 +58,22 @@ object LangoustineServerAdapter {
     _.handleRequest(initialize) { req =>
       server
         .initialize(
-          req.params.workspaceFolders.toOption.foldMap(_.toOption.orEmpty).toList.map {
-            workspaceFolder =>
-              playground.language.Uri.fromUriString(workspaceFolder.uri.value)
-          }
+          workspaceFolders =
+            req.params.workspaceFolders.toOption.foldMap(_.toOption.orEmpty).toList.map {
+              workspaceFolder =>
+                playground.Uri.fromUriString(workspaceFolder.uri.value)
+            },
+          // langoustine's InitializeParams doesn't expose workDoneToken
+          progressToken = None,
+          clientCapabilities = playground.lsp.ClientCapabilities(
+            windowProgress = req
+              .params
+              .capabilities
+              .window
+              .toOption
+              .flatMap(_.workDoneProgress.toOption)
+              .getOrElse(false)
+          ),
         )
         .map { result =>
           InitializeResult(
@@ -87,6 +102,8 @@ object LangoustineServerAdapter {
                   _.copy(documentFormattingProvider = Opt(true))
 
                 def documentSymbolProvider: Result = _.copy(documentSymbolProvider = Opt(true))
+
+                def definitionProvider: Result = _.copy(definitionProvider = Opt(true))
 
                 def textDocumentSync(kind: playground.lsp.TextDocumentSyncKind): Result =
                   _.copy(textDocumentSync = Opt(kind match {
@@ -184,6 +201,15 @@ object LangoustineServerAdapter {
           .map(_.map(converters.toLSP.documentSymbol))
           .map(symbols => Opt(symbols.toVector))
       }
+      .handleRequest(textDocument.definition) { req =>
+        server
+          .definition(
+            documentUri = converters.fromLSP.uri(req.params.textDocument.uri),
+            position = converters.fromLSP.position(req.params.position),
+          )
+          .map(_.map(converters.toLSP.location))
+          .map(locations => Opt(Definition(locations.toVector)))
+      }
       .handleRequest(smithyql.runQuery) { req =>
         server.runFile(RunFileParams(converters.fromLSP.uri(req.params.uri)))
       }
@@ -200,7 +226,7 @@ object LangoustineServerAdapter {
 
     object fromLSP {
       def uri(uri: langoustine.lsp.runtime.DocumentUri)
-        : Uri = playground.language.Uri.fromUriString(uri.value)
+        : Uri = playground.Uri.fromUriString(uri.value)
 
       def json(u: ujson.Value): Json =
         u match {
@@ -374,6 +400,11 @@ object LangoustineServerAdapter {
             LSPRange.from(sym.selectionRange, map)
           ),
         children = Opt(sym.children.map(documentSymbol(_, map)).toVector),
+      )
+
+      def location(loc: playground.lsp.LSPLocation): Location = Location(
+        uri = DocumentUri(loc.document.value),
+        range = range(loc.range),
       )
 
       def range(range: LSPRange): langoustine.lsp.structures.Range = langoustine

@@ -4,6 +4,7 @@ import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.Resource
+import cats.syntax.all.*
 import jsonrpclib.Channel
 import jsonrpclib.Monadic
 import jsonrpclib.fs2.given
@@ -50,7 +51,7 @@ object Main extends LangoustineApp {
       )(
         using Monadic[IO]
       ): IO[T] =
-        clientDef.complete(LangoustineClientAdapter.adapt(communicate)) *>
+        LangoustineClientAdapter.adapt(communicate).flatMap(clientDef.complete) *>
           lsp.bind(channel, communicate)
     }
 
