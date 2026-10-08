@@ -37,6 +37,7 @@ import playground.language.FormattingProvider
 import playground.language.Progress
 import playground.language.TextDocumentProvider
 import playground.language.TextEdit
+import playground.lsp.ServerLoader.PrepareResult
 import playground.lsp.buildinfo.BuildInfo
 import playground.smithyql.Position
 import playground.smithyql.SourceRange
@@ -116,12 +117,14 @@ object LanguageServer {
   )
 
   def instance[
-    F[_]: {Async, TextDocumentManager, LanguageClient, ServerLoader, CommandResultReporter,
-      Progress.Make}
+    F[_]: {Async, TextDocumentManager, LanguageClient, CommandResultReporter, Progress.Make,
+      ServerLoader.Queue}
   ](
     dsi: DynamicSchemaIndex,
     serviceIndex: ServiceIndex,
     runner: FileRunner.Resolver[F],
+  )(
+    using serverLoader: ServerLoader[F]
   ): LanguageServer[F] =
     new LanguageServer[F] {
 
@@ -194,23 +197,34 @@ object LanguageServer {
             ) *>
           ServerLoader[F]
             .prepare(workspaceFolders.some)
-            .flatMap { prepped =>
-              mkProgress.use { progress =>
-                progress.report(message = "Loaded build definition from workspace...".some) *>
-                  ServerLoader[F]
-                    .perform(prepped.params, progress)
-                    .flatTap { stats =>
-                      Feedback[F]
-                        .showInfoMessage(
-                          s"Loaded Smithy Playground server with ${stats.render}"
-                        )
-                    }
-              }
+            .flatMap { prepared =>
+              ServerLoader
+                .Queue[F]
+                .schedule {
+                  mkProgress.use { progress =>
+                    loadInitialServer(prepared, progress)
+                  }
+                }
             }
-            .onError { case e => LanguageClient[F].showErrorMessage("Failed to reload project") }
-            .attempt
             .as(InitializeResult(capabilities, serverInfo))
       }
+
+      private def loadInitialServer(
+        prepped: PrepareResult[serverLoader.Params],
+        progress: Progress[F],
+      ) =
+        progress.report(message = "Loaded build definition from workspace...".some) *>
+          ServerLoader[F]
+            .perform(prepped.params, progress)
+            .flatTap { stats =>
+              LanguageClient[F].refreshDiagnostics *>
+                LanguageClient[F].refreshCodeLenses *>
+                Feedback[F].showInfoMessage(
+                  s"Loaded Smithy Playground server with ${stats.render}"
+                )
+            }
+            .onError { case e => LanguageClient[F].showErrorMessage("Failed to reload project") }
+            .void
 
       def didChange(
         documentUri: Uri,
@@ -262,18 +276,27 @@ object LanguageServer {
 
       def diagnostic(
         documentUri: Uri
-      ): F[List[LSPDiagnostic]] = TextDocumentManager[F]
-        .get(documentUri)
-        .map { documentText =>
-          val diags = diagnosticProvider.getDiagnostics(
-            documentText
+      ): F[List[LSPDiagnostic]] =
+        // Due to this happening in the background, we just don't return diagnostics until the server is initialized the first time.
+        // They'll be refreshed by a server->client request later.
+        ServerLoader[F]
+          .isInitialized
+          .get
+          .ifM(
+            ifFalse = Nil.pure[F],
+            ifTrue = TextDocumentManager[F]
+              .get(documentUri)
+              .map { documentText =>
+                val diags = diagnosticProvider.getDiagnostics(
+                  documentText
+                )
+
+                val map = LocationMap(documentText)
+
+                diags
+                  .map(LSPDiagnostic(_, map))
+              },
           )
-
-          val map = LocationMap(documentText)
-
-          diags
-            .map(LSPDiagnostic(_, map))
-        }
 
       def definition(documentUri: Uri, position: LSPPosition): F[List[LSPLocation]] =
         TextDocumentManager[F]
@@ -318,34 +341,41 @@ object LanguageServer {
           DocumentSymbolProvider.make(text).map(LSPDocumentSymbol(_, map))
         }
 
-      def didChangeWatchedFiles: F[Unit] = ServerLoader[F]
-        .prepare(workspaceFolders = None)
-        .flatMap {
-          case prepared if !prepared.isChanged =>
-            Feedback[F].showInfoMessage(
-              "No change detected, not rebuilding server"
-            )
-          case prepared =>
-            Feedback[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
-              Progress
-                .create(title = "Rebuilding server", message = None)
-                .use {
-                  ServerLoader[F]
-                    .perform(prepared.params, _)
-                }
-                .onError { case e =>
-                  LanguageClient[F].showErrorMessage(
-                    "Couldn't reload server: " + e.getMessage
-                  )
-                }
-                .flatMap { stats =>
-                  LanguageClient[F].refreshDiagnostics *>
-                    LanguageClient[F].refreshCodeLenses *>
-                    Feedback[F].showInfoMessage(
-                      s"Reloaded Smithy Playground server with ${stats.render}"
-                    )
-                }
-        }
+      def didChangeWatchedFiles: F[Unit] =
+        // Q: is this safe? or should we do this in the background / with a mutex of sorts?
+        ServerLoader[F].isInitialized.waitUntil(identity) *>
+          ServerLoader[F]
+            .prepare(workspaceFolders = None)
+            .flatMap {
+              case prepared if !prepared.isChanged =>
+                Feedback[F].showInfoMessage(
+                  "No change detected, not rebuilding server"
+                )
+
+              case prepared => reloadServer(prepared)
+            }
+
+      private def reloadServer(prepared: PrepareResult[serverLoader.Params]) = {
+        Feedback[F].showInfoMessage("Detected changes, will try to rebuild server...") *>
+          Progress
+            .create(title = "Rebuilding server", message = None)
+            .use {
+              ServerLoader[F]
+                .perform(prepared.params, _)
+            }
+            .onError { case e =>
+              LanguageClient[F].showErrorMessage(
+                "Couldn't reload server: " + e.getMessage
+              )
+            }
+            .flatMap { stats =>
+              LanguageClient[F].refreshDiagnostics *>
+                LanguageClient[F].refreshCodeLenses *>
+                Feedback[F].showInfoMessage(
+                  s"Reloaded Smithy Playground server with ${stats.render}"
+                )
+            }
+      }
         .onError { case e =>
           LanguageClient[F].showErrorMessage(
             s"Couldn't rebuild server. Check your config file and the output panel.\nError: ${e.getMessage()}"
