@@ -248,7 +248,7 @@ lazy val lspKernel = module("lsp-kernel")
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-core" % "0.14.16",
       "org.http4s" %% "http4s-ember-client" % "0.23.38",
-      "io.get-coursier" % "interface" % "1.0.29",
+      "io.get-coursier" % "interface" % "1.0.30",
       "org.typelevel" %% "cats-tagless-core" % "0.16.5",
       "org.http4s" %% "http4s-ember-server" % "0.23.38" % Test,
     ),
