@@ -1,11 +1,15 @@
 package playground.lsp
 
 import cats.MonadThrow
+import cats.effect.kernel.Concurrent
 import cats.effect.kernel.Ref
+import cats.effect.kernel.Resource
+import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import fs2.concurrent.Signal
+import fs2.concurrent.SignallingRef
 import playground.PlaygroundConfig
 import playground.Uri
-import playground.language.Feedback
 import playground.language.Progress
 
 trait ServerLoader[F[_]] {
@@ -21,9 +25,35 @@ trait ServerLoader[F[_]] {
   ): F[ServerLoader.WorkspaceStats]
 
   def server: LanguageServer[F]
+  def isInitialized: Signal[F, Boolean]
 }
 
 object ServerLoader {
+
+  trait Queue[F[_]] {
+    def schedule(task: F[Unit]): F[Unit]
+  }
+
+  object Queue {
+
+    def apply[F[_]](
+      implicit F: Queue[F]
+    ): Queue[F] = F
+
+    def createCancelable[F[_]: Concurrent]
+      : Resource[F, Queue[F]] = cats.effect.std.Queue.synchronous[F, F[Unit]].toResource.flatMap {
+      q =>
+        fs2
+          .Stream
+          .fromQueueUnterminated(q)
+          .switchMap(fs2.Stream.exec)
+          .compile
+          .drain
+          .background
+          .as(q.offer(_))
+    }
+
+  }
 
   def apply[F[_]](
     implicit F: ServerLoader[F]
@@ -61,7 +91,7 @@ object ServerLoader {
 
   }
 
-  def instance[F[_]: ServerBuilder: BuildLoader: Feedback: Ref.Make: MonadThrow]
+  def instance[F[_]: ServerBuilder: BuildLoader: Concurrent]
     : F[ServerLoader.Aux[F, BuildLoader.Loaded]] = {
     case class State(
       currentServer: LanguageServer[F],
@@ -72,7 +102,7 @@ object ServerLoader {
     }
 
     (
-      Ref[F]
+      SignallingRef[F]
         .of(State.initial),
       Ref[F].of(Option.empty[List[Uri]]),
     )
@@ -116,10 +146,15 @@ object ServerLoader {
               .as(WorkspaceStats.fromPlaygroundConfig(params.config))
 
             val server: LanguageServer[F] = LanguageServer.defer(stateRef.get.map(_.currentServer))
+
+            val isInitialized: Signal[F, Boolean] = stateRef.map(
+              _.lastUsedConfig.exists(!_.isDummy)
+            )
           }
       }
       .flatTap { serverLoader =>
         // loading with dummy config to initialize server without dependencies
+        // we don't report progress either, as this is a very quick / uninteresting operation
         serverLoader.perform(BuildLoader.Loaded.default, Progress.ignored[F])
       }
   }
