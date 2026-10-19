@@ -21,10 +21,12 @@ object Main extends IOApp.Simple {
   private val stdin_raw = System.in
   private val stdout_raw = System.out
 
-  def run: IO[Unit] =
+  def run: IO[Unit] = {
     IO(System.setOut(logOut)) *>
-      launch(stdin_raw, stdout_raw).useEval *>
-      IO.println("Server terminated without errors")
+      launch(stdin_raw, stdout_raw).useEval
+  }.guaranteeCase { oc =>
+    IO.println(s"Server terminated with result: $oc")
+  }
 
   def launch(
     in: InputStream,
