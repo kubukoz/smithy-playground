@@ -46,6 +46,8 @@ trait LanguageServerIntegrationTests {
           progressToken = Some("init-progress"),
           clientCapabilities = ClientCapabilities(windowProgress = true),
         ) *>
+          // problem: initialize is now async, so we need something to wait for.
+          // this would require some changes to the LanguageServer API which smells like a bit of a leak.
           assertStartupEvents(client)
             .as(result)
       }
