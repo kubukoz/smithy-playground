@@ -249,7 +249,7 @@ lazy val lspKernel = module("lsp-kernel")
       "io.circe" %% "circe-core" % "0.14.17",
       "org.http4s" %% "http4s-ember-client" % "0.23.38",
       "io.get-coursier" % "interface" % "1.0.30",
-      "org.typelevel" %% "cats-tagless-core" % "0.16.5",
+      "org.typelevel" %% "cats-tagless-core" % "0.16.6",
       "org.http4s" %% "http4s-ember-server" % "0.23.38" % Test,
     ),
     (Test / test) := {
