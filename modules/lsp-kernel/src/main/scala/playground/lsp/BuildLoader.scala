@@ -30,7 +30,9 @@ object BuildLoader {
   case class Loaded(
     config: PlaygroundConfig,
     configFilePath: Path,
-  )
+  ) {
+    def isDummy: Boolean = this == Loaded.default
+  }
 
   object Loaded {
     // Path is irrelevant when no imports are provided.
