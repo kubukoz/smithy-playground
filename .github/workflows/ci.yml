@@ -134,7 +134,7 @@ jobs:
           distribution: temurin
           java-version: 11
 
-      - uses: coursier/setup-action@v1
+      - uses: coursier/setup-action@v3
         with:
           apps: scala-steward
 
