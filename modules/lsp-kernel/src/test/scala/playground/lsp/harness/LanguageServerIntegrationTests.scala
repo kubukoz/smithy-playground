@@ -76,7 +76,7 @@ trait LanguageServerIntegrationTests {
         ),
         Event.ReportProgress(
           progressToken,
-          "Loaded model... (379 shapes)",
+          "Loaded model... (441 shapes)",
         ),
         Event.ReportProgress(
           progressToken,
