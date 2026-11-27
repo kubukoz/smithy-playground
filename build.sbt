@@ -18,8 +18,20 @@ inThisBuild(
 
 ThisBuild / githubWorkflowSbtCommand := "nix develop --command sbt"
 
-// scala-steward (used in the steward config validation job) requires Java 17+
-ThisBuild / githubWorkflowJavaVersions := List(JavaSpec.temurin("17"))
+// scala-steward requires Java 17+, but sbt-typelevel hardcodes Java 11 in the validate-steward job
+ThisBuild / githubWorkflowAddedJobs ~= (_.map {
+  case job if job.id == "validate-steward" =>
+    val java17 = JavaSpec.temurin("17")
+    job
+      .withJavas(List(java17))
+      .withSteps(
+        job
+          .steps
+          .filterNot(_.name.exists(_.startsWith("Setup Java")))
+          .patch(1, WorkflowStep.SetupJava(List(java17), false), 0)
+      )
+  case job => job
+})
 
 ThisBuild / githubWorkflowJobSetup ~= (_.filter(
   _.name.exists(_.contains("Checkout current branch"))
