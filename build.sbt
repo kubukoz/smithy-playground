@@ -12,7 +12,7 @@ inThisBuild(
       )
     ),
     tlBaseVersion := "0.10",
-    tlJdkRelease := Some(11),
+    tlJdkRelease := Some(17),
   )
 )
 
@@ -81,6 +81,7 @@ val ScalaLTS = "3.3.8"
 val ScalaNext = "3.7.4"
 
 val jsoniterVersion = "2.43.0"
+val smithyVersion = "1.75.0"
 
 ThisBuild / scalaVersion := ScalaNext
 
@@ -224,7 +225,8 @@ lazy val core = module("core")
       "com.disneystreaming.smithy4s" %% "smithy4s-aws-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value % Test,
       "com.disneystreaming.alloy" % "alloy-core" % "0.3.32" % Test,
-      "software.amazon.smithy" % "smithy-aws-traits" % "1.75.0" % Test,
+      "software.amazon.smithy" % "smithy-model" % smithyVersion,
+      "software.amazon.smithy" % "smithy-aws-traits" % smithyVersion % Test,
     )
   )
   .dependsOn(

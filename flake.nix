@@ -12,6 +12,7 @@
           buildInputs = [
             pkgs.yarn
             pkgs.nodejs
+            pkgs.jdk17
             pkgs.sbt
             pkgs.jless
             pkgs.gnupg
